@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildCloudinaryPdfPreviewUrl,
   CHUNKED_UPLOAD_THRESHOLD_BYTES,
+  DIRECT_UPLOAD_ATTEMPTS,
   getArtworkUploadDiagnostic,
   getArtworkUploadEvidence,
   MAX_ARTWORK_BYTES,
@@ -11,7 +12,6 @@ import {
   ARTWORK_SIZE_MESSAGE,
   getArtworkUploadMessage,
   UPLOAD_CHUNK_BYTES,
-  UPLOAD_STALL_TIMEOUT_MS,
   uploadArtworkFile,
   validateArtworkFile,
 } from './uploadArtworkFile';
@@ -128,8 +128,8 @@ class SuccessfulChunkedUploadXhr {
 beforeEach(() => {
   vi.stubGlobal('File', TestFile);
   vi.stubGlobal('window', {
-    setTimeout: globalThis.setTimeout.bind(globalThis),
-    clearTimeout: globalThis.clearTimeout.bind(globalThis),
+    setTimeout: (...args: Parameters<typeof setTimeout>) => globalThis.setTimeout(...args),
+    clearTimeout: (...args: Parameters<typeof clearTimeout>) => globalThis.clearTimeout(...args),
   });
 });
 
@@ -387,9 +387,68 @@ describe('same-origin uploads and stalled recovery', () => {
     vi.stubGlobal('XMLHttpRequest', SilentXhr);
     const pending = uploadArtworkFile(new File(['original'], 'original.png', { type: 'image/png' }));
     const rejected = expect(pending).rejects.toThrow('stopped making progress');
-    await vi.advanceTimersByTimeAsync(UPLOAD_STALL_TIMEOUT_MS + 1);
+    await vi.runAllTimersAsync();
     await rejected;
-    expect(abort).toHaveBeenCalledOnce();
+    expect(abort).toHaveBeenCalledTimes(DIRECT_UPLOAD_ATTEMPTS);
+  });
+
+  it('recovers a small PNG after both the first upload and first ticket time out', async () => {
+    vi.useFakeTimers();
+    const signals: AbortSignal[] = [];
+    const fetchSpy = vi.fn(async (_url: string, options?: RequestInit) => {
+      signals.push(options?.signal as AbortSignal);
+      if (signals.length <= 2) return new Promise<Response>(() => {});
+      return new Response(JSON.stringify(ticket), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubGlobal('XMLHttpRequest', SuccessfulUploadXhr);
+    const file = new File([new Uint8Array(2_144_002)], 'original.png', { type: 'image/png' });
+    const pending = uploadArtworkFile(file);
+    await vi.runAllTimersAsync();
+    const result = await pending;
+    expect(result.transport).toBe('cloudinary-direct');
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(signals.slice(0, 2).every(signal => signal.aborted)).toBe(true);
+    expect((SuccessfulUploadXhr.sentFormData?.get('file') as File).size).toBe(file.size);
+  });
+
+  it('bounds repeated small-file ticket failures to three attempts', async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ error: 'Unavailable' }), { status: 503 }));
+    const xhrSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubGlobal('XMLHttpRequest', xhrSpy);
+    const pending = uploadArtworkFile(new File(['original'], 'original.png', { type: 'image/png' }));
+    const rejected = expect(pending).rejects.toMatchObject({ phase: 'ticket', status: 503 });
+    await vi.runAllTimersAsync();
+    await rejected;
+    expect(fetchSpy).toHaveBeenCalledTimes(1 + DIRECT_UPLOAD_ATTEMPTS);
+    expect(xhrSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not retry a definitive ticket rejection', async () => {
+    const fetchSpy = vi.fn(async (url: string) => new Response(JSON.stringify({ error: 'Rejected' }), {
+      status: url.includes('upload-file') ? 503 : 415,
+    }));
+    vi.stubGlobal('fetch', fetchSpy);
+    await expect(uploadArtworkFile(new File(['original'], 'original.png', { type: 'image/png' })))
+      .rejects.toMatchObject({ phase: 'ticket', status: 415 });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('cancels during retry backoff without sending another request', async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ error: 'Unavailable' }), { status: 503 }));
+    vi.stubGlobal('fetch', fetchSpy);
+    const pending = uploadArtworkFile(new File(['original'], 'original.png', { type: 'image/png' }), { signal: controller.signal });
+    const rejected = expect(pending).rejects.toThrow();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    controller.abort();
+    await vi.runAllTimersAsync();
+    await rejected;
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 });
 
