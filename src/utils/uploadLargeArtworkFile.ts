@@ -1,3 +1,4 @@
+import { withUploadDeadline } from './uploadDeadline';
 import {
   ArtworkUploadError, normalizeUploadResponse, uploadArtworkFile,
   type UploadArtworkOptions, type ArtworkUploadResult,
@@ -52,18 +53,20 @@ async function request(action: string, body: BodyInit, options: UploadArtworkOpt
   if (index != null) query.set('index', String(index));
   for (let attempt = 1; attempt <= 3; attempt++) {
     if (options.signal?.aborted) throw new DOMException('Upload cancelled', 'AbortError');
-    const controller = new AbortController();
-    const abort = () => controller.abort();
-    options.signal?.addEventListener('abort', abort, { once: true });
-    const timeout = window.setTimeout(abort, 120_000);
+    options.onAttempt?.(attempt, 3);
     try {
-      const response = action === 'chunk' && session && body instanceof Blob
-        ? await sendArtworkChunk(`${ENDPOINT}?${query}`, body, session.token, controller.signal, onProgress)
-        : await fetch(`${ENDPOINT}?${query}`, {
-        method: 'POST', body, signal: controller.signal,
-        headers: { 'Content-Type': action === 'chunk' ? 'application/octet-stream' : 'application/json', ...(session ? { 'X-Artwork-Token': session.token } : {}) },
-      });
-      const data = await response.json().catch(() => ({}));
+      // Control requests must fail before the page's idle watchdog so retries
+      // can run. Include response parsing: abort alone may leave it pending.
+      const { response, data } = await withUploadDeadline(async signal => {
+        const response = action === 'chunk' && session && body instanceof Blob
+          ? await sendArtworkChunk(`${ENDPOINT}?${query}`, body, session.token, signal, onProgress)
+          : await fetch(`${ENDPOINT}?${query}`, {
+            method: 'POST', body, signal,
+            headers: { 'Content-Type': action === 'chunk' ? 'application/octet-stream' : 'application/json', ...(session ? { 'X-Artwork-Token': session.token } : {}) },
+          });
+        const data = await response.json().catch(() => ({}));
+        return { response, data };
+      }, action === 'chunk' ? 120_000 : 30_000, options.signal);
       if (!response.ok) throw new ArtworkUploadError(data.error || `Artwork upload failed (${response.status}).`, {
         phase: 'chunked', status: response.status, retryable: response.status >= 500 || response.status === 408 || response.status === 429,
       });
@@ -71,9 +74,6 @@ async function request(action: string, body: BodyInit, options: UploadArtworkOpt
     } catch (error) {
       if (options.signal?.aborted || attempt === 3 || (error instanceof ArtworkUploadError && !error.retryable)) throw error;
       await new Promise(resolve => window.setTimeout(resolve, 600 * attempt));
-    } finally {
-      window.clearTimeout(timeout);
-      options.signal?.removeEventListener('abort', abort);
     }
   }
   throw new Error('Artwork upload did not complete');
@@ -124,7 +124,7 @@ export async function uploadLargeArtworkFile(file: File, options: UploadArtworkO
     const preview = await makePreview(file, options);
     // Preview upload uses the established small-file path. Production always
     // points to the untouched original below, never to this display image.
-    const savedPreview = await uploadArtworkFile(preview.file, { signal: options.signal });
+    const savedPreview = await uploadArtworkFile(preview.file, { signal: options.signal, onAttempt: options.onAttempt });
     const session = await request('start', JSON.stringify({ fileName: file.name, size: file.size }), options);
     if (!session.id || !session.token || !Number.isSafeInteger(session.chunkBytes) || session.chunkBytes <= 0 || session.chunkBytes > 3 * 1024 * 1024) {
       throw new ArtworkUploadError('Artwork upload session was incomplete.', { phase: 'ticket', retryable: true });
