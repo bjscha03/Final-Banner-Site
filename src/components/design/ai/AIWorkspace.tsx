@@ -167,6 +167,10 @@ function imageSrc(concept: AIConcept) {
   return `data:${concept.mimeType};base64,${concept.imageBase64}`;
 }
 
+function formatDimension(inches: number) {
+  return inches % 12 === 0 ? `${inches / 12} ft` : `${inches} in`;
+}
+
 function formatDuration(milliseconds: number) {
   if (!milliseconds) return '—';
   return `${(milliseconds / 1000).toFixed(1)}s`;
@@ -689,7 +693,7 @@ export default function AIWorkspace(props: Props) {
           <div>
             <div className="ai-studio-control-heading">
               <h3>Bring your idea to life</h3>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{brief.widthIn / 12} × {brief.heightIn / 12} ft · {props.materialLabel || brief.material}</span>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{formatDimension(brief.widthIn)} × {formatDimension(brief.heightIn)} · {props.materialLabel || brief.material}</span>
             </div>
             <label htmlFor="ai-description" className="mt-4 block text-sm font-bold text-slate-800">What are we creating?</label>
             <textarea id="ai-description" aria-label="Describe the design you want" value={brief.description} disabled={Boolean(stage)} onChange={(event) => updateBrief('description', event.target.value.slice(0, 1200))} rows={5} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-base shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="Example: A polished grand-opening design for a family restaurant, with warm food photography, strong contrast, and space for a headline and offer." />
@@ -819,8 +823,8 @@ export default function AIWorkspace(props: Props) {
             <div className="ai-studio-canvas">
             <div className="ai-studio-canvas-toolbar flex flex-wrap items-center justify-between gap-3"><div><h4 className="text-lg font-black text-[#0b1f3a]">Version {concepts.findIndex(item => item.versionId === selected.versionId) + 1} — selected</h4><p className="text-sm text-slate-600">This is the artwork that will continue to your order.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={undo} disabled={!history.length || Boolean(stage)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold disabled:opacity-40"><Undo2 className="h-4 w-4" /> Undo</button><button type="button" onClick={redoEdit} disabled={!redo.length || Boolean(stage)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold disabled:opacity-40"><Redo2 className="h-4 w-4" /> Redo</button><button type="button" onClick={() => setFullPreview(true)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold"><Maximize2 className="h-4 w-4" /> Full preview</button></div></div>
             <div className="ai-studio-artwork">
-              <div className="ai-studio-width">{brief.widthIn / 12} ft</div>
-              <div className="ai-studio-height">{brief.heightIn / 12} ft</div>
+              <div className="ai-studio-width">{formatDimension(brief.widthIn)}</div>
+              <div className="ai-studio-height">{formatDimension(brief.heightIn)}</div>
               <div className="ai-studio-artwork-image"><img src={imageSrc(selected)} alt="Complete selected flat print artwork" className="h-full w-full object-contain" /></div>
             </div>
             <p className="ai-studio-canvas-caption">Complete artwork · Nothing cropped from your preview</p>
