@@ -25,7 +25,7 @@ async function fixture() {
     './provider.cjs': { editImage, planDesignEdit, verifyModelAccess },
     './storage.cjs': { readTemporaryArtwork: vi.fn(async () => ({ buffer: background, mimeType: 'image/png' })), storeTemporaryArtwork, isTemporaryStorageConfigured: () => true, createJob: vi.fn(async () => ({ record: { status: 'queued' }, reference: 'queued-ref' })) },
     './config.cjs': { ...localRequire('./config.cjs'), isEnabled: () => true },
-    './security.cjs': { ...localRequire('./security.cjs'), authorize: () => ({ session: { sub: 'test-admin' } }), enforceBodyLimit: () => null, rateLimit: () => null, idempotencyKey: () => 'test-key', runIdempotent: (_key, task) => task() },
+    './security.cjs': { ...localRequire('./security.cjs'), authorize: () => ({ session: { sub: 'test-admin', admin: true } }), enforceBodyLimit: () => null, rateLimit: () => null, idempotencyKey: () => 'test-key', runIdempotent: (_key, task) => task() },
     './image-utils.cjs': { ...localRequire('./image-utils.cjs'), normalizeBackground, planCanvas: () => ({ finalWidth: 160, finalHeight: 80, providerWidth: 160, providerHeight: 80, providerSize: '160x80', strategy: 'test' }) },
     './compositor.cjs': { compositeArtwork },
     './validation.cjs': { validateArtwork },
@@ -128,13 +128,15 @@ describe('protected uploaded-logo removal', () => {
     expect(result.concept.logoLayer).toBeTruthy();
   });
 
-  it('routes the visible Remove logo button through the reviewable edit when a design exists', () => {
+  it('retains the original and selects a new gallery version after removing a logo', () => {
     const source = fs.readFileSync(new URL('../../../src/components/design/ai/AIWorkspace.tsx', import.meta.url), 'utf8');
     expect(source).toContain("kind === 'logo' && selected?.logoImage");
     expect(source).toContain('void edit(true, true, true)');
     expect(source).toContain("editMode: removeLogo ? 'remove-logo'");
     expect(source).toContain('currentBackgroundRef: selected.backgroundRef');
-    expect(source).toContain('setPendingEdit(');
-    expect(source).toContain('Only your uploaded logo was removed; the AI-created artwork underneath stayed unchanged.');
+    expect(source).toContain('setConcepts(items => collectVersions(items, [edited]))');
+    expect(source).toContain('setHistory(items => [...items, source].slice(-20))');
+    expect(source).toContain('setSelectedId(edited.versionId)');
+    expect(source).toContain('logoImage: body.logoRemoved ? null : context.logoImage');
   });
 });
