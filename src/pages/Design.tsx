@@ -512,6 +512,7 @@ const Design: React.FC = () => {
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadAttemptActivity, setUploadAttemptActivity] = useState(0);
   const [uploadedFile, setUploadedFile] = useState<UploadedArtworkFile | null>(null);
   const fileUploaderRef = useRef<FileUploaderHandle>(null);
   const uploadedFileRef = useRef<UploadedArtworkFile | null>(null);
@@ -1269,6 +1270,7 @@ const Design: React.FC = () => {
           if (generation === uploadGenerationRef.current) setUploadProgress(fraction * 100);
         },
         onAttempt: (attempt, maximum) => {
+          if (generation === uploadGenerationRef.current) setUploadAttemptActivity(value => value + 1);
           console.info('[artwork_upload]', {
             correlationId,
             stage: 'direct_upload_attempt',
@@ -1555,7 +1557,7 @@ const Design: React.FC = () => {
     setUploadError('This upload stopped responding. Your file and choices are saved here. Tap Retry upload to try again.');
     const file = activeUploadFileRef.current;
     logUx('upload_timeout', file ? getArtworkUploadDiagnostic(null, file) : undefined, file ? getArtworkUploadEvidence('Upload stopped making progress or exceeded its time limit', file) : undefined);
-  }, activeUploadFileRef.current?.size);
+  }, activeUploadFileRef.current?.size, uploadAttemptActivity);
 
   const ensurePermanentArtworkUploaded = useCallback(async (): Promise<UploadedArtworkFile | null> => {
     let current = uploadedFileRef.current;

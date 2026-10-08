@@ -6,12 +6,12 @@ import { useUploadWatchdog, UPLOAD_IDLE_LIMIT_MS, UPLOAD_TOTAL_LIMIT_MS, LARGE_U
 
 let root: Root;
 let timeout: ReturnType<typeof vi.fn>;
-function Harness({ active, progress, fileBytes }: { active: boolean; progress: number; fileBytes: number }) {
-  useUploadWatchdog(active, progress, timeout, fileBytes);
+function Harness({ active, progress, fileBytes, attemptActivity }: { active: boolean; progress: number; fileBytes: number; attemptActivity: number }) {
+  useUploadWatchdog(active, progress, timeout, fileBytes, attemptActivity);
   return null;
 }
-function render(active: boolean, progress = 0, fileBytes = 0) {
-  act(() => root.render(<Harness active={active} progress={progress} fileBytes={fileBytes} />));
+function render(active: boolean, progress = 0, fileBytes = 0, attemptActivity = 0) {
+  act(() => root.render(<Harness active={active} progress={progress} fileBytes={fileBytes} attemptActivity={attemptActivity} />));
 }
 beforeEach(() => {
   vi.useFakeTimers();
@@ -22,6 +22,26 @@ beforeEach(() => {
 afterEach(() => { act(() => root.unmount()); vi.useRealTimers(); });
 
 describe('upload lifecycle watchdog', () => {
+  it('lets a small-file ticket retry finish beyond the original idle deadline', () => {
+    render(true, 0, 2_144_002);
+    act(() => vi.advanceTimersByTime(20_000));
+    render(true, 0, 2_144_002, 1);
+    act(() => vi.advanceTimersByTime(15_800));
+    render(true, 0, 2_144_002, 2);
+    act(() => vi.advanceTimersByTime(15_000));
+    expect(timeout).not.toHaveBeenCalled();
+    render(false, 100, 2_144_002, 2);
+    act(() => vi.advanceTimersByTime(UPLOAD_TOTAL_LIMIT_MS));
+    expect(timeout).not.toHaveBeenCalled();
+  });
+  it('keeps the total deadline even when every retry resets the idle timer', () => {
+    render(true);
+    for (let attempt = 1; attempt <= 6; attempt++) {
+      act(() => vi.advanceTimersByTime(30_000));
+      render(true, 0, 0, attempt);
+    }
+    expect(timeout).toHaveBeenCalledOnce();
+  });
   it('keeps a large upload alive beyond three minutes while bytes are moving', () => {
     const size = 300 * 1024 * 1024;
     render(true, 0, size);
