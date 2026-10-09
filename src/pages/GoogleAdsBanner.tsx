@@ -1567,7 +1567,7 @@ const GoogleAdsBanner: React.FC = () => {
 
   const applyFittedArtwork = (next: UploadedArtworkFile, expectedIdentity: string) => {
     const previous = uploadedFileRef.current;
-    if (!previous || expectedIdentity !== artworkFitIdentity(previous, widthIn, heightIn)) {
+    if (!previous || expectedIdentity !== artworkFitIdentity(previous, widthIn, heightIn, isCarMagnet ? 'car_magnet' : 'banner')) {
       throw new Error('Your artwork or dimensions changed. Generate a fitted version for your current selection.');
     }
     let normalized: NormalizedArtworkTransform | null = null;
@@ -3088,7 +3088,7 @@ const GoogleAdsBanner: React.FC = () => {
                     ) : bannerFinishingOptions}
                   </div>
                 </ConfigCard>);
-  const artworkFitControls = !isYardSign && !isCarMagnet && ENABLE_AI && uploadedFile ? (
+  const artworkFitControls = !isYardSign && ENABLE_AI && uploadedFile ? (
     <ArtworkFitButton onClick={() => setFitModalOpen(true)}
       disabled={!hasCommittedBannerSize || isUploading || isProcessingUpsell || !hasPermanentArtwork(uploadedFile)}
       onRestore={fitUndo?.appliedIdentity === uploadedFile.editorIdentity ? restoreArtworkBeforeFit : undefined} />
@@ -3729,7 +3729,7 @@ const GoogleAdsBanner: React.FC = () => {
           }
         />
 
-      <AIArtworkFitDialog open={fitModalOpen && !isYardSign && !isCarMagnet} onOpenChange={setFitModalOpen}
+      <AIArtworkFitDialog open={fitModalOpen && !isYardSign} productType={isCarMagnet ? 'car_magnet' : 'banner'} onOpenChange={setFitModalOpen}
         artwork={uploadedFile} widthIn={widthIn} heightIn={heightIn} onApply={applyFittedArtwork} />
 
       {/* Preview Modal */}

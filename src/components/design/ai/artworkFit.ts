@@ -4,6 +4,8 @@ import { base64ToFile } from '@/utils/base64ToFile';
 import { uploadArtworkFile } from '@/utils/uploadArtworkFile';
 import { preloadPreviewImage } from '@/lib/previewImageCache';
 
+export type ArtworkFitProduct = 'banner' | 'yard_sign' | 'car_magnet';
+
 export type ArtworkFitResult = {
   id: string; sourceHash: string; imageBase64: string; mimeType: string;
   widthIn: number; heightIn: number; widthPx: number; heightPx: number;
@@ -18,8 +20,9 @@ export function canApplyArtworkFit(result: ArtworkFitResult | null | undefined):
     && checks.missing.length === 0 && checks.added.length === 0 && !checks.blockingIssues?.length);
 }
 
-export function artworkFitIdentity(artwork: UploadedArtworkFile | null, widthIn: number, heightIn: number) {
-  return [artwork?.editorIdentity || artwork?.productionPublicId || artwork?.fileKey || artwork?.url || '', widthIn, heightIn].join('|');
+export function artworkFitIdentity(artwork: UploadedArtworkFile | null, widthIn: number, heightIn: number, productType: ArtworkFitProduct = 'banner') {
+  const identity = [artwork?.editorIdentity || artwork?.productionPublicId || artwork?.fileKey || artwork?.url || '', widthIn, heightIn].join('|');
+  return productType === 'banner' ? identity : `${identity}|${productType}`;
 }
 
 /** Read the uncomposed artwork at useful resolution, not its small UI thumbnail. */

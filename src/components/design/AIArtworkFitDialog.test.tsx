@@ -119,7 +119,7 @@ it('keeps the last preview and retries the same attempt after a failed replaceme
   await render(); await click('Create fitted version');
   vi.mocked(runBackgroundJob).mockRejectedValueOnce(new Error('Temporary connection failure'));
   await click('Try another layout');
-  expect(document.querySelector('img[alt="AI layout at your selected banner dimensions"]')).not.toBeNull();
+  expect(document.querySelector('img[alt="AI layout at your selected product dimensions"]')).not.toBeNull();
   expect(button('Retry same request')).toBeTruthy();
   await click('Retry same request');
   expect(vi.mocked(runBackgroundJob).mock.calls.slice(1).map(call => call[1].attempt)).toEqual([1, 1]);
@@ -139,4 +139,24 @@ it('shows the server cooldown and prevents repeated retry clicks until it expire
     await click('Retry same request');
     expect(runBackgroundJob).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ attempt: 1 }), expect.anything(), expect.anything(), expect.anything(), undefined, undefined, 'original-1|120|48');
   } finally { vi.useRealTimers(); }
+});
+
+
+it.each(['yard_sign', 'car_magnet'] as const)('fits %s using product dimensions and isolates its request identity', async productType => {
+  props = { ...props, productType, widthIn: 24, heightIn: 18 };
+  await render(); await click('Create fitted version');
+  expect(runBackgroundJob).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ productType, widthIn: 24, heightIn: 18 }), expect.anything(), expect.anything(), expect.anything(), undefined, undefined, `original-1|24|18|${productType}`);
+  await checkReview(); await click('Use this version');
+  expect(props.onApply).toHaveBeenCalledExactlyOnceWith(fitted, `original-1|24|18|${productType}`);
+});
+
+it('discards an in-flight result when the product changes at the same dimensions', async () => {
+  let resolve!: (value: any) => void;
+  vi.mocked(runBackgroundJob).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  props = { ...props, widthIn: 24, heightIn: 18 };
+  await render(); await click('Create fitted version');
+  props = { ...props, productType: 'car_magnet' }; await render();
+  await act(async () => resolve({ fit: success }));
+  expect(button('Use this version')).toBeUndefined();
+  expect(props.onApply).not.toHaveBeenCalled();
 });

@@ -47,6 +47,11 @@ import {
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
 import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
+import AIArtworkFitDialog, { ArtworkFitButton } from './AIArtworkFitDialog';
+import { artworkFitIdentity } from './ai/artworkFit';
+import { applyYardSignFit, yardSignFitArtwork } from './ai/yardSignArtworkFit';
+import type { UploadedArtworkFile } from '@/lib/cartArtworkForEditor';
+import type { NormalizedArtworkTransform } from '@/lib/previewLifecycle';
 import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
 import ArtworkPreviewEditor, {
@@ -183,6 +188,12 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
   const [isSavingPreview, setIsSavingPreview] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [fitDesignId, setFitDesignId] = useState<string | null>(null);
+  const designsRef = useRef(designs); designsRef.current = designs;
+  const [fitUndo, setFitUndo] = useState<Record<string, { original: YardSignDesign; appliedFileKey: string; normalized: NormalizedArtworkTransform | null }>>({});
+  const [restoredFitTransform, setRestoredFitTransform] = useState<NormalizedArtworkTransform | null>(null);
+  const fitDesign = designs.find(design => design.id === fitDesignId);
+  const fitArtwork = fitDesign ? yardSignFitArtwork(fitDesign) : null;
   const fileUploaderRef = useRef<FileUploaderHandle>(null);
 
   useImperativeHandle(ref, () => ({
@@ -221,6 +232,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
   const openPreview = useCallback((designId: string) => {
     const design = designs.find(d => d.id === designId);
     setPreviewSaveError(null);
+    setRestoredFitTransform(null);
     setPreviewDesignId(designId);
     // Restore saved state if available, otherwise default
     setPreviewImgPos(design?.imgPos || { x: 0, y: 0 });
@@ -256,6 +268,42 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
   const previewCanvasRef = useRef<HTMLDivElement>(null);
   const previewEditorRef = useRef<ArtworkPreviewEditorHandle>(null);
   const [previewSaveError, setPreviewSaveError] = useState<string | null>(null);
+
+  const applyFittedArtwork = (artwork: UploadedArtworkFile, expectedIdentity: string) => {
+    const current = designsRef.current.find(design => design.id === fitDesignId);
+    if (!current || expectedIdentity !== artworkFitIdentity(yardSignFitArtwork(current), YARD_SIGN_WIDTH_IN, YARD_SIGN_HEIGHT_IN, 'yard_sign')) {
+      throw new Error('This design changed or was removed. Reopen AI fit for your current design.');
+    }
+    const previous = fitUndo[current.id];
+    let normalized: NormalizedArtworkTransform | null = null;
+    try { normalized = previewEditorRef.current?.getCompositionSnapshot().transform || null; } catch { /* Retain pixel placement below. */ }
+    const original = previous?.appliedFileKey === current.fileKey ? previous.original : {
+      ...current, imgPos: previewImgPos, imgScale: previewImgScale, imgScaleY: previewImgScaleY,
+      imgConstrain: previewConstrain, previewThumbnailUrl: undefined, placementPreview: undefined,
+    };
+    setFitUndo(value => ({ ...value, [current.id]: {
+      original, appliedFileKey: artwork.fileKey,
+      normalized: previous?.appliedFileKey === current.fileKey ? previous.normalized : normalized,
+    } }));
+    const updated = designsRef.current.map(design => design.id === current.id ? applyYardSignFit(design, artwork) : design);
+    designsRef.current = updated; onDesignsChange(updated);
+    setPreviewImgPos({ x: 0, y: 0 }); setPreviewImgScale(1); setPreviewImgScaleY(1); setPreviewConstrain(true);
+    setRestoredFitTransform(null); setPreviewSaveError(null);
+  };
+
+  const restoreArtworkBeforeFit = () => {
+    const current = designsRef.current.find(design => design.id === previewDesignId);
+    const undo = current && fitUndo[current.id];
+    if (!current || !undo || undo.appliedFileKey !== current.fileKey) return;
+    // Quantity may have changed since fitting; restore only artwork and placement.
+    const restored = { ...undo.original, quantity: current.quantity };
+    const updated = designsRef.current.map(design => design.id === current.id ? restored : design);
+    designsRef.current = updated; onDesignsChange(updated);
+    setPreviewImgPos(restored.imgPos || { x: 0, y: 0 }); setPreviewImgScale(restored.imgScale ?? 1);
+    setPreviewImgScaleY(restored.imgScaleY ?? restored.imgScale ?? 1); setPreviewConstrain(restored.imgConstrain ?? true);
+    setRestoredFitTransform(undo.normalized); setPreviewSaveError(null);
+    setFitUndo(value => { const next = { ...value }; delete next[current.id]; return next; });
+  };
 
   // Save preview state and generate thumbnail, then close
   const savePreviewAndClose = useCallback(async (): Promise<boolean> => {
@@ -754,13 +802,20 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
                 {/* Width wrapper — constrains max-width so padding-bottom produces correct height (cross-browser safe, fixes Safari aspect-ratio bug) */}
                 <div className="mx-auto" style={{ width: '100%', maxWidth: `${Math.round(400 * (24 / 18))}px` }}>
                   <ArtworkPreviewEditor
+                    key={`${previewDesign.id}|${previewDesign.fileKey}`}
                     ref={previewEditorRef}
-                    compositionKey={`yard-sign|${previewDesign.id}|${YARD_SIGN_WIDTH_IN}x${YARD_SIGN_HEIGHT_IN}`}
+                    initialNormalizedTransform={restoredFitTransform}
+                    compositionKey={`yard-sign|${previewDesign.id}|${previewDesign.fileKey}|${YARD_SIGN_WIDTH_IN}x${YARD_SIGN_HEIGHT_IN}`}
                     src={getPreviewModalSrc(previewDesign)}
                     alt="Yard Sign preview"
                     paddingPct={`${(18 / 24) * 100}%`}
                     containerRef={previewCanvasRef}
                     mobileToolbarContainer={mobileToolbarEl}
+                    fitControls={ENABLE_AI ? <ArtworkFitButton
+                      onClick={() => setFitDesignId(previewDesign.id)}
+                      disabled={isUploading || isSavingPreview}
+                      onRestore={fitUndo[previewDesign.id]?.appliedFileKey === previewDesign.fileKey ? restoreArtworkBeforeFit : undefined}
+                    /> : undefined}
                     value={{ x: previewImgPos.x, y: previewImgPos.y, scaleX: previewImgScale, scaleY: previewImgScaleY }}
                     onChange={(v: ArtworkTransform) => {
                       setPreviewImgPos({ x: v.x, y: v.y });
@@ -818,6 +873,12 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
           </div>
         </div>
       )}
+
+      <AIArtworkFitDialog
+        open={ENABLE_AI && Boolean(fitDesign)} onOpenChange={open => { if (!open) setFitDesignId(null); }}
+        artwork={fitArtwork} productType="yard_sign" widthIn={YARD_SIGN_WIDTH_IN} heightIn={YARD_SIGN_HEIGHT_IN}
+        onApply={applyFittedArtwork}
+      />
 
       {ENABLE_AI && showCreateWithAI && (
         <CreateWithAIModal

@@ -216,3 +216,24 @@ it('still blocks an edge repair if its new background introduces wording', async
   expect(result.fit.verification.added).toContain('sale');
   expect(dependencies.edit).toHaveBeenCalledTimes(2);
 });
+
+
+it.each([
+  ['yard_sign', 'yard sign', 24, 18],
+  ['car_magnet', 'car magnet', 18, 12],
+  ['car_magnet', 'car magnet', 24, 12],
+  ['car_magnet', 'car magnet', 24, 18],
+  ['car_magnet', 'car magnet', 42, 12],
+  ['car_magnet', 'car magnet', 72, 24],
+])('fits product case %j using verified flat print artwork', async (productType, label, widthIn, heightIn) => {
+  const dependencies = await fixtures();
+  const result = await runFitRequest({ ...await request(), productType, widthIn, heightIn }, { sub: 'customer-1' }, `product-${productType}-${widthIn}-${heightIn}`, undefined, dependencies);
+  expect(dependencies.edit.mock.calls[0][0].prompt).toContain(`The final ${label} is ${widthIn} inches wide by ${heightIn} inches high`);
+  expect(result.fit.widthPx / result.fit.heightPx).toBeCloseTo(widthIn / heightIn, 2);
+  expect(result.fit.verification.canApply).toBe(true);
+});
+
+it('keeps legacy banner requests valid and rejects unsupported product types', async () => {
+  expect(validateFitRequest(await request()).productType).toBe('banner');
+  expect(() => validateFitRequest({ productType: 'unsupported' })).toThrow('supported print product');
+});
