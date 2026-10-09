@@ -5,7 +5,7 @@ import { authenticatedJsonBody, authorizedHeaders } from '@/lib/serverAuth';
 import type { UploadedArtworkFile } from '@/lib/cartArtworkForEditor';
 import { fetchAIJson } from './ai/jobRequest';
 import { AIRequestRateLimitError, runBackgroundJob } from './ai/backgroundJob';
-import { artworkFitIdentity, canApplyArtworkFit, prepareArtworkFitSource, saveFittedArtwork, type ArtworkFitResult } from './ai/artworkFit';
+import { artworkFitIdentity, canApplyArtworkFit, prepareArtworkFitSource, saveFittedArtwork, type ArtworkFitResult, type ArtworkFitProduct } from './ai/artworkFit';
 import { logUx } from '@/lib/uxAnalytics';
 
 export function ArtworkFitButton({ onClick, disabled, onRestore }: { onClick: () => void; disabled?: boolean; onRestore?: () => void }) {
@@ -21,12 +21,12 @@ export function ArtworkFitButton({ onClick, disabled, onRestore }: { onClick: ()
 
 type Props = {
   open: boolean; onOpenChange: (open: boolean) => void; artwork: UploadedArtworkFile | null;
-  widthIn: number; heightIn: number;
+  widthIn: number; heightIn: number; productType?: ArtworkFitProduct;
   onApply: (artwork: UploadedArtworkFile, expectedIdentity: string) => void;
 };
 
-export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthIn, heightIn, onApply }: Props) {
-  const identity = artworkFitIdentity(artwork, widthIn, heightIn);
+export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthIn, heightIn, productType = 'banner', onApply }: Props) {
+  const identity = artworkFitIdentity(artwork, widthIn, heightIn, productType);
   const identityRef = useRef(identity); identityRef.current = identity;
   const [source, setSource] = useState('');
   const [result, setResult] = useState<ArtworkFitResult | null>(null);
@@ -97,7 +97,7 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
     try {
       logUx('ai_fit_start', { widthIn, heightIn });
       const response = await runBackgroundJob('/.netlify/functions/ai-designer-fit', {
-        sourceImage: source, widthIn, heightIn, attempt: nextAttempt,
+        sourceImage: source, widthIn, heightIn, productType, attempt: nextAttempt,
       }, activeController.signal, 'Preparing your design', setStage, undefined, undefined, requestIdentity);
       if (activeController.signal.aborted || requestIdentity !== identityRef.current) return;
       setResult(response.fit);
@@ -140,10 +140,10 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
       {loading && <p role="status" className="flex items-center gap-2 py-8"><Loader2 className="h-5 w-5 animate-spin" />Preparing your original artwork…</p>}
       {source && <div className="grid gap-4 sm:grid-cols-2">
         <figure className="min-w-0"><figcaption className="mb-2 text-sm font-bold">Original artwork</figcaption><div className="flex min-h-40 items-center justify-center rounded-xl border bg-slate-100 p-3"><img src={source} alt="Your original design, unchanged" className="max-h-72 max-w-full object-contain" /></div></figure>
-        <figure className="min-w-0"><figcaption className="mb-2 text-sm font-bold">{result ? 'Proposed layout' : 'Your selected banner shape'}</figcaption>
+        <figure className="min-w-0"><figcaption className="mb-2 text-sm font-bold">{result ? 'Proposed layout' : 'Your selected product shape'}</figcaption>
           <div className="flex min-h-40 items-center justify-center rounded-xl border bg-slate-100 p-3">
             <div className="relative w-full overflow-hidden bg-white shadow-sm" style={{ aspectRatio: `${widthIn} / ${heightIn}`, maxHeight: 400 }}>
-              {proposed ? <button type="button" onClick={() => setZoom(true)} aria-label="Enlarge proposed layout" className="block h-full w-full"><img src={proposed} alt="AI layout at your selected banner dimensions" className="h-full w-full object-contain" /></button>
+              {proposed ? <button type="button" onClick={() => setZoom(true)} aria-label="Enlarge proposed layout" className="block h-full w-full"><img src={proposed} alt="AI layout at your selected product dimensions" className="h-full w-full object-contain" /></button>
                 : <img src={source} alt="Original artwork fitted proportionally within your selected size" className="absolute inset-0 h-full w-full object-contain opacity-65" />}
             </div>
           </div>
