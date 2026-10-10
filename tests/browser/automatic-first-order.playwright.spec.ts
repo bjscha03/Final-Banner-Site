@@ -47,6 +47,7 @@ for (const width of [320, 390, 1440]) {
         background: '#18448d' } }).png().toBuffer();
       await page.locator('#upload-section input[type="file"]').setInputFiles({
         name: 'first-order-artwork.png', mimeType: 'image/png', buffer: artwork });
+      await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible({ timeout: 30_000 });
       await bar.getByRole('button', { name: 'Next: Finishing', exact: true }).click();
       const finishing = page.getByTestId('mobile-finishing-step');
       await expect(finishing).toBeVisible();

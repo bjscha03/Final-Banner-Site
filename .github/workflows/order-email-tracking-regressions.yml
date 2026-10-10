@@ -205,6 +205,14 @@ jobs:
               --project=chromium-1440x900 \
               --project=chromium-pixel8-portrait
 
+      - name: Save Admin browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-commerce-browser-failures
+          path: test-results/
+          retention-days: 7
+
       - name: Run real-browser artwork handoff regression
         run: |
           set -euo pipefail

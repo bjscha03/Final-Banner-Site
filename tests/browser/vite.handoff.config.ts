@@ -29,10 +29,16 @@ export default defineConfig({
           if (browserScenario && url.pathname.startsWith('/.netlify/functions/')) {
             const pricingScenario = browserScenario.startsWith('first-order-');
             let input: Record<string, unknown> = {};
-            if (pricingScenario) {
+            if (pricingScenario && url.pathname.endsWith('/validate-discount-code')) {
               const chunks: Buffer[] = [];
               for await (const chunk of req) chunks.push(Buffer.from(chunk));
-              if (chunks.length) input = JSON.parse(Buffer.concat(chunks).toString());
+              try {
+                if (chunks.length) input = JSON.parse(Buffer.concat(chunks).toString());
+              } catch {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ valid: false, error: 'Invalid test request' }));
+                return;
+              }
             } else req.resume();
             const body = pricingScenario && url.pathname.endsWith('/validate-discount-code')
               ? input.email === 'returning@example.com' ? { valid: false, error: 'Not eligible' }
