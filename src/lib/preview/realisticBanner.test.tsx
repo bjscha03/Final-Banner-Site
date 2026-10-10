@@ -74,8 +74,9 @@ describe('realistic banner order geometry', () => {
     'never adds light pixels or white edge strips to a solid %s by %s print',
     async (w, h) => {
       for (const pole_pockets of ['none', 'top-bottom', 'left', 'right']) {
-        const html = renderToStaticMarkup(<RealisticBannerScene item={{ ...item,
-          width_in: w, height_in: h, pole_pockets, grommets: '4-corners',
+        for (const limits of [[0, 0, 0], [16, 48, 64]]) {
+          const html = renderToStaticMarkup(<RealisticBannerScene item={{ ...item,
+            width_in: w, height_in: h, pole_pockets, grommets: '4-corners',
         } as CartItem} expanded />);
         const surface = html.match(/<svg class="realistic-banner-surface-light"[\s\S]*?<\/svg>/)![0];
         const width = 600;
@@ -83,14 +84,14 @@ describe('realistic banner order geometry', () => {
         // Rasterize the actual production SVG over borderless artwork. This
         // fails for the old white rim/hem even when the saved proof is correct.
         const svg = surface.replace('<svg ', `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" `)
-          .replace(/(<svg[^>]*>)/, '$1<rect width="100%" height="100%" fill="#103040"/>');
+          .replace(/(<svg[^>]*>)/, `$1<rect width="100%" height="100%" fill="rgb(${limits.join(',')})"/>`);
         const { data, info } = await sharp(Buffer.from(svg)).removeAlpha().raw().toBuffer({ resolveWithObject: true });
-        const limits = [16, 48, 64];
         let lightened = 0;
         for (let i = 0; i < data.length; i += info.channels) {
           if (limits.some((limit, channel) => data[i + channel] > limit + 1)) lightened++;
         }
         expect(lightened, `${w}×${h}, pockets: ${pole_pockets}`).toBe(0);
+        }
       }
     },
   );

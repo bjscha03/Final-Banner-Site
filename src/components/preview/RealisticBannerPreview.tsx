@@ -100,7 +100,7 @@ export function RealisticBannerScene({ item, expanded = false, previewSize = 320
             <linearGradient id={`${id}-hem`} x1="0" y1="0" x2="0" y2="1"><stop stopColor="black" stopOpacity=".04"/><stop offset=".45" stopColor="black" stopOpacity="0"/><stop offset="1" stopColor="black" stopOpacity=".12"/></linearGradient>
           </defs>
           <rect width={w} height={h} fill={`url(#${id}-satin)`} opacity={isMesh ? 0.35 : 1}/>
-          <rect x=".7" y=".7" width={Math.max(0, w - 1.4)} height={Math.max(0, h - 1.4)} fill="none" stroke="#171c23" strokeOpacity=".12" strokeWidth=".065"/>
+          <rect x=".7" y=".7" width={Math.max(0, w - 1.4)} height={Math.max(0, h - 1.4)} fill="none" stroke="black" strokeOpacity=".12" strokeWidth=".065"/>
           <rect x=".12" y=".12" width={Math.max(0, w - 0.24)} height=".58" fill={`url(#${id}-hem)`}/>
           <rect x=".12" y={h - 0.7} width={Math.max(0, w - 0.24)} height=".58" fill={`url(#${id}-hem)`}/>
           {pocketEdges.map((edge) => {
@@ -109,7 +109,7 @@ export function RealisticBannerScene({ item, expanded = false, previewSize = 320
             const py = edge === 'bottom' ? h - pocketDepth : 0;
             return <g key={edge} data-realistic-pocket={edge}>
               <rect x={px} y={py} width={vertical ? pocketDepth : w} height={vertical ? h : pocketDepth} fill={`url(#${id}-hem)`}/>
-              <path d={vertical ? `M${edge === 'left' ? pocketDepth : px} 0 V${h}` : `M0 ${edge === 'top' ? pocketDepth : py} H${w}`} stroke="#15191d" strokeWidth=".075" strokeOpacity=".27"/>
+              <path d={vertical ? `M${edge === 'left' ? pocketDepth : px} 0 V${h}` : `M0 ${edge === 'top' ? pocketDepth : py} H${w}`} stroke="black" strokeWidth=".075" strokeOpacity=".27"/>
             </g>;
           })}
         </svg>
