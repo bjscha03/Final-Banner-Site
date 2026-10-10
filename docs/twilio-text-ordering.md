@@ -2,6 +2,14 @@
 
 This integration adds durable SMS/MMS ordering to the existing BOF site. It is disabled until Twilio credentials, a verified number, and settings are installed. It uses existing Neon, Cloudinary, server pricing, Stripe, paid-order finalization, and order notifications. No AI subscription is needed for the menu or the image preview.
 
+## Preparation on a free trial
+
+The website, order storage, saved print artwork, mobile approval, Stripe test checkout, and automated code checks can be prepared without upgrading Twilio. `npm run test:text-ordering` uses local Postgres and simulated providers; it sends no real messages and takes no real payments. Read-only account/number preflight is also available when credentials have been installed securely.
+
+Twilio's current trial includes 100 SMS messages for 30 days, limits recipients to five verified numbers, and restricts outbound content to Twilio templates. It does not support this complete custom SMS/MMS ordering conversation. Use the trial's built-in SMS demo for basic connectivity; upgrade and complete number verification before the full phone test and public launch. Older trial experiences can have different restrictions; check the actual account rather than assuming trial credits enable production messaging.
+
+References: https://www.twilio.com/docs/usage/trials and https://www.twilio.com/docs/usage/trials/try-out-sms.
+
 ## Account and number
 
 1. The owner completes Twilio signup, email/phone verification, password creation, and acceptance of Twilio terms. Upgrade and fund the account when ready to purchase the number; do not enable automatic recharge initially.

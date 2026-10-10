@@ -600,6 +600,11 @@ test("sharing uses the public referral link across Facebook, text, email, and co
     name: "Share BOF and earn rewards",
   });
   const link = "https://bannersonthefly.com/refer/BOFREF-ABCDEF123456";
+  const defaultMessage = await sharing
+    .getByLabel("Your ready-to-send message")
+    .evaluate((el: HTMLTextAreaElement) => el.value);
+  expect(defaultMessage).toContain("BOFREF-ABCDEF123456");
+  expect(defaultMessage).toContain("save up to $25 on your first qualifying order");
   const facebook = new URL(
     (await sharing
       .getByRole("link", { name: "Share on Facebook" })
@@ -612,9 +617,7 @@ test("sharing uses the public referral link across Facebook, text, email, and co
       .getByRole("link", { name: label })
       .getAttribute("href"))!;
     expect(decodeURIComponent(href)).toContain(link);
-    expect(decodeURIComponent(href)).toContain(
-      "I earn BOF Cash on qualifying referrals, too.",
-    );
+    expect(decodeURIComponent(href)).toContain(defaultMessage);
     expect(href).not.toContain("claim");
   }
   for (const name of ["Copy link", "Copy code", "Copy message"])
@@ -622,8 +625,7 @@ test("sharing uses the public referral link across Facebook, text, email, and co
   const copied = await page.evaluate(() => (window as any).sharedValues);
   expect(copied[0]).toBe(link);
   expect(copied[1]).toBe("BOFREF-ABCDEF123456");
-  expect(copied[2]).toContain(link);
-  expect(copied[2]).toContain("qualifying");
+  expect(copied[2]).toBe(defaultMessage);
   expect(
     await sharing
       .getByLabel("Your ready-to-send message")

@@ -10,7 +10,8 @@ type Data = { enabled: boolean; mode: string; phoneNumber: string; limits: { dai
   sessions: { id: string; phone: string; step: string; revision: number; approved_revision: number | null; order_id: string | null;
     config: { width_in?: number; height_in?: number; material?: string; quantity?: number }; updated_at: string; error_code: string | null }[];
   issues: { id: string; phone: string; status: string; error_code: string; provider_sid: string | null }[];
-  inboundIssues: { sid: string; phone: string; error_code: string }[] };
+  inboundIssues: { sid: string; phone: string; error_code: string }[];
+  setup: { twilioAccount: boolean; twilioToken: boolean; artworkStorage: boolean } };
 export default function TextOrders() {
   const { user, loading } = useAuth(); const navigate = useNavigate();
   const allowed = !loading && !!user && isAdmin(user);
@@ -27,6 +28,8 @@ export default function TextOrders() {
     <div className="mt-5 flex flex-wrap items-center justify-between gap-4"><h1 className="text-3xl font-bold text-[#0B1F3A]">Text orders</h1><Button variant="outline" disabled={busy} onClick={() => void refresh()}>Refresh</Button></div>
     {error && <p role="alert" className="mt-5 rounded-lg bg-red-50 p-4 text-red-900">{error}</p>}
     {data && <><section className="my-6 rounded-xl border bg-white p-5"><h2 className="text-xl font-bold">{data.enabled ? `Enabled · ${data.mode}` : 'Setup pending · disabled'}</h2><p className="mt-2">Number: {data.phoneNumber || 'Not connected'}</p>
+      <dl className="mt-4 grid gap-3 sm:grid-cols-2"><div><dt className="text-sm text-slate-600">Twilio account details</dt><dd className="font-semibold">{data.setup.twilioAccount && data.setup.twilioToken ? 'Added' : 'Pending'}</dd></div><div><dt className="text-sm text-slate-600">Artwork storage</dt><dd className="font-semibold">{data.setup.artworkStorage ? 'Configured' : 'Pending'}</dd></div></dl>
+      {!data.enabled && <p className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-900">Website setup can be prepared on a free trial. Full text ordering requires a paid Twilio account, an approved texting number, and a successful phone test before launch.</p>}
       <p className="mt-2 text-sm text-slate-600">Outgoing limits: {data.limits.daily} segments/MMS per day, {data.limits.monthly} per month, {data.limits.perConversation} per conversation. These limits exclude incoming texts, number rental, and carrier charges.</p>
       {data.budget && <p className="mt-2 text-sm">Reserved outgoing usage: {data.budget.daily_units} on {String(data.budget.day).slice(0, 10)} · {data.budget.monthly_units} for {String(data.budget.month).slice(0, 7)}. Unknown deliveries reserve usage until investigated.</p>}</section>
       <section className="mb-6 rounded-xl border bg-white p-5"><h2 className="text-xl font-bold">Messages needing attention</h2>

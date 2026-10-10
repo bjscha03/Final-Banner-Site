@@ -27,8 +27,19 @@ export default defineConfig({
             res.setHeader('Content-Security-Policy', "connect-src 'self'; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-src 'none'");
           }
           if (browserScenario && url.pathname.startsWith('/.netlify/functions/')) {
-            req.resume();
-            const body = url.pathname.endsWith('/cloudinary-upload-signature') ? {
+            const pricingScenario = browserScenario.startsWith('first-order-');
+            let input: Record<string, unknown> = {};
+            if (pricingScenario) {
+              const chunks: Buffer[] = [];
+              for await (const chunk of req) chunks.push(Buffer.from(chunk));
+              if (chunks.length) input = JSON.parse(Buffer.concat(chunks).toString());
+            } else req.resume();
+            const body = pricingScenario && url.pathname.endsWith('/validate-discount-code')
+              ? input.email === 'returning@example.com' ? { valid: false, error: 'Not eligible' }
+                : { valid: true, discount: { id: 'test-promo', code: input.code,
+                  discountPercentage: input.code === 'REVIEW25' ? 25 : 20,
+                  discountAmountCents: null, expiresAt: '2099-12-31T23:59:59Z' } }
+              : url.pathname.endsWith('/cloudinary-upload-signature') ? {
               apiKey: 'browser-test-key', cloudName: 'browser-test-cloud',
               expiresAt: Date.now() + 60_000, folder: 'browser-tests', overwrite: false,
               resourceType: 'image', signature: 'browser-test-signature',
