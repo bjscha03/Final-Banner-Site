@@ -3,7 +3,6 @@ import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import type { ProductTypeSlug } from '@/lib/products';
 import type { CityProductSlug } from '@/lib/seo/cityData';
 import ProductVisual from '@/components/product/ProductVisual';
-import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 interface ProductTypeSwitcherProps {
@@ -13,7 +12,7 @@ interface ProductTypeSwitcherProps {
 }
 
 const options: Array<{ type: ProductTypeSlug; slug: CityProductSlug; label: string; subtext: string }> = [
-  { type: 'banner', slug: 'vinyl-banners', label: 'Vinyl banners', subtext: 'Custom sizes · Four materials' },
+  { type: 'banner', slug: 'vinyl-banners', label: 'Vinyl banners', subtext: 'Single- or double-sided' },
   { type: 'yard_sign', slug: 'yard-signs', label: 'Yard signs', subtext: '24 × 18 inches · Optional stakes' },
   { type: 'car_magnet', slug: 'car-magnets', label: 'Car magnets', subtext: 'Four sizes · Two corner styles' },
 ];
@@ -88,10 +87,6 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({ productType, 
         })}
       </div>
     </div>
-    <Link to="/double-sided-banners" className="mb-8 flex min-h-12 items-center justify-between gap-3 border border-slate-200 bg-white px-4 py-3 font-semibold text-[#18448D] hover:bg-orange-50">
-      <span>Double-Sided Banners <span className="block text-sm font-normal">18 oz vinyl · $6.25 per sq. ft. includes both sides</span></span>
-      <ArrowRight className="h-5 w-5 shrink-0" />
-    </Link>
   </>
 );
 
