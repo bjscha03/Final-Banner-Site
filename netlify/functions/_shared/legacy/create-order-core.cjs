@@ -1920,6 +1920,7 @@ exports.handler = async (event, context) => {
       const dcCode = String(orderData.discountCode.code).trim().toUpperCase();
       if (dcCode !== 'NEW20'
           && dcCode !== '20OFF'
+          && !require('../reusable-promotions.cjs').getReusablePromotion(dcCode)
           && orderData.discountCode.source !== 'trade_show'
           && orderData.discountCode.source !== 'seasonal_promotion') {
         try {

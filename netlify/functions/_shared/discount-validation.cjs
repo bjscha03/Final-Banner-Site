@@ -105,6 +105,8 @@ async function validateDiscountForCheckout({
     ? userId : null;
   const normalizedRecoveryCartId = normalizedCartId(recoveryCartId);
   if (!normalizedCode) return invalidResult('Discount code is required');
+  const reusablePromotion = require('./reusable-promotions.cjs').getReusablePromotion(normalizedCode);
+  if (reusablePromotion) return validResult(reusablePromotion);
   if (require('./bof-service.cjs').isBofCode(normalizedCode)) {
     return require('./bof-service.cjs').validate(sql, {code:normalizedCode,items,email,userId,authenticatedUserId,checkoutKey});
   }
