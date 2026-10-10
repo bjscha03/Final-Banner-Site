@@ -31,6 +31,10 @@ exports.handler = async (event, context) => {
     }
 
     const normalizedCode = code.trim().toUpperCase();
+    const reusablePromotion = require('../reusable-promotions.cjs').getReusablePromotion(normalizedCode);
+    if (reusablePromotion) {
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, ...reusablePromotion }) };
+    }
     const normalizedEmail = email ? email.toLowerCase() : null;
     console.log('[apply-discount] Applying:', { code: normalizedCode, orderId, userId, email: normalizedEmail });
 

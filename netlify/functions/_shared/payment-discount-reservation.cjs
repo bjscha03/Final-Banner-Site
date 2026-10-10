@@ -13,7 +13,8 @@ function normalizedCode(order) {
 }
 
 function isNonStoredCampaignCode(code) {
-  return code === SEPTEMBER_LARGE_BANNER_CODE
+  return Boolean(require('./reusable-promotions.cjs').getReusablePromotion(code))
+    || code === SEPTEMBER_LARGE_BANNER_CODE
     || code === AUTOMATIC_LARGE_BANNER_PROMOTION_ID
     || code === SMALL_BANNER_DISCOUNT_CODE;
 }
@@ -263,7 +264,8 @@ async function claimPaymentDiscount(sql, order) {
   if (!hasAppliedPromo(order)) return { ok: true, claimed: false, kind: 'not_applied' };
   if (isNonStoredCampaignCode(code)) {
     let kind = 'september_campaign';
-    if (code === AUTOMATIC_LARGE_BANNER_PROMOTION_ID) kind = 'automatic_large_banner';
+    if (require('./reusable-promotions.cjs').getReusablePromotion(code)) kind = 'reusable_promotion';
+    else if (code === AUTOMATIC_LARGE_BANNER_PROMOTION_ID) kind = 'automatic_large_banner';
     else if (code === SMALL_BANNER_DISCOUNT_CODE) kind = 'small_banner_promo';
     return { ok: true, claimed: false, kind };
   }
