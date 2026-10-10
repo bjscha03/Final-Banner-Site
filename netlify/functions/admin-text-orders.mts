@@ -7,8 +7,8 @@ import http from './_shared/sms/http.cjs';
 import preflight from './_shared/sms/preflight.cjs';
 
 export default async (request: Request) => {
-  const verified = auth.requireAdmin(http.eventFor(request));
-  if (!verified.ok || verified.session.preview) return http.json(401, { error: 'ADMIN_REQUIRED' });
+  const verified = auth.requireSignedAdmin(http.eventFor(request));
+  if (!verified.ok) return http.json(401, { error: 'ADMIN_REQUIRED' });
   if (request.method !== 'GET') return http.json(405, { error: 'METHOD_NOT_ALLOWED' });
   const config = runtime.settings();
   if (new URL(request.url).searchParams.get('check') === 'connection') {

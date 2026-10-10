@@ -46,7 +46,7 @@ For a test deployment, set mode:test, origin to its actual https://deploy-previe
 
 Redeploy after changing environment settings. In the deployed site's authenticated **Admin → Text orders** page, use **Check Twilio connection** to validate the private credentials and read assigned SMS/MMS numbers. This check works before a number or database has been configured; it never sends messages, purchases a number, or changes routing. It requires a real signed admin session, including on previews; the preview convenience cookie is not accepted.
 
-The two Twilio variables alone are enough for a read-only account check. `BOF_SMS_SETTINGS` is required to configure a selected number and enable ordering. A connection result verifies account access, not carrier registration or successful order delivery.
+The two Twilio variables alone are enough for a read-only account check. `BOF_SMS_SETTINGS` is required to configure a selected number and enable ordering. A connection result verifies account access, not carrier registration or successful order delivery. When preview review access is also enabled, the signed owner session still takes precedence for this protected account check.
 
 Preflight commands, with variables supplied securely in the terminal:
 

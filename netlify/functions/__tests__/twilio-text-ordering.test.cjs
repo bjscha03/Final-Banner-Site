@@ -91,6 +91,14 @@ test('only a signed administrator can inspect Twilio; preview cookies cannot tri
     assert.equal(response.status, 200); assert.equal(reads, 1);
     assert.equal(response.headers.get('cache-control'), 'no-store, max-age=0');
     assert.equal((await response.json()).connection.status, 'connected');
+    const withPreviewCookie = await handler(request({ host: new URL(url).host, cookie: 'botf_preview_admin=1', authorization: `Bearer ${admin}` }));
+    assert.equal(withPreviewCookie.status, 200); assert.equal(reads, 2);
+    const signedCookie = await handler(request({ host: new URL(url).host, cookie: `botf_preview_admin=1; banners_admin_session=${admin}` }));
+    assert.equal(signedCookie.status, 200); assert.equal(reads, 3);
+    assert.equal((await handler(request({ host: new URL(url).host, cookie: 'botf_preview_admin=1', authorization: `Bearer ${admin}x` }))).status, 401);
+    assert.equal(reads, 3, 'a review cookie cannot rescue a tampered owner session');
+    assert.equal(auth.requireAdmin({ headers: { host: new URL(url).host, cookie: 'botf_preview_admin=1' } }).ok, true,
+      'existing review-only endpoints retain their preview behavior');
   } finally {
     preflight.inspect = originalInspect;
     if (originalSecret === undefined) delete process.env.AUTH_SESSION_SECRET; else process.env.AUTH_SESSION_SECRET = originalSecret;

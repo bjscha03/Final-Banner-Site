@@ -109,4 +109,13 @@ function requireAdmin(event) {
   return session?.admin === true ? { ok: true, session } : { ok: false, response: unauthorized('Verified administrator session required') };
 }
 
-module.exports = { isDeployPreviewEnvironment, createSessionToken, verifySessionToken, getSession, requireAdmin, unauthorized, sessionCookie };
+// Account/credential checks always require a cryptographically signed session.
+// A preview convenience cookie must neither authorize a read nor shadow a
+// genuine owner session supplied with the request.
+function requireSignedAdmin(event) {
+  const session = verifySessionToken(readBearer(event));
+  return session?.admin === true && !session.preview
+    ? { ok: true, session } : { ok: false, response: unauthorized('Verified administrator session required') };
+}
+
+module.exports = { isDeployPreviewEnvironment, createSessionToken, verifySessionToken, getSession, requireAdmin, requireSignedAdmin, unauthorized, sessionCookie };
