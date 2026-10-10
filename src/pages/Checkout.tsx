@@ -777,7 +777,7 @@ const Checkout: React.FC = () => {
     const basePage = isFromGoogleAds ? '/google-ads-banner' : '/design';
     if (productType === 'yard_sign') return `${basePage}?product=yard-signs`;
     if (productType === 'car_magnet') return `${basePage}?product=car-magnets`;
-    if (items.length > 0 && items.every(item => item.material === '18oz_double')) return '/double-sided-banners';
+    if (items.length > 0 && items.every(item => item.material === '18oz_double')) return `${basePage}?product=banner&sides=double`;
     return `${basePage}?product=banner`;
   };
 

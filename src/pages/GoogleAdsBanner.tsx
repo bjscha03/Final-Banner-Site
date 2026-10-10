@@ -4,6 +4,8 @@ import { resolveArtworkPreviewImageSrc } from '@/components/design/artworkPrevie
 import { buildCartArtworkForEditor, getPermanentArtworkPreviewUrl, type UploadedArtworkFile } from '@/lib/cartArtworkForEditor';
 import { getPdfPreviewFile } from '@/utils/pdf/getPdfPreviewFile';
 import BannerSizeChoices from '@/components/design/BannerSizeChoices';
+import BannerPrintSides from '@/components/design/BannerPrintSides';
+import { useBannerPrinting } from '@/hooks/useBannerPrinting';
 import { useUploadWatchdog } from '@/hooks/useUploadWatchdog';
 import MobileBannerLandingHero, { MobileBannerLandingProof } from '@/components/design/MobileBannerLandingHero';
 import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
@@ -271,9 +273,8 @@ const GoogleAdsBanner: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isLargeBannerLanding = location.pathname.replace(/\/+$/, '') === '/large-banners-fast';
-  const isDoubleSidedBanner = location.pathname.replace(/\/+$/, '') === '/double-sided-banners';
   const isFallFestivalLanding = location.pathname.replace(/\/+$/, '') === '/fall-festival-banners';
-  const designerPath = isLargeBannerLanding ? "/large-banners-fast" : isDoubleSidedBanner ? "/double-sided-banners" : location.pathname === "/google-ads-banner" ? "/google-ads-banner" : "/design";
+  const designerPath = isLargeBannerLanding ? "/large-banners-fast" : location.pathname === "/google-ads-banner" ? "/google-ads-banner" : "/design";
   const [searchParams] = useSearchParams();
   const getProductQuerySlug = useCallback((type: ProductTypeSlug) => {
     if (type === 'yard_sign') return 'yard-signs';
@@ -304,7 +305,7 @@ const GoogleAdsBanner: React.FC = () => {
   // Product type state — public for both banners and yard signs
   // Read ?tab= (preferred) or ?product= (legacy) query param so "Add Another Yard Sign" links open the correct tab
   const initialProductType = (() => {
-    if (isDoubleSidedBanner || isLargeBannerLanding) return 'banner' as ProductTypeSlug;
+    if (isLargeBannerLanding) return 'banner' as ProductTypeSlug;
     const tab = searchParams.get('tab');
     const product = searchParams.get('product');
     const param = tab || product;
@@ -315,7 +316,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [productType, setProductType] = useState<ProductTypeSlug>(initialProductType);
   const isYardSign = productType === 'yard_sign';
   const isCarMagnet = productType === 'car_magnet';
-  const compactMobileLanding = !isYardSign && !isCarMagnet && !isLargeBannerLanding && !isDoubleSidedBanner && !isFallFestivalLanding;
+  const compactMobileLanding = !isYardSign && !isCarMagnet && !isLargeBannerLanding && !isFallFestivalLanding;
 
   useEffect(() => {
     const slug = productType === 'yard_sign'
@@ -358,8 +359,13 @@ const GoogleAdsBanner: React.FC = () => {
   const widthInR = parseInt(widthInRStr, 10) || 0;
   const heightFt = parseInt(heightFtStr, 10) || 0;
   const heightInR = parseInt(heightInRStr, 10) || 0;
-  const [selectedMaterialKey, setMaterial] = useState<MaterialKey>('13oz');
-  const material: MaterialKey = isDoubleSidedBanner ? '18oz_double' : selectedMaterialKey;
+  const { material, setMaterial, setDoubleSided } = useBannerPrinting();
+  const isDoubleSidedBanner = productType === 'banner' && material === '18oz_double';
+  const requestedEditItem = searchParams.get('editItem');
+  const handleBannerPrintSidesChange = (doubleSided: boolean) => {
+    setDoubleSided(doubleSided);
+    setMaterialDropdownOpen(false);
+  };
   const [materialDropdownOpen, setMaterialDropdownOpen] = useState(false);
   const materialDropdownRef = useRef<HTMLDivElement>(null);
   const [grommets, setGrommets] = useState(initialProductType === 'banner' ? 'every-2-3ft' : 'none');
@@ -421,11 +427,14 @@ const GoogleAdsBanner: React.FC = () => {
 
   const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');
 
-  // /design renders this component for banners. Honor the selected size card.
+  // Only size-link changes may initialize dimensions. Changing print sides must
+  // not restore an old linked size over the customer's current custom size.
+  const requestedWidth = searchParams.get('width');
+  const requestedHeight = searchParams.get('height');
   useEffect(() => {
-    if (productType !== 'banner' || searchParams.get('editItem')) return;
-    const w = Number(searchParams.get('width'));
-    const h = Number(searchParams.get('height'));
+    if (productType !== 'banner' || requestedEditItem) return;
+    const w = Number(requestedWidth);
+    const h = Number(requestedHeight);
     if (!Number.isFinite(w) || !Number.isFinite(h) || w < 6 || h < 6
       || Math.max(w, h) > 600 || Math.min(w, h) > 192) return;
     setWidthFtStr(String(Math.floor(w / 12)));
@@ -437,7 +446,7 @@ const GoogleAdsBanner: React.FC = () => {
     const preset = PRESET_SIZES.findIndex(size => size.w === w && size.h === h);
     setActivePreset(preset >= 0 ? preset : null);
     setHasConfirmedSize(true);
-  }, [productType, searchParams]);
+  }, [productType, requestedWidth, requestedHeight, requestedEditItem]);
   const [hasConfirmedMaterial, setHasConfirmedMaterial] = useState(false);
   const [hasConfirmedQuantity, setHasConfirmedQuantity] = useState(false);
   const [hasReviewedOptions, setHasReviewedOptions] = useState(false);
@@ -995,7 +1004,9 @@ const GoogleAdsBanner: React.FC = () => {
       setHeightCustomInStr(String(restoredHeight));
       const presetIndex = PRESET_SIZES.findIndex(({ w, h }) => w === restoredWidth && h === restoredHeight);
       setActivePreset(presetIndex >= 0 ? presetIndex : null);
-      if (item.material) setMaterial(item.material as MaterialKey);
+      if (item.material) {
+        setMaterial(item.material as MaterialKey);
+      }
       cartRestoreTransformRef.current = {
         productType: 'banner',
         widthIn: restoredWidth,
@@ -1764,6 +1775,7 @@ const GoogleAdsBanner: React.FC = () => {
       setShowPreview(false);
       setIsCartOpen(false);
       // Clear edit mode before the next upload so it creates a new cart item.
+      setMaterial('13oz');
       navigate(`${designerPath}?product=banner`, { replace: true });
       requestAnimationFrame(() => scrollToStepAnchor('size-section'));
     } else {
@@ -2834,9 +2846,9 @@ const GoogleAdsBanner: React.FC = () => {
   </>);
 
   const materialCard = isDoubleSidedBanner ? (
-    <ConfigCard compact step={2} title="Material & printing" id="material-section">
+    <ConfigCard compact step={2} title="Material" id="material-section">
       <p className="font-semibold text-[#0B1F3A]">18 oz vinyl · Double-sided</p>
-      <p className="mt-2 text-sm text-slate-600">$6.25 per sq. ft. includes printing on both sides. Your approved artwork prints on the front and back, with the same placement on each side.</p>
+      <p className="mt-1 text-xs text-slate-600">18 oz vinyl is included for double-sided printing.</p>
     </ConfigCard>
   ) : (<ConfigCard compact={!isCarMagnet} step={2} title="Material" id="material-section">
                     <div ref={materialDropdownRef} className="relative">
@@ -3058,6 +3070,7 @@ const GoogleAdsBanner: React.FC = () => {
                     </CustomBannerSize>}
                   </div>
                 {isLargeBannerLanding && <p className="mt-3 text-xs text-slate-600">Online sizes up to 50 ft on the long side and 16 ft on the short side. Larger project? <Link to="/custom-quote" className="font-semibold text-orange-700 underline">Request a quote</Link>.</p>}
+                {!isCarMagnet && <BannerPrintSides doubleSided={isDoubleSidedBanner} onChange={handleBannerPrintSidesChange} />}
                 {!isCarMagnet && <div className="mt-5 grid gap-4 border-t border-slate-200 pt-4 sm:grid-cols-[minmax(0,1fr)_auto]">{materialCard}{quantityCard}</div>}
                 </ConfigCard>);
   const bannerFinishingOptions = (
@@ -3318,11 +3331,10 @@ const GoogleAdsBanner: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>{isLargeBannerLanding ? 'Large Banners Fast — Free Next-Day Air Shipping' : isDoubleSidedBanner ? 'Double-Sided 18oz Vinyl Banners — $6.25/sq ft' : isFallFestivalLanding ? 'Custom Fall Festival Banners' : isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Car Magnets' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
-        <meta name="description" content={isLargeBannerLanding ? "Order large custom vinyl banners with 24-hour production and free next-day air shipping after production. Choose 8 × 4 ft, 10 × 4 ft or custom sizes. Get instant pricing and design online." : isDoubleSidedBanner ? 'Custom double-sided banners on 18 oz vinyl. $6.25 per square foot includes both sides. Upload artwork or create with AI. Free next-day air shipping.' : isFallFestivalLanding ? 'Custom fall festival banners for churches, schools, harvest festivals and trunk-or-treats. Upload artwork or create with AI. 24-hour production.' : isYardSign ? "Upload yard-sign artwork, review the supported size and current price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
-        <meta name="robots" content={isLargeBannerLanding ? "noindex, follow" : isDoubleSidedBanner || isFallFestivalLanding ? "index, follow" : "noindex, nofollow"} />
+        <title>{isLargeBannerLanding ? 'Large Banners Fast — Free Next-Day Air Shipping' : isFallFestivalLanding ? 'Custom Fall Festival Banners' : isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Car Magnets' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
+        <meta name="description" content={isLargeBannerLanding ? "Order large custom vinyl banners with 24-hour production and free next-day air shipping after production. Choose 8 × 4 ft, 10 × 4 ft or custom sizes. Get instant pricing and design online." : isFallFestivalLanding ? 'Custom fall festival banners for churches, schools, harvest festivals and trunk-or-treats. Upload artwork or create with AI. 24-hour production.' : isYardSign ? "Upload yard-sign artwork, review the supported size and current price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
+        <meta name="robots" content={isLargeBannerLanding ? "noindex, follow" : isFallFestivalLanding ? "index, follow" : "noindex, nofollow"} />
         {isLargeBannerLanding && <link rel="canonical" href="https://bannersonthefly.com/large-banners-fast" />}
-        {isDoubleSidedBanner && <link rel="canonical" href="https://bannersonthefly.com/double-sided-banners" />}
         {isFallFestivalLanding && <link rel="canonical" href="https://bannersonthefly.com/fall-festival-banners" />}
       </Helmet>
       <div className="min-h-screen bg-white text-gray-900">
@@ -3357,9 +3369,7 @@ const GoogleAdsBanner: React.FC = () => {
 
         {/* HERO */}
         {!isYardSign && !isCarMagnet ? (
-          isLargeBannerLanding ? <ProductPageHero productSlug="large-banners-fast" ctaUrl="#order-builder" onStart={scrollToOrder} /> : isDoubleSidedBanner ? (
-            <ProductPageHero productSlug="double-sided-banners" ctaUrl="#order-builder" onStart={scrollToOrder} />
-          ) : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <><MobileBannerLandingHero /><div className="hidden lg:block"><FastBannerAdHero onStart={scrollToOrder} /></div></>
+          isLargeBannerLanding ? <ProductPageHero productSlug="large-banners-fast" ctaUrl="#order-builder" onStart={scrollToOrder} /> : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <><MobileBannerLandingHero /><div className="hidden lg:block"><FastBannerAdHero onStart={scrollToOrder} /></div></>
         ) : (
         <section className="relative overflow-hidden border-b-4 border-[#FF6A00] bg-[#0B1F3A] px-4 py-10 sm:py-12 lg:py-16">
           <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:gap-14">

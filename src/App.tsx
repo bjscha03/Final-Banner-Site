@@ -152,6 +152,16 @@ const AttributionCapture = () => {
   return null;
 };
 
+// Preserve campaign parameters and saved-cart links from the retired page.
+const DoubleSidedBannerRedirect = () => {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  params.delete('tab');
+  params.set('product', 'banner');
+  params.set('sides', 'double');
+  return <Navigate to={`/design?${params.toString()}${location.hash}`} replace />;
+};
+
 /** Router-dependent application tree shared by BrowserRouter and StaticRouter. */
 export const RoutedApplication = () => (
         <CartSyncWrapper>
@@ -269,7 +279,7 @@ export const RoutedApplication = () => (
               }
             />
             <Route path="/large-banners-fast" element={<><PromoBanner /><GoogleAdsBanner key="large-banners-fast" /></>} />
-            <Route path="/double-sided-banners" element={<><PromoBanner /><GoogleAdsBanner key="double-sided" /></>} />
+            <Route path="/double-sided-banners" element={<DoubleSidedBannerRedirect />} />
             <Route
               path="/fall-festival-banners"
               element={
