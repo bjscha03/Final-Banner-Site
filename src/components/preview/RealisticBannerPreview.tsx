@@ -87,20 +87,19 @@ export function RealisticBannerScene({ item, expanded = false, previewSize = 320
           surfaceOnly backgroundColor={background}
         />}
         <div className="realistic-banner-material-texture" style={{ opacity: isMesh ? 0.4 : grommets.length ? 0.94 : 0.5 }} aria-hidden="true" />
+        {/* Finishing may shade the print, but must never paint a pale border
+            over edge-to-edge artwork. Keep all surface effects darkening-only. */}
         <svg className="realistic-banner-surface-light" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
           <defs>
             <linearGradient id={`${id}-satin`} x1="0" y1="0" x2=".8" y2="1">
-              <stop stopColor="white" stopOpacity=".13"/><stop offset=".16" stopColor="white" stopOpacity="0"/>
-              <stop offset=".35" stopColor="black" stopOpacity=".045"/><stop offset=".44" stopColor="white" stopOpacity=".08"/>
-              <stop offset=".58" stopColor="white" stopOpacity="0"/><stop offset=".84" stopColor="black" stopOpacity=".05"/>
-              <stop offset="1" stopColor="white" stopOpacity=".1"/>
+              <stop stopColor="black" stopOpacity="0"/><stop offset=".16" stopColor="black" stopOpacity="0"/>
+              <stop offset=".35" stopColor="black" stopOpacity=".045"/><stop offset=".44" stopColor="black" stopOpacity="0"/>
+              <stop offset=".58" stopColor="black" stopOpacity="0"/><stop offset=".84" stopColor="black" stopOpacity=".05"/>
+              <stop offset="1" stopColor="black" stopOpacity="0"/>
             </linearGradient>
-            <linearGradient id={`${id}-hem`} x1="0" y1="0" x2="0" y2="1"><stop stopColor="white" stopOpacity=".19"/><stop offset=".45" stopColor="white" stopOpacity="0"/><stop offset="1" stopColor="black" stopOpacity=".12"/></linearGradient>
-            <filter id={`${id}-grain`}><feTurbulence type="fractalNoise" baseFrequency="2.7" numOctaves="2" seed="8"/><feColorMatrix type="saturate" values="0"/></filter>
+            <linearGradient id={`${id}-hem`} x1="0" y1="0" x2="0" y2="1"><stop stopColor="black" stopOpacity=".04"/><stop offset=".45" stopColor="black" stopOpacity="0"/><stop offset="1" stopColor="black" stopOpacity=".12"/></linearGradient>
           </defs>
           <rect width={w} height={h} fill={`url(#${id}-satin)`} opacity={isMesh ? 0.35 : 1}/>
-          <rect width={w} height={h} filter={`url(#${id}-grain)`} opacity={isMesh ? 0.025 : 0.045} style={{ mixBlendMode: 'soft-light' }}/>
-          <rect x=".12" y=".12" width={Math.max(0, w - 0.24)} height={Math.max(0, h - 0.24)} fill="none" stroke="white" strokeOpacity=".28" strokeWidth=".09"/>
           <rect x=".7" y=".7" width={Math.max(0, w - 1.4)} height={Math.max(0, h - 1.4)} fill="none" stroke="#171c23" strokeOpacity=".12" strokeWidth=".065"/>
           <rect x=".12" y=".12" width={Math.max(0, w - 0.24)} height=".58" fill={`url(#${id}-hem)`}/>
           <rect x=".12" y={h - 0.7} width={Math.max(0, w - 0.24)} height=".58" fill={`url(#${id}-hem)`}/>
