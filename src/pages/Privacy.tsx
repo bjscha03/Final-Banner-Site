@@ -38,6 +38,11 @@ const Privacy: React.FC = () => {
 
           {/* Privacy Sections */}
           <div className="space-y-8">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200" id="text-ordering">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Text-message ordering</h2>
+              <p className="text-gray-700 leading-relaxed">For text orders, we collect your mobile number, messages, artwork attachments, product selections, artwork approvals, and delivery status to prepare and fulfill your order and respond to support requests. Twilio processes messages, our artwork-storage provider stores uploaded files, and our payment provider processes payment on a secure page. Do not send card information in a text message.</p>
+              <p className="text-gray-700 leading-relaxed mt-3">Mobile numbers, messaging consent, and opt-in information are not sold or shared with third parties for marketing or promotional purposes. Service providers may process this information only to deliver our ordering service. Reply STOP to opt out, HELP for assistance, or contact support@bannersonthefly.com.</p>
+            </section>
             {/* Information We Collect */}
             <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">

@@ -35,6 +35,7 @@ const BOFCash = lazy(() => import("./pages/BOFCash"));
 const BOFCashTest = lazy(() => import("./pages/BOFCashTest"));
 const AdminReferrals = lazy(() => import("./pages/admin/Referrals"));
 const Checkout = lazy(() => import("./pages/Checkout"));
+const TextOrder = lazy(() => import("./pages/TextOrder"));
 const OrderConfirmation = lazy(() => import("./pages/OrderConfirmation"));
 const PaymentSuccess = lazy(() => import("./pages/PaymentSuccess"));
 const OrderDetail = lazy(() => import("./pages/OrderDetail"));
@@ -81,6 +82,7 @@ const AdminBlogLeads = lazy(() => import("./pages/admin/BlogLeads"));
 const AdminLouisvilleOutreach = lazy(() => import("./pages/admin/LouisvilleOutreach"));
 const LouisvilleOffer = lazy(() => import("./pages/LouisvilleOffer"));
 const AdminSiteIssues = lazy(() => import("./pages/admin/SiteIssues"));
+const AdminTextOrders = lazy(() => import("./pages/admin/TextOrders"));
 const AdminAbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
 const AdminCustomQuotes = lazy(() => import("./pages/admin/CustomQuotes"));
 const AdminEmailTemplates = lazy(() => import("./pages/admin/EmailTemplates"));
@@ -175,6 +177,7 @@ export const RoutedApplication = () => (
             
             {/* Checkout flow */}
             <Route path="/checkout" element={<Checkout />} />
+            <Route path="/text-order/:token" element={<TextOrder />} />
             <Route path="/bof-cash" element={<BOFCash />} />
             <Route path="/bof-cash-test" element={<Layout><BOFCashTest /></Layout>} />
             <Route path="/refer/:code" element={<BOFCash />} />
@@ -217,6 +220,7 @@ export const RoutedApplication = () => (
             <Route path="/admin/louisville-outreach" element={<AdminLouisvilleOutreach />} />
                       <Route path="/louisville-offer" element={<LouisvilleOffer />} />
                       <Route path="/admin/site-issues" element={<AdminSiteIssues />} />
+                      <Route path="/admin/text-orders" element={<AdminTextOrders />} />
             <Route path="/admin/abandoned-carts" element={<AdminAbandonedCarts />} />
             <Route path="/admin/custom-quotes" element={<AdminCustomQuotes />} />
             <Route path="/admin/email-templates" element={<AdminEmailTemplates />} />

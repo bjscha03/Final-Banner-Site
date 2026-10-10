@@ -25,6 +25,7 @@ const isPrivateOrUtilityPath = (pathname: string): boolean => (
   NOINDEX_EXACT_PATHS.has(pathname)
   || pathname.startsWith('/admin/')
   || pathname.startsWith('/orders/')
+  || pathname.startsWith('/text-order/')
 );
 
 const RouteRobotsPolicy = () => {

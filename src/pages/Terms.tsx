@@ -41,6 +41,11 @@ const Terms: React.FC = () => {
 
           {/* Terms Sections */}
           <div className="space-y-8">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200" id="text-ordering">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Text-message ordering</h2>
+              <p className="text-gray-700 leading-relaxed">When you text Banners On The Fly to request an order, you agree to receive automated replies about that request, including product choices, artwork previews, approval, payment links, and order confirmation. Message frequency varies. Message and data rates may apply. Consent is not a condition of purchasing; you can order through our website instead.</p>
+              <p className="text-gray-700 leading-relaxed mt-3">Reply STOP to opt out or HELP for help. Reply START to resume. You can also contact support@bannersonthefly.com. Text-order links expire. Payment is completed on a secure payment page; never send card numbers by text. You must approve your current artwork before payment. Carrier delays and image compression can affect text delivery and image quality.</p>
+            </section>
             {/* Limitation of Liability */}
             <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">

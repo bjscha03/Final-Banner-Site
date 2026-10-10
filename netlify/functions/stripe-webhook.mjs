@@ -3,6 +3,7 @@ import '@neondatabase/serverless';
 // This direct entrypoint import makes Netlify include the package in the
 // webhook artifact instead of failing every paid-order notification at runtime.
 import 'resend';
+import 'twilio';
 import Stripe from 'stripe';
 import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
@@ -11,6 +12,9 @@ import bofService from './_shared/bof-service.cjs';
 import runtimeModule from './_shared/stripe-runtime-config.cjs';
 import checkoutModule from './_shared/stripe-checkout-service.cjs';
 import finalizerModule from './_shared/finalizeStripeOrder.cjs';
+import smsPayments from './_shared/sms/payments.cjs';
+import smsStore from './_shared/sms/store.cjs';
+import smsRuntime from './_shared/sms/runtime.cjs';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -77,6 +81,18 @@ const handler = async (event) => {
   }
 
   const eventIntent = stripeEvent?.data?.object;
+  if (eventIntent?.metadata?.bof_sms === 'v1') {
+    try {
+      const sql = neonFactory(process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL);
+      await smsStore.ensureSchema(sql);
+      await smsPayments.handleStripeEvent({ sql, stripe, stripeEvent, runtime, event });
+      if (smsRuntime.settings().enabled) await smsRuntime.kickWorker().catch(() => {});
+      return reply(200, { received: true });
+    } catch (error) {
+      console.error('[stripe-webhook] text-order retry', { eventId: stripeEvent.id, code: error?.code || 'SMS_PAYMENT_RETRY' });
+      return reply(503, { error: 'SMS_PAYMENT_RETRY' });
+    }
+  }
   const isBofCheckout = eventIntent?.metadata?.bof_checkout === 'v2';
   if (!isBofCheckout) {
     // The Stripe account can host other products. Authenticated events without

@@ -29,6 +29,7 @@ const NON_CUSTOMER_PATHS = [
   '/canva-test',
   '/logo-showcase',
   '/pdf-diagnostic',
+  '/text-order',
 ] as const;
 
 // Keep this deliberately conservative. Search crawlers and browser-based
@@ -97,6 +98,7 @@ const SENSITIVE_QUERY_KEYS = new Set([
 export const getSanitizedAnalyticsPath = (url: Pick<Location, 'pathname' | 'search'>): string => {
   let pathname = url.pathname || '/';
   if (pathname.startsWith('/orders/')) pathname = '/orders/[order-id]';
+  if (pathname.startsWith('/text-order/')) pathname = '/text-order/[private-link]';
 
   const params = new URLSearchParams(url.search || '');
   for (const key of Array.from(params.keys())) {

@@ -1175,6 +1175,9 @@ const AdminOrders: React.FC = () => {
                     Abandoned Carts
                   </a>
                 </TabsTrigger>
+                <TabsTrigger value="text-orders" className="flex items-center gap-2 min-w-0" asChild>
+                  <a href="/admin/text-orders">Text Orders</a>
+                </TabsTrigger>
                 <TabsTrigger value="customers" className="flex items-center gap-2 min-w-0" asChild>
                   <a href="/admin/customers">
                     <UsersRound className="h-4 w-4" />
