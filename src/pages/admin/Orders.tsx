@@ -45,7 +45,7 @@ import OrderDetails from '@/components/orders/OrderDetails';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
 import { adminFetch } from '@/lib/serverAuth';
-import { getOriginalArtworkSelection } from '@/lib/artworkFiles';
+import { getOriginalArtworkSelection, getAIResizedArtworkSelection } from '@/lib/artworkFiles';
 import { getFinalizedThumbnailCandidates, getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
 import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
@@ -690,14 +690,15 @@ const AdminOrders: React.FC = () => {
     updateOrderEverywhere(orderId, (order) => ({ ...order, ...update }));
   };
 
-  const handleFileDownload = async (fileKey: string, orderId: string, itemIndex: number, originalFilename?: string) => {
-    const stateKey = `${orderId}-${itemIndex}`;
+  const handleFileDownload = async (fileKey: string, orderId: string, itemIndex: number, originalFilename?: string, fileKind?: 'ai-resized') => {
+    const stateKey = `${orderId}-${itemIndex}${fileKind ? `-${fileKind}` : ''}`;
+    const label = fileKind === 'ai-resized' ? 'AI-Resized File' : 'Original File';
 
     try {
       setFileLoadingStates((current) => ({ ...current, [stateKey]: true }));
       toast({
-        title: "Downloading Original File",
-        description: "Preparing the customer's uploaded file...",
+        title: `Downloading ${label}`,
+        description: fileKind === 'ai-resized' ? 'Preparing the full-resolution AI-resized artwork...' : "Preparing the customer's uploaded file...",
       });
 
       // Use Netlify function for secure file downloads
@@ -741,14 +742,14 @@ const AdminOrders: React.FC = () => {
       window.setTimeout(() => window.URL.revokeObjectURL(url), 30_000);
 
       toast({
-        title: "Original File Downloaded",
+        title: `${label} Downloaded`,
         description: `${fileName} has been downloaded.`,
       });
     } catch (error) {
       console.error('Error downloading file:', error);
       toast({
-        title: "Original File Unavailable",
-        description: "Could not download the original file. It may not exist or be accessible.",
+        title: `${label} Unavailable`,
+        description: `Could not download the ${label.toLowerCase()}. Please try again.`,
         variant: "destructive",
       });
     } finally {
@@ -1507,7 +1508,7 @@ const AdminOrders: React.FC = () => {
 interface AdminOrderRowProps {
   order: Order;
   onTrackingUpdated: (orderId: string, update: Partial<Order>) => void;
-  onFileDownload: (fileKey: string, orderId: string, itemIndex: number, originalFilename?: string) => Promise<void>;
+  onFileDownload: (fileKey: string, orderId: string, itemIndex: number, originalFilename?: string, fileKind?: 'ai-resized') => Promise<void>;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onMarkInProduction: (orderId: string) => void;
   onOrderRefunded: (updatedOrder: Order) => void;
@@ -1789,6 +1790,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                   const loadingKey = `${order.id}-${index}`;
                   const loading = Boolean(fileLoadingStates[loadingKey]);
                   return (
+                    <React.Fragment key={`artwork-${index}`}>
                     <Button
                       key={`original-${index}`}
                       type="button"
@@ -1805,6 +1807,21 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                         <><Download className="mr-1.5 h-3.5 w-3.5" />{originalFiles.length > 1 ? `Original File ${index + 1}` : 'Original File'}</>
                       )}
                     </Button>
+                    {getAIResizedArtworkSelection(item) && (
+                      <Button
+                        type="button"
+                        onClick={() => onFileDownload(getAIResizedArtworkSelection(item)!.url, order.id, index, getOriginalFilename(item), 'ai-resized')}
+                        disabled={Boolean(fileLoadingStates[`${order.id}-${index}-ai-resized`])}
+                        className="h-auto min-h-11 w-full whitespace-normal border-2 border-emerald-800 bg-emerald-700 px-3 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-800 focus-visible:ring-emerald-600"
+                        data-admin-ai-resized-file
+                        title="Download the full-resolution AI-resized artwork saved for this order"
+                      >
+                        {fileLoadingStates[`${order.id}-${index}-ai-resized`]
+                          ? <><Loader2 className="mr-1.5 h-4 w-4 shrink-0 animate-spin" />Downloading...</>
+                          : <><Download className="mr-1.5 h-4 w-4 shrink-0" />Download AI-Resized File{orderItems.length > 1 ? ` ${index + 1}` : ''}</>}
+                      </Button>
+                    )}
+                    </React.Fragment>
                   );
                 })}
                 {finalPrintFiles.map(({ item, index }) => (
@@ -1949,7 +1966,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
 interface AdminOrderCardProps {
   order: Order;
   onTrackingUpdated: (orderId: string, update: Partial<Order>) => void;
-  onFileDownload: (fileKey: string, orderId: string, itemIndex: number, originalFilename?: string) => Promise<void>;
+  onFileDownload: (fileKey: string, orderId: string, itemIndex: number, originalFilename?: string, fileKind?: 'ai-resized') => Promise<void>;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onMarkInProduction: (orderId: string) => void;
   onOrderRefunded: (updatedOrder: Order) => void;
@@ -2128,6 +2145,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
               const loadingKey = `${order.id}-${index}`;
               const loading = Boolean(fileLoadingStates[loadingKey]);
               return (
+                <React.Fragment key={`artwork-${index}`}>
                 <Button
                   key={`original-${index}`}
                   type="button"
@@ -2144,6 +2162,21 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                     <><Download className="mr-1.5 h-3.5 w-3.5" />{originalFiles.length > 1 ? `Original File ${index + 1}` : 'Original File'}</>
                   )}
                 </Button>
+                {getAIResizedArtworkSelection(item) && (
+                  <Button
+                    type="button"
+                    onClick={() => onFileDownload(getAIResizedArtworkSelection(item)!.url, order.id, index, getOriginalFilename(item), 'ai-resized')}
+                    disabled={Boolean(fileLoadingStates[`${order.id}-${index}-ai-resized`])}
+                    className="h-auto min-h-11 w-full whitespace-normal border-2 border-emerald-800 bg-emerald-700 px-3 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-800 focus-visible:ring-emerald-600"
+                    data-admin-ai-resized-file
+                    title="Download the full-resolution AI-resized artwork saved for this order"
+                  >
+                    {fileLoadingStates[`${order.id}-${index}-ai-resized`]
+                      ? <><Loader2 className="mr-1.5 h-4 w-4 shrink-0 animate-spin" />Downloading...</>
+                      : <><Download className="mr-1.5 h-4 w-4 shrink-0" />Download AI-Resized File{orderItems.length > 1 ? ` ${index + 1}` : ''}</>}
+                  </Button>
+                )}
+                </React.Fragment>
               );
             })}
             {orderItems
