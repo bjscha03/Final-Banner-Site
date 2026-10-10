@@ -17,6 +17,7 @@ describe('customer tracking policy', () => {
 
   it.each([
     ['admin', { pathname: '/admin/orders' }, 'excluded_route'],
+    ['private text order', { pathname: '/text-order/private-bearer-token' }, 'excluded_route'],
     ['preview', { hostname: 'deploy-preview-123--site.netlify.app' }, 'non_production_host'],
     ['localhost', { hostname: 'localhost', protocol: 'http:' }, 'non_production_host'],
     ['automation', { webdriver: true }, 'automated_browser'],

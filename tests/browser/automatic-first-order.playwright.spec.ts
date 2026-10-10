@@ -1,9 +1,18 @@
 import { expect, test } from '@playwright/test';
+import sharp from 'sharp';
 const item = { id: 'first-order-banner', product_type: 'banner', width_in: 48, height_in: 24, quantity: 1,
   material: '13oz', grommets: 'none', pole_pockets: 'none', rope_feet: 0, area_sqft: 8,
   unit_price_cents: 4000, rope_cost_cents: 0, pole_pocket_cost_cents: 0, line_total_cents: 4000,
   created_at: '2026-09-18T12:00:00.000Z' };
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }, info) => {
+  if (info.title.startsWith('automatic welcome prices')) {
+    // The existing local upload receiver keeps real multipart file bytes in
+    // WebKit and blocks external services for this isolated pricing scenario.
+    await page.context().addCookies([{ name: 'compact_browser_scenario',
+      value: `first-order-${info.project.name}-${info.title.match(/\d+px/)?.[0]}`,
+      url: 'http://127.0.0.1:4175' }]);
+    return;
+  }
   await page.route('**/*', async route => {
     const request = route.request(); const url = new URL(request.url());
     if (url.pathname.startsWith('/.netlify/functions/')) {
@@ -26,6 +35,24 @@ for (const width of [320, 390, 1440]) {
   test(`automatic welcome prices and shipping at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/design?width=48&height=24');
+    const bar = page.getByTestId('mobile-subtotal-bar');
+    if (width < 1024) {
+      await expect(bar).toContainText('$40.00'); await expect(bar).toContainText('$32.00');
+      await expect(bar).toContainText('20% off first order applied');
+      await expect(bar.getByTestId('free-next-day-air-badge')).toBeVisible();
+      await expect(bar.getByRole('button', { name: 'View cart (0)', exact: true })).toBeVisible();
+      expect(await bar.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+      await bar.screenshot({ path: info.outputPath(`welcome-sticky-${width}.png`) });
+      const artwork = await sharp({ create: { width: 4800, height: 2400, channels: 3,
+        background: '#18448d' } }).png().toBuffer();
+      await page.locator('#upload-section input[type="file"]').setInputFiles({
+        name: 'first-order-artwork.png', mimeType: 'image/png', buffer: artwork });
+      await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible({ timeout: 30_000 });
+      await bar.getByRole('button', { name: 'Next: Finishing', exact: true }).click();
+      const finishing = page.getByTestId('mobile-finishing-step');
+      await expect(finishing).toBeVisible();
+      await finishing.locator('summary').filter({ hasText: 'Price details' }).click();
+    }
     const summary = page.locator('[data-testid="price-breakdown"]:visible').first();
     await expect(summary).toContainText('$32.00');
     await expect(summary.locator('s')).toHaveText('$40.00');
@@ -34,20 +61,17 @@ for (const width of [320, 390, 1440]) {
     await expect(summary.getByTestId('free-next-day-air-badge')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Apply 20% first-order discount', exact: true })).toHaveCount(0);
     await summary.screenshot({ path: info.outputPath(`welcome-summary-${width}.png`) });
-    if (width < 768) {
-      const bar = page.getByTestId('mobile-subtotal-bar');
-      await expect(bar).toContainText('$40.00'); await expect(bar).toContainText('$32.00');
-      await expect(bar).toContainText('20% off first order applied');
-      await expect(bar.getByRole('button', { name: 'View Cart (0)' })).toBeVisible();
-      expect(await bar.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
-      await bar.screenshot({ path: info.outputPath(`welcome-sticky-${width}.png`) });
-    }
     // A user can apply a better offer without first removing the automatic one.
     await summary.locator('summary').click();
     await summary.getByRole('textbox', { name: 'Promo code', exact: true }).fill('REVIEW25');
     await summary.getByRole('button', { name: 'Apply', exact: true }).click();
     await expect(summary).toContainText('$30.00');
     await expect(summary).not.toContainText('20% off first order applied');
+    if (width < 1024) {
+      await page.getByRole('button', { name: 'Back to design', exact: true }).click();
+      await expect(bar).toContainText('$30.00');
+      await expect(bar).not.toContainText('20% off first order applied');
+    }
   });
 }
 test('checkout refresh preserves first-order pricing and updates before payment for a returning email', async ({ page }) => {

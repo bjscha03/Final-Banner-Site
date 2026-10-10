@@ -1,0 +1,36 @@
+name: Twilio text ordering
+on:
+  pull_request:
+    paths:
+      - 'netlify/functions/_shared/sms/**'
+      - 'netlify/functions/twilio-*.mts'
+      - 'netlify/functions/text-order.mts'
+      - 'netlify/functions/admin-text-orders.mts'
+      - 'netlify/functions/stripe-webhook.mjs'
+      - 'netlify/functions/__tests__/twilio-text-ordering.test.cjs'
+      - 'src/pages/TextOrder.tsx'
+      - 'src/pages/admin/TextOrders.tsx'
+      - 'scripts/configure-twilio-text-orders.cjs'
+      - 'package*.json'
+      - '.github/workflows/twilio-text-ordering.yml'
+permissions:
+  contents: read
+jobs:
+  text-orders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Verify text ordering, artwork, approval and payment recovery
+        run: npm run test:text-ordering
+      - name: Verify existing Stripe checkout and pricing isolation
+        run: node --test netlify/functions/__tests__/stripe-checkout-service.test.cjs netlify/functions/__tests__/stripe-runtime-config.test.cjs netlify/functions/__tests__/stripe-server-pricing.test.cjs netlify/functions/__tests__/payment-discount-reservation.test.cjs
+      - name: Check account setup script and function entrypoints
+        run: |
+          node --check scripts/configure-twilio-text-orders.cjs
+          npx esbuild netlify/functions/twilio-inbound.mts netlify/functions/twilio-status.mts netlify/functions/twilio-worker-background.mts netlify/functions/twilio-retry.mts netlify/functions/text-order.mts netlify/functions/admin-text-orders.mts --bundle --platform=node --target=node24 --format=esm --packages=external --outdir=/tmp/bof-text-order-functions
