@@ -573,6 +573,13 @@ test.beforeEach(async ({ page }) => {
       expect(headers['x-banners-admin-session']).toBe(ADMIN_SESSION);
     };
 
+    if (url.pathname.endsWith('/admin-site-issues')) {
+      await expectAdminSession();
+      await route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ ok: true, issues: [], truncated: false }) });
+      return;
+    }
+
     if (url.pathname.endsWith('/get-abandoned-carts')) {
       await expectAdminSession();
       await route.fulfill({
