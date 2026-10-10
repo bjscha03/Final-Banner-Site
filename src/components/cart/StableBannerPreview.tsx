@@ -216,6 +216,7 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
         className="min-w-0"
         style={{
           width: surfaceOnly ? '100%' : `${previewWidth}px`,
+          height: surfaceOnly ? '100%' : undefined,
           maxWidth: largePreview && !surfaceOnly
             ? `min(100%, calc((100dvh - 160px) * ${aspectRatio}))`
             : '100%',
@@ -226,7 +227,10 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
             ? 'relative block w-full overflow-hidden'
             : 'relative block w-full overflow-hidden rounded-lg ring-2 ring-inset ring-gray-200 bg-white shadow-lg'}
           style={{
-            aspectRatio: `${safeWidth} / ${safeHeight}`,
+            // The scene already owns the exact surface rectangle. Recomputing
+            // its height from a rounded CSS width can leave a subpixel seam.
+            aspectRatio: surfaceOnly ? undefined : `${safeWidth} / ${safeHeight}`,
+            height: surfaceOnly ? '100%' : undefined,
             minHeight: '1px',
             contain: 'layout paint',
             backgroundColor,
