@@ -12,21 +12,59 @@ type Data = { enabled: boolean; mode: string; phoneNumber: string; limits: { dai
   issues: { id: string; phone: string; status: string; error_code: string; provider_sid: string | null }[];
   inboundIssues: { sid: string; phone: string; error_code: string }[];
   setup: { twilioAccount: boolean; twilioToken: boolean; artworkStorage: boolean } };
+type Connection = { status: 'connected' | 'missing_credentials' | 'invalid_credentials' | 'authentication_failed' | 'unavailable';
+  accountType?: string; accountActive?: boolean; numbers?: { phoneNumber: string; sms: boolean; mms: boolean }[];
+  listMayBeIncomplete?: boolean; selectedNumberConfigured?: boolean; selectedNumberOwned?: boolean;
+  selectedNumberCapable?: boolean; routingMatches?: boolean };
+const connectionErrors = {
+  missing_credentials: 'Twilio settings are missing from this deployment. Save the account SID and auth token for Functions, then redeploy.',
+  invalid_credentials: 'The saved Twilio settings have an invalid format. Check the private values in Netlify, then redeploy.',
+  authentication_failed: 'Twilio rejected the saved credentials. Check that the account SID and auth token belong to the same account.',
+  unavailable: 'Twilio could not be checked right now. Please try again.',
+};
 export default function TextOrders() {
   const { user, loading } = useAuth(); const navigate = useNavigate();
   const allowed = !loading && !!user && isAdmin(user);
   const [data, setData] = useState<Data | null>(null); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
+  const [connection, setConnection] = useState<Connection | null>(null); const [checking, setChecking] = useState(false);
   useEffect(() => { if (!loading && !allowed) navigate('/admin/setup', { replace: true }); }, [allowed, loading, navigate]);
   async function refresh() {
     setBusy(true);
     try { const response = await adminFetch('/.netlify/functions/admin-text-orders'); if (!response.ok) throw new Error('Could not load text orders.'); setData(await response.json()); setError(''); }
     catch (failure) { setError(failure instanceof Error ? failure.message : 'Please retry.'); } finally { setBusy(false); }
   }
+  async function checkConnection() {
+    setChecking(true); setConnection(null);
+    try {
+      const response = await adminFetch('/.netlify/functions/admin-text-orders?check=connection');
+      if (response.status === 401) throw new Error('Please sign in again to check the account.');
+      const result = await response.json();
+      if (!result.connection) throw new Error('Could not check Twilio. Please retry.');
+      setConnection(result.connection); setError('');
+    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Please retry.'); }
+    finally { setChecking(false); }
+  }
   useEffect(() => { if (allowed) void refresh(); }, [allowed]);
   if (!allowed) return <Layout><p className="p-8 text-center">Checking admin access…</p></Layout>;
   return <Layout><main className="mx-auto max-w-6xl px-4 py-8"><Link to="/admin/orders" className="font-semibold text-blue-800">← Back to orders</Link>
     <div className="mt-5 flex flex-wrap items-center justify-between gap-4"><h1 className="text-3xl font-bold text-[#0B1F3A]">Text orders</h1><Button variant="outline" disabled={busy} onClick={() => void refresh()}>Refresh</Button></div>
     {error && <p role="alert" className="mt-5 rounded-lg bg-red-50 p-4 text-red-900">{error}</p>}
+    <section className="my-6 rounded-xl border bg-white p-5"><h2 className="text-xl font-bold">Twilio connection</h2>
+      <p className="mt-2 text-sm text-slate-600">Check the saved credentials and assigned numbers. This check does not send texts, buy a number, or change settings.</p>
+      <Button className="mt-4 min-h-11" disabled={checking} onClick={() => void checkConnection()}>{checking ? 'Checking…' : 'Check Twilio connection'}</Button>
+      {connection && <div className="mt-4" role="status" aria-live="polite">{connection.status === 'connected' ? <>
+        <p className="font-semibold">Connection verified · {connection.accountType} account{connection.accountActive ? '' : ' · account inactive'}</p>
+        {connection.accountType === 'Trial' && <p className="mt-2 text-sm">Website preparation can continue on the trial. Full custom text ordering requires an account upgrade and number approval.</p>}
+        {connection.numbers?.length ? <ul className="mt-3 space-y-2">{connection.numbers.map(number => <li key={number.phoneNumber} className="rounded bg-slate-50 p-3">{number.phoneNumber} · SMS {number.sms ? 'yes' : 'no'} · MMS {number.mms ? 'yes' : 'no'}</li>)}</ul>
+          : <p className="mt-2">No numbers are assigned to this Twilio account yet.</p>}
+        {connection.listMayBeIncomplete && <p className="mt-2 text-sm">Showing up to 20 assigned numbers. Set the intended ordering number to check it directly.</p>}
+        <p className="mt-2 text-sm">{!connection.selectedNumberConfigured ? 'Next: select an assigned SMS/MMS number and save the ordering settings.'
+          : !connection.selectedNumberOwned ? 'The configured ordering number is not assigned to this account.'
+          : !connection.selectedNumberCapable ? 'The configured number must support both SMS and MMS.'
+          : connection.routingMatches ? 'Inbound routing matches this website. Number approval and an end-to-end phone test are still required before launch.'
+          : 'Next: configure the number’s inbound routing after number approval.'}</p>
+      </> : <p className="text-red-900">{connectionErrors[connection.status]}</p>}</div>}
+    </section>
     {data && <><section className="my-6 rounded-xl border bg-white p-5"><h2 className="text-xl font-bold">{data.enabled ? `Enabled · ${data.mode}` : 'Setup pending · disabled'}</h2><p className="mt-2">Number: {data.phoneNumber || 'Not connected'}</p>
       <dl className="mt-4 grid gap-3 sm:grid-cols-2"><div><dt className="text-sm text-slate-600">Twilio account details</dt><dd className="font-semibold">{data.setup.twilioAccount && data.setup.twilioToken ? 'Added' : 'Pending'}</dd></div><div><dt className="text-sm text-slate-600">Artwork storage</dt><dd className="font-semibold">{data.setup.artworkStorage ? 'Configured' : 'Pending'}</dd></div></dl>
       {!data.enabled && <p className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-900">Website setup can be prepared on a free trial. Full text ordering requires a paid Twilio account, an approved texting number, and a successful phone test before launch.</p>}

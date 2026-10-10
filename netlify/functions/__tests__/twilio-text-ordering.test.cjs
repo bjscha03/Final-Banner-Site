@@ -13,6 +13,7 @@ const artwork = require('../_shared/sms/artwork.cjs');
 const worker = require('../_shared/sms/worker.cjs');
 const payments = require('../_shared/sms/payments.cjs');
 const checkout = require('../_shared/stripe-checkout-service.cjs');
+const preflight = require('../_shared/sms/preflight.cjs');
 const { assertReadyPlacementPreview } = require('../_shared/preview-artifact.cjs');
 
 const config = { enabled: true, accountSid: `AC${'a'.repeat(32)}`, authToken: 'test-auth-token-with-enough-characters',
@@ -20,6 +21,81 @@ const config = { enabled: true, accountSid: `AC${'a'.repeat(32)}`, authToken: 't
   testPhones: ['+15025550100'], dailyMessages: 200, monthlyMessages: 2000, sessionMessages: 50 };
 const phone = config.testPhones[0];
 let sequence = 0;
+
+test('account preflight works before a number is selected and only reads safe account metadata', async () => {
+  const calls = [];
+  const provider = {
+    api: { accounts: sid => { assert.equal(sid, config.accountSid); return { fetch: async () => {
+      calls.push('account.fetch'); return { type: 'Trial', status: 'active', authToken: config.authToken };
+    } }; } },
+    incomingPhoneNumbers: { list: async options => { calls.push(['numbers.list', options]); return []; } },
+  };
+  const report = await preflight.inspect({ ...config, phoneNumber: '', enabled: false }, () => provider);
+  assert.deepEqual(calls, ['account.fetch', ['numbers.list', { limit: 20 }]]);
+  assert.equal(report.status, 'connected'); assert.equal(report.accountType, 'Trial');
+  assert.deepEqual(report.numbers, []); assert.equal(report.selectedNumberConfigured, false);
+  assert.equal(report.routingMatches, false);
+  assert.equal(JSON.stringify(report).includes(config.authToken), false);
+  assert.equal(JSON.stringify(report).includes(config.accountSid), false);
+});
+
+test('preflight checks the selected owned number and routing without exposing provider URLs', async () => {
+  const number = { sid: 'PN-private', phoneNumber: config.phoneNumber, capabilities: { sms: true, mms: true },
+    smsUrl: `${config.origin}/api/twilio/inbound`, smsMethod: 'POST', smsFallbackUrl: 'https://private.invalid/?secret=value' };
+  const provider = { api: { accounts: () => ({ fetch: async () => ({ type: 'Full', status: 'active' }) }) },
+    incomingPhoneNumbers: { list: async options => { assert.deepEqual(options, { phoneNumber: config.phoneNumber, limit: 2 }); return [number]; } } };
+  const report = await preflight.inspect(config, () => provider);
+  assert.equal(report.selectedNumberOwned, true); assert.equal(report.selectedNumberCapable, true);
+  assert.equal(report.routingMatches, true);
+  assert.equal(JSON.stringify(report).includes('private'), false);
+  number.smsMethod = 'GET';
+  assert.equal((await preflight.inspect(config, () => provider)).routingMatches, false);
+  number.phoneNumber = '+18005550199';
+  assert.equal((await preflight.inspect(config, () => provider)).selectedNumberOwned, false);
+});
+
+test('preflight avoids calls for missing credentials and suppresses raw provider failures', async () => {
+  const forbidden = () => { throw new Error('Network must not be called'); };
+  assert.deepEqual(await preflight.inspect({ ...config, authToken: '' }, forbidden), { status: 'missing_credentials' });
+  assert.deepEqual(await preflight.inspect({ ...config, accountSid: 'invalid' }, forbidden), { status: 'invalid_credentials' });
+  const provider = { api: { accounts: () => ({ fetch: async () => { throw Object.assign(new Error(config.authToken), { status: 401 }); } }) } };
+  assert.deepEqual(await preflight.inspect(config, () => provider), { status: 'authentication_failed' });
+  provider.api.accounts = () => ({ fetch: async () => { throw new Error(`Network failure with ${config.authToken}`); } });
+  assert.deepEqual(await preflight.inspect(config, () => provider), { status: 'unavailable' });
+});
+
+test('only a signed administrator can inspect Twilio; preview cookies cannot trigger provider reads', async () => {
+  const { readFileSync } = require('node:fs');
+  const path = require('node:path');
+  const Module = require('node:module');
+  const auth = require('../_shared/server-auth.cjs');
+  const filename = path.resolve(__dirname, '../admin-text-orders.mts');
+  const loaded = new Module(filename, module); loaded.filename = filename;
+  loaded.paths = Module._nodeModulePaths(path.dirname(filename));
+  loaded._compile(require('esbuild').transformSync(readFileSync(filename, 'utf8'), { loader: 'ts', format: 'cjs' }).code, filename);
+  const handler = loaded.exports.default;
+  const originalInspect = preflight.inspect; const originalSecret = process.env.AUTH_SESSION_SECRET;
+  process.env.AUTH_SESSION_SECRET = 'text-order-test-admin-secret';
+  let reads = 0;
+  preflight.inspect = async () => { reads++; return { status: 'connected', accountType: 'Trial', numbers: [] }; };
+  try {
+    const url = 'https://deploy-preview-596--bannersonthefly.netlify.app/.netlify/functions/admin-text-orders?check=connection';
+    const request = headers => new Request(url, { headers });
+    assert.equal((await handler(request({}))).status, 401);
+    assert.equal((await handler(request({ host: new URL(url).host, cookie: 'botf_preview_admin=1' }))).status, 401);
+    const customer = auth.createSessionToken({ id: 'customer', email: 'customer@example.com', is_admin: false });
+    assert.equal((await handler(request({ authorization: `Bearer ${customer}` }))).status, 401);
+    assert.equal(reads, 0);
+    const admin = auth.createSessionToken({ id: 'admin', email: 'admin@example.com', is_admin: true });
+    const response = await handler(request({ authorization: `Bearer ${admin}` }));
+    assert.equal(response.status, 200); assert.equal(reads, 1);
+    assert.equal(response.headers.get('cache-control'), 'no-store, max-age=0');
+    assert.equal((await response.json()).connection.status, 'connected');
+  } finally {
+    preflight.inspect = originalInspect;
+    if (originalSecret === undefined) delete process.env.AUTH_SESSION_SECRET; else process.env.AUTH_SESSION_SECRET = originalSecret;
+  }
+});
 async function database() {
   const db = new PGlite();
   const sql = async (strings, ...parameters) => (await db.query(strings.reduce((query, part, index) => query + (index ? `$${index}` : '') + part, ''), parameters)).rows;

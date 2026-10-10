@@ -44,14 +44,18 @@ Only replace enabled:false with true after account/number verification, routing,
 
 For a test deployment, set mode:test, origin to its actual https://deploy-preview-N--bannersonthefly.netlify.app URL, and testPhones to an array of approved +1 test recipients. Use existing preview-scoped Stripe **test** keys and webhook secret. Test mode rejects all other phone numbers. Stripe mode must match text-order mode; production Stripe is never used for a test-marked order.
 
-Redeploy after changing environment settings. Preflight commands, with the three variables supplied securely in the terminal:
+Redeploy after changing environment settings. In the deployed site's authenticated **Admin → Text orders** page, use **Check Twilio connection** to validate the private credentials and read assigned SMS/MMS numbers. This check works before a number or database has been configured; it never sends messages, purchases a number, or changes routing. It requires a real signed admin session, including on previews; the preview convenience cookie is not accepted.
+
+The two Twilio variables alone are enough for a read-only account check. `BOF_SMS_SETTINGS` is required to configure a selected number and enable ordering. A connection result verifies account access, not carrier registration or successful order delivery.
+
+Preflight commands, with variables supplied securely in the terminal:
 
 ```sh
 node scripts/configure-twilio-text-orders.cjs
 node scripts/configure-twilio-text-orders.cjs --apply
 ```
 
-The first command reads account/number capability and current routing. The second updates only the owned number's inbound SMS/MMS webhook and fallback to the chosen BOF origin, POST /api/twilio/inbound. A safe retry uses the same MessageSid and cannot repeat a conversation step. No number purchase, account creation, verification submission, or test text is performed by this script.
+The first command works with just the two Twilio credentials and reads account/number capability and whether configured routing matches. The second requires the selected number settings and updates only the owned number's inbound SMS/MMS webhook and fallback to the chosen BOF origin, POST /api/twilio/inbound. It refuses trial or unknown account types. A safe retry uses the same MessageSid and cannot repeat a conversation step. No number purchase, account creation, verification submission, or test text is performed by this script. Raw provider exceptions and existing webhook URLs are not printed because they can contain private values.
 
 ## Endpoints and checkout
 

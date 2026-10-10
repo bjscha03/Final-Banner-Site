@@ -4,12 +4,17 @@ import auth from './_shared/server-auth.cjs';
 import runtime from './_shared/sms/runtime.cjs';
 import store from './_shared/sms/store.cjs';
 import http from './_shared/sms/http.cjs';
+import preflight from './_shared/sms/preflight.cjs';
 
 export default async (request: Request) => {
   const verified = auth.requireAdmin(http.eventFor(request));
   if (!verified.ok || verified.session.preview) return http.json(401, { error: 'ADMIN_REQUIRED' });
   if (request.method !== 'GET') return http.json(405, { error: 'METHOD_NOT_ALLOWED' });
   const config = runtime.settings();
+  if (new URL(request.url).searchParams.get('check') === 'connection') {
+    const connection = await preflight.inspect(config);
+    return http.json(connection.status === 'unavailable' ? 503 : 200, { connection });
+  }
   try {
     const sql = store.database(); await store.ensureSchema(sql);
     const [sessions, issues, budget] = await Promise.all([
