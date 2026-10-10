@@ -1,5 +1,5 @@
 # Double-sided printing is now an option in the main banner designer.
-/double-sided-banners   /design?product=banner&sides=double   301!
+/double-sided-banners   /.netlify/functions/redirect-double-sided-banner   200!
 
 # API routing for Netlify Functions
 # Keep the historical PayPal compatibility routes ahead of the broad API
