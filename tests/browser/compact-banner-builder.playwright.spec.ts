@@ -242,6 +242,9 @@ test('every banner designer route uses the shared mobile ordering controls', asy
 
 
 test('single and double sided pricing, artwork and cart editing share one designer', async ({ page }, info) => {
+  // Two upload/save/checkout cycles plus screenshots can exceed two minutes
+  // in WebKit on shared CI runners; retain the normal per-action timeouts.
+  test.setTimeout(180_000);
   await installUploadAndFunctionHarness(page, `print-sides-${info.project.name}`);
   // Include the smallest supported phone width in the existing browser matrix.
   if (info.project.name === 'webkit-iphonese-portrait') await page.setViewportSize({ width: 320, height: 700 });
