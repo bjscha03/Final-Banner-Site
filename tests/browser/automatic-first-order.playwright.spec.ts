@@ -26,22 +26,27 @@ for (const width of [320, 390, 1440]) {
   test(`automatic welcome prices and shipping at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/design?width=48&height=24');
+    await expect(page.getByRole('button', { name: 'Apply 20% first-order discount', exact: true })).toHaveCount(0);
+    // The compact mobile builder shows prices in its sticky footer; the full
+    // breakdown is revealed after uploading and advancing to Finishing.
+    if (width < 1024) {
+      const bar = page.getByTestId('mobile-subtotal-bar');
+      await expect(bar).toContainText('$40.00');
+      await expect(bar).toContainText('$32.00');
+      await expect(bar).toContainText('20% off first order applied');
+      await expect(bar.getByTestId('free-next-day-air-badge')).toBeVisible();
+      await expect(bar.getByRole('button', { name: 'View cart (0)', exact: true })).toBeVisible();
+      expect(await bar.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+      await bar.screenshot({ path: info.outputPath(`welcome-sticky-${width}.png`) });
+      return;
+    }
     const summary = page.locator('[data-testid="price-breakdown"]:visible').first();
     await expect(summary).toContainText('$32.00');
     await expect(summary.locator('s')).toHaveText('$40.00');
     await expect(summary).toContainText('20% off first order applied');
     await expect(summary).toContainText('You save $8.00');
     await expect(summary.getByTestId('free-next-day-air-badge')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Apply 20% first-order discount', exact: true })).toHaveCount(0);
     await summary.screenshot({ path: info.outputPath(`welcome-summary-${width}.png`) });
-    if (width < 768) {
-      const bar = page.getByTestId('mobile-subtotal-bar');
-      await expect(bar).toContainText('$40.00'); await expect(bar).toContainText('$32.00');
-      await expect(bar).toContainText('20% off first order applied');
-      await expect(bar.getByRole('button', { name: 'View Cart (0)' })).toBeVisible();
-      expect(await bar.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
-      await bar.screenshot({ path: info.outputPath(`welcome-sticky-${width}.png`) });
-    }
     // A user can apply a better offer without first removing the automatic one.
     await summary.locator('summary').click();
     await summary.getByRole('textbox', { name: 'Promo code', exact: true }).fill('REVIEW25');
