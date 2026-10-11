@@ -272,7 +272,9 @@ test('single and double sided pricing, artwork and cart editing share one design
   await expect(preview).toBeVisible();
   await expect.poll(() => preview.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
   const originalSrc = await preview.getAttribute('src');
-  const originalStyle = await preview.getAttribute('style');
+  const placementStyle = () => preview.evaluate(el => (el.parentElement as HTMLElement).style.cssText);
+  await expect.poll(placementStyle).toContain('width:');
+  const originalStyle = await placementStyle();
   await double.check();
   await expect(double).toBeChecked();
   await expect(page).toHaveURL(/sides=double/);
@@ -281,7 +283,7 @@ test('single and double sided pricing, artwork and cart editing share one design
   await expect(size.getByRole('button', { name: "6' × 3' — Everyday displays", exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(price).toContainText('$90.00');
   await expect(preview).toHaveAttribute('src', originalSrc!);
-  await expect(preview).toHaveAttribute('style', originalStyle!);
+  await expect.poll(placementStyle).toBe(originalStyle);
   await page.getByLabel('Quantity', { exact: true }).fill('2');
   await expect(price).toContainText('$180.00');
   await single.check();
@@ -290,7 +292,7 @@ test('single and double sided pricing, artwork and cart editing share one design
   await page.getByLabel('Quantity', { exact: true }).fill('1');
   await expect(price).toContainText('$90.00');
   await expect(preview).toHaveAttribute('src', originalSrc!);
-  await expect(preview).toHaveAttribute('style', originalStyle!);
+  await expect.poll(placementStyle).toBe(originalStyle);
   const sides = size.getByRole('group', { name: 'Print sides' });
   await sides.scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
@@ -312,7 +314,9 @@ test('single and double sided pricing, artwork and cart editing share one design
   expect(cart[0]).toMatchObject({ material: '18oz_double', width_in: 72, height_in: 36, quantity: 1,
     unit_price_cents: 11250, rope_cost_cents: 1200, line_total_cents: 12450 });
   expect(cart[0].placement_preview.uploadStatus).toBe('uploaded');
-  await expect(page.getByTestId('checkout-order-totals')).toContainText('$99.60');
+  await expect(page.getByTestId('checkout-order-totals')).toContainText('$124.50');
+  await expect(page.getByTestId('checkout-order-totals')).toContainText('-$24.90');
+  await expect(page.getByTestId('checkout-order-totals')).toContainText('$105.58');
   await page.getByTestId('payment-order-summary').screenshot({ path: info.outputPath('double-sided-checkout.png') });
   // Follow the actual checkout edit action, then save over the same cart item.
   await page.getByRole('button', { name: 'Edit order', exact: true }).click();
@@ -336,5 +340,7 @@ test('single and double sided pricing, artwork and cart editing share one design
   expect(edited[0].image_scale).toBe(cart[0].image_scale);
   expect(edited[0].file_url).toBe(cart[0].file_url);
   expect(JSON.parse(edited[0].canvas_state_json).normalizedPlacement).toEqual(JSON.parse(cart[0].canvas_state_json).normalizedPlacement);
-  await expect(page.getByTestId('checkout-order-totals')).toContainText('$81.60');
+  await expect(page.getByTestId('checkout-order-totals')).toContainText('$102.00');
+  await expect(page.getByTestId('checkout-order-totals')).toContainText('-$20.40');
+  await expect(page.getByTestId('checkout-order-totals')).toContainText('$86.50');
 });
