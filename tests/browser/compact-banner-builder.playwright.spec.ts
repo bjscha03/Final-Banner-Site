@@ -329,7 +329,7 @@ test('single and double sided pricing, artwork and cart editing share one design
   await single.check();
   await expect(price).toContainText('$81.60');
   if (mobile) await page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Next: Finishing', exact: true }).click();
-  await page.getByRole('button', { name: 'Continue to checkout', exact: true }).filter({ visible: true }).click();
+  await page.getByRole('button', { name: mobile ? 'Continue to checkout' : 'Save & checkout', exact: true }).filter({ visible: true }).click();
   await expect(page).toHaveURL(/\/checkout/, { timeout: 60000 });
   const edited = await readCart();
   expect(edited).toHaveLength(1);
