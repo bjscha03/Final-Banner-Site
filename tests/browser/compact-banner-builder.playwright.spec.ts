@@ -319,6 +319,7 @@ test('single and double sided pricing, artwork and cart editing share one design
   await page.getByRole('button', { name: 'Edit banner', exact: true }).click();
   await expect(page).toHaveURL(/editItem=/);
   expect(new URL(page.url()).pathname).not.toBe('/double-sided-banners');
+  await page.getByRole('button', { name: 'Close preview', exact: true }).click();
   await expect(double).toBeChecked();
   await expect(preview).toBeVisible();
   await single.check();
@@ -330,6 +331,10 @@ test('single and double sided pricing, artwork and cart editing share one design
   expect(edited).toHaveLength(1);
   expect(edited[0]).toMatchObject({ id: cart[0].id, material: '13oz', width_in: 72, height_in: 36,
     unit_price_cents: 9000, rope_cost_cents: 1200, line_total_cents: 10200 });
-  expect(edited[0].normalized_placement).toEqual(cart[0].normalized_placement);
+  expect(cart[0].image_position).toBeDefined();
+  expect(edited[0].image_position).toEqual(cart[0].image_position);
+  expect(edited[0].image_scale).toBe(cart[0].image_scale);
+  expect(edited[0].file_url).toBe(cart[0].file_url);
+  expect(JSON.parse(edited[0].canvas_state_json).normalizedPlacement).toEqual(JSON.parse(cart[0].canvas_state_json).normalizedPlacement);
   await expect(page.getByTestId('checkout-order-totals')).toContainText('$81.60');
 });
