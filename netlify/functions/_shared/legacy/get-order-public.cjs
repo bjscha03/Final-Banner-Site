@@ -81,6 +81,7 @@ function publicOrderShape(order, items) {
       rounded_corners: item.rounded_corners || null,
       line_total_cents: Number(item.line_total_cents || 0),
       product_type: item.product_type || 'banner',
+      specialty_config:item.specialty_config||null,
       thumbnail_url: item.thumbnail_url || null,
       final_render_url: item.final_render_url || null,
       web_preview_url: item.web_preview_url || null,

@@ -26,7 +26,8 @@ describe('specialty artwork in the existing cart',()=>{
     const before=useCartStore.getState().getQuantityDiscountInfo(),config=configuration(),id=save(config);
     const saved=useCartStore.getState().items[1];
     expect(saved.specialty_config?.panels).toHaveLength(4);
-    expect(JSON.parse(saved.canvas_state_json!).configuration).toEqual(config);
+    expect(JSON.parse(saved.canvas_state_json!).configuration).toEqual(saved.specialty_config);
+    expect(saved.specialty_config).toMatchObject(config);
     expect(cartEditUrl(saved)).toBe(`/products/${config.productSlug}?editItem=${id}`);
     expect(save(config,id)).toBe(id);expect(useCartStore.getState().items).toHaveLength(2);
     useCartStore.getState().updateQuantity(id,5);

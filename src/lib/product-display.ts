@@ -287,6 +287,7 @@ export function getEmailItemOptions(item: {
   yard_sign_step_stakes_qty?: number;
   yard_sign_design_count?: number;
 }): string {
+  if(item.product_type==='specialty')return [item.specialty_config?.variantLabel,...(item.specialty_config?.optionSummary||[]).map(o=>`${o.label}: ${o.value}`)].filter(Boolean).join(' • ');
   if (item.product_type === 'yard_sign') {
     const parts: string[] = [
       `Size: ${getDisplaySize(item)}`,

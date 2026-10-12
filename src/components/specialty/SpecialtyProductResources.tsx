@@ -1,0 +1,41 @@
+import {useEffect,useState} from 'react';
+import {FileDown,ZoomIn} from 'lucide-react';
+import sourceData from '../../../shared/specialty-supplier.json';
+import {Dialog,DialogContent,DialogTitle} from '@/components/ui/dialog';
+import {specialtyOptionMatches,type SpecialtyProduct,type SpecialtyVariant,type SpecialtyOptions} from '@/lib/specialtyProducts';
+type Resource={id:string;name:string;sourceUrl:string;specifications:string[];gallery:Array<{url:string;thumb:string;label:string}>;groups:any[];downloads:Array<{label:string;url:string;kind:string;format:string;localUrl?:string}>;installation?:Array<{text:string;images:string[]}>;installationNotes?:string[];videos?:string[]};
+const sources=sourceData as unknown as Record<string,Resource>;
+export function SpecialtyProductGallery({product,variant,options}:{product:SpecialtyProduct;variant:SpecialtyVariant;options:SpecialtyOptions}) {
+  const [selected,setSelected]=useState(0),[open,setOpen]=useState(false);
+  const source=sources[variant.supplierProfile||''];
+  const chosen=source?.groups.flatMap(g=>g.options?.filter((o:any)=>String(o.key)===options[g.key]).flatMap((o:any)=>[...(o.component_props?.cart_image||[]),...(o.component_props?.image||[])])||[]).find((i:any)=>specialtyOptionMatches(i.match,options));
+  const matchingSize=source?.groups.filter(g=>g.key==='size'||g.key==='Size').flatMap(g=>g.options.filter((o:any)=>String(o.key)===options[g.key]).flatMap((o:any)=>[...(o.component_props?.cart_image||[]),...(o.component_props?.image||[])])).find((i:any)=>specialtyOptionMatches(i.match,options));
+  const selectedImage=matchingSize||chosen;
+  const primary=selectedImage?{url:selectedImage.s1000,thumb:selectedImage.s200,label:`${product.name} · ${variant.label} · manufacturer photograph`}:source?.gallery[0];
+  const images=[...(primary?[primary]:[]),{url:product.image,thumb:product.image,label:product.imageAlt},...(source?.gallery||[]).filter(i=>i.url!==primary?.url)];
+  useEffect(()=>setSelected(0),[variant.id,JSON.stringify(options)]);
+  const current=images[selected]||images[0];
+  return <div className="min-w-0">
+    <button type="button" className="relative block w-full overflow-hidden rounded-2xl border border-slate-200 bg-white" onClick={()=>setOpen(true)} aria-label={`Enlarge ${current.label}`}><img src={current.url} alt={current.label} className="aspect-square w-full object-contain"/><span className="absolute bottom-3 right-3 rounded-full bg-white p-2 shadow"><ZoomIn className="h-5 w-5"/></span></button>
+    <div className="mt-3 flex gap-2 overflow-x-auto pb-2" aria-label="Product and accessory photographs">{images.map((img,i)=><button key={img.url} type="button" onClick={()=>setSelected(i)} aria-pressed={selected===i} aria-label={img.label} className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 bg-white p-1 ${selected===i?'border-orange-600':'border-slate-200'}`}><img src={img.thumb} alt="" loading="lazy" className="h-full w-full object-contain"/></button>)}</div>
+    <p className="mt-1 text-xs leading-5 text-slate-500">{current.url===product.image?'Fictional business example. Select a manufacturer view to inspect the actual hardware.':`${variant.label}. Manufacturer photograph; only the hardware and accessories selected in your configuration are included.`}</p>
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[92dvh] max-w-4xl overflow-auto"><DialogTitle>{selected===0?product.name:current.label}</DialogTitle><img src={current.url} alt={current.label} className="max-h-[75dvh] w-full object-contain"/></DialogContent></Dialog>
+  </div>;
+}
+export default function SpecialtyProductResources({variant}:{variant:SpecialtyVariant}) {
+  const source=sources[variant.supplierProfile||''];if(!source)return null;
+  const groups=[['Specifications','spec'],['Artwork templates & file setup','template'],['Assembly & installation','installation']] as const;
+  return <section aria-label="Product specifications and downloads" className="space-y-4">
+    {groups.map(([label,kind])=><details key={kind} className="group rounded-2xl border border-slate-200 bg-white p-5 sm:p-7" open={kind==='spec'}><summary className="cursor-pointer text-lg font-bold text-slate-900">{label}</summary>
+      {kind==='spec'?<ul className="mt-5 grid gap-x-8 gap-y-3 text-sm leading-6 text-slate-700 md:grid-cols-2">{source.specifications.map((spec,i)=><li key={i} className="border-l-2 border-orange-200 pl-3">{spec}</li>)}</ul>:<>
+        {kind==='template'&&<p className="mt-4 text-sm leading-6 text-slate-600">Upload a single-page PDF, JPG or PNG for each required print panel. Build to the selected template, keep critical content inside the safe area, and remove template guides before uploading. Supplier production files require CMYK, outlined fonts and 150 dpi raster artwork. Maximum upload: 300 MB. Template scale is shown in the artwork editor.</p>}
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">{source.downloads.filter(d=>d.kind===kind).map((d,i)=><a key={`${d.url}-${i}`} href={d.localUrl||d.url} target="_blank" rel="noreferrer" className="flex min-h-16 items-center gap-3 rounded-xl border border-slate-200 p-4 text-sm font-semibold text-blue-900 hover:border-blue-400"><FileDown className="h-5 w-5 shrink-0"/><span>{d.label}<span className="mt-1 block text-xs font-medium text-slate-500">{d.format} · Open/download</span></span></a>)}</div>
+        {kind==='installation'&&source.installation?.map((step,i)=><div key={i} className="mt-5"><p className="text-sm leading-6 text-slate-700">{step.text}</p><div className="mt-3 flex flex-wrap gap-4">{step.images.map(src=><img key={src} src={src} alt={`${source.name} installation step ${i+1}`} loading="lazy" className="max-h-72 max-w-full rounded-lg border object-contain"/>)}</div></div>)}
+        {kind==='installation'&&source.installationNotes?.map(note=><p key={note} className="mt-4 text-sm leading-6 text-slate-600">{note}</p>)}
+        {kind==='installation'&&source.videos?.map(url=><a key={url} href={url.replace('/embed/','/watch?v=')} target="_blank" rel="noreferrer" className="mt-5 inline-flex min-h-11 items-center font-semibold text-blue-800 underline">Watch the manufacturer’s assembly video</a>)}
+        {kind==='installation'&&!source.downloads.some(d=>d.kind===kind)&&!source.installation?.length&&!source.videos?.length&&<p className="mt-4 text-sm text-slate-600">The manufacturer does not publish a separate installation guide for this item. Product specifications and artwork templates are provided above.</p>}
+        {kind==='template'&&!source.downloads.some(d=>d.kind===kind)&&<p className="mt-3 text-sm text-slate-600">This product uses the selected rectangular artwork dimensions. Follow the safe margins shown in your artwork editor.</p>}
+      </>}
+    </details>)}
+  </section>;
+}

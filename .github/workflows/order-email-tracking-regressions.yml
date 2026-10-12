@@ -15,7 +15,7 @@ on:
       - 'src/pages/Specialty*'
       - 'src/lib/specialty*'
       - 'src/store/cart.specialty.test.ts'
-      - 'shared/specialty-*.json'
+      - 'shared/specialty-*'
       - 'src/components/CartModal.tsx'
       - 'src/components/HeroSection.tsx'
       - 'src/components/Header.tsx'
@@ -132,6 +132,7 @@ jobs:
             netlify/functions/__tests__/stripe-runtime-config.test.cjs \
             netlify/functions/__tests__/stripe-server-pricing.test.cjs \
             netlify/functions/__tests__/specialty-products.test.cjs \
+            netlify/functions/__tests__/specialty-production-job.test.cjs \
             netlify/functions/__tests__/paypal-preview-containment.test.mjs \
             netlify/functions/__tests__/paypal-capture-final-handler.test.mjs \
             netlify/functions/__tests__/payment-access-handler.test.mjs \
@@ -163,6 +164,9 @@ jobs:
             netlify/functions/__tests__/recovery-discount-identity.test.cjs \
             netlify/functions/__tests__/security-data-integrity-regressions.test.mjs
 
+      - name: Verify specialty AI geometry and existing AI behavior
+        run: npx vitest run --config vitest.ai.config.ts netlify/functions/__tests__/specialty-ai-layout.test.mjs netlify/functions/__tests__/ai-artwork-fit.test.mjs netlify/functions/__tests__/ai-designer.test.mjs
+
       - name: Run preview source-selection unit tests
         run: |
           npx vitest run --config vitest.ai.config.ts \
@@ -184,6 +188,7 @@ jobs:
             src/store/cart.previewLifecycle.test.ts \
             src/store/cart.specialty.test.ts \
             src/lib/specialtyArtwork.test.ts \
+            src/components/specialty/SpecialtyPreview.test.tsx \
             src/pages/SpecialtyProductPage.test.tsx \
             src/components/checkout/PayPalCheckoutReliable.identity.test.ts \
             src/components/checkout/StripeCheckout.flow.test.ts \

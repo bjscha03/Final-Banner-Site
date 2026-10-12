@@ -26,6 +26,7 @@ function toTitleCase(value) {
 }
 
 function getDisplayMaterial(item) {
+  if(item.product_type==='specialty')return item.specialty_config?.materialLabel||'Custom printed product';
   if (item.product_type === 'yard_sign') return 'Corrugated Plastic';
   if (item.product_type === 'car_magnet') return 'Premium Magnetic Material';
   const raw = String(item.material || '').trim().toLowerCase();
@@ -38,6 +39,7 @@ function getDisplayMaterial(item) {
 }
 
 function getDisplaySize(item) {
+  if(item.product_type==='specialty')return item.specialty_config?.variantLabel||'';
   if (item.product_type === 'yard_sign') return YARD_SIGN_SIZE;
   if (item.width_in == null || item.height_in == null) return '';
   return `${item.width_in}" × ${item.height_in}"`;
@@ -93,6 +95,7 @@ function getDisplayPlacement(value) {
 }
 
 function getItemDisplayName(item) {
+  if(item.product_type==='specialty')return item.specialty_config?.productName||'Custom display';
   if (item.product_type === 'yard_sign') {
     return `Custom Yard Sign ${YARD_SIGN_SIZE}`;
   }
@@ -106,6 +109,7 @@ function getItemDisplayName(item) {
  * Get a short product label (no dimensions).
  */
 function getProductLabel(productType) {
+  if(productType==='specialty')return 'Displays & event gear';
   if (productType === 'yard_sign') return 'Yard Sign';
   if (productType === 'car_magnet') return 'Car Magnets';
   return 'Banner';
@@ -124,6 +128,7 @@ function isYardSignItem(item) {
  * Banners: material, grommets, rope, pole pockets.
  */
 function getEmailItemOptions(item) {
+  if(item.product_type==='specialty')return [item.specialty_config?.variantLabel,...(item.specialty_config?.optionSummary||[]).map(o=>`${o.label}: ${o.value}`),...(item.specialty_config?.customHoles||[]).map((h,i)=>`Hole ${i+1}: ${h.xIn} in from left, ${h.yIn} in from top`)].filter(Boolean).join(' • ');
   const normalized = normalizeOrderItemDisplay(item);
   if (item.product_type === 'yard_sign') {
     const parts = [
@@ -172,6 +177,13 @@ function getEmailItemOptions(item) {
 }
 
 function normalizeOrderItemDisplay(item) {
+  if(item.product_type==='specialty')return {
+    productType:'specialty',productLabel:getItemDisplayName(item),displayName:getItemDisplayName(item),
+    sizeDisplay:getDisplaySize(item),materialDisplay:getDisplayMaterial(item),
+    printDisplay:`${item.specialty_config?.panels?.length||0} approved artwork panel(s)`,
+    qtyDisplay:String(item.quantity||0),unitPriceCents:Number(item.unit_price_cents||0),lineTotalCents:Number(item.line_total_cents||0),
+    thumbnailUrl:item.specialty_config?.panels?.[0]?.preview.url||'',printFileUrl:item.specialty_config?.panels?.[0]?.productionUrl||''
+  };
   const isYardSign = item.product_type === 'yard_sign';
   const isCarMagnet = item.product_type === 'car_magnet';
   const qty = Number(item.quantity || 0);

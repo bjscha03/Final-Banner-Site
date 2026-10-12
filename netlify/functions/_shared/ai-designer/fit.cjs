@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const { resolveSpecialtyTemplate, specialtyPrompt } = require('../specialty-products.cjs');
+const {layoutContext,cropForRatio,layoutGuide,guideInstruction,visibleArtwork}=require('./specialty-layout.cjs');
 const FIT_MODEL = 'gpt-image-2.5-sunburst-2026-09-08';
 const FIT_INSPECTION_MODEL = 'gpt-6-astra';
 
@@ -13,8 +14,8 @@ function validateFitRequest(body) {
     throw Object.assign(new Error('Choose a supported print product.'), { code: 'INVALID_REQUEST' });
   }
   const widthIn = Number(body.widthIn), heightIn = Number(body.heightIn);
-  if (![widthIn, heightIn].every(n => Number.isFinite(n) && n >= 6 && n <= 1200)
-    || widthIn / heightIn > 20 || heightIn / widthIn > 20) {
+  if (!specialty && (![widthIn, heightIn].every(n => Number.isFinite(n) && n >= 6 && n <= 1200)
+    || widthIn / heightIn > 20 || heightIn / widthIn > 20)) {
     throw Object.assign(new Error('Choose artwork dimensions from 6 to 1200 inches, up to a 20:1 ratio.'), { code: 'INVALID_DIMENSIONS' });
   }
   if (typeof body.sourceImage !== 'string' || !/^data:image\/(?:png|jpeg|webp);base64,/.test(body.sourceImage)) {
@@ -161,17 +162,10 @@ async function runFitRequest(body, session, jobId, report = async () => {}, depe
     });
   }
   await report('Rearranging your design for the selected size');
-  let templateReference;
-  if (String(productType).startsWith('specialty:')) {
-    const {template}=resolveSpecialtyTemplate(productType,widthIn,heightIn);
-    const w=Math.round(1024*Math.min(1,widthIn/heightIn)),h=Math.round(1024*Math.min(1,heightIn/widthIn));
-    const front=template.faces?.front;
-    const printable=template.outline ? `<path d="${template.outline}" fill="white"/>` : '<rect width="100" height="100" fill="white"/>';
-    const area=front ? `<rect x="${front[0]*100}" y="${front[1]*100}" width="${front[2]*100}" height="${front[3]*100}" fill="#b8dfd0"/>` : '';
-    templateReference={buffer:await sharp(Buffer.from(`<svg width="${w}" height="${h}" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="#555555"/>${printable}${area}</svg>`)).png().toBuffer(),mimeType:'image/png'};
-  }
+  const context=layoutContext(productType,widthIn,heightIn);
+  const templateReference=await layoutGuide(context,plan);
   const result = await edit({
-    prompt: buildFitPrompt({ widthIn, heightIn, plan, source, productType }) + (templateReference ? '\nThe SECOND image is an exact technical layout guide, not design content. White is printable area; dark gray is discarded. Pale green, if present, is the FRONT table face: put the main text/logo within that face with safe margins. Use ONLY the first image as artwork/style. Do not reproduce any guide colors, borders or labels.' : ''), size: plan.providerSize,
+    prompt: buildFitPrompt({ widthIn, heightIn, plan, source, productType }) + '\n' + guideInstruction(context), size: plan.providerSize,
     ...(templateReference ? {referenceImage:templateReference} : {}),
     currentImage: original.buffer, currentMime: original.mimeType, user,
     model: FIT_MODEL, quality: 'high', idempotencyKey: key('layout'),
@@ -181,26 +175,12 @@ async function runFitRequest(body, session, jobId, report = async () => {}, depe
   const meta = await sharp(result.buffer, { limitInputPixels: 40_000_000 }).metadata();
   if (!meta.width || !meta.height) throw Object.assign(new Error('Invalid generated image.'), { code: 'PROVIDER_EMPTY_RESPONSE' });
   const ratio = widthIn / heightIn;
-  const cropWidth = Math.min(meta.width, Math.round(meta.height * ratio));
-  const cropHeight = Math.min(meta.height, Math.round(meta.width / ratio));
-  let output = await sharp(result.buffer).extract({
-    left: Math.floor((meta.width - cropWidth) / 2), top: Math.floor((meta.height - cropHeight) / 2),
-    width: cropWidth, height: cropHeight,
-  }).flatten({ background: '#ffffff' }).jpeg({ quality: 96, chromaSubsampling: '4:4:4' }).toBuffer();
+  const crop=cropForRatio(meta.width,meta.height,ratio),cropWidth=crop.width,cropHeight=crop.height;
+  let output = await sharp(result.buffer).extract(crop)
+    .flatten({ background: '#ffffff' }).jpeg({ quality: 96, chromaSubsampling: '4:4:4' }).toBuffer();
   await report('Checking the new wording, logos and design elements');
   const inspectCandidate = async (buffer, stage) => {
-    if (String(productType).startsWith('specialty:')) {
-      const {template} = resolveSpecialtyTemplate(productType,widthIn,heightIn);
-      if (template.outline || template.faces?.front) {
-        const dimensions=await sharp(buffer).metadata();
-        const front=template.faces?.front;
-        // Essential wording must remain readable on the table's front panel,
-        // rather than disappearing onto the back or underneath a seam.
-        const shape=front?`<rect x="${front[0]*100}" y="${front[1]*100}" width="${front[2]*100}" height="${front[3]*100}" fill="white"/>`:`<path d="${template.outline}" fill="white"/>`;
-        const mask=Buffer.from(`<svg width="${dimensions.width}" height="${dimensions.height}" viewBox="0 0 100 100" preserveAspectRatio="none">${shape}</svg>`);
-        buffer=await sharp(buffer).ensureAlpha().composite([{input:mask,blend:'dest-in'}]).flatten({background:'#ffffff'}).jpeg({quality:96}).toBuffer();
-      }
-    }
+    buffer=await visibleArtwork(buffer,context);
     return inspect({ original, candidate: { buffer, mimeType: 'image/jpeg' }, expected: source.lines,
     sourceContext: { artworkType: source.artworkType, incidentalText: source.incidentalText || [], elements: source.elements },
     user, idempotencyKey: key(stage) });
@@ -240,7 +220,7 @@ async function runFitRequest(body, session, jobId, report = async () => {}, depe
   return {
     ok: true, fit: {
       id: crypto.randomUUID(), sourceHash: crypto.createHash('sha256').update(original.buffer).digest('hex'),
-      widthIn, heightIn, widthPx: outputWidth, heightPx: outputHeight,
+      productType, widthIn, heightIn, widthPx: outputWidth, heightPx: outputHeight,
       imageBase64: output.toString('base64'), mimeType: 'image/jpeg',
       verification: { passed, canApply, blockingIssues, originalText: source.lines, detectedText: checked.lines, missing: wording.missing, added: wording.added, issues: checked.issues, confidence: checked.confidence },
       diagnostics: { model: result.model, inspectionModel: FIT_INSPECTION_MODEL, artworkType: source.artworkType, incidentalTextRegions: (source.incidentalText || []).length, sourceReads, sourceConfidence: source.confidence, providerRequestId: result.requestId, durationMs: Date.now() - startedAt, strategy: plan.strategy, edgeRecovery },

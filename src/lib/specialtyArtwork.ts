@@ -24,6 +24,11 @@ export interface SpecialtyConfiguration {
   materialLabel: string;
   panels: SpecialtySavedPanel[];
   approvedAt: string;
+  options?: Record<string,string>;
+  supplierProfile?: string;
+  optionSummary?: Array<{key:string;label:string;value:string}>;
+  customHoles?: Array<{xIn:number;yIn:number}>;
+  priceVerified?: boolean;
 }
 
 /** Resolution after placement; a PDF may contain vectors, so it needs separate preflight. */
@@ -36,14 +41,19 @@ export function specialtyArtworkPpi(artwork: UploadedArtworkFile, composition: P
 
 /** Export the original artwork at the exact saved placement, never the small cart image. */
 export async function exportSpecialtyPanel(artwork: UploadedArtworkFile, composition: ArtworkCompositionSpec, template: SpecialtyTemplate) {
-  const { PDFDocument, rgb } = await import('pdf-lib');
+  const { PDFDocument, PDFName, PDFNumber, rgb } = await import('pdf-lib');
   const response = await fetch(artwork.productionUrl || artwork.url);
   if (!response.ok) throw new Error('The original artwork could not be read for production. Please retry.');
   const bytes = await response.arrayBuffer();
   const pdf = await PDFDocument.create();
   const scale = template.exportScale || 1;
-  const w = composition.widthIn * 72 * scale, h = composition.heightIn * 72 * scale;
+  // PDF 1.7 UserUnit preserves physical dimensions above the traditional
+  // 14,400-unit page limit, including the supplier's 159-foot poster rolls.
+  const physicalW=composition.widthIn*72*scale, physicalH=composition.heightIn*72*scale;
+  const userUnit=Math.max(1,Math.ceil(Math.max(physicalW,physicalH)/14400));
+  const w = physicalW/userUnit, h = physicalH/userUnit;
   const page = pdf.addPage([w, h]);
+  if(userUnit>1)page.node.set(PDFName.of('UserUnit'),PDFNumber.of(userUnit));
   // Acrylic uses transparent unprinted areas. Other products have a white substrate.
   if (!composition.productType.includes('acrylic-signs')) page.drawRectangle({ x: 0, y: 0, width: w, height: h, color: rgb(1, 1, 1) });
   let graphic: any;

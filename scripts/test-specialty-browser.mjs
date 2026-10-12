@@ -1,0 +1,73 @@
+/** Local integration checks with intercepted upload/AI transports; never a live-provider test. */
+import {createServer} from 'vite';
+import {chromium} from 'playwright';
+import sharp from 'sharp';
+import {PDFDocument,rgb} from 'pdf-lib';
+import {readFile,mkdir,writeFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import assert from 'node:assert/strict';
+const root=new URL('../',import.meta.url).pathname;
+const out=process.env.BOF_QA_DIR||'/tmp/bof-browser-qa';await mkdir(out,{recursive:true});
+process.env.VITE_AI_BANNER_ENABLED='true';
+const server=await createServer({root,configFile:root+'vite.config.ts',server:{host:'127.0.0.1',port:8096}});await server.listen();
+const browser=await chromium.launch({...(process.env.BOF_CHROMIUM_PATH?{executablePath:process.env.BOF_CHROMIUM_PATH}:{}),args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu']});
+const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[],checks=[],uploads=new Map(),jobs=new Map(),aiRequests=[];
+page.on('pageerror',e=>errors.push(e.message));
+const fixture=await sharp(Buffer.from('<svg width="800" height="1000" xmlns="http://www.w3.org/2000/svg"><rect width="800" height="1000" fill="#123b42"/><circle cx="400" cy="275" r="135" fill="#dd9b52"/><text x="400" y="570" text-anchor="middle" font-size="80" font-family="sans-serif" fill="white">MARKET</text><text x="400" y="680" text-anchor="middle" font-size="36" font-family="sans-serif" fill="white">BROWSER QA FIXTURE</text></svg>')).png().toBuffer();
+const json=(r,obj)=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify(obj)});
+await page.route('https://res.cloudinary.com/**',async route=>{
+ const url=route.request().url();const key=[...uploads.keys()].find(k=>url.includes(k));const file=key?uploads.get(key):null;
+ return route.fulfill({status:200,headers:{'access-control-allow-origin':'*'},contentType:file?.type||'image/png',body:file?.bytes||fixture});
+});
+await page.route('https://www.b2sign.com/**',r=>r.fulfill({status:200,contentType:'image/png',body:fixture}));
+await page.route('**/.netlify/functions/**',async route=>{
+ const req=route.request(),path=new URL(req.url()).pathname;
+ if(path.endsWith('/upload-file')){
+  const form=await new Response(req.postDataBuffer(),{headers:{'Content-Type':req.headers()['content-type']}}).formData();
+  const file=form.get('file'),bytes=Buffer.from(await file.arrayBuffer()),id='qa-'+createHash('sha256').update(bytes).digest('hex').slice(0,20);
+  uploads.set(id,{bytes,type:file.type,name:file.name});const meta=file.type==='application/pdf'?{}:await sharp(bytes).metadata();
+  return json(route,{secure_url:`https://res.cloudinary.com/test/image/upload/${id}.${file.type==='application/pdf'?'pdf':'png'}`,public_id:id,resource_type:'image',format:file.type==='application/pdf'?'pdf':'png',bytes:bytes.length,width:meta.width,height:meta.height});
+ }
+ if(path.endsWith('/ai-designer-status'))return json(route,{authorized:true,sessionKey:'qa-session',ready:true,enabled:true});
+ if(path.endsWith('/ai-designer-fit')){
+  const body=req.postDataJSON();aiRequests.push(body);const h=1200,w=Math.round(h*body.widthIn/body.heightIn);const buf=await sharp(fixture).resize(w,h,{fit:'contain',background:'#123b42'}).jpeg().toBuffer();
+  jobs.set('fit-qa',{status:'completed',fit:{id:'qa-fit',productType:body.productType,widthIn:body.widthIn,heightIn:body.heightIn,widthPx:w,heightPx:h,imageBase64:buf.toString('base64'),mimeType:'image/jpeg',verification:{passed:true,canApply:true,originalText:['MARKET'],detectedText:['MARKET'],missing:[],added:[],issues:[],confidence:1},diagnostics:{model:'mock',durationMs:1}}});
+  return json(route,{jobRef:'fit-qa',pollAfterMs:1});
+ }
+ if(path.endsWith('/ai-designer-job'))return json(route,jobs.get(req.postDataJSON().jobRef)||{status:'failed',message:'Unknown QA job'});
+ if(path.endsWith('/ai-designer-worker-background'))return json(route,{ok:true});
+ return json(route,{});
+});
+async function check(name,task){if(process.env.BOF_QA_FILTER&&!new RegExp(process.env.BOF_QA_FILTER).test(name))return;await task();checks.push(name);console.log('PASS',name);}
+async function open(slug){await page.goto('http://127.0.0.1:8096/products/'+slug);await page.locator('#specialty-variant').waitFor();}
+async function uploadArt(){await page.locator('#specialty-artwork input[type=file]').setInputFiles({name:'qa-market.png',mimeType:'image/png',buffer:fixture});await page.getByRole('button',{name:'Replace artwork',exact:true}).waitFor();await page.getByLabel('I checked the', {exact:false}).waitFor({timeout:30000});}
+try{
+ await check('all 19 product pages and 60 variants render valid supplier selections',async()=>{
+  const catalog=JSON.parse(await readFile(root+'shared/specialty-catalog.json','utf8'));
+  for(const product of catalog){await open(product.slug);for(const variant of product.variants){await page.locator('#specialty-variant').selectOption(variant.id);assert.equal(await page.locator('select').evaluateAll(els=>els.some(el=>!el.value||![...el.options].some(o=>o.value===el.value))),false,variant.id);}}
+ });
+ await check('premium size selection changes the manufacturer photograph',async()=>{
+  await open('premium-retractable-banner');const hero=page.locator('button[aria-label^="Enlarge"] img').first();const before=await hero.getAttribute('src');await page.locator('#specialty-variant').selectOption('premium-retractable-banner-3');assert.notEqual(await hero.getAttribute('src'),before);
+ });
+ await check('flag studio opens with its product and exact print size',async()=>{
+  await open('feather-flags');await page.getByRole('button',{name:'Create with AI',exact:true}).click();await page.getByTestId('ai-product-example').waitFor();assert.equal(await page.locator('.ai-studio-banner-showcase').count(),0);assert.match(await page.getByTestId('ai-workspace').innerText(),/25 in × 80 in/);await page.getByRole('button',{name:'Back to order'}).click();
+ });
+ await check('flag upload, Fit with AI, preview approval and cart preserve exact identity',async()=>{
+  await uploadArt();await page.getByRole('button',{name:'Fit my design with AI',exact:true}).click();await page.getByRole('button',{name:'Create fitted version',exact:true}).click();await page.getByText('Automated wording and design checks passed',{exact:true}).waitFor();assert.equal(aiRequests[0].productType,'specialty:feather-flags:feather-flags-1:front');assert.deepEqual([aiRequests[0].widthIn,aiRequests[0].heightIn],[25,80]);await page.getByLabel('I checked the wording, logos and images and want to use this layout.',{exact:true}).check();await page.getByRole('button',{name:'Use this version',exact:true}).click();await page.getByRole('button',{name:'Restore original',exact:true}).waitFor();await page.getByLabel('I checked the front artwork', {exact:false}).check();await page.getByRole('button',{name:'Add to cart',exact:true}).click();await page.waitForURL('**/checkout',{timeout:60000});await page.locator('[aria-label="Your artwork on Feather Flags"]').first().waitFor();await page.reload();await page.locator('[aria-label="Your artwork on Feather Flags"]').first().waitFor();await page.screenshot({path:out+'/flag-cart.png',fullPage:true});
+  const item=await page.evaluate(async()=>{const {useCartStore}=await import('/src/store/cart.ts');return useCartStore.getState().items.find(i=>i.product_type==='specialty')});assert.equal(item.specialty_config.panels[0].composition.widthIn,25);assert.ok(item.specialty_config.panels[0].originalArtwork);assert.ok(item.specialty_config.panels[0].productionUrl.endsWith('.pdf'));
+ });
+ await check('tent wall options require the correct additional artwork panels',async()=>{await open('custom-event-tents');await page.locator('#option-tent_full_wall').selectOption('AB');await page.locator('#option-tent_half_wall').selectOption('2x2');assert.equal(await page.getByRole('tab').count(),10);assert.equal(await page.getByRole('button',{name:'Add to cart',exact:true}).isDisabled(),true);await page.locator('#specialty-variant').selectOption('custom-event-tents-3');assert.equal(await page.getByRole('tab').count(),4);await page.locator('#option-tent_full_wall_long').selectOption('L1');await page.getByRole('tab',{name:'Long full wall 1',exact:true}).click();assert.match(await page.locator('#specialty-artwork').innerText(),/230.12″ × 80.03″/);assert.match(await page.locator('#specialty-artwork').innerText(),/1:2 template scale/);});
+ await check('PDF upload preserves vectors, rejects extra pages and exports the selected dimensions',async()=>{
+  await open('display-posters');const pdf=await PDFDocument.create();pdf.addPage([400,800]).drawText('VECTOR QA',{x:20,y:500,size:35,color:rgb(.1,.3,.35)});const bytes=await pdf.save();
+  await page.locator('#specialty-artwork input[type=file]').setInputFiles({name:'qa-vector.pdf',mimeType:'application/pdf',buffer:Buffer.from(bytes)});
+  await page.getByRole('button',{name:'Replace artwork',exact:true}).waitFor({timeout:60000});await page.getByLabel('I checked the front artwork',{exact:false}).check();await page.getByRole('button',{name:'Add to cart',exact:true}).click();await page.waitForURL('**/checkout',{timeout:60000});
+  const item=await page.evaluate(async()=>{const {useCartStore}=await import('/src/store/cart.ts');return useCartStore.getState().items.find(i=>i.specialty_config?.productSlug==='display-posters')});
+  assert.equal(item.specialty_config.panels[0].artwork.isPdf,true);const printed=uploads.get(item.specialty_config.panels[0].productionFileKey),output=await PDFDocument.load(printed.bytes);assert.deepEqual(output.getPage(0).getSize(),{width:1728,height:1296});assert.match(output.getPage(0).node.Resources().toString(),/XObject/);
+  await open('display-posters');pdf.addPage();await page.locator('#specialty-artwork input[type=file]').setInputFiles({name:'qa-multipage.pdf',mimeType:'application/pdf',buffer:Buffer.from(await pdf.save())});await page.getByRole('alert').filter({hasText:'separate single-page PDF'}).waitFor();assert.equal(await page.getByRole('button',{name:'Add to cart',exact:true}).isDisabled(),true);
+ });
+ await check('mobile flag controls remain outside the narrow artboard',async()=>{await page.setViewportSize({width:390,height:844});await open('feather-flags');await uploadArt();const fit=page.getByRole('button',{name:/^Show entire design/});await fit.waitFor();const box=await fit.boundingBox();assert.ok(box.width>110);assert.ok(box.x>=0&&box.x+box.width<=390);await page.locator('#specialty-artwork').screenshot({path:out+'/flag-mobile.png'});});
+ assert.deepEqual(errors,[]);
+ console.log(JSON.stringify({checks:checks.length,pageErrors:errors,uploadTransportsMocked:true,AIProviderMocked:true}));
+ await writeFile(out+'/result.json',JSON.stringify({checks,pageErrors:errors,uploadTransportsMocked:true,AIProviderMocked:true},null,2));
+}catch(error){await page.screenshot({path:out+'/failure.png',fullPage:true});console.error('BROWSER FAILURE',error.message,'ALERTS',await page.getByRole('alert').allTextContents(),'PAGE ERRORS',errors);process.exitCode=1;}
+finally{await browser.close();await server.close();}

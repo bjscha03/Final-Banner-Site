@@ -34,6 +34,32 @@ The ACM prices apply in either orientation. They are fixed size prices: deriving
 | 4-ft standard table throw | Published table begins at 6 ft. |
 | Fitted and stretch table covers | Current published prices are for standard draped throws. Older search snippets are inconsistent; do not use them. |
 | Clear acrylic, .040-inch aluminum and PVC posters | No matching published listing found. ACM is not solid aluminum or acrylic. |
-| Custom ACM dimensions other than the four matched sizes | No public custom-size formula; keep as an estimate until a rate is provided. |
+| Custom ACM dimensions other than the four matched sizes | No public custom-size formula; show price pending until a rate is provided. |
 
-Excluded from matching: our existing banner, yard-sign and car-magnet products. Their pricing and functionality remain unchanged. Lexington's optional flag bases, double-sided printing, bags, tent sandbags and rush charges are not included in the new baseline variants unless separately configured and verified.
+## Verified optional adjustments
+
+The October 12 implementation includes these published configurator adjustments on the matched configurations. They are added once to the baseline per-item price.
+
+| Option | Adjustment |
+|---|---:|
+| Angled feather flag, double sided, small or medium | +$70 |
+| Angled feather flag, double sided, large or XL | +$80 |
+| Flag ground stake | Included |
+| Flag cross base | +$30 |
+| Flag cross base + ground stake | +$40 |
+| Flag cross base + water bag | +$35 |
+| Flag square base | +$80 |
+| Flag carrying bag | +$20 |
+| Tent sandbags, 10 × 10 or 10 × 15 ft | +$60 |
+| Tent sandbags, 10 × 20 ft | +$80 |
+| Tent black or white strip | No adjustment |
+| ACM double-sided 18 × 24 in | +$10 |
+| ACM double-sided 24 × 36 in | +$20 |
+| ACM double-sided rider 6 × 24 in | +$2 |
+| ACM double-sided rider 6 × 36 in | +$6 |
+
+Sources: the [flag](https://www.lexingtonsign.com/feather-flags.html), [tent](https://www.lexingtonsign.com/canopy-tents.html) and [ACM](https://www.lexingtonsign.com/realtor-signs.html) public configurators used for the baseline mapping above. Reverse-print flags, replacement graphics, LED lights, tent walls and all other unmatched material/hardware changes remain pending; no adjustment is inferred from the baseline.
+
+Lexington's public configurator also exposes rush and Saturday charges. These are **not enabled**: a competitor charge does not establish our facility/service eligibility or arrival date. The existing banner rush policy is not automatically applied to new products.
+
+Excluded from this new retail mapping: existing banners, yard signs and car magnets. Their price tables and functionality remain unchanged. All specialty fulfillment remains pending until supplier/shipping verification is complete.

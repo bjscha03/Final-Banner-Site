@@ -120,6 +120,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
 
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
+  const specialtyInCart=items.some(item=>item.product_type==='specialty');
+  const pricingPending=items.some(item=>item.product_type==='specialty'&&!item.specialty_config?.priceVerified);
   const dominantProductType = getDominantProductType(items);
   const productCopy = getProductCopy(dominantProductType);
 
@@ -136,7 +138,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const bannerRawSubtotalCents = useMemo(
     () => items.reduce((sum, it) => {
       const type = (it as any).product_type || 'banner';
-      if (type === 'yard_sign' || type === 'car_magnet') return sum;
+      if (type !== 'banner') return sum;
       return sum + (it.line_total_cents || 0);
     }, 0),
     [items],
@@ -532,12 +534,12 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
 
           {items.length > 0 && (
             <div className="cart-modal__footer space-y-2.5 border-t border-gray-200 bg-white p-4 shadow-lg sm:space-y-3 sm:p-6">
-              <SameDayHitServiceCard variant="compact" />
+              {!specialtyInCart&&<SameDayHitServiceCard variant="compact" />}
               <div className="flex justify-between text-gray-700">
                 <span className="font-medium">Subtotal:</span>
-                <span className="font-semibold">{usd(subtotalCents / 100)}</span>
+                <span className="font-semibold">{pricingPending?'Pending':usd(subtotalCents / 100)}</span>
               </div>
-              {resolvedDiscount.appliedDiscountAmountCents > 0 && (
+              {!pricingPending&&resolvedDiscount.appliedDiscountAmountCents > 0 && (
                 <div className="space-y-1">
                   <div className="flex justify-between text-green-600">
                     <span className="flex items-center gap-1 font-medium"><Tag className="h-4 w-4" />{resolvedDiscount.appliedDiscountLabel}</span>
@@ -565,13 +567,13 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
               <div className="space-y-0.5">
                 <div className="flex justify-between text-gray-700">
                   <span className="font-medium">Estimated tax:</span>
-                  <span className="font-semibold">{usd(taxCents / 100)}</span>
+                  <span className="font-semibold">{pricingPending?'Pending':usd(taxCents / 100)}</span>
                 </div>
                 <p className="text-[11px] text-slate-500">Final tax is confirmed from the shipping address at checkout.</p>
               </div>
               <div className="flex justify-between border-t border-gray-300 pt-3 text-xl font-bold">
                 <span className="text-gray-900">Total:</span>
-                <span className="text-[#18448D]">{usd(totalCents / 100)}</span>
+                <span className="text-[#18448D]">{pricingPending?'Price pending':usd(totalCents / 100)}</span>
               </div>
 
               <button

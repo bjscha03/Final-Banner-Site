@@ -245,6 +245,8 @@ class CartSyncService {
       if(item1.product_type!==item2.product_type||!item1.specialty_config||!item2.specialty_config) return false;
       const a=item1.specialty_config,b=item2.specialty_config;
       return a.productSlug===b.productSlug&&a.variantId===b.variantId&&item1.width_in===item2.width_in&&item1.height_in===item2.height_in
+        && JSON.stringify(Object.entries(a.options||{}).sort())===JSON.stringify(Object.entries(b.options||{}).sort())
+        && JSON.stringify(a.customHoles||[])===JSON.stringify(b.customHoles||[])
         && a.panels.length===b.panels.length && a.panels.every(panel=>b.panels.some(other=>other.id===panel.id&&other.templateId===panel.templateId&&other.preview.compositionSignature===panel.preview.compositionSignature));
     }
     // Match by dimensions, material, and options

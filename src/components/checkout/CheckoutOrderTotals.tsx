@@ -10,6 +10,7 @@ export interface CheckoutOrderTotalsProps {
   discountHelperMessage?: string;
   shippingLabel: string;
   shippingPending?: boolean;
+  pricingPending?: boolean;
   taxCents: number;
   taxRate?: number;
   sameDayFeeCents?: number;
@@ -30,6 +31,7 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
   discountHelperMessage,
   shippingLabel,
   shippingPending = false,
+  pricingPending = false,
   taxCents,
   taxRate = 0.06,
   sameDayFeeCents = 0,
@@ -51,7 +53,7 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
           <h3 id={headingId} className="text-base font-bold text-[#0B1F3A] sm:text-lg">
             Price details
           </h3>
-          <p className="text-xs text-slate-500">{shippingPending ? 'Product estimate before delivery' : 'Complete total, including tax'}</p>
+          <p className="text-xs text-slate-500">{pricingPending?'Selected option prices are being confirmed':shippingPending ? 'Product estimate before delivery' : 'Complete total, including tax'}</p>
         </div>
         <span className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">USD</span>
       </div>
@@ -60,11 +62,11 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
         <div className="flex justify-between gap-4">
           <span className="text-slate-600">Subtotal</span>
           <span className="whitespace-nowrap font-semibold text-slate-800">
-            {usd(itemSubtotalCents / 100)}
+            {pricingPending?'Pending':usd(itemSubtotalCents / 100)}
           </span>
         </div>
 
-        {minOrderAdjustmentCents > 0 && (
+        {!pricingPending && minOrderAdjustmentCents > 0 && (
           <div className="flex justify-between gap-4">
             <span className="text-slate-600">Minimum order adjustment</span>
             <span className="whitespace-nowrap font-semibold text-slate-800">
@@ -73,7 +75,7 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
           </div>
         )}
 
-        {discountAmountCents > 0 && (
+        {!pricingPending && discountAmountCents > 0 && (
           <>
             <div className="flex justify-between gap-4 text-green-700">
               <span className="flex min-w-0 items-center gap-1.5">
@@ -104,7 +106,7 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
 
         <div className="flex justify-between gap-4">
           <span className="text-slate-600">{taxLabel}</span>
-          <span className="whitespace-nowrap font-semibold text-slate-800">{usd(taxCents / 100)}</span>
+          <span className="whitespace-nowrap font-semibold text-slate-800">{pricingPending?'Pending':usd(taxCents / 100)}</span>
         </div>
 
         {sameDayFeeCents > 0 && (
@@ -131,7 +133,7 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
             <p className="text-[11px] text-slate-500">Tax included</p>
           </div>
           <span className="whitespace-nowrap text-xl font-black text-[#FF6A00] sm:text-2xl">
-            {usd(totalCents / 100)}
+            {pricingPending||shippingPending?'Pending':usd(totalCents / 100)}
           </span>
         </div>
       </div>

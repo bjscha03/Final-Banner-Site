@@ -10,11 +10,12 @@
     "features": [
       "Aluminum retractable base",
       "Carrying bag included",
-      "Multiple sizes"
+      "Multiple sizes",
+      "Choose print, hardware and accessories below"
     ],
     "variants": [
       {
-        "label": "23 × 66 in · stand + graphic",
+        "label": "23 × 66 in",
         "priceCents": 15299,
         "widthIn": 23,
         "heightIn": 66,
@@ -25,10 +26,22 @@
             "label": "Front",
             "templateId": "standard-retractable-banner-1-front"
           }
-        ]
+        ],
+        "supplierProfile": "standard-retractable",
+        "supplierFixed": {
+          "size": "23x66"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "23x66",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {}
       },
       {
-        "label": "24 × 81 in · stand + graphic",
+        "label": "24 × 81 in",
         "priceCents": 15899,
         "widthIn": 24,
         "heightIn": 81,
@@ -39,10 +52,22 @@
             "label": "Front",
             "templateId": "standard-retractable-banner-2-front"
           }
-        ]
+        ],
+        "supplierProfile": "standard-retractable",
+        "supplierFixed": {
+          "size": "24x81"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "24x81",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {}
       },
       {
-        "label": "33 × 81 in · stand + graphic",
+        "label": "33 × 81 in",
         "priceCents": 12299,
         "widthIn": 33,
         "heightIn": 81,
@@ -53,10 +78,22 @@
             "label": "Front",
             "templateId": "standard-retractable-banner-3-front"
           }
-        ]
+        ],
+        "supplierProfile": "standard-retractable",
+        "supplierFixed": {
+          "size": "33x81"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "33x81",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {}
       },
       {
-        "label": "47 × 81 in · stand + graphic",
+        "label": "47 × 81 in",
         "priceCents": 24999,
         "widthIn": 47,
         "heightIn": 81,
@@ -67,7 +104,44 @@
             "label": "Front",
             "templateId": "standard-retractable-banner-4-front"
           }
-        ]
+        ],
+        "supplierProfile": "standard-retractable",
+        "supplierFixed": {
+          "size": "47x81"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "47x81",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {}
+      },
+      {
+        "id": "standard-retractable-black",
+        "label": "33 × 81 in · black base",
+        "widthIn": 33,
+        "heightIn": 81,
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "standard-retractable-black-front"
+          }
+        ],
+        "supplierProfile": "standard-retractable",
+        "supplierFixed": {
+          "size": "33x81b"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "33x81b",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {}
       }
     ],
     "image": "/images/products/standard-retractable-banner.webp",
@@ -87,7 +161,8 @@
     "features": [
       "Upgraded stand",
       "Single or double sided",
-      "33 × 81 in graphic"
+      "33 × 81 in graphic",
+      "Choose print, hardware and accessories below"
     ],
     "variants": [
       {
@@ -102,7 +177,19 @@
             "label": "Front",
             "templateId": "deluxe-retractable-banner-1-front"
           }
-        ]
+        ],
+        "supplierProfile": "deluxe-retractable",
+        "supplierFixed": {
+          "size": "33x81"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "33x81",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {}
       },
       {
         "label": "33 × 81 in · double sided",
@@ -121,7 +208,19 @@
             "label": "Back",
             "templateId": "deluxe-retractable-banner-2-back"
           }
-        ]
+        ],
+        "supplierProfile": "deluxe-retractable",
+        "supplierFixed": {
+          "size": "33x81d"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "33x81d",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {}
       }
     ],
     "image": "/images/products/deluxe-retractable-banner.webp",
@@ -141,7 +240,8 @@
     "features": [
       "Height-adjustable hardware",
       "Three widths",
-      "Portable display"
+      "Portable display",
+      "Choose print, hardware and accessories below"
     ],
     "variants": [
       {
@@ -156,7 +256,19 @@
             "label": "Front",
             "templateId": "premium-retractable-banner-1-front"
           }
-        ]
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "36x92"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "36x92",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {}
       },
       {
         "label": "48 × 92 in",
@@ -170,7 +282,19 @@
             "label": "Front",
             "templateId": "premium-retractable-banner-2-front"
           }
-        ]
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "48x92"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "48x92",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {}
       },
       {
         "label": "60 × 92 in",
@@ -184,7 +308,169 @@
             "label": "Front",
             "templateId": "premium-retractable-banner-3-front"
           }
-        ]
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "60x92"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "60x92",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {}
+      },
+      {
+        "id": "premium-retractable-36x69",
+        "label": "36 × 69 in",
+        "widthIn": 36,
+        "heightIn": 69,
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-36x69-front"
+          }
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "36x69"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "36x69",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {}
+      },
+      {
+        "id": "premium-retractable-36x80",
+        "label": "36 × 80 in",
+        "widthIn": 36,
+        "heightIn": 80,
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-36x80-front"
+          }
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "36x80"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "36x80",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {}
+      },
+      {
+        "id": "premium-retractable-48x69",
+        "label": "48 × 69 in",
+        "widthIn": 48,
+        "heightIn": 69,
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-48x69-front"
+          }
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "48x69"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "48x69",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {}
+      },
+      {
+        "id": "premium-retractable-48x80",
+        "label": "48 × 80 in",
+        "widthIn": 48,
+        "heightIn": 80,
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-48x80-front"
+          }
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "48x80"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "48x80",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {}
+      },
+      {
+        "id": "premium-retractable-60x69",
+        "label": "60 × 69 in",
+        "widthIn": 60,
+        "heightIn": 69,
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-60x69-front"
+          }
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "60x69"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "60x69",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {}
+      },
+      {
+        "id": "premium-retractable-60x80",
+        "label": "60 × 80 in",
+        "widthIn": 60,
+        "heightIn": 80,
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-60x80-front"
+          }
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "60x80"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "60x80",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {}
       }
     ],
     "image": "/images/products/premium-retractable-banner.webp",
@@ -204,11 +490,12 @@
     "features": [
       "Easy-change graphic",
       "Lightweight frame",
-      "Two sizes"
+      "Two sizes",
+      "Choose print, hardware and accessories below"
     ],
     "variants": [
       {
-        "label": "24 × 63 in · stand + graphic",
+        "label": "24 × 63 in",
         "priceCents": 6799,
         "widthIn": 24,
         "heightIn": 63,
@@ -219,10 +506,21 @@
             "label": "Front",
             "templateId": "x-banner-stand-1-front"
           }
-        ]
+        ],
+        "supplierProfile": "x-stand",
+        "supplierFixed": {
+          "size": "24x63"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "24x63",
+          "material": "13oz_matte_vinyl_banner"
+        },
+        "optionPrices": {}
       },
       {
-        "label": "32 × 71 in · stand + graphic",
+        "label": "32 × 71 in",
         "priceCents": 9199,
         "widthIn": 32,
         "heightIn": 71,
@@ -233,7 +531,18 @@
             "label": "Front",
             "templateId": "x-banner-stand-2-front"
           }
-        ]
+        ],
+        "supplierProfile": "x-stand",
+        "supplierFixed": {
+          "size": "32x71"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "32x71",
+          "material": "13oz_matte_vinyl_banner"
+        },
+        "optionPrices": {}
       }
     ],
     "image": "/images/products/x-banner-stand.webp",
@@ -253,7 +562,8 @@
     "features": [
       "Mini retractable hardware",
       "Stay-flat printed graphic",
-      "Counter-friendly size"
+      "Counter-friendly size",
+      "Choose print, hardware and accessories below"
     ],
     "variants": [
       {
@@ -268,7 +578,18 @@
             "label": "Front",
             "templateId": "tabletop-banner-stand-1-front"
           }
-        ]
+        ],
+        "supplierProfile": "table-top-banner-stand",
+        "supplierFixed": {
+          "size": "11.5x17.5"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "size": "11.5x17.5",
+          "material": "double_white_popup",
+          "lamination": "UV"
+        },
+        "optionPrices": {}
       }
     ],
     "image": "/images/products/tabletop-banner-stand.webp",
@@ -286,13 +607,13 @@
     "summary": "A portable fabric display with a smooth, polished look.",
     "description": "Dye-sublimated washable fabric wraps over heavy-duty portable hardware.",
     "features": [
-      "Single-sided printed fabric",
       "Frame and steel base",
-      "Carry case included"
+      "Carry case included",
+      "Choose print, hardware and accessories below"
     ],
     "variants": [
       {
-        "label": "36 × 90 in · single sided",
+        "label": "36 × 90 in",
         "priceCents": 31799,
         "widthIn": 36,
         "heightIn": 90,
@@ -303,10 +624,35 @@
             "label": "Front",
             "templateId": "36-x90-download"
           }
-        ]
+        ],
+        "supplierProfile": "tension-fabric-stand",
+        "supplierFixed": {
+          "size": "36x90"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "2"
+            },
+            "append": [
+              {
+                "id": "back",
+                "label": "Back",
+                "templateId": "36-x90-download"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "36x90",
+          "sides": "1",
+          "tradeshow_led": "0"
+        },
+        "optionPrices": {}
       },
       {
-        "label": "48 × 90 in · single sided",
+        "label": "48 × 90 in",
         "priceCents": 36699,
         "widthIn": 48,
         "heightIn": 90,
@@ -317,7 +663,32 @@
             "label": "Front",
             "templateId": "48-x90-download"
           }
-        ]
+        ],
+        "supplierProfile": "tension-fabric-stand",
+        "supplierFixed": {
+          "size": "48x90"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "2"
+            },
+            "append": [
+              {
+                "id": "back",
+                "label": "Back",
+                "templateId": "48-x90-download"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "48x90",
+          "sides": "1",
+          "tradeshow_led": "0"
+        },
+        "optionPrices": {}
       }
     ],
     "image": "/images/products/tension-fabric-stand.webp",
@@ -337,11 +708,12 @@
     "features": [
       "9 oz. printed fabric graphic",
       "Telescoping aluminum frame and carry bag",
-      "3-inch pole pockets at top and bottom"
+      "3-inch pole pockets at top and bottom",
+      "Choose print, hardware and accessories below"
     ],
     "variants": [
       {
-        "label": "8 × 8 ft · backdrop + frame",
+        "label": "8 × 8 ft",
         "priceCents": 46500,
         "widthIn": 96,
         "heightIn": 96,
@@ -358,10 +730,21 @@
           "checkedAt": "2026-10-12T02:00:00Z",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
-        }
+        },
+        "supplierProfile": "step-repeat-backdrop",
+        "supplierFixed": {
+          "size": "96x96"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "96x96",
+          "material": "9oz_wrinklefree_fabric"
+        },
+        "optionPrices": {}
       },
       {
-        "label": "10 × 8 ft · backdrop + frame",
+        "label": "10 × 8 ft",
         "priceCents": 52500,
         "widthIn": 120,
         "heightIn": 96,
@@ -378,7 +761,73 @@
           "checkedAt": "2026-10-12T02:00:00Z",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
-        }
+        },
+        "supplierProfile": "step-repeat-backdrop",
+        "supplierFixed": {
+          "size": "120x96"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "120x96",
+          "material": "9oz_wrinklefree_fabric"
+        },
+        "optionPrices": {}
+      },
+      {
+        "id": "step-and-repeat-9x8",
+        "label": "9 × 8 ft",
+        "widthIn": 108,
+        "heightIn": 96,
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "step-and-repeat-9x8-front"
+          }
+        ],
+        "supplierProfile": "step-repeat-backdrop",
+        "supplierFixed": {
+          "size": "108x96"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "108x96",
+          "material": "9oz_wrinklefree_fabric"
+        },
+        "optionPrices": {}
+      },
+      {
+        "id": "step-and-repeat-custom",
+        "label": "Custom size · 6–10 ft wide × 4–8 ft high",
+        "widthIn": 96,
+        "heightIn": 96,
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "step-and-repeat-custom-front"
+          }
+        ],
+        "supplierProfile": "step-repeat-backdrop",
+        "supplierFixed": {
+          "size": "custom"
+        },
+        "customSize": {
+          "minWidth": 72,
+          "maxWidth": 120,
+          "minHeight": 48,
+          "maxHeight": 96,
+          "step": 1
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "custom",
+          "material": "9oz_wrinklefree_fabric"
+        },
+        "optionPrices": {}
       }
     ],
     "image": "/images/products/step-and-repeat-backdrop.webp",
@@ -396,13 +845,12 @@
     "summary": "A tall outdoor display in angled or convex shapes.",
     "description": "A printed flag with pole hardware and a ground spike for outdoor installation. Select the assembled height below; the artwork template shows the separate graphic dimensions.",
     "features": [
-      "Printed single-sided graphic",
-      "Pole set and ground spike",
-      "Product-specific artwork template"
+      "Product-specific artwork template",
+      "Choose print, hardware and accessories below"
     ],
     "variants": [
       {
-        "label": "Angled · 9 ft · single sided + ground spike",
+        "label": "Angled · 9 ft",
         "priceCents": 17500,
         "id": "feather-flags-1",
         "panels": [
@@ -417,10 +865,64 @@
           "checkedAt": "2026-10-12T02:00:00Z",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
+        },
+        "supplierProfile": "feather-angled-flag",
+        "supplierFixed": {
+          "size": "small"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "feather-angled-flag-small-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "feather-angled-flag-small-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "small",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {
+          "sides": {
+            "1": 0,
+            "2": 7000
+          },
+          "flaghardware": {
+            "PG": 0,
+            "PB": 3000,
+            "PBG": 4000,
+            "PBW": 3500,
+            "PBS": 8000
+          },
+          "carrybag": {
+            "0": 0,
+            "1": 2000
+          }
         }
       },
       {
-        "label": "Angled · 10.5 ft · single sided + ground spike",
+        "label": "Angled · 10.5 ft",
         "priceCents": 19500,
         "id": "feather-flags-2",
         "panels": [
@@ -435,10 +937,64 @@
           "checkedAt": "2026-10-12T02:00:00Z",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
+        },
+        "supplierProfile": "feather-angled-flag",
+        "supplierFixed": {
+          "size": "medium"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "feather-angled-flag-medium-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "feather-angled-flag-medium-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "medium",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {
+          "sides": {
+            "1": 0,
+            "2": 7000
+          },
+          "flaghardware": {
+            "PG": 0,
+            "PB": 3000,
+            "PBG": 4000,
+            "PBW": 3500,
+            "PBS": 8000
+          },
+          "carrybag": {
+            "0": 0,
+            "1": 2000
+          }
         }
       },
       {
-        "label": "Angled · 14 ft · single sided + ground spike",
+        "label": "Angled · 14 ft",
         "priceCents": 20500,
         "id": "feather-flags-3",
         "panels": [
@@ -453,10 +1009,64 @@
           "checkedAt": "2026-10-12T02:00:00Z",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
+        },
+        "supplierProfile": "feather-angled-flag",
+        "supplierFixed": {
+          "size": "large"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "feather-angled-flag-large-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "feather-angled-flag-large-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "large",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {
+          "sides": {
+            "1": 0,
+            "2": 8000
+          },
+          "flaghardware": {
+            "PG": 0,
+            "PB": 3000,
+            "PBG": 4000,
+            "PBW": 3500,
+            "PBS": 8000
+          },
+          "carrybag": {
+            "0": 0,
+            "1": 2000
+          }
         }
       },
       {
-        "label": "Angled · 18 ft · single sided + ground spike",
+        "label": "Angled · 18 ft",
         "priceCents": 24500,
         "id": "feather-flags-4",
         "panels": [
@@ -471,10 +1081,64 @@
           "checkedAt": "2026-10-12T02:00:00Z",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
+        },
+        "supplierProfile": "feather-angled-flag",
+        "supplierFixed": {
+          "size": "xlarge"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "feather-angled-flag-x-large-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "feather-angled-flag-x-large-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "xlarge",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {
+          "sides": {
+            "1": 0,
+            "2": 8000
+          },
+          "flaghardware": {
+            "PG": 0,
+            "PB": 3000,
+            "PBG": 4000,
+            "PBW": 3500,
+            "PBS": 8000
+          },
+          "carrybag": {
+            "0": 0,
+            "1": 2000
+          }
         }
       },
       {
-        "label": "Convex · 9 ft · single sided + ground spike",
+        "label": "Convex · 9 ft",
         "priceCents": 14599,
         "id": "feather-flags-5",
         "panels": [
@@ -483,10 +1147,48 @@
             "label": "Front",
             "templateId": "convex-small"
           }
-        ]
+        ],
+        "supplierProfile": "convex-flag",
+        "supplierFixed": {
+          "Size": "small"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "convex-flag-small-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "convex-flag-small-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "Size": "small",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {}
       },
       {
-        "label": "Convex · 10.5 ft · single sided + ground spike",
+        "label": "Convex · 10.5 ft",
         "priceCents": 14599,
         "id": "feather-flags-6",
         "panels": [
@@ -495,10 +1197,48 @@
             "label": "Front",
             "templateId": "convex-medium"
           }
-        ]
+        ],
+        "supplierProfile": "convex-flag",
+        "supplierFixed": {
+          "Size": "medium"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "convex-flag-medium-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "convex-flag-medium-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "Size": "medium",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {}
       },
       {
-        "label": "Convex · 14 ft · single sided + ground spike",
+        "label": "Convex · 14 ft",
         "priceCents": 15599,
         "id": "feather-flags-7",
         "panels": [
@@ -507,10 +1247,48 @@
             "label": "Front",
             "templateId": "convex-large"
           }
-        ]
+        ],
+        "supplierProfile": "convex-flag",
+        "supplierFixed": {
+          "Size": "large"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "convex-flag-large-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "convex-flag-large-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "Size": "large",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {}
       },
       {
-        "label": "Convex · 18 ft · single sided + ground spike",
+        "label": "Convex · 18 ft",
         "priceCents": 19599,
         "id": "feather-flags-8",
         "panels": [
@@ -519,7 +1297,45 @@
             "label": "Front",
             "templateId": "convex-x-large"
           }
-        ]
+        ],
+        "supplierProfile": "convex-flag",
+        "supplierFixed": {
+          "Size": "xlarge"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "convex-flag-x-large-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "convex-flag-x-large-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "Size": "xlarge",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {}
       }
     ],
     "image": "/images/products/feather-flags.webp",
@@ -537,13 +1353,12 @@
     "summary": "A curved flag that keeps its message visible at outdoor events.",
     "description": "A printed flag with pole hardware and a ground spike for outdoor installation. Select the assembled height below; the artwork template shows the separate graphic dimensions.",
     "features": [
-      "Printed single-sided graphic",
-      "Pole set and ground spike",
-      "Product-specific artwork template"
+      "Product-specific artwork template",
+      "Choose print, hardware and accessories below"
     ],
     "variants": [
       {
-        "label": "7 ft · single sided + ground spike",
+        "label": "7 ft",
         "priceCents": 14599,
         "id": "teardrop-flags-1",
         "panels": [
@@ -552,10 +1367,48 @@
             "label": "Front",
             "templateId": "teardrop-small"
           }
-        ]
+        ],
+        "supplierProfile": "teardrop-flag",
+        "supplierFixed": {
+          "size": "small"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "teardrop-flag-small-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "teardrop-flag-small-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "small",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {}
       },
       {
-        "label": "9 ft · single sided + ground spike",
+        "label": "9 ft",
         "priceCents": 14599,
         "id": "teardrop-flags-2",
         "panels": [
@@ -564,10 +1417,48 @@
             "label": "Front",
             "templateId": "teardrop-medium"
           }
-        ]
+        ],
+        "supplierProfile": "teardrop-flag",
+        "supplierFixed": {
+          "size": "medium"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "teardrop-flag-medium-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "teardrop-flag-medium-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "medium",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {}
       },
       {
-        "label": "11.2 ft · single sided + ground spike",
+        "label": "11.2 ft",
         "priceCents": 15599,
         "id": "teardrop-flags-3",
         "panels": [
@@ -576,10 +1467,48 @@
             "label": "Front",
             "templateId": "teardrop-large"
           }
-        ]
+        ],
+        "supplierProfile": "teardrop-flag",
+        "supplierFixed": {
+          "size": "large"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "teardrop-flag-large-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "teardrop-flag-large-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "large",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {}
       },
       {
-        "label": "13.5 ft · single sided + ground spike",
+        "label": "13.5 ft",
         "priceCents": 19599,
         "id": "teardrop-flags-4",
         "panels": [
@@ -588,7 +1517,45 @@
             "label": "Front",
             "templateId": "teardrop-x-large"
           }
-        ]
+        ],
+        "supplierProfile": "teardrop-flag",
+        "supplierFixed": {
+          "size": "xlarge"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "teardrop-flag-x-large-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "teardrop-flag-x-large-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "xlarge",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {}
       }
     ],
     "image": "/images/products/teardrop-flags.webp",
@@ -606,13 +1573,12 @@
     "summary": "A straight-sided flag with a broad print area.",
     "description": "A printed flag with pole hardware and a ground spike for outdoor installation. Select the assembled height below; the artwork template shows the separate graphic dimensions.",
     "features": [
-      "Printed single-sided graphic",
-      "Pole set and ground spike",
-      "Product-specific artwork template"
+      "Product-specific artwork template",
+      "Choose print, hardware and accessories below"
     ],
     "variants": [
       {
-        "label": "8.5 ft · single sided + ground spike",
+        "label": "8.5 ft",
         "priceCents": 22899,
         "id": "rectangle-flags-1",
         "panels": [
@@ -621,10 +1587,48 @@
             "label": "Front",
             "templateId": "rectangle-small"
           }
-        ]
+        ],
+        "supplierProfile": "rectangle-flag",
+        "supplierFixed": {
+          "size": "small"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "rectangle-flag-small-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "rectangle-flag-small-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "small",
+          "sides": "1",
+          "flaghardware": "PG",
+          "pole": "1"
+        },
+        "optionPrices": {}
       },
       {
-        "label": "11.8 ft · single sided + ground spike",
+        "label": "11.8 ft",
         "priceCents": 25499,
         "id": "rectangle-flags-2",
         "panels": [
@@ -633,10 +1637,48 @@
             "label": "Front",
             "templateId": "rectangle-medium"
           }
-        ]
+        ],
+        "supplierProfile": "rectangle-flag",
+        "supplierFixed": {
+          "size": "medium"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "rectangle-flag-medium-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "rectangle-flag-medium-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "medium",
+          "sides": "1",
+          "flaghardware": "PG",
+          "pole": "1"
+        },
+        "optionPrices": {}
       },
       {
-        "label": "15 ft · single sided + ground spike",
+        "label": "15 ft",
         "priceCents": 27999,
         "id": "rectangle-flags-3",
         "panels": [
@@ -645,7 +1687,45 @@
             "label": "Front",
             "templateId": "rectangle-large"
           }
-        ]
+        ],
+        "supplierProfile": "rectangle-flag",
+        "supplierFixed": {
+          "size": "large"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "rectangle-flag-large-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "rectangle-flag-large-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "large",
+          "sides": "1",
+          "flaghardware": "PG",
+          "pole": "1"
+        },
+        "optionPrices": {}
       }
     ],
     "image": "/images/products/rectangle-flags.webp",
@@ -663,13 +1743,12 @@
     "summary": "A single-sided flag with a ground spike included.",
     "description": "A printed flag with pole hardware and a ground spike for outdoor installation. Select the assembled height below; the artwork template shows the separate graphic dimensions.",
     "features": [
-      "Printed single-sided graphic",
-      "Pole set and ground spike",
-      "Product-specific artwork template"
+      "Product-specific artwork template",
+      "Choose print, hardware and accessories below"
     ],
     "variants": [
       {
-        "label": "16 ft · single sided + ground spike",
+        "label": "16 ft",
         "priceCents": 16899,
         "id": "economy-feather-flag-1",
         "panels": [
@@ -678,7 +1757,30 @@
             "label": "Front",
             "templateId": "econo-medium"
           }
-        ]
+        ],
+        "supplierProfile": "econo-feather-flag",
+        "supplierFixed": {},
+        "panelRules": [
+          {
+            "when": {
+              "graphic": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "econo-feather-flag-single-sided-print-thru-single-sided-print-thru-reverse-single-sided-print-thru"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole": "flag_pole",
+          "graphic": "1",
+          "base": "PG",
+          "material": "flag_polyster"
+        },
+        "optionPrices": {}
       }
     ],
     "image": "/images/products/economy-feather-flag.webp",
@@ -712,7 +1814,16 @@
             "label": "Full table cover",
             "templateId": "4ft-table-cover-3-sided-open-back"
           }
-        ]
+        ],
+        "supplierProfile": "4ft-table-cover",
+        "supplierFixed": {
+          "sides": "3sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "sides": "3sided"
+        },
+        "optionPrices": {}
       },
       {
         "label": "4 ft · closed back",
@@ -725,7 +1836,16 @@
             "label": "Full table cover",
             "templateId": "4ft-table-cover-4-sided-close-back"
           }
-        ]
+        ],
+        "supplierProfile": "4ft-table-cover",
+        "supplierFixed": {
+          "sides": "4sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "sides": "4sided"
+        },
+        "optionPrices": {}
       },
       {
         "label": "6 ft · open back",
@@ -744,7 +1864,16 @@
           "checkedAt": "2026-10-12T02:00:00Z",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
-        }
+        },
+        "supplierProfile": "6ft-table-cover",
+        "supplierFixed": {
+          "sides": "3sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "sides": "3sided"
+        },
+        "optionPrices": {}
       },
       {
         "label": "6 ft · closed back",
@@ -763,7 +1892,16 @@
           "checkedAt": "2026-10-12T02:00:00Z",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
-        }
+        },
+        "supplierProfile": "6ft-table-cover",
+        "supplierFixed": {
+          "sides": "4sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "sides": "4sided"
+        },
+        "optionPrices": {}
       },
       {
         "label": "8 ft · open back",
@@ -782,7 +1920,16 @@
           "checkedAt": "2026-10-12T02:00:00Z",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
-        }
+        },
+        "supplierProfile": "8ft-table-cover",
+        "supplierFixed": {
+          "sides": "3sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "sides": "3sided"
+        },
+        "optionPrices": {}
       },
       {
         "label": "8 ft · closed back",
@@ -801,7 +1948,16 @@
           "checkedAt": "2026-10-12T02:00:00Z",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
-        }
+        },
+        "supplierProfile": "8ft-table-cover",
+        "supplierFixed": {
+          "sides": "4sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "sides": "4sided"
+        },
+        "optionPrices": {}
       }
     ],
     "image": "/images/products/standard-table-throws.webp",
@@ -835,7 +1991,18 @@
             "label": "Full fitted cover",
             "templateId": "fitted-6-open"
           }
-        ]
+        ],
+        "supplierProfile": "Fitted-Table-Cover",
+        "supplierFixed": {
+          "size": "6ft",
+          "backside": "3sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "size": "6ft",
+          "backside": "3sided"
+        },
+        "optionPrices": {}
       },
       {
         "label": "6 ft · closed back",
@@ -848,7 +2015,18 @@
             "label": "Full fitted cover",
             "templateId": "fitted-6-closed"
           }
-        ]
+        ],
+        "supplierProfile": "Fitted-Table-Cover",
+        "supplierFixed": {
+          "size": "6ft",
+          "backside": "4sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "size": "6ft",
+          "backside": "4sided"
+        },
+        "optionPrices": {}
       },
       {
         "label": "8 ft · open back",
@@ -861,7 +2039,18 @@
             "label": "Full fitted cover",
             "templateId": "fitted-8-open"
           }
-        ]
+        ],
+        "supplierProfile": "Fitted-Table-Cover",
+        "supplierFixed": {
+          "size": "8ft",
+          "backside": "3sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "size": "8ft",
+          "backside": "3sided"
+        },
+        "optionPrices": {}
       },
       {
         "label": "8 ft · closed back",
@@ -874,7 +2063,18 @@
             "label": "Full fitted cover",
             "templateId": "fitted-8-closed"
           }
-        ]
+        ],
+        "supplierProfile": "Fitted-Table-Cover",
+        "supplierFixed": {
+          "size": "8ft",
+          "backside": "4sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "size": "8ft",
+          "backside": "4sided"
+        },
+        "optionPrices": {}
       }
     ],
     "image": "/images/products/fitted-table-throws.webp",
@@ -908,7 +2108,16 @@
             "label": "Full stretch cover",
             "templateId": "6ft-stretch-table-throw-download"
           }
-        ]
+        ],
+        "supplierProfile": "stretch-table-cover",
+        "supplierFixed": {
+          "size": "6ft"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "size": "6ft"
+        },
+        "optionPrices": {}
       },
       {
         "label": "8 ft",
@@ -921,7 +2130,16 @@
             "label": "Full stretch cover",
             "templateId": "8ft-stretch-table-throw-download"
           }
-        ]
+        ],
+        "supplierProfile": "stretch-table-cover",
+        "supplierFixed": {
+          "size": "8ft"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "size": "8ft"
+        },
+        "optionPrices": {}
       }
     ],
     "image": "/images/products/stretch-table-throws.webp",
@@ -941,11 +2159,12 @@
     "features": [
       "Printed weather-resistant canopy",
       "Aluminum frame and carry bag",
-      "10 × 10, 10 × 15 and 10 × 20 ft"
+      "10 × 10, 10 × 15 and 10 × 20 ft",
+      "Choose print, hardware and accessories below"
     ],
     "variants": [
       {
-        "label": "10 × 10 ft · canopy + frame",
+        "label": "10 × 10 ft",
         "priceCents": 75500,
         "widthIn": 120,
         "heightIn": 120,
@@ -977,10 +2196,317 @@
           "checkedAt": "2026-10-12T02:00:00Z",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
+        },
+        "supplierProfile": "event-tent-canopy-graphic",
+        "supplierFixed": {},
+        "panelRules": [
+          {
+            "when": {
+              "tent_full_wall": "A"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall-1-1",
+                "label": "Full wall 1",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall": "AB"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall-1-1",
+                "label": "Full wall 1",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              },
+              {
+                "id": "tent_full_wall-2-1",
+                "label": "Full wall 2",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall": "ABC"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall-1-1",
+                "label": "Full wall 1",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              },
+              {
+                "id": "tent_full_wall-2-1",
+                "label": "Full wall 2",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              },
+              {
+                "id": "tent_full_wall-3-1",
+                "label": "Full wall 3",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall": "ABCD"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall-1-1",
+                "label": "Full wall 1",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              },
+              {
+                "id": "tent_full_wall-2-1",
+                "label": "Full wall 2",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              },
+              {
+                "id": "tent_full_wall-3-1",
+                "label": "Full wall 3",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              },
+              {
+                "id": "tent_full_wall-4-1",
+                "label": "Full wall 4",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "1x1"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "2x1"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "3x1"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-3-1",
+                "label": "Half wall 3",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "4x1"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-3-1",
+                "label": "Half wall 3",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-4-1",
+                "label": "Half wall 4",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "1x2"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-1-2",
+                "label": "Half wall 1 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "2x2"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-1-2",
+                "label": "Half wall 1 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-2",
+                "label": "Half wall 2 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "3x2"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-1-2",
+                "label": "Half wall 1 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-2",
+                "label": "Half wall 2 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-3-1",
+                "label": "Half wall 3 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-3-2",
+                "label": "Half wall 3 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "4x2"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-1-2",
+                "label": "Half wall 1 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-2",
+                "label": "Half wall 2 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-3-1",
+                "label": "Half wall 3 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-3-2",
+                "label": "Half wall 3 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-4-1",
+                "label": "Half wall 4 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-4-2",
+                "label": "Half wall 4 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "tent_hardware": "1",
+          "tent_sewing_thread": "white",
+          "tent_carrybag": "s",
+          "mesh_sidewall": "0",
+          "tent_sandbag": "0",
+          "tent_full_wall": "0",
+          "tent_half_wall": "0"
+        },
+        "optionPrices": {
+          "tent_sewing_thread": {
+            "white": 0,
+            "black": 0
+          },
+          "tent_sandbag": {
+            "0": 0,
+            "1": 6000
+          }
         }
       },
       {
-        "label": "10 × 15 ft · canopy + frame",
+        "label": "10 × 15 ft",
         "priceCents": 116000,
         "widthIn": 180,
         "heightIn": 120,
@@ -1012,10 +2538,164 @@
           "checkedAt": "2026-10-12T02:00:00Z",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
+        },
+        "supplierProfile": "10x15-event-tent",
+        "supplierFixed": {},
+        "panelRules": [
+          {
+            "when": {
+              "tent_full_wall": "S1"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall-1-1",
+                "label": "Full wall 1",
+                "templateId": "10x15-event-tent-15ft-tent-full-wall-short-side-full-wall-short-side"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall": "S2"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall-1-1",
+                "label": "Full wall 1",
+                "templateId": "10x15-event-tent-15ft-tent-full-wall-short-side-full-wall-short-side"
+              },
+              {
+                "id": "tent_full_wall-2-1",
+                "label": "Full wall 2",
+                "templateId": "10x15-event-tent-15ft-tent-full-wall-short-side-full-wall-short-side"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall_long": "L1"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall_long-1-1",
+                "label": "Long full wall 1",
+                "templateId": "10x15-event-tent-15ft-tent-full-wall-long-side-full-wall-long-side"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall_long": "L2"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall_long-1-1",
+                "label": "Long full wall 1",
+                "templateId": "10x15-event-tent-15ft-tent-full-wall-long-side-full-wall-long-side"
+              },
+              {
+                "id": "tent_full_wall_long-2-1",
+                "label": "Long full wall 2",
+                "templateId": "10x15-event-tent-15ft-tent-full-wall-long-side-full-wall-long-side"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "1x1"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "1x2"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1 · front",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-1-2",
+                "label": "Half wall 1 · back",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "2x1"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "2x2"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1 · front",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-1-2",
+                "label": "Half wall 1 · back",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2 · front",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-2",
+                "label": "Half wall 2 · back",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "tent_hardware": "1",
+          "tent_sewing_thread": "white",
+          "tent_carrybag": "s",
+          "tent_sandbag": "0",
+          "tent_full_wall": "0",
+          "tent_full_wall_long": "0",
+          "tent_half_wall": "0"
+        },
+        "optionPrices": {
+          "tent_sewing_thread": {
+            "white": 0,
+            "black": 0
+          },
+          "tent_sandbag": {
+            "0": 0,
+            "1": 6000
+          }
         }
       },
       {
-        "label": "10 × 20 ft · canopy + frame",
+        "label": "10 × 20 ft",
         "priceCents": 142000,
         "widthIn": 240,
         "heightIn": 120,
@@ -1047,6 +2727,160 @@
           "checkedAt": "2026-10-12T02:00:00Z",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
+        },
+        "supplierProfile": "10x20-event-tent",
+        "supplierFixed": {},
+        "panelRules": [
+          {
+            "when": {
+              "tent_full_wall": "S1"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall-1-1",
+                "label": "Full wall 1",
+                "templateId": "10x20-event-tent-20ft-tent-full-wall-short-side-full-wall-short-side"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall": "S2"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall-1-1",
+                "label": "Full wall 1",
+                "templateId": "10x20-event-tent-20ft-tent-full-wall-short-side-full-wall-short-side"
+              },
+              {
+                "id": "tent_full_wall-2-1",
+                "label": "Full wall 2",
+                "templateId": "10x20-event-tent-20ft-tent-full-wall-short-side-full-wall-short-side"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall_long": "L1"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall_long-1-1",
+                "label": "Long full wall 1",
+                "templateId": "10x20-event-tent-20ft-tent-full-wall-long-side-full-wall-long-side"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall_long": "L2"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall_long-1-1",
+                "label": "Long full wall 1",
+                "templateId": "10x20-event-tent-20ft-tent-full-wall-long-side-full-wall-long-side"
+              },
+              {
+                "id": "tent_full_wall_long-2-1",
+                "label": "Long full wall 2",
+                "templateId": "10x20-event-tent-20ft-tent-full-wall-long-side-full-wall-long-side"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "1x1"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "1x2"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1 · front",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-1-2",
+                "label": "Half wall 1 · back",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "2x1"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "2x2"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1 · front",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-1-2",
+                "label": "Half wall 1 · back",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2 · front",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-2",
+                "label": "Half wall 2 · back",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "tent_hardware": "1",
+          "tent_sewing_thread": "white",
+          "tent_carrybag": "s",
+          "tent_sandbag": "2",
+          "tent_full_wall": "0",
+          "tent_full_wall_long": "0",
+          "tent_half_wall": "0"
+        },
+        "optionPrices": {
+          "tent_sewing_thread": {
+            "white": 0,
+            "black": 0
+          },
+          "tent_sandbag": {
+            "2": 0,
+            "1": 8000
+          }
         }
       }
     ],
@@ -1067,7 +2901,8 @@
     "features": [
       "1/4-inch clear acrylic",
       "Transparent CMYK print · no white ink",
-      "Four standoffs and mounting screws included"
+      "Four standoffs and mounting screws included",
+      "Choose print, hardware and accessories below"
     ],
     "priceUnit": "sqft",
     "variants": [
@@ -1081,7 +2916,15 @@
             "label": "Front",
             "templateId": "acrylic-signs-1-front"
           }
-        ]
+        ],
+        "supplierProfile": "clear-acrylic-transparent",
+        "supplierFixed": {},
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "acrylic+standoff",
+          "cornerstyle": "none"
+        },
+        "optionPrices": {}
       }
     ],
     "image": "/images/products/acrylic-signs.webp",
@@ -1105,8 +2948,7 @@
     "description": "A durable rectangular printed panel for indoor and outdoor use. The listed configuration has square corners and no mounting holes.",
     "features": [
       "Custom dimensions",
-      "Single-sided print",
-      "Square corners, no holes"
+      "Choose print, hardware and accessories below"
     ],
     "priceUnit": "sqft",
     "variants": [
@@ -1120,7 +2962,31 @@
             "label": "Front",
             "templateId": "aluminum-signs-1-front"
           }
-        ]
+        ],
+        "supplierProfile": "aluminum-sign",
+        "supplierFixed": {},
+        "panelRules": [
+          {
+            "when": {
+              "sides": "2"
+            },
+            "append": [
+              {
+                "id": "back",
+                "label": "Back",
+                "templateId": "aluminum-signs-1-front"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "size": "custom_size",
+          "sides": "1",
+          "cornerstyle": "S",
+          "holespunch": "0",
+          "lamination": "UV"
+        },
+        "optionPrices": {}
       }
     ],
     "image": "/images/products/aluminum-signs.webp",
@@ -1144,8 +3010,7 @@
     "description": "A durable rectangular printed panel for indoor and outdoor use. The listed configuration has square corners and no mounting holes.",
     "features": [
       "Custom dimensions",
-      "Single-sided print",
-      "Square corners, no holes"
+      "Choose print, hardware and accessories below"
     ],
     "priceUnit": "sqft",
     "variants": [
@@ -1158,6 +3023,64 @@
             "id": "front",
             "label": "Front",
             "templateId": "aluminum-composite-signs-1-front"
+          }
+        ],
+        "supplierProfile": "aluminum-sandwich-board",
+        "supplierFixed": {},
+        "panelRules": [
+          {
+            "when": {
+              "sides": "2"
+            },
+            "append": [
+              {
+                "id": "back",
+                "label": "Back",
+                "templateId": "aluminum-composite-signs-1-front"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "sides": "1",
+          "holespunch": "0",
+          "cornerstyle": "S",
+          "material": "1/8in_aluminum",
+          "lamination": "UV"
+        },
+        "optionPrices": {},
+        "dimensionOptionPrices": [
+          {
+            "when": {
+              "sides": "2"
+            },
+            "widthIn": 18,
+            "heightIn": 24,
+            "addCents": 1000
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "widthIn": 24,
+            "heightIn": 36,
+            "addCents": 2000
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "widthIn": 6,
+            "heightIn": 24,
+            "addCents": 200
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "widthIn": 6,
+            "heightIn": 36,
+            "addCents": 600
           }
         ]
       }
@@ -1222,7 +3145,8 @@
     "features": [
       "Lay-flat PVC material",
       "Matte UV print",
-      "Custom size"
+      "Custom size",
+      "Choose print, hardware and accessories below"
     ],
     "priceUnit": "sqft",
     "variants": [
@@ -1236,7 +3160,16 @@
             "label": "Front",
             "templateId": "display-posters-1-front"
           }
-        ]
+        ],
+        "supplierProfile": "posters",
+        "supplierFixed": {},
+        "panelRules": [],
+        "baselineOptions": {
+          "material": "double_white_popup",
+          "lamination": "UV",
+          "lam": "no"
+        },
+        "optionPrices": {}
       }
     ],
     "minOrderCents": 1799,
@@ -1248,7 +3181,7 @@
     "sizeLimits": {
       "min": 6,
       "maxShort": 52,
-      "maxLong": 120
+      "maxLong": 1908
     }
   }
 ]

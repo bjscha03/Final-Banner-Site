@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import SavedSpecialtyPreview from '@/components/specialty/SavedSpecialtyPreview';
 import BannerPreview from '@/components/cart/BannerPreview';
 import ThumbnailPreviewWrapper from '@/components/preview/ThumbnailPreviewWrapper';
 import { getGrommetModeForPreview } from '@/lib/cartGrommet';
@@ -89,6 +90,8 @@ const OrderItemPreview: React.FC<OrderItemPreviewProps> = ({
     heightIn,
     item.quantity,
   ]);
+
+  if(item.product_type==='specialty'&&item.specialty_config) return <div className={className} style={{width:compactMaxSize}} data-order-item-preview="true"><SavedSpecialtyPreview configuration={item.specialty_config}/></div>;
 
   const renderPreview = (url: string | null, maxSize: number, finalized: boolean) => (
     <BannerPreview

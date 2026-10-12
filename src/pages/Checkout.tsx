@@ -834,6 +834,7 @@ const Checkout: React.FC = () => {
     discountAmountCents: resolvedDiscount.appliedDiscountAmountCents,
     discountLabel: resolvedDiscount.appliedDiscountLabel,
     discountHelperMessage: resolvedDiscount.helperMessage,
+    pricingPending:items.some(item=>item.product_type==='specialty'&&!item.specialty_config?.priceVerified),
     shippingPending: items.some(item=>!specialtyItemHasIncludedShipping(item)),
     shippingLabel: flags.freeShipping ? flags.shippingMethodLabel : 'Shipping',
     taxCents,

@@ -1,5 +1,5 @@
 import type { SpecialtyConfiguration } from '@/lib/specialtyArtwork';
-import { getSpecialtyProduct, specialtyUnitPrice, specialtyTemplate } from '@/lib/specialtyProducts';
+import { getSpecialtyProduct, specialtyUnitPrice, specialtyTemplate, specialtyPanels, specialtyOptions, specialtyOptionSummary, specialtyConfigurationPrice } from '@/lib/specialtyProducts';
 import { LARGE_BANNER_PROMOTION_ENABLED, isLargeBannerPromotionIdentifier } from '@/lib/largeBannerPromotion';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -462,14 +462,18 @@ export const useCartStore = create<CartState>()(
         const product = getSpecialtyProduct(configuration.productSlug);
         const variant = product?.variants.find(v => v.id === configuration.variantId);
         if (!product || !variant || !Number.isInteger(quantity) || quantity < 1 || quantity > 100) throw new Error('Choose a valid product configuration and quantity.');
-        if (configuration.panels.length!==variant.panels.length || variant.panels.some(p => !configuration.panels.find(panel => {
+        const options=specialtyOptions(variant,configuration.options,true);
+        const requiredPanels=specialtyPanels(variant,options);
+        const quote=specialtyConfigurationPrice(product,variant,widthIn,heightIn,options);
+        configuration={...configuration,options,optionSummary:specialtyOptionSummary(variant,options),priceVerified:quote.verified};
+        if (configuration.panels.length!==requiredPanels.length || requiredPanels.some(p => !configuration.panels.find(panel => {
           const template=specialtyTemplate(product,variant,p,widthIn,heightIn);
           return panel.id===p.id && panel.templateId===p.templateId && panel.productionUrl && isReadyPlacementPreview(panel.preview)
             && panel.composition.productType===`specialty:${product.slug}:${variant.id}:${p.id}` && panel.composition.widthIn===template.widthIn && panel.composition.heightIn===template.heightIn
             && panel.preview.compositionSignature===buildCompositionSignature(panel.composition);
         }))) throw new Error('Complete and save every artwork panel first.');
         const first = configuration.panels[0];
-        const unit = specialtyUnitPrice(product, variant, widthIn, heightIn);
+        const unit = specialtyUnitPrice(product, variant, widthIn, heightIn, configuration.options);
         const previous = editId ? get().items.find(item => item.id === editId && item.product_type === 'specialty') : undefined;
         if (editId && !previous) throw new Error('This cart item is no longer available. Add it as a new product.');
         const id = previous?.id || createStableCartItemId('specialty');
@@ -799,7 +803,7 @@ export const useCartStore = create<CartState>()(
               const product = getSpecialtyProduct(item.specialty_config?.productSlug);
               const variant = product?.variants.find(v => v.id === item.specialty_config?.variantId);
               if (!product || !variant) return item;
-              const unit = specialtyUnitPrice(product, variant, item.width_in, item.height_in);
+              const unit = specialtyUnitPrice(product, variant, item.width_in, item.height_in, item.specialty_config?.options);
               return {...item, quantity, unit_price_cents: unit, line_total_cents: unit * quantity};
             }
             // Migrate old item if needed before updating quantity

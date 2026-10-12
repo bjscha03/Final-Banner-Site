@@ -1,5 +1,6 @@
 import catalog from '../../shared/specialty-catalog.json';
 import templateCatalog from '../../shared/specialty-templates.json';
+import optionsEngine from '../../shared/specialty-options.mjs';
 
 export type SpecialtyCategory = 'stands' | 'flags' | 'events' | 'signs';
 export type SpecialtyVisual = 'retractable' | 'xstand' | 'backdrop' | 'flag' | 'table' | 'tent' | 'sign' | 'poster';
@@ -18,6 +19,11 @@ export interface SpecialtyVariant {
   widthIn?: number;
   heightIn?: number;
   priceMatch?: SpecialtyPriceMatch;
+  supplierProfile?: string;
+  supplierFixed?: Record<string,string>;
+  baselineOptions?: Record<string,string>;
+  customSize?: {minWidth:number;maxWidth:number;minHeight:number;maxHeight:number;step:number};
+  panelRules?: Array<{when:Record<string,string>;replace?:SpecialtyPanel[];append?:SpecialtyPanel[]}>;
 }
 
 export interface SpecialtyProduct {
@@ -61,7 +67,7 @@ export function formatSpecialtyPrice(cents: number): string {
 export function specialtyStartingPrice(product: SpecialtyProduct): number | undefined {
   if(product.priceMatches?.length)return Math.min(...product.priceMatches.map(p=>p.priceCents!));
   const confirmed=product.variants.filter(v=>v.priceMatch);
-  const prices = (confirmed.length?confirmed:product.variants).map((variant) => variant.priceCents).filter((price): price is number => typeof price === 'number');
+  const prices = confirmed.map((variant) => variant.priceCents).filter((price): price is number => typeof price === 'number');
   return prices.length ? Math.min(...prices) : undefined;
 }
 
@@ -71,32 +77,40 @@ export interface SpecialtyTemplate {
   guides?: Array<{ d: string; dashed: boolean; color: string }>;
   safeInsetsIn?: number[];
   polePath?: string;
+  poleMirrored?: boolean;
   poleBottom?: number[];
   faces?: Record<'front' | 'top' | 'side', number[]>;
   fitNotes: string;
+  surface?: string;
+  doubleFlag?: boolean;
 }
 export const specialtyTemplates = templateCatalog as Record<string, SpecialtyTemplate>;
 export function specialtyTemplate(product: SpecialtyProduct, variant: SpecialtyVariant, panel: SpecialtyPanel, widthIn?: number, heightIn?: number): SpecialtyTemplate {
   const template = specialtyTemplates[panel.templateId];
   if (!template) throw new Error('This product template is unavailable.');
-  return product.priceUnit === 'sqft' ? { ...template, widthIn: widthIn || 24, heightIn: heightIn || 18 } : template;
+  return product.priceUnit === 'sqft' || variant.customSize ? { ...template, widthIn: widthIn || 24, heightIn: heightIn || 18 } : template;
 }
-export function specialtyUnitPrice(product: SpecialtyProduct, variant: SpecialtyVariant, widthIn: number, heightIn: number): number {
-  if (!variant || !Number.isInteger(variant.priceCents)) throw new Error('Choose a priced configuration.');
-  if (product.priceUnit !== 'sqft') return variant.priceCents!;
-  const limits = product.sizeLimits!;
-  if (![widthIn, heightIn].every(n => Number.isFinite(n) && n >= limits.min)
-      || Math.min(widthIn, heightIn) > limits.maxShort || Math.max(widthIn, heightIn) > limits.maxLong) throw new Error(`Choose a size from ${limits.min} × ${limits.min} in to ${limits.maxLong} × ${limits.maxShort} in. Either orientation is available.`);
-  const matched=specialtyPriceMatch(product,variant,widthIn,heightIn);
-  if(matched?.priceCents)return matched.priceCents;
-  return Math.max(product.minOrderCents || 0, Math.ceil(widthIn * heightIn / 144 * variant.priceCents!));
+export function specialtyUnitPrice(product: SpecialtyProduct, variant: SpecialtyVariant, widthIn: number, heightIn: number, options:Record<string,string>={}): number {
+  return specialtyConfigurationPrice(product,variant,widthIn,heightIn,options).unitCents;
 }
 
 export function specialtyPriceMatch(product:SpecialtyProduct,variant:SpecialtyVariant,widthIn:number,heightIn:number):SpecialtyPriceMatch|undefined {
   return product.priceMatches?.find(p=>(p.widthIn===widthIn&&p.heightIn===heightIn)||(p.widthIn===heightIn&&p.heightIn===widthIn))||variant.priceMatch;
 }
-export function specialtyItemHasIncludedShipping(item:{product_type?:string;width_in:number;height_in:number;specialty_config?:{productSlug:string;variantId:string}}):boolean {
+export function specialtyItemHasIncludedShipping(item:{product_type?:string;width_in:number;height_in:number;specialty_config?:{productSlug:string;variantId:string;options?:Record<string,string>}}):boolean {
   if(item.product_type!=='specialty')return true;
   const product=getSpecialtyProduct(item.specialty_config?.productSlug),variant=product?.variants.find(v=>v.id===item.specialty_config?.variantId);
-  return !!(product&&variant&&specialtyPriceMatch(product,variant,item.width_in,item.height_in));
+  return !!(product&&variant&&specialtyConfigurationPrice(product,variant,item.width_in,item.height_in,item.specialty_config?.options).shippingPolicy);
 }
+
+export type SpecialtyOptions=Record<string,string>;
+export interface SpecialtyOptionGroup {key:string;label:string;visible?:false|unknown[];options:Array<{key:string;label:string;visible?:false|unknown[];custom?:unknown;images?:Array<{s1000:string;s200:string;match?:unknown[]}>}>;images:Array<{s1000:string;s200:string;match?:unknown[]}>;}
+export const specialtyOptions = optionsEngine.optionsFor as (variant:SpecialtyVariant,input?:SpecialtyOptions,strict?:boolean)=>SpecialtyOptions;
+export const specialtyPanels = optionsEngine.panelDefinitions as (variant:SpecialtyVariant,input?:SpecialtyOptions)=>SpecialtyPanel[];
+export const specialtyAllPanels = optionsEngine.allPanelDefinitions as (variant:SpecialtyVariant)=>SpecialtyPanel[];
+export const specialtyOptionMatches=optionsEngine.matches as (conditions:unknown,values:SpecialtyOptions)=>boolean;
+export const specialtyProfile=optionsEngine.profileFor as (variant:SpecialtyVariant)=>{supplierItemId:number;groups:SpecialtyOptionGroup[];sourceUrl:string}|undefined;
+export const specialtyOptionSummary=optionsEngine.optionSummary as (variant:SpecialtyVariant,options?:SpecialtyOptions)=>Array<{key:string;label:string;value:string}>;
+export const specialtyConfigurationPrice=optionsEngine.priceConfiguration as (product:SpecialtyProduct,variant:SpecialtyVariant,width:number,height:number,options?:SpecialtyOptions)=>{unitCents:number;baseCents:number;adjustments:Array<{key:string;label:string;cents:number}>;verified:boolean;missing:string[];options:SpecialtyOptions;sourceUrl?:string;shippingPolicy?:string};
+
+export const specialtyMaterialLabel=optionsEngine.materialLabel as (product:SpecialtyProduct,variant:SpecialtyVariant,options?:SpecialtyOptions)=>string;

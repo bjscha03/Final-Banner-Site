@@ -340,3 +340,23 @@ describe('customer print review', () => {
     expect(generated).toHaveBeenCalledOnce();
   });
 });
+
+describe('product-specific AI sessions',()=>{
+  it('replaces the banner example and clears its versions when changing to a flag',async()=>{
+    await mount(session());
+    expect(selectedImage()).toContain(concept(1).imageBase64);
+    await act(async()=>root.render(<AIWorkspace productType="specialty:feather-flags:feather-flags-1:front" widthIn={25} heightIn={80} material="Fabric" initialSession={session()} onGenerated={generated}/>));
+    expect(host.querySelector('.ai-studio-banner-showcase')).toBeNull();
+    expect(selectedImage()).toBeUndefined();
+    expect(host.querySelector('[data-testid="ai-product-example"]')).not.toBeNull();
+    expect(host.textContent).toContain('Feather Flags');
+    expect(host.textContent).toContain('25 in × 80 in');
+    expect(host.textContent).not.toContain('Free Next-Day Air shipping');
+  });
+  it('ignores a mismatched product draft even if stored under the current draft key',async()=>{
+    mocks.records.set('customer:customer-test:specialty:feather-flags:feather-flags-1:front:25:80',{brief,concepts:[concept(1)],selectedId:'v1'});
+    await act(async()=>root.render(<AIWorkspace productType="specialty:feather-flags:feather-flags-1:front" widthIn={25} heightIn={80} material="Fabric" onGenerated={generated}/>));
+    expect(selectedImage()).toBeUndefined();
+    expect(host.textContent).toContain('25 in × 80 in');
+  });
+});

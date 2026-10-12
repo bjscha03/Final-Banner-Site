@@ -10,9 +10,9 @@ function itemFor(slug,variantIndex=0){
  for(const p of panels)p.preview.compositionSignature=buildCompositionSignatureFromPreview(p.preview);
  return {product_type:'specialty',quantity:2,width_in:panels[0].composition.widthIn,height_in:panels[0].composition.heightIn,line_total_cents:1,unit_price_cents:1,specialty_config:{version:1,productSlug:slug,variantId:variant.id,panels}};
 }
-test('all 51 configurations have priced, registered artwork panels and catalog images',()=>{
- assert.equal(catalog.length,19);assert.equal(catalog.reduce((n,p)=>n+p.variants.length,0),51);
- for(const p of catalog)for(const v of p.variants){assert.ok(v.priceCents>0);assert.ok(v.panels.length);assert.ok(require('node:fs').existsSync(require('node:path').join(__dirname,'../../../public',p.image)));for(const panel of v.panels){const t=templates[panel.templateId];assert.ok(t.widthIn>0&&t.heightIn>0);assert.ok(t.exportScale>0&&t.exportScale<=1);}}
+test('all 60 configurations have registered artwork panels and catalog images',()=>{
+ assert.equal(catalog.length,19);assert.equal(catalog.reduce((n,p)=>n+p.variants.length,0),60);
+ for(const p of catalog)for(const v of p.variants){if(v.priceMatch)assert.ok(v.priceCents>0);assert.ok(v.panels.length);assert.ok(require('node:fs').existsSync(require('node:path').join(__dirname,'../../../public',p.image)));for(const panel of v.panels){const t=templates[panel.templateId];assert.ok(t.widthIn>0&&t.heightIn>0);assert.ok(t.exportScale>0&&t.exportScale<=1);}}
 });
 test('retail totals are rebuilt from the registered variant, ignoring browser amounts',()=>{
  const item=itemFor('deluxe-retractable-banner',1);const clean=normalizeSpecialtyItem(item);assert.equal(clean.unit_price_cents,45299);assert.equal(clean.line_total_cents,90598);assert.equal(clean.specialty_config.panels.length,2);
@@ -68,4 +68,26 @@ test('new matched prices follow Lexington configurations without changing legacy
   assert.equal(priceSpecialty(acm,acm.variants[0],w,h),cents);assert.equal(priceSpecialty(acm,acm.variants[0],h,w),cents);
  }
  assert.equal(catalog.reduce((n,p)=>n+p.variants.filter(v=>v.priceMatch).length+(p.priceMatches?.length||0),0),17);
+});
+
+test('every verified flag accessory price is added once and unknown options stay unverified',()=>{
+ const engine=require('../../../shared/specialty-options.cjs'),p=catalog.find(p=>p.slug==='feather-flags'),v=p.variants[0];
+ for(const [base,addition] of Object.entries({PG:0,PB:3000,PBG:4000,PBW:3500,PBS:8000})){
+  const q=engine.priceConfiguration(p,v,25,80,{sides:'2',flaghardware:base,carrybag:'1'});
+  assert.equal(q.unitCents,17500+7000+addition+2000);assert.equal(q.verified,true);assert.equal(engine.panelDefinitions(v,q.options)[0].id,'both-sides');
+ }
+ const reverse=engine.priceConfiguration(p,v,25,80,{sides:'-1'});assert.equal(reverse.verified,false);assert.ok(reverse.missing.some(x=>x.includes('Reverse')));
+ assert.throws(()=>engine.optionsFor(v,{size:'xlarge'},true));assert.throws(()=>engine.optionsFor(v,{madeUp:'1'},true));
+});
+test('tent walls require every selected face and the 20-foot wall uses its own half scale',()=>{
+ const engine=require('../../../shared/specialty-options.cjs'),p=catalog.find(p=>p.slug==='custom-event-tents');
+ const panels=engine.panelDefinitions(p.variants[0],{tent_full_wall:'AB',tent_half_wall:'2x2'});assert.equal(panels.length,10);assert.equal(new Set(panels.map(p=>p.id)).size,10);
+ const wall=engine.panelDefinitions(p.variants[2],{tent_full_wall_long:'L1'}).find(p=>p.id==='tent_full_wall_long-1-1');assert.equal(templates[wall.templateId].exportScale,.5);assert.equal(templates[wall.templateId].widthIn,230.1214);
+ const q=engine.priceConfiguration(p,p.variants[0],119,84.275,{tent_sandbag:'1'});assert.equal(q.unitCents,81500);assert.equal(q.verified,true);
+ assert.equal(engine.priceConfiguration(p,p.variants[0],119,84.275,{tent_full_wall:'A'}).verified,false);
+});
+test('ACM double-sided prices are dimension-specific and add a second artwork panel',()=>{
+ const engine=require('../../../shared/specialty-options.cjs'),p=catalog.find(p=>p.slug==='aluminum-composite-signs'),v=p.variants[0];
+ for(const [w,h,total] of [[18,24,5800],[24,36,11000],[6,24,2800],[6,36,4200]]){const q=engine.priceConfiguration(p,v,w,h,{sides:'2'});assert.equal(q.unitCents,total);assert.equal(q.verified,true);assert.equal(engine.panelDefinitions(v,q.options).length,2);}
+ assert.equal(engine.priceConfiguration(p,v,20,30,{sides:'2'}).verified,false);
 });

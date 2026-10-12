@@ -1,6 +1,7 @@
 'use strict';
 const catalog = require('../../../shared/specialty-catalog.json');
 const templates = require('../../../shared/specialty-templates.json');
+const optionsEngine=require('../../../shared/specialty-options.cjs');
 const {assertReadyPlacementPreview}=require('./preview-artifact.cjs');
 function fail(code,message){throw Object.assign(new Error(message),{code,statusCode:409});}
 function resolveSpecialtyTemplate(productType,widthIn,heightIn){
@@ -8,11 +9,11 @@ function resolveSpecialtyTemplate(productType,widthIn,heightIn){
   const [,slug,variantId,panelId,...extra]=String(productType).split(':');
   const product=catalog.find(p=>p.slug===slug);
   const variant=product?.variants.find(v=>v.id===variantId);
-  const panel=variant?.panels.find(p=>p.id===panelId);
+  const panel=variant&&optionsEngine.allPanelDefinitions(variant).find(p=>p.id===panelId);
   const registered=panel&&templates[panel.templateId];
   if(extra.length||!registered)fail('SPECIALTY_TEMPLATE_INVALID','Choose a registered product and artwork panel.');
   let template={...registered};
-  if(product.priceUnit==='sqft'){
+  if(product.priceUnit==='sqft'||variant.customSize){
     priceSpecialty(product,variant,widthIn,heightIn);
     template={...template,widthIn:Number(widthIn),heightIn:Number(heightIn)};
   } else if(Math.abs(Number(widthIn)-template.widthIn)>.001||Math.abs(Number(heightIn)-template.heightIn)>.001){
@@ -20,14 +21,9 @@ function resolveSpecialtyTemplate(productType,widthIn,heightIn){
   }
   return {product,variant,panel,template};
 }
-function priceSpecialty(product,variant,width,height){
-  if(!variant||!Number.isInteger(variant.priceCents)||variant.priceCents<=0)fail('SPECIALTY_PRICE_INVALID','This configuration is not priced.');
-  if(product.priceUnit!=='sqft')return variant.priceCents;
-  const {min,maxShort,maxLong}=product.sizeLimits;
-  if(![width,height].every(n=>typeof n==='number'&&Number.isFinite(n)&&n>=min)||Math.min(width,height)>maxShort||Math.max(width,height)>maxLong)fail('SPECIALTY_DIMENSIONS_INVALID','Choose a size within this product’s shipping limits.');
-  const matched=priceMatchSpecialty(product,variant,width,height);
-  if(matched?.priceCents)return matched.priceCents;
-  return Math.max(product.minOrderCents||0,Math.ceil(width*height/144*variant.priceCents));
+function priceSpecialty(product,variant,width,height,options={}){
+  try{return optionsEngine.priceConfiguration(product,variant,width,height,options).unitCents;}
+  catch(error){fail('SPECIALTY_CONFIGURATION_INVALID',error.message);}
 }
 function priceMatchSpecialty(product,variant,width,height){return product.priceMatches?.find(p=>(p.widthIn===width&&p.heightIn===height)||(p.widthIn===height&&p.heightIn===width))||variant.priceMatch;}
 const permanent=url=>{try{const u=new URL(url);return u.protocol==='https:'&&u.hostname==='res.cloudinary.com';}catch{return false;}};
@@ -37,28 +33,31 @@ function normalizeSpecialtyItem(item){
   const variant=product?.variants.find(v=>v.id===config?.variantId);
   if(!product||!variant||config.version!==1)fail('SPECIALTY_CONFIGURATION_INVALID','This product configuration is unavailable.');
   if(!Number.isInteger(item.quantity)||item.quantity<1||item.quantity>100)fail('SPECIALTY_QUANTITY_INVALID','Choose a quantity from 1 to 100.');
-  const unit=priceSpecialty(product,variant,item.width_in,item.height_in);
-  if(!Array.isArray(config.panels)||config.panels.length!==variant.panels.length||new Set(config.panels.map(p=>p.id)).size!==variant.panels.length)fail('SPECIALTY_PANELS_INVALID','Upload one artwork file for each required panel.');
-  for(const expected of variant.panels){
+  let options;try{options=optionsEngine.optionsFor(variant,config.options,true);}catch(error){fail('SPECIALTY_CONFIGURATION_INVALID',error.message);}
+  const requiredPanels=optionsEngine.panelDefinitions(variant,options);
+  const unit=priceSpecialty(product,variant,item.width_in,item.height_in,options);
+  if(options.holespunch?.startsWith('custom')&&(!Array.isArray(config.customHoles)||!config.customHoles.length||config.customHoles.length>32||config.customHoles.some(h=>!Number.isFinite(h.xIn)||!Number.isFinite(h.yIn)||h.xIn<.5||h.yIn<.5||h.xIn>item.width_in-.5||h.yIn>item.height_in-.5)))fail('SPECIALTY_HOLES_INVALID','Specify valid mounting hole positions before ordering.');
+  if(!Array.isArray(config.panels)||config.panels.length!==requiredPanels.length||new Set(config.panels.map(p=>p.id)).size!==requiredPanels.length)fail('SPECIALTY_PANELS_INVALID','Upload one artwork file for each required panel.');
+  for(const expected of requiredPanels){
     const p=config.panels.find(p=>p.id===expected.id);
     if(!p||p.templateId!==expected.templateId)fail('SPECIALTY_PANELS_INVALID','An artwork panel does not match this configuration.');
     const type=`specialty:${product.slug}:${variant.id}:${p.id}`;
     const {template}=resolveSpecialtyTemplate(type,p.composition?.widthIn,p.composition?.heightIn);
     assertReadyPlacementPreview(p.preview,`specialty_config.panels.${p.id}.preview`);
     if(p.composition.version!==3||p.composition.fitMode!=='fit'||p.preview.fitMode!=='fit')fail('SPECIALTY_ARTWORK_STALE','Save the current artwork placement before checkout.');
-    if(product.priceUnit==='sqft'&&(template.widthIn!==item.width_in||template.heightIn!==item.height_in))fail('SPECIALTY_ARTWORK_STALE','The artwork size must match the ordered sign size.');
+    if((product.priceUnit==='sqft'||variant.customSize)&&(template.widthIn!==item.width_in||template.heightIn!==item.height_in))fail('SPECIALTY_ARTWORK_STALE','The artwork size must match the ordered sign size.');
     if(p.composition.productType!==type||p.composition.sourceUrl!==p.preview?.sourceUrl||p.composition.sourceIdentity!==p.preview?.sourceIdentity||p.preview?.uploadStatus!=='uploaded'||p.preview.productType!==type||p.preview.widthIn!==template.widthIn||p.preview.heightIn!==template.heightIn||p.preview.compositionRevision!==p.composition.revision)fail('SPECIALTY_ARTWORK_STALE','Save the current artwork and preview before checkout.');
     const t=p.composition.transform;
     if(!t||![t.xPct,t.yPct,t.scaleX,t.scaleY].every(Number.isFinite)||t.scaleX<=0||t.scaleY<=0||t.scaleX>5||t.scaleY>5||t.xPct!==p.preview.positionPct?.x||t.yPct!==p.preview.positionPct?.y||t.scaleX!==p.preview.scaleX||t.scaleY!==p.preview.scaleY)fail('SPECIALTY_ARTWORK_STALE','The preview placement does not match the artwork.');
     if(![p.artwork?.url,p.artwork?.productionUrl||p.artwork?.url,p.composition.sourceUrl,p.preview.url,p.productionUrl].every(permanent)||!p.productionFileKey)fail('SPECIALTY_UPLOAD_INCOMPLETE','An original file or print panel has not finished saving.');
   }
-  const panels=variant.panels.map(expected=>config.panels.find(p=>p.id===expected.id));
-  return {...item,product_type:'specialty',material:'specialty',width_in:panels[0].composition.widthIn,height_in:panels[0].composition.heightIn,specialty_config:{...config,panels,productName:product.name,variantLabel:variant.label,materialLabel:product.materialLabel},unit_price_cents:unit,line_total_cents:unit*item.quantity,rope_feet:0,rope_cost_cents:0,pole_pockets:'none',pole_pocket_cost_cents:0,grommets:'none'};
+  const panels=requiredPanels.map(expected=>config.panels.find(p=>p.id===expected.id));
+  return {...item,product_type:'specialty',material:'specialty',width_in:panels[0].composition.widthIn,height_in:panels[0].composition.heightIn,specialty_config:{...config,options,optionSummary:optionsEngine.optionSummary(variant,options),priceVerified:optionsEngine.priceConfiguration(product,variant,item.width_in,item.height_in,options).verified,panels,productName:product.name,variantLabel:variant.label,materialLabel:optionsEngine.materialLabel(product,variant,options)},unit_price_cents:unit,line_total_cents:unit*item.quantity,rope_feet:0,rope_cost_cents:0,pole_pockets:'none',pole_pocket_cost_cents:0,grommets:'none'};
 }
 function requireSpecialtyFulfillment(items){
   for(const item of items.filter(item=>item.product_type==='specialty')){
     const product=catalog.find(p=>p.slug===item.specialty_config?.productSlug),variant=product?.variants.find(v=>v.id===item.specialty_config?.variantId);
-    if(!product||!variant||!priceMatchSpecialty(product,variant,item.width_in,item.height_in))fail('SPECIALTY_PRICE_NOT_VERIFIED','Pricing for this new product configuration is still being confirmed. Your artwork is saved in your cart.');
+    if(!product||!variant||!optionsEngine.priceConfiguration(product,variant,item.width_in,item.height_in,item.specialty_config?.options).verified)fail('SPECIALTY_PRICE_NOT_VERIFIED','Pricing for this new product configuration is still being confirmed. Your artwork is saved in your cart.');
     if(product.fulfillmentStatus!=='ready')fail('SPECIALTY_FULFILLMENT_NOT_READY','This new product is still being verified for ordering. Your original files and approved previews are saved in your cart; payment is not available yet.');
   }
 }

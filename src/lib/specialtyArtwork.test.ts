@@ -1,5 +1,5 @@
 import {afterEach,describe,it,expect,vi} from 'vitest';
-import {PDFDocument} from 'pdf-lib';
+import {PDFDocument,PDFName,PDFNumber} from 'pdf-lib';
 import {exportSpecialtyPanel,specialtyArtworkPpi} from './specialtyArtwork';
 import {uploadArtworkFile} from '@/utils/uploadArtworkFile';
 import type {UploadedArtworkFile} from './cartArtworkForEditor';
@@ -10,6 +10,14 @@ const source:UploadedArtworkFile={name:'source.pdf',url:'https://res.cloudinary.
 const spec:ArtworkCompositionSpec={version:3,sourceUrl:source.url,sourceIdentity:'source',productType:'specialty:custom-event-tents:20ft:front',widthIn:128,heightIn:86,fitMode:'fit',transform:{xPct:4,yPct:-3,scaleX:1.2,scaleY:1.1},revision:1};
 afterEach(()=>{vi.restoreAllMocks();vi.unstubAllGlobals();vi.mocked(uploadArtworkFile).mockClear();});
 describe('specialty print export',()=>{
+  it('preserves the maximum poster roll physical size using PDF UserUnit',async()=>{
+    const pdf=await PDFDocument.create();pdf.addPage([720,360]).drawText('VECTOR ORIGINAL');
+    vi.stubGlobal('fetch',vi.fn(async()=>new Response(await pdf.save())));
+    await exportSpecialtyPanel(source,{...spec,widthIn:1908,heightIn:52,productType:'specialty:display-posters:display-posters-1:front'},specialtyTemplates['display-posters-1-front']);
+    const file=vi.mocked(uploadArtworkFile).mock.calls[0][0],doc=await PDFDocument.load(await file.arrayBuffer()),page=doc.getPage(0);
+    const unit=page.node.lookup(PDFName.of('UserUnit'),PDFNumber).asNumber();
+    expect(page.getWidth()).toBeLessThanOrEqual(14400);expect(page.getWidth()*unit/72).toBeCloseTo(1908,6);expect(page.getHeight()*unit/72).toBeCloseTo(52,6);
+  });
   it('preserves a vector PDF in the supplier’s quarter-scale 20-foot tent artboard',async()=>{
     const pdf=await PDFDocument.create();pdf.addPage([720,360]).drawText('VECTOR ORIGINAL');
     vi.stubGlobal('fetch',vi.fn(async()=>new Response(await pdf.save())));
