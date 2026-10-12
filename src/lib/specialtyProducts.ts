@@ -31,7 +31,6 @@ export interface SpecialtyProduct {
   image: string;
   imageAlt: string;
   materialLabel: string;
-  fulfillmentStatus: string;
   priceMatches?: SpecialtyPriceMatch[];
   sizeLimits?: { min: number; maxShort: number; maxLong: number };
   name: string;
@@ -97,10 +96,19 @@ export function specialtyUnitPrice(product: SpecialtyProduct, variant: Specialty
 export function specialtyPriceMatch(product:SpecialtyProduct,variant:SpecialtyVariant,widthIn:number,heightIn:number):SpecialtyPriceMatch|undefined {
   return product.priceMatches?.find(p=>(p.widthIn===widthIn&&p.heightIn===heightIn)||(p.widthIn===heightIn&&p.heightIn===widthIn))||variant.priceMatch;
 }
-export function specialtyItemHasIncludedShipping(item:{product_type?:string;width_in:number;height_in:number;specialty_config?:{productSlug:string;variantId:string;options?:Record<string,string>}}):boolean {
-  if(item.product_type!=='specialty')return true;
+type SpecialtyPricedItem={product_type?:string;width_in:number;height_in:number;specialty_config?:{productSlug:string;variantId:string;options?:Record<string,string>}};
+export function specialtyItemPrice(item:SpecialtyPricedItem):ReturnType<typeof specialtyConfigurationPrice>|undefined {
+  if(item.product_type!=='specialty')return undefined;
   const product=getSpecialtyProduct(item.specialty_config?.productSlug),variant=product?.variants.find(v=>v.id===item.specialty_config?.variantId);
-  return !!(product&&variant&&specialtyConfigurationPrice(product,variant,item.width_in,item.height_in,item.specialty_config?.options).shippingPolicy);
+  if(!product||!variant)return undefined;
+  try{return specialtyConfigurationPrice(product,variant,item.width_in,item.height_in,item.specialty_config?.options);}
+  catch{return undefined;}
+}
+export function specialtyItemHasVerifiedPrice(item:SpecialtyPricedItem):boolean {
+  return item.product_type!=='specialty'||specialtyItemPrice(item)?.verified===true;
+}
+export function specialtyItemHasIncludedShipping(item:SpecialtyPricedItem):boolean {
+  return item.product_type!=='specialty'||specialtyItemPrice(item)?.shippingPolicy==='free_overnight_after_production';
 }
 
 export type SpecialtyOptions=Record<string,string>;

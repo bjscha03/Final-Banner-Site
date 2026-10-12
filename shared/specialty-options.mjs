@@ -77,7 +77,9 @@ function priceConfiguration(product,variant,width,height,input={}) {
     const label=`${group.label}: ${selected?.label||options[group.key]}`;
     if(!Number.isInteger(cents)) missing.push(label); else adjustments.push({key:group.key,label,cents});
   }
-  return {unitCents:base+adjustments.reduce((n,a)=>n+a.cents,0),baseCents:base,adjustments,verified:missing.length===0,missing,options,sourceUrl:match?.sourceUrl,shippingPolicy:missing.length===0?match?.shippingPolicy:undefined};
+  // A missing accessory price does not erase the matched product's shipping policy.
+  // Unmatched products/sizes still need an independently confirmed retail policy.
+  return {unitCents:base+adjustments.reduce((n,a)=>n+a.cents,0),baseCents:base,adjustments,verified:missing.length===0,missing,options,sourceUrl:match?.sourceUrl,shippingPolicy:match?.shippingPolicy};
 }
 function materialLabel(product,variant,options={}) {
   const values=optionsFor(variant,options),group=profileFor(variant)?.groups.find(g=>g.key==='material');

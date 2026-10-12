@@ -1,5 +1,5 @@
 import SavedSpecialtyPreview from '@/components/specialty/SavedSpecialtyPreview';
-import {specialtyItemHasIncludedShipping} from '@/lib/specialtyProducts';
+import {specialtyItemHasIncludedShipping, specialtyItemHasVerifiedPrice} from '@/lib/specialtyProducts';
 import { cartEditUrl } from '@/lib/cartEditUrl';
 import CartLinePrice from '@/components/cart/CartLinePrice';
 import { getCartDisplayPrices } from '@/lib/cartDisplayPricing';
@@ -121,7 +121,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
   const specialtyInCart=items.some(item=>item.product_type==='specialty');
-  const pricingPending=items.some(item=>item.product_type==='specialty'&&!item.specialty_config?.priceVerified);
+  const pricingPending=items.some(item=>!specialtyItemHasVerifiedPrice(item));
   const dominantProductType = getDominantProductType(items);
   const productCopy = getProductCopy(dominantProductType);
 
@@ -457,7 +457,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
 
                       <div className="mb-3 flex items-start justify-between">
                         <h3 className="text-base font-semibold text-gray-900">{getItemDisplayName(item)}</h3>
-                        <CartLinePrice {...displayPrice} quantity={item.quantity} />
+                        {specialtyItemHasVerifiedPrice(item) ? <CartLinePrice {...displayPrice} quantity={item.quantity} /> : <p className="text-sm font-semibold text-amber-800">Price pending</p>}
                       </div>
 
                       <dl className="mb-3 grid grid-cols-2 gap-2">
@@ -507,6 +507,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             <span className="w-8 text-center text-sm font-semibold text-gray-900">{item.quantity}</span>
                             <button
                               onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              disabled={item.product_type === 'specialty' && item.quantity >= 100}
                               className="flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:bg-white"
                               aria-label="Increase quantity"
                             >

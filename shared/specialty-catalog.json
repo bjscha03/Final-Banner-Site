@@ -147,7 +147,6 @@
     "image": "/images/products/standard-retractable-banner.webp",
     "imageAlt": "Standard Retractable Banner with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "Printed graphic and display hardware"
   },
   {
@@ -226,7 +225,6 @@
     "image": "/images/products/deluxe-retractable-banner.webp",
     "imageAlt": "Deluxe Retractable Banner with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "Printed graphic and display hardware"
   },
   {
@@ -476,7 +474,6 @@
     "image": "/images/products/premium-retractable-banner.webp",
     "imageAlt": "Premium Retractable Banner with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "Printed graphic and display hardware"
   },
   {
@@ -548,7 +545,6 @@
     "image": "/images/products/x-banner-stand.webp",
     "imageAlt": "X Banner Stand with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "Printed graphic and display hardware"
   },
   {
@@ -595,7 +591,6 @@
     "image": "/images/products/tabletop-banner-stand.webp",
     "imageAlt": "Tabletop Banner Stand with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "Printed graphic and display hardware"
   },
   {
@@ -694,7 +689,6 @@
     "image": "/images/products/tension-fabric-stand.webp",
     "imageAlt": "Tension Fabric Stand with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "Printed graphic and display hardware"
   },
   {
@@ -833,7 +827,6 @@
     "image": "/images/products/step-and-repeat-backdrop.webp",
     "imageAlt": "Step & Repeat Backdrop with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "9 oz. wrinkle-resistant fabric · frame and carry bag"
   },
   {
@@ -1341,7 +1334,6 @@
     "image": "/images/products/feather-flags.webp",
     "imageAlt": "Feather Flags with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "Printed polyester flag fabric"
   },
   {
@@ -1561,7 +1553,6 @@
     "image": "/images/products/teardrop-flags.webp",
     "imageAlt": "Teardrop Flags with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "Printed polyester flag fabric"
   },
   {
@@ -1731,7 +1722,6 @@
     "image": "/images/products/rectangle-flags.webp",
     "imageAlt": "Rectangle Flags with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "Printed polyester flag fabric"
   },
   {
@@ -1786,7 +1776,6 @@
     "image": "/images/products/economy-feather-flag.webp",
     "imageAlt": "Economy Feather Flag with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "Printed polyester flag fabric"
   },
   {
@@ -1963,7 +1952,6 @@
     "image": "/images/products/standard-table-throws.webp",
     "imageAlt": "Standard Table Throws with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "Dye-sublimated fabric"
   },
   {
@@ -2080,7 +2068,6 @@
     "image": "/images/products/fitted-table-throws.webp",
     "imageAlt": "Fitted Table Throws with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "Dye-sublimated fabric"
   },
   {
@@ -2145,7 +2132,6 @@
     "image": "/images/products/stretch-table-throws.webp",
     "imageAlt": "Stretch Table Throws with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "Dye-sublimated fabric"
   },
   {
@@ -2887,7 +2873,6 @@
     "image": "/images/products/custom-event-tents.webp",
     "imageAlt": "Custom Event Tents with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "Dye-sublimated fabric"
   },
   {
@@ -2930,7 +2915,6 @@
     "image": "/images/products/acrylic-signs.webp",
     "imageAlt": "Acrylic Signs with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "1/4-inch clear acrylic · transparent CMYK",
     "sizeLimits": {
       "min": 6,
@@ -2992,7 +2976,6 @@
     "image": "/images/products/aluminum-signs.webp",
     "imageAlt": "Solid Aluminum Signs with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": ".040-inch aluminum · single sided",
     "sizeLimits": {
       "min": 6,
@@ -3088,7 +3071,6 @@
     "image": "/images/products/aluminum-composite-signs.webp",
     "imageAlt": "Aluminum Composite Signs with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "3 mm aluminum composite · single sided",
     "sizeLimits": {
       "min": 6,
@@ -3176,7 +3158,6 @@
     "image": "/images/products/display-posters.webp",
     "imageAlt": "Durable Display Posters with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "fulfillmentStatus": "pending_supplier_verification",
     "materialLabel": "14 mil PVC · single sided",
     "sizeLimits": {
       "min": 6,

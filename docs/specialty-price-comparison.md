@@ -62,4 +62,6 @@ Sources: the [flag](https://www.lexingtonsign.com/feather-flags.html), [tent](ht
 
 Lexington's public configurator also exposes rush and Saturday charges. These are **not enabled**: a competitor charge does not establish our facility/service eligibility or arrival date. The existing banner rush policy is not automatically applied to new products.
 
-Excluded from this new retail mapping: existing banners, yard signs and car magnets. Their price tables and functionality remain unchanged. All specialty fulfillment remains pending until supplier/shipping verification is complete.
+Lexington's homepage was checked again on October 12, 2026: it advertises free overnight shipping on every order, no minimum, to all 50 states. This is a retail offer, not a statement of B2Sign's wholesale freight cost. The site applies that $0 shipping policy to the matched configurations above; it does not infer shipping terms for unrelated B2Sign products or unmatched sizes.
+
+Matched configurations with fully priced options and complete approved artwork can proceed through checkout. A missing option price blocks payment without erasing the matched base product's included-shipping policy. Unmatched configurations remain unavailable for payment. Existing banners, yard signs and car magnets retain their price tables, shipping and quantity-discount eligibility.

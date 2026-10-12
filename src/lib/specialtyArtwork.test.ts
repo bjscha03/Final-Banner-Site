@@ -4,7 +4,7 @@ import {exportSpecialtyPanel,specialtyArtworkPpi} from './specialtyArtwork';
 import {uploadArtworkFile} from '@/utils/uploadArtworkFile';
 import type {UploadedArtworkFile} from './cartArtworkForEditor';
 import type {ArtworkCompositionSpec} from './previewLifecycle';
-import {getSpecialtyProduct,specialtyItemHasIncludedShipping,specialtyUnitPrice,specialtyTemplates} from './specialtyProducts';
+import {getSpecialtyProduct,specialtyItemHasIncludedShipping,specialtyItemHasVerifiedPrice,specialtyUnitPrice,specialtyTemplates} from './specialtyProducts';
 vi.mock('@/utils/uploadArtworkFile',()=>({uploadArtworkFile:vi.fn(async()=>({productionUrl:'https://res.cloudinary.com/test/raw/upload/print.pdf',fileKey:'print'}))}));
 const source:UploadedArtworkFile={name:'source.pdf',url:'https://res.cloudinary.com/test/raw/upload/source.pdf',fileKey:'source',size:1024,isPdf:true};
 const spec:ArtworkCompositionSpec={version:3,sourceUrl:source.url,sourceIdentity:'source',productType:'specialty:custom-event-tents:20ft:front',widthIn:128,heightIn:86,fitMode:'fit',transform:{xPct:4,yPct:-3,scaleX:1.2,scaleY:1.1},revision:1};
@@ -46,5 +46,15 @@ describe('matched customer pricing',()=>{
     const item={product_type:'specialty',width_in:24,height_in:18,specialty_config:{productSlug:p.slug,variantId:v.id}};
     expect(specialtyItemHasIncludedShipping(item)).toBe(true);
     expect(specialtyItemHasIncludedShipping({...item,width_in:20})).toBe(false);
+  });
+  it('keeps included shipping when an accessory price is unavailable and rejects invalid configurations',()=>{
+    const product=getSpecialtyProduct('custom-event-tents')!,variant=product.variants[0];
+    const item={product_type:'specialty',width_in:119,height_in:84.275,specialty_config:{productSlug:product.slug,variantId:variant.id,options:{tent_full_wall:'A'}}};
+    expect(specialtyItemHasIncludedShipping(item)).toBe(true);
+    expect(specialtyItemHasVerifiedPrice(item)).toBe(false);
+    const invalid={...item,specialty_config:{...item.specialty_config,options:{madeUp:'yes'}}};
+    expect(specialtyItemHasVerifiedPrice(invalid)).toBe(false);
+    expect(specialtyItemHasIncludedShipping(invalid)).toBe(false);
+    expect(specialtyItemHasVerifiedPrice({...item,specialty_config:{...item.specialty_config,options:{tent_sandbag:'1'}}})).toBe(true);
   });
 });

@@ -4,11 +4,13 @@ const {catalog,templates,priceSpecialty,resolveSpecialtyTemplate,normalizeSpecia
 const {normalizeCartItemPlacement,buildCompositionSignatureFromPreview}=require('../_shared/preview-artifact.cjs');
 const {repriceStripeCart}=require('../_shared/stripe-server-pricing.cjs');
 const {validateFitRequest,buildFitPrompt}=require('../_shared/ai-designer/fit.cjs');
-function itemFor(slug,variantIndex=0){
+const engine=require('../../../shared/specialty-options.cjs');
+const {computeTotals}=require('../_shared/checkoutTotals.cjs');
+function itemFor(slug,variantIndex=0,options={},width,height){
  const product=catalog.find(p=>p.slug===slug),variant=product.variants[variantIndex];
- const panels=variant.panels.map(p=>{const t=templates[p.templateId],source=`https://res.cloudinary.com/test/image/upload/${p.id}.png`,preview=`https://res.cloudinary.com/test/image/upload/${p.id}-preview.png`,type=`specialty:${slug}:${variant.id}:${p.id}`;return {...p,artwork:{url:source,fileKey:p.id},composition:{version:3,fitMode:'fit',sourceUrl:source,sourceIdentity:p.id,productType:type,widthIn:t.widthIn,heightIn:t.heightIn,revision:3,transform:{xPct:2,yPct:-1,scaleX:1.2,scaleY:1.2}},preview:{version:3,fitMode:'fit',previewPublicId:p.id+'-preview',previewWidthPx:800,previewHeightPx:600,sourceUrl:source,sourceIdentity:p.id,productType:type,widthIn:t.widthIn,heightIn:t.heightIn,compositionRevision:3,positionPct:{x:2,y:-1},scaleX:1.2,scaleY:1.2,uploadStatus:'uploaded',url:preview},productionUrl:`https://res.cloudinary.com/test/raw/upload/${p.id}.pdf`,productionFileKey:p.id+'-print'};});
+ const panels=engine.panelDefinitions(variant,options).map(p=>{const registered=templates[p.templateId],t=width&&height?{...registered,widthIn:width,heightIn:height}:registered,source=`https://res.cloudinary.com/test/image/upload/${p.id}.png`,preview=`https://res.cloudinary.com/test/image/upload/${p.id}-preview.png`,type=`specialty:${slug}:${variant.id}:${p.id}`;return {...p,artwork:{url:source,fileKey:p.id},composition:{version:3,fitMode:'fit',sourceUrl:source,sourceIdentity:p.id,productType:type,widthIn:t.widthIn,heightIn:t.heightIn,revision:3,transform:{xPct:2,yPct:-1,scaleX:1.2,scaleY:1.2}},preview:{version:3,fitMode:'fit',previewPublicId:p.id+'-preview',previewWidthPx:800,previewHeightPx:600,sourceUrl:source,sourceIdentity:p.id,productType:type,widthIn:t.widthIn,heightIn:t.heightIn,compositionRevision:3,positionPct:{x:2,y:-1},scaleX:1.2,scaleY:1.2,uploadStatus:'uploaded',url:preview},productionUrl:`https://res.cloudinary.com/test/raw/upload/${p.id}.pdf`,productionFileKey:p.id+'-print'};});
  for(const p of panels)p.preview.compositionSignature=buildCompositionSignatureFromPreview(p.preview);
- return {product_type:'specialty',quantity:2,width_in:panels[0].composition.widthIn,height_in:panels[0].composition.heightIn,line_total_cents:1,unit_price_cents:1,specialty_config:{version:1,productSlug:slug,variantId:variant.id,panels}};
+ return {product_type:'specialty',quantity:2,width_in:panels[0].composition.widthIn,height_in:panels[0].composition.heightIn,line_total_cents:1,unit_price_cents:1,specialty_config:{version:1,productSlug:slug,variantId:variant.id,options,panels}};
 }
 test('all 60 configurations have registered artwork panels and catalog images',()=>{
  assert.equal(catalog.length,19);assert.equal(catalog.reduce((n,p)=>n+p.variants.length,0),60);
@@ -25,9 +27,52 @@ test('custom signs enforce shipped dimensions and poster minimums',()=>{
  const poster=catalog.find(p=>p.slug==='display-posters');assert.equal(priceSpecialty(poster,poster.variants[0],6,6),1799);
  const aluminum=catalog.find(p=>p.slug==='aluminum-signs');assert.equal(priceSpecialty(aluminum,aluminum.variants[0],24,18),4497);assert.throws(()=>priceSpecialty(aluminum,aluminum.variants[0],96,48));
 });
-test('specialty items cannot reach payment before pricing and fulfillment are verified',()=>{
+test('payment accepts matched prices and shipping without a blanket specialty block',()=>{
  assert.throws(()=>repriceStripeCart([itemFor('standard-retractable-banner')]),e=>e.code==='SPECIALTY_PRICE_NOT_VERIFIED');
- assert.throws(()=>repriceStripeCart([itemFor('feather-flags')]),e=>e.code==='SPECIALTY_FULFILLMENT_NOT_READY');
+ let checked=0;
+ for(const product of catalog)for(const [index,variant] of product.variants.entries()){
+  for(const match of variant.priceMatch?[variant.priceMatch]:product.priceMatches||[]){
+   const item=itemFor(product.slug,index,{},match.widthIn,match.heightIn);
+   item.specialty_config.priceVerified=false; // An older saved cart is not authoritative.
+   const [priced]=repriceStripeCart([item]);
+   assert.equal(priced.unit_price_cents,match.priceCents||variant.priceCents,product.slug);
+   assert.equal(priced.line_total_cents,priced.unit_price_cents*2);
+   assert.equal(priced.specialty_config.priceVerified,true);
+   assert.equal(computeTotals([priced],.06,{freeShipping:true}).shipping_cents,0);
+   checked++;
+  }
+ }
+ assert.equal(checked,17);
+});
+test('flag options and quantity reach payment at their canonical price with free shipping',()=>{
+ for(const [base,addition] of Object.entries({PG:0,PB:3000,PBG:4000,PBW:3500,PBS:8000})){
+  const [priced]=repriceStripeCart([itemFor('feather-flags',0,{sides:'2',flaghardware:base,carrybag:'1'})]);
+  const expected=17500+7000+addition+2000;
+  assert.equal(priced.unit_price_cents,expected);
+  const totals=computeTotals([priced],.06,{freeShipping:true});
+  assert.equal(totals.raw_subtotal_cents,expected*2);
+  assert.equal(totals.shipping_cents,0);
+  assert.equal(totals.applied_discount_cents,0);
+  assert.equal(totals.total_cents,expected*2+Math.round(expected*2*.06));
+ }
+ const unpriced=itemFor('feather-flags',0,{sides:'-1'});unpriced.specialty_config.priceVerified=true;
+ assert.throws(()=>repriceStripeCart([unpriced]),e=>e.code==='SPECIALTY_PRICE_NOT_VERIFIED'&&/Reverse/.test(e.message));
+});
+test('a missing accessory price does not change a matched product shipping policy',()=>{
+ const product=catalog.find(p=>p.slug==='custom-event-tents'),variant=product.variants[0];
+ const quote=engine.priceConfiguration(product,variant,119,84.275,{tent_full_wall:'A'});
+ assert.equal(quote.verified,false);
+ assert.equal(quote.shippingPolicy,'free_overnight_after_production');
+ assert.throws(()=>repriceStripeCart([itemFor(product.slug,0,{tent_full_wall:'A'})]),e=>e.code==='SPECIALTY_PRICE_NOT_VERIFIED');
+});
+test('mixed-cart shipping is free and specialty quantity does not alter banner discounts',()=>{
+ const banner={product_type:'banner',width_in:48,height_in:24,quantity:2,material:'13oz'};
+ const original=computeTotals(repriceStripeCart([banner]),.06,{freeShipping:true});
+ const mixed=computeTotals(repriceStripeCart([banner,itemFor('feather-flags')]),.06,{freeShipping:true});
+ assert.equal(original.applied_discount_cents,400);
+ assert.equal(mixed.applied_discount_cents,400);
+ assert.equal(mixed.shipping_cents,0);
+ assert.equal(mixed.total_cents,45156);
 });
 test('AI fit uses a registered template and rejects mismatched dimensions',()=>{
  const p=catalog.find(p=>p.slug==='feather-flags'),v=p.variants[0],t=templates[v.panels[0].templateId];const type=`specialty:${p.slug}:${v.id}:front`;const body={productType:type,widthIn:t.widthIn,heightIn:t.heightIn,sourceImage:'data:image/png;base64,eA=='};

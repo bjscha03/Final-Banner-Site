@@ -1,5 +1,5 @@
 import type { SpecialtyConfiguration } from '@/lib/specialtyArtwork';
-import { getSpecialtyProduct, specialtyUnitPrice, specialtyTemplate, specialtyPanels, specialtyOptions, specialtyOptionSummary, specialtyConfigurationPrice } from '@/lib/specialtyProducts';
+import { getSpecialtyProduct, specialtyUnitPrice, specialtyTemplate, specialtyPanels, specialtyOptions, specialtyOptionSummary, specialtyConfigurationPrice, specialtyItemPrice } from '@/lib/specialtyProducts';
 import { LARGE_BANNER_PROMOTION_ENABLED, isLargeBannerPromotionIdentifier } from '@/lib/largeBannerPromotion';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -303,6 +303,21 @@ export interface CartState {
 
 // Migration function to fix old cart items with missing or zero pricing fields
 const migrateCartItem = (item: CartItem): CartItem => {
+  // Saved specialty carts must follow today's catalog, including option prices.
+  // The payment server repeats this calculation and validates every artwork panel.
+  if (item.product_type === 'specialty' && item.specialty_config) {
+    const quote = specialtyItemPrice(item);
+    return {
+      ...item,
+      specialty_config: {...item.specialty_config, priceVerified: quote?.verified === true},
+      ...(quote ? {
+        unit_price_cents: quote.unitCents,
+        line_total_cents: quote.unitCents * item.quantity,
+        rope_feet: 0, rope_placement: null, rope_cost_cents: 0,
+        pole_pockets: 'none', pole_pocket_cost_cents: 0,
+      } : {}),
+    };
+  }
   const storedRopePlacement: RopePlacement | null = item.rope_placement === 'bottom'
     || item.rope_placement === 'top-bottom'
     || item.rope_placement === 'top'
@@ -800,11 +815,7 @@ export const useCartStore = create<CartState>()(
 
             if (item.product_type === 'specialty') {
               if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) return item;
-              const product = getSpecialtyProduct(item.specialty_config?.productSlug);
-              const variant = product?.variants.find(v => v.id === item.specialty_config?.variantId);
-              if (!product || !variant) return item;
-              const unit = specialtyUnitPrice(product, variant, item.width_in, item.height_in, item.specialty_config?.options);
-              return {...item, quantity, unit_price_cents: unit, line_total_cents: unit * quantity};
+              return migrateCartItem({...item, quantity});
             }
             // Migrate old item if needed before updating quantity
             const migratedItem = migrateCartItem(item);

@@ -36,7 +36,9 @@ The owner's instruction is to match Lexington Sign retail prices and shipping fo
 
 Matched offers include overnight shipping **after production**. That is not a validated arrival date or an integration with the supplier's freight quote system. John's Otter notes describe destination ZIP, eligible facility, service and cost; his $51 ground/$160 next-day tent example is not a universal rate or timezone multiplier. Public supplier pages do not expose account freight prices. Actual facility routing, availability, cutoff times, rush/Saturday eligibility and freight cost remain unverified.
 
-Both browser and server block specialty payment until pricing is verified and fulfillment is ready. No configuration is marked fulfillment-ready yet. Existing discount policies remain in place, including the NEW20 coupon; changing specialty coupon eligibility would require a separate explicit policy decision. No production database migration or live paid test order has been run.
+Checkout now evaluates the selected configuration instead of blocking every specialty product. Matched configurations with fully priced options and complete approved artwork can proceed through the canonical payment pipeline with $0 customer shipping. Server-side repricing and panel validation remain required. Unmatched products/options still block payment; the customer sees the specific missing prices or shipping policy. A missing accessory price no longer removes a matched product's included-shipping policy.
+
+Saved specialty carts recalculate prices and verification from the current catalog when displayed and when quantity changes. Placeholder amounts are hidden in cart item headlines. Specialty quantities do not increase banner quantity tiers or receive a share of the banner-only discount. Existing discount policies remain in place, including NEW20; existing banner, yard-sign and magnet pricing is unchanged. Specialty items remain ineligible for legacy rush services, and mixed-cart copy identifies which products those services cover. No production database migration or live paid test order has been run.
 
 ## Verification and its limits
 
@@ -48,13 +50,15 @@ All 350 unique public supplier asset URLs now return successful live responses w
 
 The final local run passed 258 AI tests, 49 frontend/library tests, 19 pricing/catalog tests and three PDF-job/snapshot tests. All seven Chromium integration checks passed with zero page errors. The production build passed SSR/prerender, metadata, schema, sitemap and 233 generated route checks. A first concurrent build/test attempt timed out under local resource contention; the separate reruns passed. Project-wide TypeScript checking still has pre-existing parse/type failures; do not call the repository type-clean. The earlier hosted build passed, but its broader CI failed at existing Admin commerce browser contracts (missing analytics heading/period controls). Targeted specialty passes do not establish a green full CI run.
 
+The October 12 pricing/shipping correction passed 22 server catalog/pricing tests (including all 17 matched configurations through payment repricing), 40 payment-service/provider tests, and 19 focused frontend/cart/total tests. Five focused Chromium checks passed with zero page errors: flag size/options/quantity prices, tent and ACM adjustments, flag studio identity, upload/fit/cart, and saved-cart repricing/checkout eligibility. The local preview-mode check uses a fixture password through the normal access form, mocked upload/AI transports, and the application's existing no-payment button; it does not submit an order or charge a payment. It confirms that matched configurations enable checkout, unknown option prices disable it, and the existing NEW20 offer still applies. Nine canonical-quote tests also passed; two retired-promotion tests failed identically with the unchanged pre-fix cart source, confirming a pre-existing failure rather than a specialty regression.
+
 ## Release dependencies
 
 1. Restore a secure signed-in supplier and protected-preview session. The available authenticated browser runtime could not resume. Never put account passwords or private pricing credentials in this repository or chat.
-2. Obtain missing Lexington retail option prices or an explicit owner pricing policy. Verify supplier account SKUs, availability, ZIP/facility freight routing, service and cutoffs. Implement validated shipping/arrival calculations before enabling payment.
+2. Obtain missing Lexington retail option prices or an explicit owner pricing policy before making unmatched configurations payable. The matched retail offer includes overnight shipping for $0 after production. Separately verify supplier account SKUs, availability, freight cost, ZIP/facility routing and cutoffs before production rollout; do not advertise an unverified arrival date.
 3. Test real flag Fit with AI and Create with AI on every distinct template family, including double-face files and multi-panel products. Inspect provider/job logs for the originally reported flag error. Local geometry fixes are verified; that specific live failure has not been reproduced in the authenticated environment.
 4. Complete hosted upload/cart/order/admin/email tests and test-mode checkout against an isolated preview database. Apply `database-migrations/add-specialty-artwork.sql` there first. Check artwork download permissions and every selected panel.
-5. Confirm supplier CMYK/transparency preflight, hardware/assembly previews, unresolved finishing geometry. Enable fulfillment only after these checks pass.
+5. Confirm supplier CMYK/transparency preflight, hardware/assembly previews and unresolved finishing geometry before production rollout.
 
 ## Hosted deployment and screenshot review
 

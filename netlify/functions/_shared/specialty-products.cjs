@@ -57,8 +57,9 @@ function normalizeSpecialtyItem(item){
 function requireSpecialtyFulfillment(items){
   for(const item of items.filter(item=>item.product_type==='specialty')){
     const product=catalog.find(p=>p.slug===item.specialty_config?.productSlug),variant=product?.variants.find(v=>v.id===item.specialty_config?.variantId);
-    if(!product||!variant||!optionsEngine.priceConfiguration(product,variant,item.width_in,item.height_in,item.specialty_config?.options).verified)fail('SPECIALTY_PRICE_NOT_VERIFIED','Pricing for this new product configuration is still being confirmed. Your artwork is saved in your cart.');
-    if(product.fulfillmentStatus!=='ready')fail('SPECIALTY_FULFILLMENT_NOT_READY','This new product is still being verified for ordering. Your original files and approved previews are saved in your cart; payment is not available yet.');
+    const quote=product&&variant&&optionsEngine.priceConfiguration(product,variant,item.width_in,item.height_in,item.specialty_config?.options);
+    if(!quote?.verified)fail('SPECIALTY_PRICE_NOT_VERIFIED',`${product?.name||'Product'}: pricing is not available for ${quote?.missing.join('; ')||'this configuration'}. Your artwork is saved in your cart.`);
+    if(quote.shippingPolicy!=='free_overnight_after_production')fail('SPECIALTY_SHIPPING_NOT_VERIFIED',`${product.name}: shipping is not available for this configuration. Your artwork is saved in your cart.`);
   }
 }
 function specialtyPrompt(type,width,height){

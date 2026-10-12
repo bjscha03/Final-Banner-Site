@@ -1,5 +1,5 @@
 import SavedSpecialtyPreview from '@/components/specialty/SavedSpecialtyPreview';
-import {specialtyItemHasIncludedShipping} from '@/lib/specialtyProducts';
+import {specialtyItemHasIncludedShipping, specialtyItemHasVerifiedPrice, specialtyItemPrice} from '@/lib/specialtyProducts';
 import BOFCashCheckout from '@/components/checkout/BOFCashCheckout';
 import {saveBofReferral,bofPricingItems} from '@/lib/bofCash';
 import { readCheckoutCustomerDraft } from '@/components/checkout/checkoutCustomerDraft';
@@ -401,7 +401,10 @@ const Checkout: React.FC = () => {
     : '';
 
   const specialtyInCart = items.some(item => item.product_type === 'specialty');
-  const canProceed = minimumOrderValidation.isValid && !yardSignInvalid && !specialtyInCart;
+  const pricingPending = items.some(item => !specialtyItemHasVerifiedPrice(item));
+  const shippingPending = items.some(item => !specialtyItemHasIncludedShipping(item));
+  const specialtyPending = pricingPending || shippingPending;
+  const canProceed = minimumOrderValidation.isValid && !yardSignInvalid && !specialtyPending;
   const providerTotalCents = activeCheckout?.totalCents || totalCents;
   const paymentSubmissionBlocked = !canProceed || Boolean(staleCartReview);
   if (flags.freeShipping || flags.minOrderFloor) {
@@ -453,7 +456,7 @@ const Checkout: React.FC = () => {
   const handleIncreaseQuantity = (itemId: string) => {
     if (checkoutLocked) return;
     const item = items.find(i => i.id === itemId);
-    if (item && item.quantity < 999) {
+    if (item && item.quantity < (item.product_type === 'specialty' ? 100 : 999)) {
       updateQuantity(itemId, item.quantity + 1);
     }
   };
@@ -834,16 +837,21 @@ const Checkout: React.FC = () => {
     discountAmountCents: resolvedDiscount.appliedDiscountAmountCents,
     discountLabel: resolvedDiscount.appliedDiscountLabel,
     discountHelperMessage: resolvedDiscount.helperMessage,
-    pricingPending:items.some(item=>item.product_type==='specialty'&&!item.specialty_config?.priceVerified),
-    shippingPending: items.some(item=>!specialtyItemHasIncludedShipping(item)),
-    shippingLabel: flags.freeShipping ? flags.shippingMethodLabel : 'Shipping',
+    pricingPending,
+    shippingPending,
+    shippingLabel: specialtyInCart && !shippingPending ? 'Overnight shipping after production' : flags.freeShipping ? flags.shippingMethodLabel : 'Shipping',
     taxCents,
     sameDayFeeCents,
     saturdayFeeCents,
     totalCents,
   };
 
-  const orderTotals = <div className="space-y-3">{!specialtyInCart && <PriceDeliveryEstimate />}<CheckoutOrderTotals {...orderTotalsProps} /></div>;
+  const specialtyPendingNotice = specialtyPending && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+    <strong>Your artwork is saved. These selections need confirmed prices or shipping before payment.</strong>
+    <ul className="mt-2 list-disc pl-5">{items.filter(item=>!specialtyItemHasVerifiedPrice(item)||!specialtyItemHasIncludedShipping(item)).map(item=><li key={item.id}>{item.specialty_config?.productName||'Product'}: {[...(!specialtyItemHasVerifiedPrice(item)?specialtyItemPrice(item)?.missing||['Configuration unavailable']:[]),...(!specialtyItemHasIncludedShipping(item)?['Shipping']:[])].join('; ')}.</li>)}</ul>
+    <p className="mt-2">Use Edit order to change these selections or remove them, then check out with your other items.</p>
+  </div>;
+  const orderTotals = <div className="space-y-3">{!specialtyInCart && <PriceDeliveryEstimate />}<CheckoutOrderTotals {...orderTotalsProps} />{specialtyPendingNotice}</div>;
 
   const orderReviewContent = (
     <>
@@ -856,7 +864,6 @@ const Checkout: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
-                  {specialtyInCart && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><strong>Your artwork is saved. This new product is being prepared for ordering.</strong><p>Product specifications and fulfillment are being verified before payment is enabled. Confirmed configurations include free overnight shipping after production. Your original files and approved panels stay in your cart.</p></div>}
                   {items.map((item) => {
                     const displayPrice = displayPrices.get(item.id)!;
                     const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
@@ -1035,7 +1042,7 @@ const Checkout: React.FC = () => {
                                 </span>
                               </div>
                             </div>
-                            <CartLinePrice {...displayPrice} quantity={item.quantity} />
+                            {specialtyItemHasVerifiedPrice(item) ? <CartLinePrice {...displayPrice} quantity={item.quantity} /> : <p className="text-sm font-semibold text-amber-800">Price pending</p>}
                           </div>
 
                           <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -1071,7 +1078,7 @@ const Checkout: React.FC = () => {
                               size="sm"
                               aria-label={`Increase quantity for ${getItemDisplayName(item)}`}
                               onClick={() => handleIncreaseQuantity(item.id)}
-                              disabled={checkoutLocked || item.quantity >= 999}
+                              disabled={checkoutLocked || item.quantity >= (item.product_type === 'specialty' ? 100 : 999)}
                               className="h-11 w-11 p-0 border-2 hover:bg-[#18448D] hover:text-white hover:border-[#18448D] transition-all"
                             >
                               <Plus className="h-4 w-4" />
@@ -1219,7 +1226,7 @@ const Checkout: React.FC = () => {
               <h1 className="mb-2 font-display text-3xl font-bold tracking-[-0.035em] text-[#0B1F3A] sm:text-4xl">Secure checkout</h1>
               <p className="text-sm text-gray-600 sm:hidden">Add your details, then review your order before you pay.</p>
               <p className="hidden text-base text-gray-600 sm:block">{specialtyInCart ? 'Production times vary for displays and event gear. Confirmed configurations include overnight shipping.' : 'Most standard orders are produced within 24 hours; free next-day air begins after production.'}</p>
-              <p className="hidden text-sm text-[#18448D] font-medium sm:block">{specialtyInCart ? 'Final product verification is required before payment.' : 'Your expected shipping and delivery dates are shown below.'}</p>
+              <p className="hidden text-sm text-[#18448D] font-medium sm:block">{specialtyInCart ? (specialtyPending ? 'Review the selections awaiting prices or shipping below.' : 'Your selected options and shipping are included in the total below.') : 'Your expected shipping and delivery dates are shown below.'}</p>
             </div>
 
           </div>
@@ -1350,6 +1357,7 @@ const Checkout: React.FC = () => {
 
                 {/* Same-Day Hit Service upsell — production priority (NOT shipping) */}
                 <SameDayHitServiceCard disabled={checkoutLocked} />
+                {specialtyInCart && items.some(item=>item.product_type!=='specialty') && <p className="text-xs leading-5 text-slate-600">Priority services apply only to eligible banners, yard signs and magnets. Displays and event gear have separate production times.</p>}
               </div>
               <div className="relative z-0 rounded-xl border border-gray-100 bg-white p-4 shadow-md sm:p-5">
                 <div className="flex items-center justify-between mb-6">
