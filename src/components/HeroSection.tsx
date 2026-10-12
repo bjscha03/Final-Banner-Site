@@ -40,7 +40,7 @@ const HeroSection: React.FC = () => {
             loading="eager"
             decoding="async"
             fetchPriority="high"
-            className="h-full w-full object-cover object-center"
+            className="h-full w-full object-cover object-right"
           />
         </picture>
       ) : null}
