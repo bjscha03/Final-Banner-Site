@@ -3152,7 +3152,7 @@ const GoogleAdsBanner: React.FC = () => {
       onRestore={fitUndo?.appliedIdentity === uploadedFile.editorIdentity ? restoreArtworkBeforeFit : undefined} />
   ) : null;
 
-  const uploadCard = (<ConfigCard className={mobilePaidLayout ? '!border-0 !p-0 !shadow-none' : undefined} step={mobilePaidLayout ? undefined : isCarMagnet ? 4 : 2} title="Upload your artwork" id="upload-section">
+  const uploadCard = (<ConfigCard className={mobilePaidLayout ? '!border-0 !p-0 !shadow-none !scroll-mt-20' : undefined} step={mobilePaidLayout ? undefined : isCarMagnet ? 4 : 2} title="Upload your artwork" id="upload-section">
                   {/* Helper banner: shown when the user reaches the upload card before
                       completing required choices. Doesn't block upload — just surfaces
                       what still needs to happen before "Add to Cart" works. */}
