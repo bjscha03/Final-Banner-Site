@@ -18,7 +18,7 @@ function fixture() {
   return { call, data };
 }
 
-test('50MB original completes with unchanged SHA256 and immutable retryable chunks', async () => {
+test('300MB original completes with unchanged SHA256 and immutable retryable chunks', async () => {
   const { call, data } = fixture();
   const bytes = new Uint8Array(MAX_BYTES).fill(87);
   bytes.set([137,80,78,71,13,10,26,10]);
@@ -37,7 +37,7 @@ test('50MB original completes with unchanged SHA256 and immutable retryable chun
   assert.equal(result.bytes, MAX_BYTES);
   assert.equal(result.sha256, createHash('sha256').update(bytes).digest('hex'));
   assert.match(result.productionUrl, /artwork-original/);
-  assert.equal(result.chunkCount, 17);
+  assert.equal(result.chunkCount, 100);
   assert.equal((await call('chunk', bytes.slice(0, CHUNK_BYTES), session, 0)).status, 409);
   const stored = Buffer.concat(Array.from({ length: result.chunkCount }, (_, i) => Buffer.from(data.get(`${session.id}/chunk-${i}`))));
   assert.deepEqual(stored, Buffer.from(bytes));

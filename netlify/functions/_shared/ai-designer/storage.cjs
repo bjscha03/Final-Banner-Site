@@ -140,7 +140,7 @@ function jobFolder() {
 
 function jobPayload(reference, session = null) {
   const payload = readSignedPayload(reference);
-  if (!payload || payload.kind !== 'ai-designer-job' || !['brief', 'generate', 'edit'].includes(payload.action)) return null;
+  if (!payload || payload.kind !== 'ai-designer-job' || !['brief', 'generate', 'edit', 'fit'].includes(payload.action)) return null;
   if (session && payload.sub !== subjectHash(session)) return null;
   return payload;
 }
@@ -187,9 +187,9 @@ async function fetchJobRecord(payload) {
   }
 }
 
-async function createJob({ session, action, request, jobId }) {
+async function createJob({ session, action, request, jobId, beforeCreate }) {
   configure();
-  if (!['brief', 'generate', 'edit'].includes(action) || !/^[a-f0-9]{64}$/.test(String(jobId || ''))) {
+  if (!['brief', 'generate', 'edit', 'fit'].includes(action) || !/^[a-f0-9]{64}$/.test(String(jobId || ''))) {
     const error = new Error('Invalid AI job.');
     error.code = 'INVALID_REQUEST';
     throw error;
@@ -206,6 +206,9 @@ async function createJob({ session, action, request, jobId }) {
   // overwrite an existing paid job or its completed result on a client retry.
   const existing = await fetchJobRecord(jobPayload(reference));
   if (existing) return { reference, record: existing, created: false };
+  // Recovering an accepted request must not consume another generation slot.
+  // The caller can enforce new-job limits after the durable identity lookup.
+  if (beforeCreate) await beforeCreate();
   const now = new Date().toISOString();
   const record = {
     version: 1,

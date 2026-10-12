@@ -153,18 +153,42 @@ export async function renderPdfToDataUrl(
   let abortHandler: (() => void) | null = null;
   let renderTimeoutId: ReturnType<typeof setTimeout> | null = null;
   let timedOut = false;
+  let range: pdfjsLib.PDFDataRangeTransport | null = null;
+  let rangeCancelled = false;
+  let rangeReadError: unknown = null;
 
   try {
-    const bytes = await file.arrayBuffer();
+    // Large print PDFs should not require a second full-file allocation just
+    // to display page one. PDF.js asks for the slices that page actually uses.
+    let source: { data: Uint8Array } | { range: pdfjsLib.PDFDataRangeTransport; rangeChunkSize: number; disableAutoFetch: true; disableStream: true };
+    if (file.size > 50 * 1024 * 1024) {
+      const initial = new Uint8Array(await file.slice(0, 64 * 1024).arrayBuffer());
+      range = new pdfjsLib.PDFDataRangeTransport(file.size, initial);
+      range.abort = () => { rangeCancelled = true; };
+      range.requestDataRange = (begin, end) => {
+        if (rangeCancelled) return;
+        void file.slice(begin, end).arrayBuffer().then(bytes => {
+          if (!rangeCancelled) range?.onDataRange(begin, new Uint8Array(bytes));
+        }).catch(error => {
+          rangeReadError = error;
+          rangeCancelled = true;
+          void loadingTask?.destroy();
+        });
+      };
+      source = { range, rangeChunkSize: 1024 * 1024, disableAutoFetch: true, disableStream: true };
+    } else {
+      source = { data: new Uint8Array(await file.arrayBuffer()) };
+    }
     throwIfAborted(opts.signal);
 
     loadingTask = pdfjsLib.getDocument({
-      data: new Uint8Array(bytes),
+      ...source,
       useWorkerFetch: false,
       isEvalSupported: false,
     });
 
     const cancelWork = () => {
+      range?.abort();
       renderTask?.cancel();
       void loadingTask?.destroy();
     };
@@ -229,6 +253,7 @@ export async function renderPdfToDataUrl(
     };
   } catch (error) {
     if (timedOut) throw new Error('PDF preview timed out on this device. Please try the upload again.');
+    if (rangeReadError) throw new Error('The PDF could not be read from this device. Please select the file again.');
 
     const passwordMessage = getPasswordMessage(error);
     if (passwordMessage) throw new Error(passwordMessage);
@@ -237,6 +262,7 @@ export async function renderPdfToDataUrl(
     }
     throw error;
   } finally {
+    range?.abort();
     if (renderTimeoutId) clearTimeout(renderTimeoutId);
     if (abortHandler) opts.signal?.removeEventListener('abort', abortHandler);
     renderTask = null;

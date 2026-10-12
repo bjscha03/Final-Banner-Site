@@ -66,15 +66,66 @@
     padding-right: 1rem;
   }
 
-  /* Fix mobile scrolling issues */
+  /* Permit nested horizontal scrollers and pinch zoom as well as page scrolling. */
   body, html {
-    touch-action: pan-y;
+    touch-action: manipulation;
     -webkit-overflow-scrolling: touch;
   }
 
   html { overflow-x: clip; overflow-y: auto; }
   body { overflow: visible; }
 
+}
+
+/* Keep article content inside its grid column; wide tables scroll independently. */
+.blog-article {
+  overflow-wrap: anywhere;
+}
+
+.blog-table-block {
+  min-width: 0;
+  max-width: 100%;
+  margin-block: 2rem;
+}
+
+.blog-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: manipulation;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+}
+
+.blog-table-scroll:focus-visible {
+  outline: 2px solid #18448d;
+  outline-offset: 3px;
+}
+
+.blog-article .blog-table-scroll table {
+  width: 100%;
+  margin: 0;
+}
+
+.blog-article .blog-table-scroll :is(th, td) {
+  min-width: 8rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.blog-article .blog-table-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+@media print {
+  .blog-table-hint { display: none; }
+  .blog-table-scroll { overflow: visible; }
+  .blog-article .blog-table-scroll :is(th, td) { min-width: 0; }
 }
 
 @layer utilities {

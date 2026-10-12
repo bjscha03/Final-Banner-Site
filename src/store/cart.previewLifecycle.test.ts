@@ -117,6 +117,25 @@ describe('atomic cart edit preview lifecycle', () => {
     vi.useRealTimers();
   });
 
+  it('switches printing in place while preserving exact artwork and repricing the same cart line', () => {
+    const placement = readyPlacement();
+    const quote = editedQuote(placement);
+    for (const [material, expectedUnit] of [['13oz', 9000], ['18oz_double', 11250], ['13oz', 9000]] as const) {
+      useCartStore.getState().updateCartItem(existingItem.id, { ...quote, material });
+      const items = useCartStore.getState().items;
+      expect(items).toHaveLength(1);
+      expect(items[0].id).toBe(existingItem.id);
+      expect(items[0].material).toBe(material);
+      expect(items[0].unit_price_cents).toBe(expectedUnit);
+      expect(items[0].line_total_cents).toBe(expectedUnit * quote.quantity);
+      expect(items[0].file_url).toBe(placement.sourceUrl);
+      expect(items[0].placement_preview).toEqual(placement);
+      expect(items[0].image_position).toEqual({ x: 5, y: -3 });
+      expect(items[0].image_scale).toBe(1.4);
+      expect(items[0].image_scale_y).toBe(1.2);
+    }
+  });
+
   it('replaces the exact artifact in place without changing the stable line ID', () => {
     const placement = readyPlacement();
     useCartStore.getState().updateCartItem(

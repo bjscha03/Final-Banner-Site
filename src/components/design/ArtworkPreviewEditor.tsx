@@ -41,6 +41,7 @@ export interface ArtworkPreviewEditorProps {
   compactControls?: boolean;
   canvasStyle?: React.CSSProperties;
   mobileToolbarContainer?: HTMLElement | null;
+  fitControls?: React.ReactNode;
   imageCrossOrigin?: '' | 'anonymous' | 'use-credentials';
   onRetryPreview?: () => void | Promise<void>;
   /** Source + product configuration key used to isolate normalized geometry. */
@@ -122,6 +123,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   compactControls = false,
   canvasStyle,
   mobileToolbarContainer,
+  fitControls,
   imageCrossOrigin,
   onRetryPreview,
   compositionKey,
@@ -642,6 +644,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       <p className="mt-1 flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
         <Hand aria-hidden="true" className="h-3.5 w-3.5" />Drag to move · Pinch or drag corners to resize
       </p>
+      {fitControls}
       <details className="mt-2 border-t border-slate-100 pt-2">
         <summary className="min-h-11 cursor-pointer py-3 text-xs font-semibold text-slate-600">Advanced adjustments</summary>
         <div className="flex flex-wrap items-center gap-2">
@@ -668,7 +671,19 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       <div
         ref={setContainerNode}
         className="relative w-full select-none overflow-hidden"
-        style={{ paddingBottom: paddingPct, touchAction: 'none', cursor: loading ? 'default' : selected ? 'move' : 'pointer', ...canvasStyle }}
+        // The measured editor frame must have the exact product ratio. Percentage
+        // padding plus a decorative border adds height and makes Fill export
+        // an undersized image with white side strips, especially on mobile.
+        style={{
+          ...canvasStyle,
+          aspectRatio: `${100 / parseFloat(paddingPct)}`,
+          paddingBottom: 0,
+          border: 0,
+          outline: canvasStyle?.border,
+          outlineOffset: '-1px',
+          touchAction: 'none',
+          cursor: loading ? 'default' : selected ? 'move' : 'pointer',
+        }}
         onPointerDown={startPointer}
         onClick={(event) => { setSelected(true); event.stopPropagation(); }}
       >
@@ -678,10 +693,10 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
           </div>
         )}
 
-        <div className="absolute" style={artworkFrame ? { left: artworkFrame.left, top: artworkFrame.top, width: artworkFrame.width, height: artworkFrame.height } : { inset: 0 }}>
+        <div className="absolute" style={!previewError && artworkFrame ? { left: artworkFrame.left, top: artworkFrame.top, width: artworkFrame.width, height: artworkFrame.height } : { inset: 0 }}>
           {previewError ? (
             <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-white/95 p-4 text-center text-sm text-red-700">
-              <span>{previewError}</span>
+              <span className="max-w-full break-words">{previewError}</span>
               <button type="button" className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white" onClick={(event) => { event.stopPropagation(); setRetryNonce((nonce) => nonce + 1); void onRetryPreview?.(); }}>Retry preview</button>
             </div>
           ) : imageSrc ? (

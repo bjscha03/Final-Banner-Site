@@ -1,6 +1,6 @@
 'use strict';
 
-const { getImageModel, getValidationModel, getImageQuality, getTimeoutMs } = require('./config.cjs');
+const { getImageModel, getValidationModel, getImageQuality, getTimeoutMs, ALLOWED_IMAGE_MODELS } = require('./config.cjs');
 
 let cachedClient;
 const accessCache = new Map();
@@ -231,9 +231,10 @@ async function generateImage({ prompt, size, user, idempotencyKey }) {
   }
 }
 
-async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg', currentImageRole = 'artwork', maskImage, referenceImage, photoReferenceImages = [], logoReferenceImage, logoRendering = 'original', user, idempotencyKey }) {
+async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg', currentImageRole = 'artwork', maskImage, referenceImage, photoReferenceImages = [], logoReferenceImage, logoRendering = 'original', user, idempotencyKey, model: requestedModel, quality: requestedQuality }) {
   const { client, toFile } = await getClient();
-  const model = getImageModel();
+  const model = requestedModel || getImageModel();
+  if (!ALLOWED_IMAGE_MODELS.has(model)) throw Object.assign(new Error('Unapproved image model.'), { code: 'UNAPPROVED_IMAGE_MODEL' });
   try {
     const sourceFile = await toFile(currentImage, 'current-artwork.jpg', { type: currentMime });
     const images = [sourceFile];
@@ -270,7 +271,7 @@ async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg
       prompt,
       n: 1,
       size,
-      quality: getImageQuality(),
+      quality: requestedQuality || getImageQuality(),
       // Preserve the complete source image as the first input. An explicit
       // input_fidelity override is intentionally omitted for model portability.
       output_format: 'jpeg',
@@ -390,6 +391,7 @@ async function planDesignEdit({ brief, instruction, photos = [], user, idempoten
 }
 
 module.exports = {
+  verifyNamedModelAccess,
   getClient,
   classifyProviderError,
   isTransientConnectionError,

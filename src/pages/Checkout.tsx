@@ -14,6 +14,7 @@ import { getOrdersAdapter } from '../lib/orders/adapter';
 import { OrderItem } from '../lib/orders/types';
 
 import Layout from '@/components/Layout';
+import PriceDeliveryEstimate from '@/components/delivery/PriceDeliveryEstimate';
 import { usd, formatDimensions, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
 import PayPalCheckout from '@/components/checkout/PayPalCheckoutReliable';
@@ -33,7 +34,6 @@ import CheckoutOrderTotals, { type CheckoutOrderTotalsProps } from '@/components
 import CheckoutReviewDialog from '@/components/checkout/CheckoutReviewDialog';
 import CheckoutArtworkSummary from '@/components/checkout/CheckoutArtworkSummary';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
-import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
 import { trackPromoEvent } from '@/lib/posthog';
 import { getItemDisplayName, isYardSignItem, getProductCategory, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
@@ -777,7 +777,7 @@ const Checkout: React.FC = () => {
     const basePage = isFromGoogleAds ? '/google-ads-banner' : '/design';
     if (productType === 'yard_sign') return `${basePage}?product=yard-signs`;
     if (productType === 'car_magnet') return `${basePage}?product=car-magnets`;
-    if (items.length > 0 && items.every(item => item.material === '18oz_double')) return '/double-sided-banners';
+    if (items.length > 0 && items.every(item => item.material === '18oz_double')) return `${basePage}?product=banner&sides=double`;
     return `${basePage}?product=banner`;
   };
 
@@ -838,7 +838,7 @@ const Checkout: React.FC = () => {
     totalCents,
   };
 
-  const orderTotals = <CheckoutOrderTotals {...orderTotalsProps} />;
+  const orderTotals = <div className="space-y-3"><PriceDeliveryEstimate /><CheckoutOrderTotals {...orderTotalsProps} /></div>;
 
   const orderReviewContent = (
     <>
@@ -1217,12 +1217,6 @@ const Checkout: React.FC = () => {
             </div>
 
           </div>
-
-          <DeliveryTimer
-            variant="slim"
-            reflectCartSelection
-            className="mb-4 sm:mb-6"
-          />
 
           <div data-testid="checkout-flow" className="space-y-6">
             <div className="w-full space-y-4">

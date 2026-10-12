@@ -29,8 +29,19 @@ export function forgetPendingJob(job: PendingAIJob) {
 }
 
 export class AIJobFailedError extends Error {}
+export class AIRequestRateLimitError extends Error {
+  readonly retryAt: number;
+  constructor(message: string, retryAfter: string | null) {
+    super(message);
+    this.name = 'AIRequestRateLimitError';
+    const seconds = Number(retryAfter);
+    this.retryAt = Date.now() + (Number.isFinite(seconds) && seconds > 0 ? seconds : 60) * 1000;
+  }
+}
 
 function completedResultIsValid(job: Record<string, any>, startPath: string) {
+  if (startPath.endsWith('/ai-designer-fit')) return Boolean(job.fit?.id && job.fit.imageBase64
+    && job.fit.widthIn > 0 && job.fit.heightIn > 0 && typeof job.fit.verification?.passed === 'boolean');
   const validConcept = (concept: Record<string, any>) => Boolean(concept?.versionId && concept.imageBase64 && concept.backgroundRef && concept.validation?.checks && concept.diagnostics);
   if (startPath.endsWith('/ai-designer-edit')) return job.usedOriginalImage === true && validConcept(job.concept);
   if (startPath.endsWith('/ai-designer-generate')) return Array.isArray(job.concepts) && job.concepts.length > 0 && job.concepts.every(validConcept);
@@ -102,6 +113,7 @@ export async function runBackgroundJob(
       }),
       body: authenticatedJsonBody({ ...payload, idempotencyKey }),
     });
+    if (startResponse.status === 429) throw new AIRequestRateLimitError(started?.message || 'Please wait before trying again.', startResponse.headers.get('Retry-After'));
     if (!startResponse.ok || !started?.jobRef) throw new Error(started?.message || 'The AI job could not be started safely.');
     start = { ...started, startPath, payloadFingerprint, idempotencyKey, createdAt: Date.now(), dispatched: false };
     remember(start);

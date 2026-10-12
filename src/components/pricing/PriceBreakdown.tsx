@@ -41,6 +41,7 @@ export interface PriceBreakdownPromo {
 
 export interface PriceBreakdownProps {
   variant?: 'default' | 'compact';
+  deliveryEstimate?: React.ReactNode;
   firstOrderEligibilityNote?: string | null;
   /** Header heading shown above the big price (e.g. "Your Instant Quote"). */
   heading?: string;
@@ -123,6 +124,7 @@ export interface PriceBreakdownProps {
  */
 const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   variant = 'default',
+  deliveryEstimate,
   firstOrderEligibilityNote,
   heading,
   subheading,
@@ -238,6 +240,7 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
         </div>
         {discountCents > 0 && <p data-testid="applied-price-discount" className="mt-2 text-sm font-semibold text-emerald-700">{isFirstOrderPromotion ? FIRST_ORDER_APPLIED_LABEL : `${hasPromoDiscount ? promoDiscountLabel : quantityDiscountLabel} applied`} · You save {usd(discountCents / 100)}</p>}
         {isFirstOrderPromotion && firstOrderEligibilityNote && <p className="mt-1 text-xs leading-snug text-slate-500">{firstOrderEligibilityNote}</p>}
+        {deliveryEstimate}
         <dl className="mt-4 space-y-2 border-t border-slate-200 pt-4 text-sm">
           {detailRows?.map(row => <div key={row.label} className="flex justify-between gap-4"><dt className="text-slate-600">{row.label}</dt><dd className="text-right font-medium text-slate-800">{row.value}</dd></div>)}
           {visibleAddOns.map(row => <div key={row.label} className="flex justify-between gap-4"><dt>{row.label}</dt><dd>{usd(row.amountCents / 100)}</dd></div>)}

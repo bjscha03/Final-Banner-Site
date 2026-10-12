@@ -8,3 +8,12 @@ export function getOriginalArtworkSelection(item: any): OriginalArtworkSelection
   if (item?.file_key) return { url: item.file_key, source: 'legacy_file_key' };
   return null;
 }
+
+/** AI fit uploads its accepted result as the order's immutable production source.
+ * Recognize the saved filename (including existing orders); never use a preview.
+ */
+export function getAIResizedArtworkSelection(item: any): OriginalArtworkSelection | null {
+  const filename = item?.artwork_manifest?.originalFilename || item?.original_filename || item?.file_name;
+  if (typeof filename !== 'string' || !/^ai-fit-\d+(?:\.\d+)?x\d+(?:\.\d+)?-.+\.(?:jpe?g|png)$/i.test(filename)) return null;
+  return getOriginalArtworkSelection(item);
+}

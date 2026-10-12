@@ -1,6 +1,15 @@
+import AIArtworkFitDialog, { ArtworkFitButton } from '@/components/design/AIArtworkFitDialog';
+import { artworkFitIdentity } from '@/components/design/ai/artworkFit';
+import { resolveArtworkPreviewImageSrc } from '@/components/design/artworkPreviewSource';
+import { buildCartArtworkForEditor, getPermanentArtworkPreviewUrl, type UploadedArtworkFile } from '@/lib/cartArtworkForEditor';
+import { getPdfPreviewFile } from '@/utils/pdf/getPdfPreviewFile';
+import BannerSizeChoices from '@/components/design/BannerSizeChoices';
+import BannerPrintSides from '@/components/design/BannerPrintSides';
+import { useBannerPrinting } from '@/hooks/useBannerPrinting';
+import { useUploadWatchdog } from '@/hooks/useUploadWatchdog';
 import MobileBannerLandingHero, { MobileBannerLandingProof } from '@/components/design/MobileBannerLandingHero';
 import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
-import LargeBannerSizeCards from '@/components/design/LargeBannerSizeCards';
+import LargeBannerSizeCards, { LARGE_BANNER_SIZES } from '@/components/design/LargeBannerSizeCards';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
 import ProductPageHero from '@/components/product/ProductPageHero';
@@ -36,6 +45,8 @@ import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import { sameDayConfig } from '@/lib/sameDayConfig';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
+import PriceDeliveryEstimate from '@/components/delivery/PriceDeliveryEstimate';
+import CustomBannerSize from '@/components/design/CustomBannerSize';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
 import MobileFinishingStep from '@/components/design/MobileFinishingStep';
 import LiveFinishingPreview from '@/components/design/LiveFinishingPreview';
@@ -74,8 +85,10 @@ import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
 import {
   getArtworkUploadDiagnostic,
+  getArtworkUploadEvidence,
   uploadArtworkFile,
   MAX_ARTWORK_BYTES,
+  MAX_ARTWORK_MB,
   getArtworkUploadMessage,
   validateArtworkFile,
 } from '@/utils/uploadArtworkFile';
@@ -95,7 +108,6 @@ import {
 } from '@/lib/builderSteps';
 import { logUx } from '@/lib/uxAnalytics';
 import { formatOptionValue, getDisplayPlacement } from '@/lib/product-display';
-import type { ArtworkManifest } from '@/types/artwork';
 import {
   PREVIEW_ARTIFACT_VERSION,
   PreviewLifecycleError,
@@ -115,27 +127,6 @@ import { shouldAutoConfirmBannerSize } from '@/lib/bannerCheckoutReadiness';
 import { buildArtworkCompositionKey } from '@/lib/artworkCompositionKey';
 import { isPopularBannerPreset, POPULAR_BANNER_PRESET } from '@/lib/bannerDefaults';
 
-type UploadedArtworkFile = {
-  editorIdentity?: string;
-  name: string;
-  url: string;
-  fileKey: string;
-  size: number;
-  isPdf: boolean;
-  thumbnailUrl?: string;
-  previewUrl?: string;
-  productionUrl?: string;
-  productionPublicId?: string;
-  resourceType?: 'image' | 'raw' | string;
-  mimeType?: string;
-  originalFormat?: string;
-  originalBytes?: number;
-  originalWidth?: number | null;
-  originalHeight?: number | null;
-  pdfPageNumber?: number;
-  artworkManifest?: ArtworkManifest;
-};
-
 
 const PRESET_SIZES = [
   { w: 48, h: 24 },
@@ -146,14 +137,6 @@ const PRESET_SIZES = [
   { w: 120, h: 48 },
 ];
 
-/**
- * Format a preset size label according to the user's selected display
- * unit. Pure UI helper — never affects pricing/cart/print.
- */
-function formatPresetLabel(w: number, h: number, unit: 'in' | 'ft'): string {
-  if (unit === 'ft') return `${w / 12}' × ${h / 12}'`;
-  return `${w}" × ${h}"`;
-}
 
 const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
   <section
@@ -257,30 +240,6 @@ const FallFestivalHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
 );
 
 
-// Convert Cloudinary PDF URL to an image thumbnail (renders page 1)
-function getPdfThumbnailUrl(pdfUrl: string): string {
-  if (!pdfUrl || !pdfUrl.includes('cloudinary.com') || !pdfUrl.toLowerCase().endsWith('.pdf')) return pdfUrl;
-  return pdfUrl.replace('/upload/', '/upload/pg_1,f_jpg,w_800/');
-}
-
-// Build a downscaled, format/quality-optimized Cloudinary URL for the live
-// preview surface. The original full-resolution Cloudinary URL is preserved on
-// the cart/order item for print/admin export — only the on-screen preview uses
-// this transformed variant. This avoids decoding 10–50MB images in the browser
-// (which causes Chrome to hang and Safari to lay out the page incorrectly).
-function getImagePreviewUrl(imageUrl: string): string {
-  if (!imageUrl) return imageUrl;
-  let host = '';
-  try {
-    host = new URL(imageUrl).hostname.toLowerCase();
-  } catch {
-    return imageUrl;
-  }
-  if (host !== 'res.cloudinary.com' && !host.endsWith('.res.cloudinary.com')) return imageUrl;
-  if (!imageUrl.includes('/upload/')) return imageUrl;
-  if (/\/upload\/[a-z]_[^/]+\//.test(imageUrl)) return imageUrl;
-  return imageUrl.replace('/upload/', '/upload/f_auto,q_auto:good,w_1600,c_limit/');
-}
 function hasPermanentArtwork(file: UploadedArtworkFile | null | undefined): file is UploadedArtworkFile {
   return Boolean(
     file
@@ -309,55 +268,13 @@ function preloadPermanentArtwork(url: string, timeoutMs = 20_000): Promise<boole
   });
 }
 
-function buildCartArtworkForEditor(item: CartItem): UploadedArtworkFile | null {
-  const manifest = item.artwork_manifest;
-  const originalUrl = manifest?.originalUrl
-    || item.placement_preview?.sourceUrl
-    || item.file_url
-    || '';
-  if (!originalUrl) return null;
-  const isPdf = Boolean(item.is_pdf || manifest?.mimeType === 'application/pdf');
-  const publicId = manifest?.publicId
-    || item.file_key
-    || String(item.placement_preview?.sourceIdentity || '').split('@')[0]
-    || '';
-  const browserPreviewUrl = isPdf
-    ? getPdfThumbnailUrl(originalUrl)
-    : getImagePreviewUrl(originalUrl);
-  return {
-    editorIdentity: [
-      'cart-source',
-      publicId || item.id,
-      manifest?.version ?? '',
-      item.placement_preview?.compositionRevision ?? item.composition_revision ?? '',
-    ].join('@'),
-    name: item.file_name || manifest?.originalFilename || 'artwork',
-    url: originalUrl,
-    fileKey: publicId,
-    size: Number(manifest?.bytes || 0),
-    isPdf,
-    thumbnailUrl: browserPreviewUrl,
-    previewUrl: browserPreviewUrl,
-    productionUrl: originalUrl,
-    productionPublicId: publicId,
-    resourceType: manifest?.resourceType || 'image',
-    mimeType: manifest?.mimeType || (isPdf ? 'application/pdf' : undefined),
-    originalFormat: manifest?.format,
-    originalBytes: manifest?.bytes,
-    originalWidth: manifest?.width ?? null,
-    originalHeight: manifest?.height ?? null,
-    pdfPageNumber: isPdf ? 1 : undefined,
-    artworkManifest: manifest || undefined,
-  };
-}
 
 const GoogleAdsBanner: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isLargeBannerLanding = location.pathname.replace(/\/+$/, '') === '/large-banners-fast';
-  const isDoubleSidedBanner = location.pathname.replace(/\/+$/, '') === '/double-sided-banners';
   const isFallFestivalLanding = location.pathname.replace(/\/+$/, '') === '/fall-festival-banners';
-  const designerPath = isLargeBannerLanding ? "/large-banners-fast" : isDoubleSidedBanner ? "/double-sided-banners" : location.pathname === "/google-ads-banner" ? "/google-ads-banner" : "/design";
+  const designerPath = isLargeBannerLanding ? "/large-banners-fast" : location.pathname === "/google-ads-banner" ? "/google-ads-banner" : "/design";
   const [searchParams] = useSearchParams();
   const getProductQuerySlug = useCallback((type: ProductTypeSlug) => {
     if (type === 'yard_sign') return 'yard-signs';
@@ -388,7 +305,7 @@ const GoogleAdsBanner: React.FC = () => {
   // Product type state — public for both banners and yard signs
   // Read ?tab= (preferred) or ?product= (legacy) query param so "Add Another Yard Sign" links open the correct tab
   const initialProductType = (() => {
-    if (isDoubleSidedBanner || isLargeBannerLanding) return 'banner' as ProductTypeSlug;
+    if (isLargeBannerLanding) return 'banner' as ProductTypeSlug;
     const tab = searchParams.get('tab');
     const product = searchParams.get('product');
     const param = tab || product;
@@ -399,7 +316,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [productType, setProductType] = useState<ProductTypeSlug>(initialProductType);
   const isYardSign = productType === 'yard_sign';
   const isCarMagnet = productType === 'car_magnet';
-  const compactMobileLanding = !isYardSign && !isCarMagnet && !isLargeBannerLanding && !isDoubleSidedBanner && !isFallFestivalLanding;
+  const compactMobileLanding = !isYardSign && !isCarMagnet && !isLargeBannerLanding && !isFallFestivalLanding;
 
   useEffect(() => {
     const slug = productType === 'yard_sign'
@@ -442,11 +359,16 @@ const GoogleAdsBanner: React.FC = () => {
   const widthInR = parseInt(widthInRStr, 10) || 0;
   const heightFt = parseInt(heightFtStr, 10) || 0;
   const heightInR = parseInt(heightInRStr, 10) || 0;
-  const [selectedMaterialKey, setMaterial] = useState<MaterialKey>('13oz');
-  const material: MaterialKey = isDoubleSidedBanner ? '18oz_double' : selectedMaterialKey;
+  const { material, setMaterial, setDoubleSided } = useBannerPrinting();
+  const isDoubleSidedBanner = productType === 'banner' && material === '18oz_double';
+  const requestedEditItem = searchParams.get('editItem');
+  const handleBannerPrintSidesChange = (doubleSided: boolean) => {
+    setDoubleSided(doubleSided);
+    setMaterialDropdownOpen(false);
+  };
   const [materialDropdownOpen, setMaterialDropdownOpen] = useState(false);
   const materialDropdownRef = useRef<HTMLDivElement>(null);
-  const [grommets, setGrommets] = useState('none');
+  const [grommets, setGrommets] = useState(initialProductType === 'banner' ? 'every-2-3ft' : 'none');
   const [polePockets, setPolePockets] = useState('none');
   const [polePocketSize, setPolePocketSize] = useState('2');
   // Display unit for size inputs and the live preview ruler. Single source
@@ -459,14 +381,16 @@ const GoogleAdsBanner: React.FC = () => {
     () => (localStorage.getItem('banner-unit-pref') as 'in' | 'ft' | null) ?? 'ft'
   );
   const [addRope, setAddRope] = useState(false);
-  const [finishingType, setFinishingType] = useState<FinishingType>('none');
+  const [finishingType, setFinishingType] = useState<FinishingType>(initialProductType === 'banner' ? 'grommets' : 'none');
   const [mobileFinishingOpen, setMobileFinishingOpen] = useState(false);
   const [mobileFinishingSource, setMobileFinishingSource] = useState<'inline' | 'modal'>('inline');
   const [finishingPreviewTransform, setFinishingPreviewTransform] = useState<NormalizedArtworkTransform | null>(null);
   const [dismissedOrientation, setDismissedOrientation] = useState<string | null>(null);
-  const [finishingChoiceConfirmed, setFinishingChoiceConfirmed] = useState(false);
+  const [finishingChoiceConfirmed, setFinishingChoiceConfirmed] = useState(initialProductType === 'banner');
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadAttemptActivity, setUploadAttemptActivity] = useState(0);
   const [uploadedFile, setUploadedFile] = useState<UploadedArtworkFile | null>(null);
   const fileUploaderRef = useRef<FileUploaderHandle>(null);
   const uploadedFileRef = useRef<UploadedArtworkFile | null>(null);
@@ -481,6 +405,7 @@ const GoogleAdsBanner: React.FC = () => {
     uploadedFileRef.current = uploadedFile;
   }, [uploadedFile]);
   useEffect(() => () => {
+    uploadGenerationRef.current += 1;
     activeUploadAbortControllerRef.current?.abort();
     activeImagePreviewCleanupRef.current?.();
     activePdfPreviewCleanupRef.current?.();
@@ -502,11 +427,14 @@ const GoogleAdsBanner: React.FC = () => {
 
   const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');
 
-  // /design renders this component for banners. Honor the selected size card.
+  // Only size-link changes may initialize dimensions. Changing print sides must
+  // not restore an old linked size over the customer's current custom size.
+  const requestedWidth = searchParams.get('width');
+  const requestedHeight = searchParams.get('height');
   useEffect(() => {
-    if (productType !== 'banner' || searchParams.get('editItem')) return;
-    const w = Number(searchParams.get('width'));
-    const h = Number(searchParams.get('height'));
+    if (productType !== 'banner' || requestedEditItem) return;
+    const w = Number(requestedWidth);
+    const h = Number(requestedHeight);
     if (!Number.isFinite(w) || !Number.isFinite(h) || w < 6 || h < 6
       || Math.max(w, h) > 600 || Math.min(w, h) > 192) return;
     setWidthFtStr(String(Math.floor(w / 12)));
@@ -518,7 +446,7 @@ const GoogleAdsBanner: React.FC = () => {
     const preset = PRESET_SIZES.findIndex(size => size.w === w && size.h === h);
     setActivePreset(preset >= 0 ? preset : null);
     setHasConfirmedSize(true);
-  }, [productType, searchParams]);
+  }, [productType, requestedWidth, requestedHeight, requestedEditItem]);
   const [hasConfirmedMaterial, setHasConfirmedMaterial] = useState(false);
   const [hasConfirmedQuantity, setHasConfirmedQuantity] = useState(false);
   const [hasReviewedOptions, setHasReviewedOptions] = useState(false);
@@ -576,6 +504,15 @@ const GoogleAdsBanner: React.FC = () => {
 
   // "Create with AI" modal state. Available for banner & car_magnet on this
   // page — yard signs use YardSignConfigurator which has its own button.
+  const [fitModalOpen, setFitModalOpen] = useState(false);
+  const [fitUndo, setFitUndo] = useState<{
+    appliedIdentity: string;
+    artwork: UploadedArtworkFile;
+    pos: { x: number; y: number }; scale: number; scaleY: number; constrain: boolean;
+    normalized: NormalizedArtworkTransform | null;
+    prompt: string | null; session: AIDesignSession | null;
+    uploadFile: File | null; pdfFile: File | null;
+  } | null>(null);
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState<string | null>(null);
   const [aiEditModalOpen, setAiEditModalOpen] = useState(false);
@@ -1067,7 +1004,9 @@ const GoogleAdsBanner: React.FC = () => {
       setHeightCustomInStr(String(restoredHeight));
       const presetIndex = PRESET_SIZES.findIndex(({ w, h }) => w === restoredWidth && h === restoredHeight);
       setActivePreset(presetIndex >= 0 ? presetIndex : null);
-      if (item.material) setMaterial(item.material as MaterialKey);
+      if (item.material) {
+        setMaterial(item.material as MaterialKey);
+      }
       cartRestoreTransformRef.current = {
         productType: 'banner',
         widthIn: restoredWidth,
@@ -1180,6 +1119,14 @@ const GoogleAdsBanner: React.FC = () => {
     // new product never starts with these auto-selected.
     useCartStore.getState().setSameDayHitService(false);
     useCartStore.getState().setSaturdayDelivery(false);
+    // Each new banner starts with free grommets. Cart edits restore their saved choice.
+    if (newType === 'banner') {
+      setGrommets('every-2-3ft');
+      setPolePockets('none');
+      setAddRope(false);
+      setFinishingType('grommets');
+      setFinishingChoiceConfirmed(true);
+    }
     // Reset yard sign state when switching
     if (newType === 'yard_sign') {
       setYardSignDesigns([]);
@@ -1318,31 +1265,71 @@ const GoogleAdsBanner: React.FC = () => {
       minHeight: 1200,
     });
     console.info('[artwork_upload]', { correlationId, stage: 'pdf_preview_blob_created', width: preview.width, height: preview.height, blobSize: preview.blobSize, pageNumber: preview.pageNumber });
-    const dimensions = await validatePdfPreviewImage(preview, correlationId);
-    return { preview, dimensions };
+    try {
+      const dimensions = await validatePdfPreviewImage(preview, correlationId);
+      return { preview, dimensions };
+    } catch (error) {
+      preview.cleanup();
+      throw error;
+    }
   }, [validatePdfPreviewImage]);
 
   const handleRetryPdfPreview = useCallback(async () => {
-    const file = activePdfPreviewFileRef.current;
-    if (!file) return;
+    const artwork = uploadedFileRef.current;
+    if (!artwork?.isPdf) return;
+    const generation = uploadGenerationRef.current;
     const correlationId = `artwork-retry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     try {
+      // Returning from checkout creates a new page without the local File ref.
+      // Recover from the preserved original instead of making Retry a no-op.
+      const file = await getPdfPreviewFile(activePdfPreviewFileRef.current, artwork);
       const { preview, dimensions } = await generateValidatedPdfPreview(file, correlationId);
+      let permanentPreviewUrl = getPermanentArtworkPreviewUrl(artwork);
+      if (!permanentPreviewUrl) {
+        // Legacy large-PDF carts may have lost their separate image source.
+        // Save the regenerated page for checkout as well as the current canvas.
+        try {
+          const blob = await (await fetch(preview.previewUrl)).blob();
+          const saved = await uploadArtworkFile(new File([blob], 'pdf-page-preview.png', { type: 'image/png' }));
+          permanentPreviewUrl = saved.previewUrl;
+        } catch (error) {
+          preview.cleanup();
+          throw error;
+        }
+      }
+      if (generation !== uploadGenerationRef.current || uploadedFileRef.current?.fileKey !== artwork.fileKey) {
+        preview.cleanup();
+        return;
+      }
+      activePdfPreviewFileRef.current = file;
       activePdfPreviewCleanupRef.current?.();
       activePdfPreviewCleanupRef.current = preview.cleanup;
       setUploadedFile((current) => current && current.isPdf ? {
         ...current,
         previewUrl: preview.previewUrl,
+        permanentPreviewUrl,
         thumbnailUrl: preview.previewUrl,
         originalWidth: dimensions.width,
         originalHeight: dimensions.height,
         pdfPageNumber: preview.pageNumber,
       } : current);
     } catch (error) {
+      if (generation !== uploadGenerationRef.current || uploadedFileRef.current?.fileKey !== artwork.fileKey) return;
       console.error('[artwork_upload] PDF preview retry failed', { correlationId, error });
       setUploadError('We could not regenerate your PDF preview. Please retry the upload.');
     }
   }, [generateValidatedPdfPreview]);
+
+  useEffect(() => {
+    // Older carts may lack a saved browser preview. Recover their first page
+    // automatically from the original PDF, including after a full page reload.
+    if (uploadedFile?.isPdf && !resolveArtworkPreviewImageSrc({
+      src: uploadedFile.url,
+      previewUrl: uploadedFile.previewUrl || uploadedFile.thumbnailUrl,
+      resourceType: uploadedFile.resourceType,
+      mimeType: uploadedFile.mimeType,
+    })) void handleRetryPdfPreview();
+  }, [uploadedFile, handleRetryPdfPreview]);
 
   const persistArtworkUpload = useCallback(async (
     file: File,
@@ -1354,6 +1341,7 @@ const GoogleAdsBanner: React.FC = () => {
     activeUploadAbortControllerRef.current?.abort();
     activeUploadAbortControllerRef.current = controller;
     setIsUploading(true);
+    setUploadProgress(0);
     setUploadError('');
 
     const promise = (async () => {
@@ -1363,7 +1351,11 @@ const GoogleAdsBanner: React.FC = () => {
         originalHeight: initialArtwork.originalHeight,
         correlationId,
         signal: controller.signal,
+        onProgress: (fraction) => {
+          if (generation === uploadGenerationRef.current) setUploadProgress(fraction * 100);
+        },
         onAttempt: (attempt, maximum) => {
+          if (generation === uploadGenerationRef.current) setUploadAttemptActivity(value => value + 1);
           console.info('[artwork_upload]', {
             correlationId,
             stage: 'direct_upload_attempt',
@@ -1377,8 +1369,9 @@ const GoogleAdsBanner: React.FC = () => {
 
       let browserPreviewUrl = initialArtwork.previewUrl || initialArtwork.thumbnailUrl || initialArtwork.url;
       const permanentPreviewUrl = result.previewUrl || result.secureUrl;
-      const permanentPreviewLoaded = await preloadPermanentArtwork(permanentPreviewUrl);
-      if (permanentPreviewLoaded) browserPreviewUrl = permanentPreviewUrl;
+      if (generation !== uploadGenerationRef.current || controller.signal.aborted) return null;
+      // The original is saved. Keep the already loaded local preview while the
+      // permanent display image loads; downloading it must not block ordering.
 
       const completedArtwork: UploadedArtworkFile = {
         ...initialArtwork,
@@ -1386,6 +1379,7 @@ const GoogleAdsBanner: React.FC = () => {
         fileKey: result.fileKey,
         thumbnailUrl: browserPreviewUrl,
         previewUrl: browserPreviewUrl,
+        permanentPreviewUrl,
         productionUrl: result.productionUrl,
         productionPublicId: result.productionPublicId,
         resourceType: result.resourceType,
@@ -1415,14 +1409,17 @@ const GoogleAdsBanner: React.FC = () => {
         mimeType: uploadDescriptor.mimeType,
       });
 
-      if (permanentPreviewLoaded) {
-        window.setTimeout(() => {
-          activeImagePreviewCleanupRef.current?.();
-          activePdfPreviewCleanupRef.current?.();
-          activeImagePreviewCleanupRef.current = null;
-          activePdfPreviewCleanupRef.current = null;
-        }, 0);
-      }
+      void preloadPermanentArtwork(permanentPreviewUrl).then((loaded) => {
+        if (!loaded || generation !== uploadGenerationRef.current) return;
+        const current = uploadedFileRef.current;
+        if (current?.fileKey !== completedArtwork.fileKey) return;
+        const refreshedArtwork = { ...current, thumbnailUrl: permanentPreviewUrl, previewUrl: permanentPreviewUrl };
+        uploadedFileRef.current = refreshedArtwork;
+        setUploadedFile(refreshedArtwork);
+        // SessionStableArtworkPreviewEditor keeps the local image painted.
+        // Release it only when replacing/removing the artwork or leaving the page;
+        // upload completion must not revoke a source still used by an editor.
+      });
       return completedArtwork;
     })();
 
@@ -1442,7 +1439,7 @@ const GoogleAdsBanner: React.FC = () => {
           retryable: diagnostic.retryable,
           sizeBucket: diagnostic.sizeBucket,
           mimeType: diagnostic.mimeType,
-        });
+        }, getArtworkUploadEvidence(error, file));
         setUploadError(
           getArtworkUploadMessage(error),
         );
@@ -1458,6 +1455,11 @@ const GoogleAdsBanner: React.FC = () => {
   const handleFileUpload = useCallback(async (file: File) => {
     const validationError = validateArtworkFile(file);
     if (validationError) {
+      logUx('upload_error', {
+        ...getArtworkUploadDiagnostic(null, file),
+        phase: 'validation',
+        status: file.size > MAX_ARTWORK_BYTES ? 413 : file.size <= 0 ? 400 : 415,
+      }, getArtworkUploadEvidence(validationError, file));
       setUploadError(validationError);
       return;
     }
@@ -1492,6 +1494,9 @@ const GoogleAdsBanner: React.FC = () => {
       ? 'application/pdf'
       : (file.type || (extension === 'png' ? 'image/png' : 'image/jpeg'));
 
+    uploadedFileRef.current = null;
+    setUploadedFile(null);
+    setUploadProgress(0);
     setIsUploading(true);
     const uploadDescriptor = getArtworkUploadDiagnostic(null, file);
     logUx('upload_start', {
@@ -1506,6 +1511,10 @@ const GoogleAdsBanner: React.FC = () => {
       if (isPdf) {
         activePdfPreviewFileRef.current = file;
         const pdfPreview = await generateValidatedPdfPreview(file, correlationId);
+        if (generation !== uploadGenerationRef.current) {
+          pdfPreview.preview.cleanup();
+          return;
+        }
         previewUrl = pdfPreview.preview.previewUrl;
         activePdfPreviewCleanupRef.current = pdfPreview.preview.cleanup;
         dimensions = pdfPreview.dimensions;
@@ -1561,23 +1570,83 @@ const GoogleAdsBanner: React.FC = () => {
     } catch (error) {
       if (generation !== uploadGenerationRef.current) return;
       console.error('[artwork_upload]', { correlationId, stage: 'local_preview_failed', error });
+      logUx('upload_preview_error', { correlationId, ...getArtworkUploadDiagnostic(error, file), phase: 'local_preview' }, getArtworkUploadEvidence(error, file));
       setUploadError('We could not open that artwork file. Please choose a PDF, PNG, JPG, or JPEG file.');
       setIsUploading(false);
     }
   }, [generateValidatedPdfPreview, persistArtworkUpload]);
 
+  const applyFittedArtwork = (next: UploadedArtworkFile, expectedIdentity: string) => {
+    const previous = uploadedFileRef.current;
+    if (!previous || expectedIdentity !== artworkFitIdentity(previous, widthIn, heightIn, isCarMagnet ? 'car_magnet' : 'banner')) {
+      throw new Error('Your artwork or dimensions changed. Generate a fitted version for your current selection.');
+    }
+    let normalized: NormalizedArtworkTransform | null = null;
+    try { normalized = (modalEditorRef.current || inlineEditorRef.current)?.getCompositionSnapshot().transform || null; } catch { /* Pixel placement is also retained below. */ }
+    const original = fitUndo?.appliedIdentity === previous.editorIdentity ? fitUndo : {
+      artwork: previous, pos: imgPos, scale: imgScale, scaleY: imgScaleY, constrain: constrainProps,
+      normalized, prompt: aiPrompt, session: aiDesignSession,
+      uploadFile: activeUploadFileRef.current, pdfFile: activePdfPreviewFileRef.current,
+    };
+    setFitUndo({ ...original, appliedIdentity: next.editorIdentity! });
+    uploadGenerationRef.current += 1;
+    activeUploadFileRef.current = null; activePdfPreviewFileRef.current = null;
+    uploadedFileRef.current = next; setUploadedFile(next);
+    setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setConstrainProps(true);
+    setRestoredNormalizedTransform(null); setRestoredCompositionRevision(0);
+    preparedPlacementRef.current = null; setPendingPlacementPreview(null);
+    setAiPrompt(null); setAiEditPrompt(null); setAiDesignSession(null); setUploadError('');
+  };
+
+  const restoreArtworkBeforeFit = () => {
+    if (!fitUndo || uploadedFileRef.current?.editorIdentity !== fitUndo.appliedIdentity) return;
+    uploadGenerationRef.current += 1;
+    uploadedFileRef.current = fitUndo.artwork; setUploadedFile(fitUndo.artwork);
+    activeUploadFileRef.current = fitUndo.uploadFile; activePdfPreviewFileRef.current = fitUndo.pdfFile;
+    setImgPos(fitUndo.pos); setImgScale(fitUndo.scale); setImgScaleY(fitUndo.scaleY); setConstrainProps(fitUndo.constrain);
+    setRestoredNormalizedTransform(fitUndo.normalized); setRestoredCompositionRevision(0);
+    preparedPlacementRef.current = null; setPendingPlacementPreview(null);
+    setAiPrompt(fitUndo.prompt); setAiDesignSession(fitUndo.session); setAiEditPrompt(null); setUploadError('');
+    setFitUndo(null);
+  };
+
   const retryActiveArtworkUpload = useCallback(async (): Promise<UploadedArtworkFile | null> => {
     const file = activeUploadFileRef.current;
     const current = uploadedFileRef.current;
-    if (!file || !current) return null;
+    if (!file) return null;
+    if (!current) {
+      await handleFileUpload(file);
+      return uploadedFileRef.current;
+    }
     if (hasPermanentArtwork(current)) return current;
+    uploadGenerationRef.current += 1;
     return persistArtworkUpload(
       file,
       current,
       uploadGenerationRef.current,
       `artwork-retry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     );
-  }, [persistArtworkUpload]);
+  }, [handleFileUpload, persistArtworkUpload]);
+
+  const cancelArtworkUpload = useCallback(() => {
+    uploadGenerationRef.current += 1;
+    activeUploadAbortControllerRef.current?.abort();
+    activeUploadAbortControllerRef.current = null;
+    activeUploadPromiseRef.current = null;
+    setIsUploading(false);
+    setUploadError('Upload paused. Your file and choices are still here. Retry when you are ready.');
+  }, []);
+
+  useUploadWatchdog(isUploading, uploadProgress, () => {
+    uploadGenerationRef.current += 1;
+    activeUploadAbortControllerRef.current?.abort();
+    activeUploadAbortControllerRef.current = null;
+    activeUploadPromiseRef.current = null;
+    setIsUploading(false);
+    setUploadError('This upload stopped responding. Your file and choices are saved here. Tap Retry upload to try again.');
+    const file = activeUploadFileRef.current;
+    logUx('upload_timeout', file ? getArtworkUploadDiagnostic(null, file) : undefined, file ? getArtworkUploadEvidence('Upload stopped making progress or exceeded its time limit', file) : undefined);
+  }, activeUploadFileRef.current?.size, uploadAttemptActivity);
 
   const ensurePermanentArtworkUploaded = useCallback(async (): Promise<UploadedArtworkFile | null> => {
     let current = uploadedFileRef.current;
@@ -1641,9 +1710,9 @@ const GoogleAdsBanner: React.FC = () => {
     [handleFileUpload],
   );
 
-  // Reset the preview/builder state after a successful "Add to Cart" so the
-  // user can immediately start building another product.
-  const resetPreview = useCallback(() => {
+  // Invalidate pending work before clearing the artwork so a late upload
+  // or preview result cannot restore something the customer removed.
+  const removeArtwork = useCallback(() => {
     uploadGenerationRef.current += 1;
     // The canceled generation's finally handler deliberately cannot update
     // this generation. Release its busy state here for the next file picker.
@@ -1661,16 +1730,22 @@ const GoogleAdsBanner: React.FC = () => {
     preparedPlacementRef.current = null;
     setPendingPlacementPreview(null);
     setUploadedFile(null);
+    setFitUndo(null);
+    setUploadProgress(0);
     setImgPos({ x: 0, y: 0 });
     setImgScale(1);
     setImgScaleY(1);
     setRestoredNormalizedTransform(null);
     setRestoredCompositionRevision(0);
-    setPolePocketSize('2');
     setUploadError('');
     setAiPrompt(null);
     setAiEditPrompt(null);
     setAiDesignSession(null);
+  }, []);
+
+  const resetPreview = useCallback(() => {
+    removeArtwork();
+    setPolePocketSize('2');
     setHasJustAddedToCart(false);
     setShowPostAddResetNotice(false);
     setHasReviewedYardSignStakes(false);
@@ -1682,13 +1757,13 @@ const GoogleAdsBanner: React.FC = () => {
     if (isYardSign) {
       setYardSignDesigns([]);
     }
-  }, [isYardSign, productType]);
+  }, [isYardSign, productType, removeArtwork]);
   const resetAfterSuccessfulAdd = useCallback(() => {
     resetPreview();
     setMobileFinishingOpen(false);
-    setFinishingChoiceConfirmed(false);
-    setFinishingType('none');
-    setGrommets('none');
+    setFinishingChoiceConfirmed(productType === 'banner');
+    setFinishingType(productType === 'banner' ? 'grommets' : 'none');
+    setGrommets(productType === 'banner' ? 'every-2-3ft' : 'none');
     setPolePockets('none');
     setAddRope(false);
     setShowPostAddResetNotice(true);
@@ -1700,6 +1775,7 @@ const GoogleAdsBanner: React.FC = () => {
       setShowPreview(false);
       setIsCartOpen(false);
       // Clear edit mode before the next upload so it creates a new cart item.
+      setMaterial('13oz');
       navigate(`${designerPath}?product=banner`, { replace: true });
       requestAnimationFrame(() => scrollToStepAnchor('size-section'));
     } else {
@@ -1754,10 +1830,7 @@ const GoogleAdsBanner: React.FC = () => {
       const config = latestPreviewConfigRef.current;
       artwork = uploadedFileRef.current || artwork;
       const manifest = artwork.artworkManifest;
-      const originalUrl = manifest?.originalUrl || artwork.productionUrl || artwork.url;
-      const sourceUrl = (artwork.isPdf || artwork.resourceType === 'original')
-        ? (artwork.previewUrl && /^https?:\/\//i.test(artwork.previewUrl) ? artwork.previewUrl : getPdfThumbnailUrl(originalUrl))
-        : originalUrl;
+      const sourceUrl = getPermanentArtworkPreviewUrl(artwork);
       const spec: ArtworkCompositionSpec = {
         version: PREVIEW_ARTIFACT_VERSION,
         sourceUrl,
@@ -1780,12 +1853,9 @@ const GoogleAdsBanner: React.FC = () => {
       }
       const latestSnapshot = latestEditor.getCompositionSnapshot();
       const latestManifest = latestArtwork.artworkManifest;
-      const latestOriginalUrl = latestManifest?.originalUrl || latestArtwork.productionUrl || latestArtwork.url;
       const latestSpec: ArtworkCompositionSpec = {
         version: PREVIEW_ARTIFACT_VERSION,
-        sourceUrl: (latestArtwork.isPdf || latestArtwork.resourceType === 'original')
-          ? (latestArtwork.previewUrl && /^https?:\/\//i.test(latestArtwork.previewUrl) ? latestArtwork.previewUrl : getPdfThumbnailUrl(latestOriginalUrl))
-          : latestOriginalUrl,
+        sourceUrl: getPermanentArtworkPreviewUrl(latestArtwork),
         sourceIdentity: [latestManifest?.publicId || latestArtwork.productionPublicId || latestArtwork.fileKey, latestManifest?.version ?? '', latestArtwork.pdfPageNumber || 1].join('@'),
         productType: latestConfig.productType,
         widthIn: latestConfig.widthIn,
@@ -2651,7 +2721,9 @@ const GoogleAdsBanner: React.FC = () => {
 
 
   const bannerAction = isProcessingUpsell || isUploading
-    ? { label: isUploading ? 'Uploading…' : 'Saving your design…', disabled: true, onClick: () => {} }
+    ? { label: isUploading ? (uploadProgress >= 100 ? 'Finalizing artwork…' : uploadProgress > 0 ? `Uploading · ${Math.floor(uploadProgress)}%` : 'Uploading artwork…') : 'Saving your design…', disabled: true, onClick: () => {} }
+    : uploadError && activeUploadFileRef.current && !hasPermanentArtwork(uploadedFile)
+      ? { label: 'Retry upload', disabled: false, onClick: () => { void retryActiveArtworkUpload(); } }
     : hasJustAddedToCart
       ? { label: 'View cart', disabled: false, onClick: openCartDrawer }
       : !hasCommittedBannerSize
@@ -2660,7 +2732,7 @@ const GoogleAdsBanner: React.FC = () => {
           ? { label: uploadError ? 'Retry upload' : 'Upload artwork', disabled: false, onClick: openOrScrollToUpload }
           : { label: editItemId ? 'Save & checkout' : 'Continue to checkout', disabled: false, onClick: handleCheckout };
 
-  const mobileBannerAction = uploadedFile && hasCommittedBannerSize && !isProcessingUpsell && !isUploading
+  const mobileBannerAction = hasPermanentArtwork(uploadedFile) && hasCommittedBannerSize && !isProcessingUpsell && !isUploading
     ? { label: 'Next: Finishing', disabled: false, onClick: () => openMobileFinishing('inline') }
     : bannerAction;
   const orientationKey = `${uploadedFile?.editorIdentity || uploadedFile?.fileKey}:${widthIn}:${heightIn}`;
@@ -2680,9 +2752,12 @@ const GoogleAdsBanner: React.FC = () => {
     setHasConfirmedSize(true);
   };
   const bannerPrice = (
+    <div>
     <div className="flex flex-wrap items-baseline gap-x-2">
       <span className="text-xl font-bold text-[#061A31]">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</span>
       {bannerPromoResolution.appliedDiscountAmountCents > 0 && <span className="text-xs text-slate-500 line-through">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents + bannerPromoResolution.appliedDiscountAmountCents) / 100)}</span>}
+    </div>
+    <PriceDeliveryEstimate compact />
     </div>
   );
 
@@ -2696,6 +2771,7 @@ const GoogleAdsBanner: React.FC = () => {
                   <PriceBreakdown
                     variant="compact"
                     heading="Your banner"
+                    deliveryEstimate={<PriceDeliveryEstimate />}
                     topLine={`${sqft.toFixed(2)} sq ft • ${priceSummary}`}
                     secondaryLine={`for ${quantity} ${quantity === 1 ? 'banner' : 'banners'} • ${widthDisplay} × ${heightDisplay} • ${materialLabel}`}
                     showTopSummary={false}
@@ -2770,9 +2846,9 @@ const GoogleAdsBanner: React.FC = () => {
   </>);
 
   const materialCard = isDoubleSidedBanner ? (
-    <ConfigCard compact step={2} title="Material & printing" id="material-section">
+    <ConfigCard compact step={2} title="Material" id="material-section">
       <p className="font-semibold text-[#0B1F3A]">18 oz vinyl · Double-sided</p>
-      <p className="mt-2 text-sm text-slate-600">$6.25 per sq. ft. includes printing on both sides. Your approved artwork prints on the front and back, with the same placement on each side.</p>
+      <p className="mt-1 text-xs text-slate-600">18 oz vinyl is included for double-sided printing.</p>
     </ConfigCard>
   ) : (<ConfigCard compact={!isCarMagnet} step={2} title="Material" id="material-section">
                     <div ref={materialDropdownRef} className="relative">
@@ -2857,8 +2933,8 @@ const GoogleAdsBanner: React.FC = () => {
                   )}
                 </ConfigCard>);
   const sizeDimensions = (
-                    <div className={isLargeBannerLanding ? "mt-5 rounded-xl bg-slate-50 p-4" : compactMobileLanding && !isLgScreen ? "mb-4" : "mt-6 lg:mt-0"}>
-                      <label className={compactMobileLanding && !isLgScreen ? "sr-only" : "block text-sm font-semibold text-gray-700 mb-2"}>{isLargeBannerLanding ? "Need a different size?" : "Custom Size"}</label>
+                    <div>
+                      <p className="mb-2 text-xs font-semibold text-slate-600">Width × height</p>
                       {unit === 'in' ? (
                         <div className="grid grid-cols-2 gap-4">
                           <div>
@@ -2945,7 +3021,6 @@ const GoogleAdsBanner: React.FC = () => {
   const sizeCard = (<ConfigCard
                   className={compactMobileLanding ? '!p-3 lg:!p-6' : undefined}
                   bodyClassName={compactMobileLanding ? '!mt-2 lg:!mt-4' : undefined}
-                  popularPreset={isLargeBannerLanding ? { widthIn: 120, heightIn: 48 } : undefined}
                   step={1}
                   title={isCarMagnet ? "Choose your size" : isLargeBannerLanding ? "Choose your large banner size" : "Size & quantity"}
                   id="size-section"
@@ -2970,8 +3045,8 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                   ) : undefined}
                 >
-                  <div className={isCarMagnet || isLargeBannerLanding ? '' : 'grid lg:grid-cols-2 lg:gap-6'}>
-                    {compactMobileLanding && !isLgScreen && sizeDimensions}
+                  <div>
+                    {!isCarMagnet && <p className="mb-2 text-xs text-slate-600">Sizes shown as width × height</p>}
                     {isLargeBannerLanding ? <LargeBannerSizeCards widthIn={widthIn} heightIn={heightIn} unit={unit} material={material}
                       onSelect={(w, h) => {
                         setWidthFtStr(String(Math.floor(w / 12)));
@@ -2984,26 +3059,18 @@ const GoogleAdsBanner: React.FC = () => {
                         setActivePreset(index >= 0 ? index : null);
                         setHasConfirmedSize(true);
                       }} /> : <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {isCarMagnet
-                          ? CAR_MAGNET_SIZES.map((p) => (
+                    {isCarMagnet ? <div><label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label><div className="grid grid-cols-3 gap-2">{CAR_MAGNET_SIZES.map((p) => (
                               <button key={p.label} onClick={() => setCarMagnetSizeLabel(p.label)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${carMagnetSizeLabel === p.label ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
                                 {p.label}
                               </button>
-                            ))
-                          : PRESET_SIZES.map((p, i) => (
-                              <button key={i} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
-                                {formatPresetLabel(p.w, p.h, unit)}
-                              </button>
-                            ))}
-                      </div>
+                            ))}</div></div> : <BannerSizeChoices sizes={PRESET_SIZES} widthIn={widthIn} heightIn={heightIn} unit={unit} onSelect={applyPreset} />}
                     </div>}
-                    {!isCarMagnet && !(compactMobileLanding && !isLgScreen) && (
-                    sizeDimensions
-                    )}
+                    {!isCarMagnet && <CustomBannerSize hasCustomSize={!(isLargeBannerLanding ? LARGE_BANNER_SIZES : PRESET_SIZES).some(size => size.w === widthIn && size.h === heightIn)}>
+                      {sizeDimensions}
+                    </CustomBannerSize>}
                   </div>
                 {isLargeBannerLanding && <p className="mt-3 text-xs text-slate-600">Online sizes up to 50 ft on the long side and 16 ft on the short side. Larger project? <Link to="/custom-quote" className="font-semibold text-orange-700 underline">Request a quote</Link>.</p>}
+                {!isCarMagnet && <BannerPrintSides doubleSided={isDoubleSidedBanner} onChange={handleBannerPrintSidesChange} />}
                 {!isCarMagnet && <div className="mt-5 grid gap-4 border-t border-slate-200 pt-4 sm:grid-cols-[minmax(0,1fr)_auto]">{materialCard}{quantityCard}</div>}
                 </ConfigCard>);
   const bannerFinishingOptions = (
@@ -3034,6 +3101,12 @@ const GoogleAdsBanner: React.FC = () => {
                     ) : bannerFinishingOptions}
                   </div>
                 </ConfigCard>);
+  const artworkFitControls = !isYardSign && ENABLE_AI && uploadedFile ? (
+    <ArtworkFitButton onClick={() => setFitModalOpen(true)}
+      disabled={!hasCommittedBannerSize || isUploading || isProcessingUpsell || !hasPermanentArtwork(uploadedFile)}
+      onRestore={fitUndo?.appliedIdentity === uploadedFile.editorIdentity ? restoreArtworkBeforeFit : undefined} />
+  ) : null;
+
   const uploadCard = (<ConfigCard step={isCarMagnet ? 4 : 2} title="Upload your artwork" id="upload-section">
                   {/* Helper banner: shown when the user reaches the upload card before
                       completing required choices. Doesn't block upload — just surfaces
@@ -3057,6 +3130,7 @@ const GoogleAdsBanner: React.FC = () => {
                       hasArtwork={Boolean(uploadedFile)}
                       onCreate={showCreateWithAI ? () => setAiModalOpen(true) : undefined}
                       onAdjust={uploadedFile ? () => setShowPreview(true) : undefined}
+                      onFit={uploadedFile && !isYardSign && !isCarMagnet && hasCommittedBannerSize && ENABLE_AI && !isUploading && hasPermanentArtwork(uploadedFile) ? () => setFitModalOpen(true) : undefined}
                       artworkWidth={uploadedFile?.originalWidth}
                       artworkHeight={uploadedFile?.originalHeight}
                     />
@@ -3069,7 +3143,7 @@ const GoogleAdsBanner: React.FC = () => {
                         acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"
                         maxSize={MAX_ARTWORK_BYTES}
                         label="Upload your artwork"
-                        subText={`PNG, JPG, or PDF • Max 50MB • ${widthDisplay} × ${heightDisplay}`}
+                        subText={`PNG, JPG, or PDF • Max ${MAX_ARTWORK_MB}MB • ${widthDisplay} × ${heightDisplay}`}
                         isUploading={isUploading}
                         style={previewCanvasStyle}
                         className="mx-auto"
@@ -3116,6 +3190,7 @@ const GoogleAdsBanner: React.FC = () => {
                           {/* PR3: Modern Canva-style artwork editor (drag,
                               resize handles, fit/fill/reset/constrain). */}
                           <ArtworkPreviewEditor
+                    key={uploadedFile.editorIdentity || uploadedFile.fileKey}
                             ref={inlineEditorRef}
                             compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
                             initialNormalizedTransform={restoredNormalizedTransform}
@@ -3130,6 +3205,7 @@ const GoogleAdsBanner: React.FC = () => {
                             paddingPct={previewPaddingPct}
                             containerRef={previewContainerRef}
                             mobileToolbarContainer={inlineMobileToolbarEl}
+                            fitControls={artworkFitControls}
                             value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                             onChange={(v) => {
                               setImgPos({ x: v.x, y: v.y });
@@ -3198,7 +3274,7 @@ const GoogleAdsBanner: React.FC = () => {
                           Replace
                           <input type="file" aria-label="Replace uploaded artwork" className="sr-only" disabled={isUploading || isProcessingUpsell} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleFileUpload(file); event.target.value = ''; }} />
                         </label>
-                        <button type="button" aria-label="Remove uploaded artwork" onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setAiPrompt(null); setAiEditPrompt(null); setAiDesignSession(null); }} className="ml-2 flex-shrink-0 p-2.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
+                        <button type="button" aria-label="Remove uploaded artwork" onClick={removeArtwork} className="ml-2 flex-shrink-0 p-2.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
                       </div>
                       {aiPrompt && !isYardSign && !isCarMagnet && showCreateWithAI && (
                         <div className="mt-2 flex justify-center">
@@ -3215,7 +3291,11 @@ const GoogleAdsBanner: React.FC = () => {
                       )}
                     </div>
                   )}
-                  {uploadError && <p className="text-xs text-red-600 mt-2">{uploadError}</p>}
+                  {isUploading && <div role="status" className="mt-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-slate-700">
+                    <p>{uploadProgress >= 100 ? 'Finalizing artwork…' : `Uploading artwork${uploadProgress > 0 ? ` · ${Math.floor(uploadProgress)}%` : '…'}`}</p>
+                    <button type="button" onClick={cancelArtworkUpload} className="min-h-11 font-semibold underline">Cancel upload</button>
+                  </div>}
+                  {uploadError && <div role="alert" className="mt-2 text-sm text-red-600"><p>{uploadError}</p>{activeUploadFileRef.current && <button type="button" disabled={isUploading} onClick={() => void retryActiveArtworkUpload()} className="min-h-11 font-semibold underline">Retry upload</button>}</div>}
                   <p className="text-xs text-gray-400 mt-2 text-center">Every file reviewed by a real designer before printing.</p>
                 </ConfigCard>);
   const heroContent = isYardSign
@@ -3251,17 +3331,15 @@ const GoogleAdsBanner: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>{isLargeBannerLanding ? 'Large Banners Fast — Free Next-Day Air Shipping' : isDoubleSidedBanner ? 'Double-Sided 18oz Vinyl Banners — $6.25/sq ft' : isFallFestivalLanding ? 'Custom Fall Festival Banners' : isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Car Magnets' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
-        <meta name="description" content={isLargeBannerLanding ? "Order large custom vinyl banners with 24-hour production and free next-day air shipping after production. Choose 8 × 4 ft, 10 × 4 ft or custom sizes. Get instant pricing and design online." : isDoubleSidedBanner ? 'Custom double-sided banners on 18 oz vinyl. $6.25 per square foot includes both sides. Upload artwork or create with AI. Free next-day air shipping.' : isFallFestivalLanding ? 'Custom fall festival banners for churches, schools, harvest festivals and trunk-or-treats. Upload artwork or create with AI. 24-hour production.' : isYardSign ? "Upload yard-sign artwork, review the supported size and current price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
-        <meta name="robots" content={isLargeBannerLanding ? "noindex, follow" : isDoubleSidedBanner || isFallFestivalLanding ? "index, follow" : "noindex, nofollow"} />
+        <title>{isLargeBannerLanding ? 'Large Banners Fast — Free Next-Day Air Shipping' : isFallFestivalLanding ? 'Custom Fall Festival Banners' : isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Car Magnets' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
+        <meta name="description" content={isLargeBannerLanding ? "Order large custom vinyl banners with 24-hour production and free next-day air shipping after production. Choose 8 × 4 ft, 10 × 4 ft or custom sizes. Get instant pricing and design online." : isFallFestivalLanding ? 'Custom fall festival banners for churches, schools, harvest festivals and trunk-or-treats. Upload artwork or create with AI. 24-hour production.' : isYardSign ? "Upload yard-sign artwork, review the supported size and current price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
+        <meta name="robots" content={isLargeBannerLanding ? "noindex, follow" : isFallFestivalLanding ? "index, follow" : "noindex, nofollow"} />
         {isLargeBannerLanding && <link rel="canonical" href="https://bannersonthefly.com/large-banners-fast" />}
-        {isDoubleSidedBanner && <link rel="canonical" href="https://bannersonthefly.com/double-sided-banners" />}
         {isFallFestivalLanding && <link rel="canonical" href="https://bannersonthefly.com/fall-festival-banners" />}
       </Helmet>
       <div className="min-h-screen bg-white text-gray-900">
-        {compactMobileLanding && !isLgScreen ? (
-          <Header compactMobile cartCount={cartItemCount} onCartClick={() => setIsCartOpen(true)} />
-        ) : location.pathname.replace(/\/+$/, "") === "/google-ads-banner" ? (
+        {/* Keep the paid landing page's logo-and-cart header at every viewport size. */}
+        {location.pathname.replace(/\/+$/, "") === "/google-ads-banner" ? (
         <header data-site-header className="w-full border-b border-white/10 bg-[#061A31] py-2 px-4 sticky top-0 z-50 lg:border-gray-100 lg:bg-white lg:py-3">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div className="w-10" />
@@ -3291,9 +3369,7 @@ const GoogleAdsBanner: React.FC = () => {
 
         {/* HERO */}
         {!isYardSign && !isCarMagnet ? (
-          isLargeBannerLanding ? <ProductPageHero productSlug="large-banners-fast" ctaUrl="#order-builder" onStart={scrollToOrder} /> : isDoubleSidedBanner ? (
-            <ProductPageHero productSlug="double-sided-banners" ctaUrl="#order-builder" onStart={scrollToOrder} />
-          ) : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <><MobileBannerLandingHero /><div className="hidden lg:block"><FastBannerAdHero onStart={scrollToOrder} /></div></>
+          isLargeBannerLanding ? <ProductPageHero productSlug="large-banners-fast" ctaUrl="#order-builder" onStart={scrollToOrder} /> : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <><MobileBannerLandingHero /><div className="hidden lg:block"><FastBannerAdHero onStart={scrollToOrder} /></div></>
         ) : (
         <section className="relative overflow-hidden border-b-4 border-[#FF6A00] bg-[#0B1F3A] px-4 py-10 sm:py-12 lg:py-16">
           <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:gap-14">
@@ -3541,7 +3617,7 @@ const GoogleAdsBanner: React.FC = () => {
                 )}
 
                 {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
-                {isCarMagnet ? <div className="hidden md:block"><DeliveryTimer reflectCartSelection variant="compact" /></div> : <HeroDeliveryStatus variant="light" />}
+                {isCarMagnet && <div className="hidden md:block"><DeliveryTimer reflectCartSelection variant="compact" /></div>}
                 <SameDayHitServiceCard
                   variant="compact"
                   previewHasPrice={
@@ -3619,7 +3695,7 @@ const GoogleAdsBanner: React.FC = () => {
           onViewCart={() => { setMobileFinishingOpen(false); setShowPreview(false); openCartDrawer(); }}
           onCheckout={() => { if (finishingChoiceConfirmed) void prepareAndRoutePlacement('checkout', mobileFinishingSource); }}
           onAddAnother={() => { if (finishingChoiceConfirmed) void prepareAndRoutePlacement('cart', mobileFinishingSource); }}
-          summary={<>{bannerSummary}<HeroDeliveryStatus variant="light" /><SameDayHitServiceCard variant="compact" previewHasPrice={Boolean(uploadedFile)} previewSubtotalCents={bannerPricing.subtotalBeforeDiscountCents} /></>}
+          summary={<>{bannerSummary}<SameDayHitServiceCard variant="compact" previewHasPrice={Boolean(uploadedFile)} previewSubtotalCents={bannerPricing.subtotalBeforeDiscountCents} /></>}
           preview={uploadedFile && finishingPreviewTransform && <LiveFinishingPreview
             src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
             transform={finishingPreviewTransform}
@@ -3639,6 +3715,7 @@ const GoogleAdsBanner: React.FC = () => {
           {(!activeCartPromo || activeCartPromo.code === 'NEW20') && firstOrderOffer.status === 'unavailable' && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{firstOrderOffer.message} <button type="button" onClick={firstOrderOffer.retry} className="min-h-11 font-semibold underline">Retry offer</button></p>}
         </MobileFinishingStep>
         <MobileSubtotalBar
+          uploadRecovery={!isYardSign && !isCarMagnet && isUploading ? { onCancel: cancelArtworkUpload } : undefined}
           primaryAction={!isYardSign && !isCarMagnet ? mobileBannerAction : undefined}
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
           cartItemCount={cartItemCount}
@@ -3661,6 +3738,9 @@ const GoogleAdsBanner: React.FC = () => {
             )
           }
         />
+
+      <AIArtworkFitDialog open={fitModalOpen && !isYardSign} productType={isCarMagnet ? 'car_magnet' : 'banner'} onOpenChange={setFitModalOpen}
+        artwork={uploadedFile} widthIn={widthIn} heightIn={heightIn} onApply={applyFittedArtwork} />
 
       {/* Preview Modal */}
       {showPreview && uploadedFile && (
@@ -3687,6 +3767,7 @@ const GoogleAdsBanner: React.FC = () => {
                   style={previewWrapperStyle}
                 >
                   <ArtworkPreviewEditor
+                    key={uploadedFile.editorIdentity || uploadedFile.fileKey}
                     ref={modalEditorRef}
                     compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
                     initialNormalizedTransform={restoredNormalizedTransform}
@@ -3701,6 +3782,7 @@ const GoogleAdsBanner: React.FC = () => {
                     paddingPct={previewPaddingPct}
                     containerRef={previewContainerRef}
                     mobileToolbarContainer={modalMobileToolbarEl}
+                    fitControls={artworkFitControls}
                     value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                     onChange={(v) => {
                       setImgPos({ x: v.x, y: v.y });

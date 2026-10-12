@@ -1,26 +1,72 @@
+import { withUploadDeadline } from './uploadDeadline';
 import {
   ArtworkUploadError, normalizeUploadResponse, uploadArtworkFile,
   type UploadArtworkOptions, type ArtworkUploadResult,
 } from './uploadArtworkFile';
 
 const ENDPOINT = '/.netlify/functions/artwork-original-upload';
+type OriginalUploadState = {
+  session: { id: string; token: string; chunkBytes: number };
+  previewUrl: string; width: number; height: number;
+  nextOffset: number; createdAt: number;
+};
+// Keep recovery tied to the exact File object, in memory only. A customer can
+// retry without re-sending confirmed chunks or persisting upload credentials.
+const pendingOriginals = new WeakMap<File, OriginalUploadState>();
 
-async function request(action: string, body: BodyInit, options: UploadArtworkOptions, session?: { id: string; token: string }, index?: number) {
+// Fetch has no upload progress events. Report bytes within each chunk so a
+// slow but healthy large upload does not look stalled to the page watchdog.
+export function sendArtworkChunk(url: string, body: Blob, token: string, signal: AbortSignal, onProgress?: (fraction: number) => void): Promise<Response> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    let settled = false;
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener('abort', abort);
+      callback();
+    };
+    const abort = () => {
+      finish(() => reject(new DOMException('Upload cancelled', 'AbortError')));
+      xhr.abort();
+    };
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    xhr.setRequestHeader('X-Artwork-Token', token);
+    xhr.timeout = 120_000;
+    xhr.upload.onprogress = event => {
+      if (event.lengthComputable && event.total > 0) onProgress?.(Math.min(1, event.loaded / event.total));
+    };
+    xhr.onload = () => finish(() => resolve(new Response(xhr.responseText, { status: xhr.status })));
+    xhr.onerror = () => finish(() => reject(new ArtworkUploadError('Artwork upload connection interrupted.', { phase: 'chunked', retryable: true })));
+    xhr.ontimeout = () => finish(() => reject(new ArtworkUploadError('Artwork chunk timed out.', { phase: 'chunked', retryable: true })));
+    xhr.onabort = () => finish(() => reject(new DOMException('Upload cancelled', 'AbortError')));
+    if (signal.aborted) { abort(); return; }
+    signal.addEventListener('abort', abort, { once: true });
+    xhr.send(body);
+  });
+}
+
+async function request(action: string, body: BodyInit, options: UploadArtworkOptions, session?: { id: string; token: string }, index?: number, onProgress?: (fraction: number) => void) {
   const query = new URLSearchParams({ action });
   if (session) query.set('id', session.id);
   if (index != null) query.set('index', String(index));
   for (let attempt = 1; attempt <= 3; attempt++) {
     if (options.signal?.aborted) throw new DOMException('Upload cancelled', 'AbortError');
-    const controller = new AbortController();
-    const abort = () => controller.abort();
-    options.signal?.addEventListener('abort', abort, { once: true });
-    const timeout = window.setTimeout(abort, 120_000);
+    options.onAttempt?.(attempt, 3);
     try {
-      const response = await fetch(`${ENDPOINT}?${query}`, {
-        method: 'POST', body, signal: controller.signal,
-        headers: { 'Content-Type': action === 'chunk' ? 'application/octet-stream' : 'application/json', ...(session ? { 'X-Artwork-Token': session.token } : {}) },
-      });
-      const data = await response.json().catch(() => ({}));
+      // Control requests must fail before the page's idle watchdog so retries
+      // can run. Include response parsing: abort alone may leave it pending.
+      const { response, data } = await withUploadDeadline(async signal => {
+        const response = action === 'chunk' && session && body instanceof Blob
+          ? await sendArtworkChunk(`${ENDPOINT}?${query}`, body, session.token, signal, onProgress)
+          : await fetch(`${ENDPOINT}?${query}`, {
+            method: 'POST', body, signal,
+            headers: { 'Content-Type': action === 'chunk' ? 'application/octet-stream' : 'application/json', ...(session ? { 'X-Artwork-Token': session.token } : {}) },
+          });
+        const data = await response.json().catch(() => ({}));
+        return { response, data };
+      }, action === 'start' ? 30_000 : action === 'complete' ? 90_000 : 120_000, options.signal);
       if (!response.ok) throw new ArtworkUploadError(data.error || `Artwork upload failed (${response.status}).`, {
         phase: 'chunked', status: response.status, retryable: response.status >= 500 || response.status === 408 || response.status === 429,
       });
@@ -28,9 +74,6 @@ async function request(action: string, body: BodyInit, options: UploadArtworkOpt
     } catch (error) {
       if (options.signal?.aborted || attempt === 3 || (error instanceof ArtworkUploadError && !error.retryable)) throw error;
       await new Promise(resolve => window.setTimeout(resolve, 600 * attempt));
-    } finally {
-      window.clearTimeout(timeout);
-      options.signal?.removeEventListener('abort', abort);
     }
   }
   throw new Error('Artwork upload did not complete');
@@ -72,16 +115,44 @@ async function makePreview(file: File, options: UploadArtworkOptions): Promise<{
 }
 
 export async function uploadLargeArtworkFile(file: File, options: UploadArtworkOptions): Promise<ArtworkUploadResult> {
-  const preview = await makePreview(file, options);
-  // Preview upload uses the established small-file path. Production always
-  // points to the untouched original below, never to this display image.
-  const savedPreview = await uploadArtworkFile(preview.file, { signal: options.signal });
-  const session = await request('start', JSON.stringify({ fileName: file.name, size: file.size }), options);
-  for (let offset = 0, index = 0; offset < file.size; offset += session.chunkBytes, index++) {
-    const end = Math.min(offset + session.chunkBytes, file.size);
-    await request('chunk', file.slice(offset, end), options, session, index);
-    options.onProgress?.(end / file.size);
+  let state = pendingOriginals.get(file);
+  if (state && Date.now() - state.createdAt >= 90 * 60_000) {
+    pendingOriginals.delete(file);
+    state = undefined;
   }
-  const result = await request('complete', JSON.stringify({ previewUrl: savedPreview.secureUrl, width: preview.width, height: preview.height }), options, session);
-  return normalizeUploadResponse(result, file, 'netlify-original');
+  if (!state) {
+    const preview = await makePreview(file, options);
+    // Preview upload uses the established small-file path. Production always
+    // points to the untouched original below, never to this display image.
+    const savedPreview = await uploadArtworkFile(preview.file, { signal: options.signal, onAttempt: options.onAttempt });
+    const session = await request('start', JSON.stringify({ fileName: file.name, size: file.size }), options);
+    if (!session.id || !session.token || !Number.isSafeInteger(session.chunkBytes) || session.chunkBytes <= 0 || session.chunkBytes > 3 * 1024 * 1024) {
+      throw new ArtworkUploadError('Artwork upload session was incomplete.', { phase: 'ticket', retryable: true });
+    }
+    state = { session, previewUrl: savedPreview.secureUrl, width: preview.width, height: preview.height, nextOffset: 0, createdAt: Date.now() };
+    pendingOriginals.set(file, state);
+  }
+  const { session } = state;
+  options.onProgress?.(0.95 * state.nextOffset / file.size);
+  try {
+    for (let offset = state.nextOffset; offset < file.size; offset += session.chunkBytes) {
+      const index = offset / session.chunkBytes;
+      const end = Math.min(offset + session.chunkBytes, file.size);
+      await request('chunk', file.slice(offset, end), options, session, index, fraction => {
+        options.onProgress?.(0.95 * (offset + fraction * (end - offset)) / file.size);
+      });
+      state.nextOffset = end;
+      options.onProgress?.(0.95 * end / file.size);
+    }
+    const result = await request('complete', JSON.stringify({ previewUrl: state.previewUrl, width: state.width, height: state.height }), options, session);
+    const normalized = normalizeUploadResponse(result, file, 'netlify-original');
+    options.onProgress?.(1);
+    pendingOriginals.delete(file);
+    return normalized;
+  } catch (error) {
+    // Retain progress for network/timeout/cancel recovery, but never reuse an
+    // expired, unauthorized, or conflicting upload session.
+    if (error instanceof ArtworkUploadError && [403, 409, 410].includes(error.status || 0)) pendingOriginals.delete(file);
+    throw error;
+  }
 }

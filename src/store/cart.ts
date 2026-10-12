@@ -234,8 +234,8 @@ export interface DiscountCode {
   code: string;
   discountPercentage: number;
   discountAmountCents: number | null;
-  expiresAt: string;
-  source?: 'new_customer' | 'trade_show' | 'discount_codes' | 'seasonal_promotion' | 'small_banner_promo' | 'bof_wallet' | 'bof_referral';
+  expiresAt: string | null;
+  source?: 'new_customer' | 'trade_show' | 'discount_codes' | 'seasonal_promotion' | 'small_banner_promo' | 'bof_wallet' | 'bof_referral' | 'reusable_promotion';
   tradeShowSlug?: string;
   recoveryOffer?: boolean;
   recoveryCartId?: string | null;
@@ -635,7 +635,7 @@ export const useCartStore = create<CartState>()(
             if (explicitWebPreview && !explicitWebPreview.startsWith('blob:') && !explicitWebPreview.startsWith('data:')) return explicitWebPreview;
             return (aiMetadata?.assets?.proofUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.proofUrl) || null;
           })(),
-          print_ready_url: (aiMetadata?.assets?.finalUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.finalUrl) || null,
+          print_ready_url: (quote as any).printReadyUrl || (aiMetadata?.assets?.finalUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.finalUrl) || null,
           is_pdf: quote.file?.isPdf || false,
           text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
           overlay_image: quote.overlayImage ? {

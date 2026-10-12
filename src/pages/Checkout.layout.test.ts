@@ -5,15 +5,11 @@ import { describe, expect, it } from 'vitest';
 const checkout = readFileSync(fileURLToPath(new URL('./Checkout.tsx', import.meta.url)), 'utf8');
 
 describe('checkout information hierarchy', () => {
-  it('shows exactly one slim delivery timer before the checkout flow', () => {
-    const timerMatches = checkout.match(/<DeliveryTimer/g) || [];
-    const timerIndex = checkout.indexOf('<DeliveryTimer');
-    const gridIndex = checkout.indexOf('data-testid="checkout-flow"');
-
-    expect(timerMatches).toHaveLength(1);
-    expect(checkout).toContain('variant="slim"');
-    expect(timerIndex).toBeGreaterThan(-1);
-    expect(timerIndex).toBeLessThan(gridIndex);
+  it('places the delivery estimate with order totals instead of a separate timer', () => {
+    const totals = checkout.slice(checkout.indexOf('const orderTotals ='), checkout.indexOf('const orderReviewContent ='));
+    expect(totals).toContain('<PriceDeliveryEstimate');
+    expect(totals).toContain('<CheckoutOrderTotals');
+    expect(checkout).not.toContain('<DeliveryTimer');
   });
 
   it('keeps one complete order total in Order Summary without per-item price duplication', () => {

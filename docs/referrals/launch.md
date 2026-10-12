@@ -104,3 +104,10 @@ not delete an already activated membership. Activation grants do not create
 orders or cash, alter balances, or change referral/payment rules. Automatic and
 promotional invitations continue to require a real paid order. Use the normal
 `request-link` flow to send an approved owner's transactional activation email.
+
+## October 7 reward notifications
+
+- A qualifying paid referral now triggers a transactional email to the referrer from the existing paid-order background job. The message states the exact $5 or $10 reward is **pending**, explains availability 14 days after shipment, and links to `/bof-cash` without exposing a private activation token or the buyer's identity.
+- Hourly BOF maintenance recovers missed notifications and sends one separate ready-to-use notice once the reward matures. Refund reconciliation runs first. Unpaid/test orders and reversed rewards do not qualify.
+- `bof_reward_email_sends` is an additive, lazily initialized outbox. Its `(order_id, kind)` key, atomic claim, stored immutable email payload and provider idempotency key prevent duplicate sends. Transient failures retry after five minutes via maintenance; ambiguous attempts older than 23 hours are marked `review`, never blindly resent. Hard bounce and complaint suppressions are honored. Email failures do not block payment, customer confirmation or print-file generation.
+- Verified production referral calculations using the owner's public code: $50/$75/$90/$100/$150 eligible banner subtotals returned $12.50/$18.75/$22.50/$25/$25 savings. These checks did not create orders, charge money or send customer invitations.

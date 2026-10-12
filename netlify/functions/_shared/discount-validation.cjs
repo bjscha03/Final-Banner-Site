@@ -35,7 +35,8 @@ function normalizedCartId(value) {
 
 function storedDiscountFromRow(discount, recoveryOffer) {
   const campaign = String(discount.campaign || '').trim() || null;
-  const discountScope = String(discount.discount_scope || 'order').trim() || 'order';
+  const discountScope = campaign === 'louisville-neighbors-25-v1' ? 'banner_lines'
+    : String(discount.discount_scope || 'order').trim() || 'order';
   const result = {
     id: discount.id,
     code: String(discount.code).toUpperCase(),
@@ -98,8 +99,14 @@ async function validateDiscountForCheckout({
 }) {
   const normalizedCode = normalizeCode(code);
   const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
+  // Admin sessions (server-admin/preview-admin) are not customer UUIDs. Never
+  // cast a client-provided identifier to uuid before validating its format.
+  const customerUserId = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(String(userId || ''))
+    ? userId : null;
   const normalizedRecoveryCartId = normalizedCartId(recoveryCartId);
   if (!normalizedCode) return invalidResult('Discount code is required');
+  const reusablePromotion = require('./reusable-promotions.cjs').getReusablePromotion(normalizedCode);
+  if (reusablePromotion) return validResult(reusablePromotion);
   if (require('./bof-service.cjs').isBofCode(normalizedCode)) {
     return require('./bof-service.cjs').validate(sql, {code:normalizedCode,items,email,userId,authenticatedUserId,checkoutKey});
   }
@@ -143,11 +150,11 @@ async function validateDiscountForCheckout({
       return validResult(buildAutomaticLargeBannerDiscount());
     }
 
-    if (userId || normalizedEmail) {
+    if (customerUserId || normalizedEmail) {
       const priorOrders = await sql`
         SELECT id FROM orders
         WHERE (
-          (${userId || null}::uuid IS NOT NULL AND user_id = ${userId || null}::uuid)
+          (${customerUserId}::uuid IS NOT NULL AND user_id = ${customerUserId}::uuid)
           OR (${normalizedEmail}::text IS NOT NULL AND LOWER(BTRIM(email)) = ${normalizedEmail})
         )
           AND COALESCE(is_test_order, FALSE) = FALSE

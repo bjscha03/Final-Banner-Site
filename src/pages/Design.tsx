@@ -1,3 +1,10 @@
+import AIArtworkFitDialog, { ArtworkFitButton } from '@/components/design/AIArtworkFitDialog';
+import { artworkFitIdentity } from '@/components/design/ai/artworkFit';
+import { resolveArtworkPreviewImageSrc } from '@/components/design/artworkPreviewSource';
+import { buildCartArtworkForEditor, getPermanentArtworkPreviewUrl, type UploadedArtworkFile } from '@/lib/cartArtworkForEditor';
+import { getPdfPreviewFile } from '@/utils/pdf/getPdfPreviewFile';
+import BannerSizeChoices from '@/components/design/BannerSizeChoices';
+import { useUploadWatchdog } from '@/hooks/useUploadWatchdog';
 import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
@@ -60,8 +67,10 @@ import ArtworkPreviewEditor, { type ArtworkPreviewEditorHandle } from '@/compone
 import { base64ToFile } from '@/utils/base64ToFile';
 import {
   getArtworkUploadDiagnostic,
+  getArtworkUploadEvidence,
   uploadArtworkFile,
   MAX_ARTWORK_BYTES,
+  MAX_ARTWORK_MB,
   getArtworkUploadMessage,
   validateArtworkFile,
 } from '@/utils/uploadArtworkFile';
@@ -89,7 +98,6 @@ import { useAIAdminAccess } from '@/hooks/useAIAdminAccess';
 import { readAIHandoff, completeAIHandoff } from '@/lib/aiDesignHandoff';
 import { trackAIEvent } from '@/lib/aiAnalytics';
 import { ENABLE_AI } from '@/lib/featureFlags';
-import type { ArtworkManifest } from '@/types/artwork';
 import {
   PREVIEW_ARTIFACT_VERSION,
   PreviewLifecycleError,
@@ -109,26 +117,6 @@ import { shouldAutoConfirmBannerSize } from '@/lib/bannerCheckoutReadiness';
 import { buildArtworkCompositionKey } from '@/lib/artworkCompositionKey';
 import { isPopularBannerPreset, POPULAR_BANNER_PRESET } from '@/lib/bannerDefaults';
 
-type UploadedArtworkFile = {
-  editorIdentity?: string;
-  name: string;
-  url: string;
-  fileKey: string;
-  size: number;
-  isPdf: boolean;
-  thumbnailUrl?: string;
-  previewUrl?: string;
-  productionUrl?: string;
-  productionPublicId?: string;
-  resourceType?: 'image' | 'raw' | string;
-  mimeType?: string;
-  originalFormat?: string;
-  originalBytes?: number;
-  originalWidth?: number | null;
-  originalHeight?: number | null;
-  pdfPageNumber?: number;
-  artworkManifest?: ArtworkManifest;
-};
 
 const PRESET_SIZES = [
   { w: 48, h: 24 },
@@ -138,18 +126,6 @@ const PRESET_SIZES = [
   { w: 96, h: 48 },
   { w: 120, h: 48 },
 ];
-
-/**
- * Format a preset size label according to the user's selected display
- * unit. `unit === 'ft'` always renders whole-foot labels (the presets
- * are all foot multiples). `unit === 'in'` renders inch labels.
- * Pure UI helper — never affects pricing/cart/print.
- */
-function formatPresetLabel(w: number, h: number, unit: 'in' | 'ft'): string {
-  if (unit === 'ft') return `${w / 12}' × ${h / 12}'`;
-  return `${w}" × ${h}"`;
-}
-
 
 
 const PRODUCT_MODE_CONTENT = {
@@ -200,31 +176,6 @@ const PRODUCT_MODE_CONTENT = {
   },
 } as const;
 
-// Convert Cloudinary PDF URL to an image thumbnail (renders page 1)
-function getPdfThumbnailUrl(pdfUrl: string): string {
-  if (!pdfUrl || !pdfUrl.includes('cloudinary.com') || !pdfUrl.toLowerCase().endsWith('.pdf')) return pdfUrl;
-  return pdfUrl.replace('/upload/', '/upload/pg_1,f_jpg,w_800/');
-}
-
-// Build a downscaled, format/quality-optimized Cloudinary URL for the live
-// preview surface. The original full-resolution Cloudinary URL is preserved on
-// the cart/order item for print/admin export — only the on-screen preview uses
-// this transformed variant. This avoids decoding 10–50MB images in the browser
-// (which causes Chrome to hang and Safari to lay out the page incorrectly).
-function getImagePreviewUrl(imageUrl: string): string {
-  if (!imageUrl) return imageUrl;
-  let host = '';
-  try {
-    host = new URL(imageUrl).hostname.toLowerCase();
-  } catch {
-    return imageUrl;
-  }
-  if (host !== 'res.cloudinary.com' && !host.endsWith('.res.cloudinary.com')) return imageUrl;
-  if (!imageUrl.includes('/upload/')) return imageUrl;
-  // Skip if a transformation already exists right after /upload/.
-  if (/\/upload\/[a-z]_[^/]+\//.test(imageUrl)) return imageUrl;
-  return imageUrl.replace('/upload/', '/upload/f_auto,q_auto:good,w_1600,c_limit/');
-}
 
 function hasPermanentArtwork(file: UploadedArtworkFile | null | undefined): file is UploadedArtworkFile {
   return Boolean(
@@ -254,48 +205,6 @@ function preloadPermanentArtwork(url: string, timeoutMs = 20_000): Promise<boole
   });
 }
 
-function buildCartArtworkForEditor(item: CartItem): UploadedArtworkFile | null {
-  const manifest = item.artwork_manifest;
-  const originalUrl = manifest?.originalUrl
-    || item.placement_preview?.sourceUrl
-    || item.file_url
-    || '';
-  if (!originalUrl) return null;
-  const isPdf = Boolean(item.is_pdf || manifest?.mimeType === 'application/pdf');
-  const publicId = manifest?.publicId
-    || item.file_key
-    || String(item.placement_preview?.sourceIdentity || '').split('@')[0]
-    || '';
-  const browserPreviewUrl = isPdf
-    ? getPdfThumbnailUrl(originalUrl)
-    : getImagePreviewUrl(originalUrl);
-  const restored: UploadedArtworkFile = {
-    editorIdentity: [
-      'cart-source',
-      publicId || item.id,
-      manifest?.version ?? '',
-      item.placement_preview?.compositionRevision ?? item.composition_revision ?? '',
-    ].join('@'),
-    name: item.file_name || manifest?.originalFilename || 'artwork',
-    url: originalUrl,
-    fileKey: publicId,
-    size: Number(manifest?.bytes || 0),
-    isPdf,
-    thumbnailUrl: browserPreviewUrl,
-    previewUrl: browserPreviewUrl,
-    productionUrl: originalUrl,
-    productionPublicId: publicId,
-    resourceType: manifest?.resourceType || 'image',
-    mimeType: manifest?.mimeType || (isPdf ? 'application/pdf' : undefined),
-    originalFormat: manifest?.format,
-    originalBytes: manifest?.bytes,
-    originalWidth: manifest?.width ?? null,
-    originalHeight: manifest?.height ?? null,
-    pdfPageNumber: isPdf ? 1 : undefined,
-    artworkManifest: manifest || undefined,
-  };
-  return restored;
-}
 
 const Design: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
@@ -602,6 +511,8 @@ const Design: React.FC = () => {
   const [finishingType, setFinishingType] = useState<FinishingType>('none');
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadAttemptActivity, setUploadAttemptActivity] = useState(0);
   const [uploadedFile, setUploadedFile] = useState<UploadedArtworkFile | null>(null);
   const fileUploaderRef = useRef<FileUploaderHandle>(null);
   const uploadedFileRef = useRef<UploadedArtworkFile | null>(null);
@@ -616,6 +527,7 @@ const Design: React.FC = () => {
     uploadedFileRef.current = uploadedFile;
   }, [uploadedFile]);
   useEffect(() => () => {
+    uploadGenerationRef.current += 1;
     activeUploadAbortControllerRef.current?.abort();
     activeImagePreviewCleanupRef.current?.();
     activePdfPreviewCleanupRef.current?.();
@@ -626,8 +538,7 @@ const Design: React.FC = () => {
   // Fresh banner-page loads start with NO preset selected/highlighted and NO
   // committed size, so the order summary shows $0.00 until the customer
   // explicitly clicks a preset (e.g. 6′ × 3′) or confirms/changes a custom
-  // size. The 6′ × 3′ "MOST POPULAR" badge remains a recommendation only —
-  // see ConfigCard / isPopularBannerPreset for the informational badge logic.
+  // size. Size recommendations never change the selected dimensions.
   const [activePreset, setActivePreset] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
   const storedPromoAtLoad = useCartStore.getState().discountCode;
@@ -731,6 +642,15 @@ const Design: React.FC = () => {
 
   // "Create with AI" modal state. Only available for banner & car_magnet on
   // this page — yard signs use YardSignConfigurator which has its own button.
+  const [fitModalOpen, setFitModalOpen] = useState(false);
+  const [fitUndo, setFitUndo] = useState<{
+    appliedIdentity: string;
+    artwork: UploadedArtworkFile;
+    pos: { x: number; y: number }; scale: number; scaleY: number; constrain: boolean;
+    normalized: NormalizedArtworkTransform | null;
+    prompt: string | null; session: AIDesignSession | null;
+    uploadFile: File | null; pdfFile: File | null;
+  } | null>(null);
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState<string | null>(null);
   const [aiEditModalOpen, setAiEditModalOpen] = useState(false);
@@ -1260,31 +1180,71 @@ const Design: React.FC = () => {
       minHeight: 1200,
     });
     console.info('[artwork_upload]', { correlationId, stage: 'pdf_preview_blob_created', width: preview.width, height: preview.height, blobSize: preview.blobSize, pageNumber: preview.pageNumber });
-    const dimensions = await validatePdfPreviewImage(preview, correlationId);
-    return { preview, dimensions };
+    try {
+      const dimensions = await validatePdfPreviewImage(preview, correlationId);
+      return { preview, dimensions };
+    } catch (error) {
+      preview.cleanup();
+      throw error;
+    }
   }, [validatePdfPreviewImage]);
 
   const handleRetryPdfPreview = useCallback(async () => {
-    const file = activePdfPreviewFileRef.current;
-    if (!file) return;
+    const artwork = uploadedFileRef.current;
+    if (!artwork?.isPdf) return;
+    const generation = uploadGenerationRef.current;
     const correlationId = `artwork-retry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     try {
+      // Returning from checkout creates a new page without the local File ref.
+      // Recover from the preserved original instead of making Retry a no-op.
+      const file = await getPdfPreviewFile(activePdfPreviewFileRef.current, artwork);
       const { preview, dimensions } = await generateValidatedPdfPreview(file, correlationId);
+      let permanentPreviewUrl = getPermanentArtworkPreviewUrl(artwork);
+      if (!permanentPreviewUrl) {
+        // Legacy large-PDF carts may have lost their separate image source.
+        // Save the regenerated page for checkout as well as the current canvas.
+        try {
+          const blob = await (await fetch(preview.previewUrl)).blob();
+          const saved = await uploadArtworkFile(new File([blob], 'pdf-page-preview.png', { type: 'image/png' }));
+          permanentPreviewUrl = saved.previewUrl;
+        } catch (error) {
+          preview.cleanup();
+          throw error;
+        }
+      }
+      if (generation !== uploadGenerationRef.current || uploadedFileRef.current?.fileKey !== artwork.fileKey) {
+        preview.cleanup();
+        return;
+      }
+      activePdfPreviewFileRef.current = file;
       activePdfPreviewCleanupRef.current?.();
       activePdfPreviewCleanupRef.current = preview.cleanup;
       setUploadedFile((current) => current && current.isPdf ? {
         ...current,
         previewUrl: preview.previewUrl,
+        permanentPreviewUrl,
         thumbnailUrl: preview.previewUrl,
         originalWidth: dimensions.width,
         originalHeight: dimensions.height,
         pdfPageNumber: preview.pageNumber,
       } : current);
     } catch (error) {
+      if (generation !== uploadGenerationRef.current || uploadedFileRef.current?.fileKey !== artwork.fileKey) return;
       console.error('[artwork_upload] PDF preview retry failed', { correlationId, error });
       setUploadError('We could not regenerate your PDF preview. Please retry the upload.');
     }
   }, [generateValidatedPdfPreview]);
+
+  useEffect(() => {
+    // Older carts may lack a saved browser preview. Recover their first page
+    // automatically from the original PDF, including after a full page reload.
+    if (uploadedFile?.isPdf && !resolveArtworkPreviewImageSrc({
+      src: uploadedFile.url,
+      previewUrl: uploadedFile.previewUrl || uploadedFile.thumbnailUrl,
+      resourceType: uploadedFile.resourceType,
+      mimeType: uploadedFile.mimeType,
+    })) void handleRetryPdfPreview();
+  }, [uploadedFile, handleRetryPdfPreview]);
 
   const persistArtworkUpload = useCallback(async (
     file: File,
@@ -1296,6 +1256,7 @@ const Design: React.FC = () => {
     activeUploadAbortControllerRef.current?.abort();
     activeUploadAbortControllerRef.current = controller;
     setIsUploading(true);
+    setUploadProgress(0);
     setUploadError('');
 
     const promise = (async () => {
@@ -1305,7 +1266,11 @@ const Design: React.FC = () => {
         originalHeight: initialArtwork.originalHeight,
         correlationId,
         signal: controller.signal,
+        onProgress: (fraction) => {
+          if (generation === uploadGenerationRef.current) setUploadProgress(fraction * 100);
+        },
         onAttempt: (attempt, maximum) => {
+          if (generation === uploadGenerationRef.current) setUploadAttemptActivity(value => value + 1);
           console.info('[artwork_upload]', {
             correlationId,
             stage: 'direct_upload_attempt',
@@ -1319,8 +1284,9 @@ const Design: React.FC = () => {
 
       let browserPreviewUrl = initialArtwork.previewUrl || initialArtwork.thumbnailUrl || initialArtwork.url;
       const permanentPreviewUrl = result.previewUrl || result.secureUrl;
-      const permanentPreviewLoaded = await preloadPermanentArtwork(permanentPreviewUrl);
-      if (permanentPreviewLoaded) browserPreviewUrl = permanentPreviewUrl;
+      if (generation !== uploadGenerationRef.current || controller.signal.aborted) return null;
+      // The original is saved. Keep the already loaded local preview while the
+      // permanent display image loads; downloading it must not block ordering.
 
       const completedArtwork: UploadedArtworkFile = {
         ...initialArtwork,
@@ -1328,6 +1294,7 @@ const Design: React.FC = () => {
         fileKey: result.fileKey,
         thumbnailUrl: browserPreviewUrl,
         previewUrl: browserPreviewUrl,
+        permanentPreviewUrl,
         productionUrl: result.productionUrl,
         productionPublicId: result.productionPublicId,
         resourceType: result.resourceType,
@@ -1357,14 +1324,17 @@ const Design: React.FC = () => {
         mimeType: uploadDescriptor.mimeType,
       });
 
-      if (permanentPreviewLoaded) {
-        window.setTimeout(() => {
-          activeImagePreviewCleanupRef.current?.();
-          activePdfPreviewCleanupRef.current?.();
-          activeImagePreviewCleanupRef.current = null;
-          activePdfPreviewCleanupRef.current = null;
-        }, 0);
-      }
+      void preloadPermanentArtwork(permanentPreviewUrl).then((loaded) => {
+        if (!loaded || generation !== uploadGenerationRef.current) return;
+        const current = uploadedFileRef.current;
+        if (current?.fileKey !== completedArtwork.fileKey) return;
+        const refreshedArtwork = { ...current, thumbnailUrl: permanentPreviewUrl, previewUrl: permanentPreviewUrl };
+        uploadedFileRef.current = refreshedArtwork;
+        setUploadedFile(refreshedArtwork);
+        // SessionStableArtworkPreviewEditor keeps the local image painted.
+        // Release it only when replacing/removing the artwork or leaving the page;
+        // upload completion must not revoke a source still used by an editor.
+      });
       return completedArtwork;
     })();
 
@@ -1384,7 +1354,7 @@ const Design: React.FC = () => {
           retryable: diagnostic.retryable,
           sizeBucket: diagnostic.sizeBucket,
           mimeType: diagnostic.mimeType,
-        });
+        }, getArtworkUploadEvidence(error, file));
         setUploadError(
           getArtworkUploadMessage(error),
         );
@@ -1400,6 +1370,11 @@ const Design: React.FC = () => {
   const handleFileUpload = useCallback(async (file: File) => {
     const validationError = validateArtworkFile(file);
     if (validationError) {
+      logUx('upload_error', {
+        ...getArtworkUploadDiagnostic(null, file),
+        phase: 'validation',
+        status: file.size > MAX_ARTWORK_BYTES ? 413 : file.size <= 0 ? 400 : 415,
+      }, getArtworkUploadEvidence(validationError, file));
       setUploadError(validationError);
       return;
     }
@@ -1434,6 +1409,9 @@ const Design: React.FC = () => {
       ? 'application/pdf'
       : (file.type || (extension === 'png' ? 'image/png' : 'image/jpeg'));
 
+    uploadedFileRef.current = null;
+    setUploadedFile(null);
+    setUploadProgress(0);
     setIsUploading(true);
     const uploadDescriptor = getArtworkUploadDiagnostic(null, file);
     logUx('upload_start', {
@@ -1448,6 +1426,10 @@ const Design: React.FC = () => {
       if (isPdf) {
         activePdfPreviewFileRef.current = file;
         const pdfPreview = await generateValidatedPdfPreview(file, correlationId);
+        if (generation !== uploadGenerationRef.current) {
+          pdfPreview.preview.cleanup();
+          return;
+        }
         previewUrl = pdfPreview.preview.previewUrl;
         activePdfPreviewCleanupRef.current = pdfPreview.preview.cleanup;
         dimensions = pdfPreview.dimensions;
@@ -1503,23 +1485,83 @@ const Design: React.FC = () => {
     } catch (error) {
       if (generation !== uploadGenerationRef.current) return;
       console.error('[artwork_upload]', { correlationId, stage: 'local_preview_failed', error });
+      logUx('upload_preview_error', { correlationId, ...getArtworkUploadDiagnostic(error, file), phase: 'local_preview' }, getArtworkUploadEvidence(error, file));
       setUploadError('We could not open that artwork file. Please choose a PDF, PNG, JPG, or JPEG file.');
       setIsUploading(false);
     }
   }, [generateValidatedPdfPreview, persistArtworkUpload]);
 
+  const applyFittedArtwork = (next: UploadedArtworkFile, expectedIdentity: string) => {
+    const previous = uploadedFileRef.current;
+    if (!previous || expectedIdentity !== artworkFitIdentity(previous, widthIn, heightIn, isCarMagnet ? 'car_magnet' : 'banner')) {
+      throw new Error('Your artwork or dimensions changed. Generate a fitted version for your current selection.');
+    }
+    let normalized: NormalizedArtworkTransform | null = null;
+    try { normalized = (modalEditorRef.current || inlineEditorRef.current)?.getCompositionSnapshot().transform || null; } catch { /* Pixel placement is also retained below. */ }
+    const original = fitUndo?.appliedIdentity === previous.editorIdentity ? fitUndo : {
+      artwork: previous, pos: imgPos, scale: imgScale, scaleY: imgScaleY, constrain: constrainProps,
+      normalized, prompt: aiPrompt, session: aiDesignSession,
+      uploadFile: activeUploadFileRef.current, pdfFile: activePdfPreviewFileRef.current,
+    };
+    setFitUndo({ ...original, appliedIdentity: next.editorIdentity! });
+    uploadGenerationRef.current += 1;
+    activeUploadFileRef.current = null; activePdfPreviewFileRef.current = null;
+    uploadedFileRef.current = next; setUploadedFile(next);
+    setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setConstrainProps(true);
+    setRestoredNormalizedTransform(null); setRestoredCompositionRevision(0);
+    preparedPlacementRef.current = null; setPendingPlacementPreview(null);
+    setAiPrompt(null); setAiEditPrompt(null); setAiDesignSession(null); setUploadError('');
+  };
+
+  const restoreArtworkBeforeFit = () => {
+    if (!fitUndo || uploadedFileRef.current?.editorIdentity !== fitUndo.appliedIdentity) return;
+    uploadGenerationRef.current += 1;
+    uploadedFileRef.current = fitUndo.artwork; setUploadedFile(fitUndo.artwork);
+    activeUploadFileRef.current = fitUndo.uploadFile; activePdfPreviewFileRef.current = fitUndo.pdfFile;
+    setImgPos(fitUndo.pos); setImgScale(fitUndo.scale); setImgScaleY(fitUndo.scaleY); setConstrainProps(fitUndo.constrain);
+    setRestoredNormalizedTransform(fitUndo.normalized); setRestoredCompositionRevision(0);
+    preparedPlacementRef.current = null; setPendingPlacementPreview(null);
+    setAiPrompt(fitUndo.prompt); setAiDesignSession(fitUndo.session); setAiEditPrompt(null); setUploadError('');
+    setFitUndo(null);
+  };
+
   const retryActiveArtworkUpload = useCallback(async (): Promise<UploadedArtworkFile | null> => {
     const file = activeUploadFileRef.current;
     const current = uploadedFileRef.current;
-    if (!file || !current) return null;
+    if (!file) return null;
+    if (!current) {
+      await handleFileUpload(file);
+      return uploadedFileRef.current;
+    }
     if (hasPermanentArtwork(current)) return current;
+    uploadGenerationRef.current += 1;
     return persistArtworkUpload(
       file,
       current,
       uploadGenerationRef.current,
       `artwork-retry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     );
-  }, [persistArtworkUpload]);
+  }, [handleFileUpload, persistArtworkUpload]);
+
+  const cancelArtworkUpload = useCallback(() => {
+    uploadGenerationRef.current += 1;
+    activeUploadAbortControllerRef.current?.abort();
+    activeUploadAbortControllerRef.current = null;
+    activeUploadPromiseRef.current = null;
+    setIsUploading(false);
+    setUploadError('Upload paused. Your file and choices are still here. Retry when you are ready.');
+  }, []);
+
+  useUploadWatchdog(isUploading, uploadProgress, () => {
+    uploadGenerationRef.current += 1;
+    activeUploadAbortControllerRef.current?.abort();
+    activeUploadAbortControllerRef.current = null;
+    activeUploadPromiseRef.current = null;
+    setIsUploading(false);
+    setUploadError('This upload stopped responding. Your file and choices are saved here. Tap Retry upload to try again.');
+    const file = activeUploadFileRef.current;
+    logUx('upload_timeout', file ? getArtworkUploadDiagnostic(null, file) : undefined, file ? getArtworkUploadEvidence('Upload stopped making progress or exceeded its time limit', file) : undefined);
+  }, activeUploadFileRef.current?.size, uploadAttemptActivity);
 
   const ensurePermanentArtworkUploaded = useCallback(async (): Promise<UploadedArtworkFile | null> => {
     let current = uploadedFileRef.current;
@@ -1661,10 +1703,9 @@ const Design: React.FC = () => {
     [handleFileUpload],
   );
 
-  // Reset the preview/builder state after a successful "Add to Cart" so the
-  // user can immediately start building another product without lingering
-  // artwork/transform state from the previous item.
-  const resetPreview = useCallback(() => {
+  // Invalidate pending work before clearing the artwork so a late upload
+  // or preview result cannot restore something the customer removed.
+  const removeArtwork = useCallback(() => {
     uploadGenerationRef.current += 1;
     // Canceled uploads cannot clear the next generation's busy state.
     setIsUploading(false);
@@ -1672,6 +1713,7 @@ const Design: React.FC = () => {
     activeUploadAbortControllerRef.current = null;
     activeUploadPromiseRef.current = null;
     activeUploadFileRef.current = null;
+    activePdfPreviewFileRef.current = null;
     activeImagePreviewCleanupRef.current?.();
     activePdfPreviewCleanupRef.current?.();
     activeImagePreviewCleanupRef.current = null;
@@ -1680,16 +1722,22 @@ const Design: React.FC = () => {
     preparedPlacementRef.current = null;
     setPendingPlacementPreview(null);
     setUploadedFile(null);
+    setFitUndo(null);
+    setUploadProgress(0);
     setImgPos({ x: 0, y: 0 });
     setImgScale(1);
     setImgScaleY(1);
     setRestoredNormalizedTransform(null);
     setRestoredCompositionRevision(0);
-    setPolePocketSize('2');
     setUploadError('');
     setAiPrompt(null);
     setAiEditPrompt(null);
     setAiDesignSession(null);
+  }, []);
+
+  const resetPreview = useCallback(() => {
+    removeArtwork();
+    setPolePocketSize('2');
     setHasJustAddedToCart(false);
     setHasReviewedYardSignStakes(false);
     setHasReviewedYardSignPrintSide(false);
@@ -1700,7 +1748,7 @@ const Design: React.FC = () => {
     if (isYardSign) {
       setYardSignDesigns([]);
     }
-  }, [isYardSign]);
+  }, [isYardSign, removeArtwork]);
 
   const resetAfterSuccessfulAdd = useCallback(() => {
     resetPreview();
@@ -1762,12 +1810,7 @@ const Design: React.FC = () => {
       const config = latestPreviewConfigRef.current;
       artwork = uploadedFileRef.current || artwork;
       const manifest = artwork.artworkManifest;
-      const permanentOriginalUrl = manifest?.originalUrl || artwork.productionUrl || artwork.url;
-      const permanentPreviewUrl = (artwork.isPdf || artwork.resourceType === 'original')
-        ? (artwork.previewUrl && /^https?:\/\//i.test(artwork.previewUrl)
-            ? artwork.previewUrl
-            : getPdfThumbnailUrl(permanentOriginalUrl))
-        : permanentOriginalUrl;
+      const permanentPreviewUrl = getPermanentArtworkPreviewUrl(artwork);
       const sourceIdentity = [
         manifest?.publicId || artwork.productionPublicId || artwork.fileKey,
         manifest?.version ?? '',
@@ -1796,12 +1839,7 @@ const Design: React.FC = () => {
       }
       const latestSnapshot = latestEditor.getCompositionSnapshot();
       const latestManifest = latestArtwork.artworkManifest;
-      const latestOriginalUrl = latestManifest?.originalUrl || latestArtwork.productionUrl || latestArtwork.url;
-      const latestSourceUrl = (latestArtwork.isPdf || latestArtwork.resourceType === 'original')
-        ? (latestArtwork.previewUrl && /^https?:\/\//i.test(latestArtwork.previewUrl)
-            ? latestArtwork.previewUrl
-            : getPdfThumbnailUrl(latestOriginalUrl))
-        : latestOriginalUrl;
+      const latestSourceUrl = getPermanentArtworkPreviewUrl(latestArtwork);
       const latestSpec: ArtworkCompositionSpec = {
         version: PREVIEW_ARTIFACT_VERSION,
         sourceUrl: latestSourceUrl,
@@ -2909,6 +2947,12 @@ const Design: React.FC = () => {
     });
   }, [productType]);
 
+  const artworkFitControls = !isYardSign && ENABLE_AI && uploadedFile ? (
+    <ArtworkFitButton onClick={() => setFitModalOpen(true)}
+      disabled={!hasCommittedBannerSize || isUploading || isProcessingUpsell || !hasPermanentArtwork(uploadedFile)}
+      onRestore={fitUndo?.appliedIdentity === uploadedFile.editorIdentity ? restoreArtworkBeforeFit : undefined} />
+  ) : null;
+
   return (
     <Layout>
       <Helmet>
@@ -3086,20 +3130,11 @@ const Design: React.FC = () => {
               >
                 <div className={isCarMagnet ? '' : 'grid lg:grid-cols-2 lg:gap-6'}>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {isCarMagnet
-                        ? CAR_MAGNET_SIZES.map((p) => (
+                    {isCarMagnet ? <div><label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label><div className="grid grid-cols-3 gap-2">{CAR_MAGNET_SIZES.map((p) => (
                             <button key={p.label} onClick={() => setCarMagnetSizeLabel(p.label)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${carMagnetSizeLabel === p.label ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
                               {p.label}
                             </button>
-                          ))
-                        : PRESET_SIZES.map((p, i) => (
-                            <button key={i} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
-                              {formatPresetLabel(p.w, p.h, unit)}
-                            </button>
-                          ))}
-                    </div>
+                          ))}</div></div> : <BannerSizeChoices sizes={PRESET_SIZES} widthIn={widthIn} heightIn={heightIn} unit={unit} onSelect={applyPreset} />}
                   </div>
                   {!isCarMagnet && (
                   <div className="mt-6 lg:mt-0">
@@ -3313,6 +3348,7 @@ const Design: React.FC = () => {
                     heightIn={heightIn}
                     hasSelectedSize={hasCommittedBannerSize}
                     hasArtwork={Boolean(uploadedFile)}
+                    onFit={uploadedFile && !isYardSign && !isCarMagnet && hasCommittedBannerSize && ENABLE_AI && !isUploading && hasPermanentArtwork(uploadedFile) ? () => setFitModalOpen(true) : undefined}
                     artworkWidth={uploadedFile?.originalWidth}
                     artworkHeight={uploadedFile?.originalHeight}
                   />
@@ -3325,7 +3361,7 @@ const Design: React.FC = () => {
                       acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"
                       maxSize={MAX_ARTWORK_BYTES}
                       label="Upload your artwork"
-                      subText={`PNG, JPG, or PDF • Max 50MB • ${widthDisplay} × ${heightDisplay}`}
+                      subText={`PNG, JPG, or PDF • Max ${MAX_ARTWORK_MB}MB • ${widthDisplay} × ${heightDisplay}`}
                       isUploading={isUploading}
                       style={previewCanvasStyle}
                       className="mx-auto"
@@ -3369,6 +3405,7 @@ const Design: React.FC = () => {
                         {/* PR3: Modern Canva-style artwork editor (drag,
                             resize handles, fit/fill/reset/constrain). */}
                         <ArtworkPreviewEditor
+                    key={uploadedFile.editorIdentity || uploadedFile.fileKey}
                           ref={inlineEditorRef}
                           compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
                           initialNormalizedTransform={restoredNormalizedTransform}
@@ -3383,6 +3420,7 @@ const Design: React.FC = () => {
                           paddingPct={previewPaddingPct}
                           containerRef={previewContainerRef}
                           mobileToolbarContainer={inlineMobileToolbarEl}
+                          fitControls={artworkFitControls}
                           value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                           onChange={(v) => {
                             setImgPos({ x: v.x, y: v.y });
@@ -3437,7 +3475,7 @@ const Design: React.FC = () => {
                         <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
                         <span className="text-sm font-semibold text-green-800 truncate">{uploadedFile.name}</span>
                       </div>
-                      <button onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setAiPrompt(null); setAiEditPrompt(null); setAiDesignSession(null); }} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
+                      <button type="button" aria-label="Remove uploaded artwork" onClick={removeArtwork} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
                     </div>
                     {aiPrompt && !isYardSign && !isCarMagnet && showCreateWithAI && (
                       <div className="mt-2 flex justify-center">
@@ -3454,7 +3492,11 @@ const Design: React.FC = () => {
                     )}
                   </div>
                 )}
-                {uploadError && <p className="text-xs text-red-600 mt-2">{uploadError}</p>}
+                {isUploading && <div role="status" className="mt-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-slate-700">
+                    <p>{uploadProgress >= 100 ? 'Finalizing artwork…' : `Uploading artwork${uploadProgress > 0 ? ` · ${Math.floor(uploadProgress)}%` : '…'}`}</p>
+                    <button type="button" onClick={cancelArtworkUpload} className="min-h-11 font-semibold underline">Cancel upload</button>
+                  </div>}
+                  {uploadError && <div role="alert" className="mt-2 text-sm text-red-600"><p>{uploadError}</p>{activeUploadFileRef.current && <button type="button" disabled={isUploading} onClick={() => void retryActiveArtworkUpload()} className="min-h-11 font-semibold underline">Retry upload</button>}</div>}
                 <p className="text-xs text-gray-400 mt-2 text-center">Every file reviewed by a real designer before printing.</p>
               </ConfigCard>
             </div>
@@ -3636,6 +3678,9 @@ const Design: React.FC = () => {
         }
       />
 
+      <AIArtworkFitDialog open={fitModalOpen && !isYardSign} productType={isCarMagnet ? 'car_magnet' : 'banner'} onOpenChange={setFitModalOpen}
+        artwork={uploadedFile} widthIn={widthIn} heightIn={heightIn} onApply={applyFittedArtwork} />
+
       {/* Preview Modal */}
       {showPreview && uploadedFile && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4">
@@ -3660,6 +3705,7 @@ const Design: React.FC = () => {
                   style={previewWrapperStyle}
                 >
                   <ArtworkPreviewEditor
+                    key={uploadedFile.editorIdentity || uploadedFile.fileKey}
                     ref={modalEditorRef}
                     compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
                     initialNormalizedTransform={restoredNormalizedTransform}
@@ -3674,6 +3720,7 @@ const Design: React.FC = () => {
                     paddingPct={previewPaddingPct}
                     containerRef={previewContainerRef}
                     mobileToolbarContainer={modalMobileToolbarEl}
+                    fitControls={artworkFitControls}
                     value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                     onChange={(v) => {
                       setImgPos({ x: v.x, y: v.y });

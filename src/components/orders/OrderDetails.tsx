@@ -16,6 +16,7 @@ import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
 import { authorizedHeaders } from '@/lib/serverAuth';
 import { getOriginalArtworkSelection } from '@/lib/artworkFiles';
+import { orderItemToReorderQuote } from '@/lib/orders/reorder';
 import {
   Dialog,
   DialogContent,
@@ -215,21 +216,12 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
   const handleReorder = (itemIndex: number) => {
     const item = order.items[itemIndex];
     
-    // Convert order item back to quote format for cart
-    const quoteData = {
-      widthIn: item.width_in,
-      heightIn: item.height_in,
-      quantity: item.quantity,
-      material: item.material,
-      grommets: item.grommets || 'none',
-      polePockets: 'none',
-      addRope: item.rope_feet > 0,
-      previewScalePct: 150,
-      file: item.file_key ? { name: item.file_key, type: '', size: 0 } : undefined,
-      set: () => {},
-    };
-
-    addFromQuote(quoteData);
+    try {
+      addFromQuote(orderItemToReorderQuote(item));
+    } catch (error) {
+      toast({ title: 'Unable to reorder', description: error instanceof Error ? error.message : 'Please review the saved artwork.', variant: 'destructive' });
+      return;
+    }
     
     toast({
       title: "Added to Cart",

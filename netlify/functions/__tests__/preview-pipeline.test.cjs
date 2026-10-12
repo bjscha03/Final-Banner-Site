@@ -149,7 +149,9 @@ test('commerce previews never stretch or crop baked artwork snapshots', () => {
 test('commerce preview frames use the product ratio instead of containing-block padding math', () => {
   const banner = read('src/components/cart/StableBannerPreview.tsx');
 
-  assert.match(banner, /aspectRatio:\s*`\$\{safeWidth\} \/ \$\{safeHeight\}`/);
+  // Realistic surfaces fill their parent rectangle; regular proofs own their ratio.
+  assert.match(banner, /aspectRatio:\s*surfaceOnly \? undefined : `\$\{safeWidth\} \/ \$\{safeHeight\}`/);
+  assert.match(banner, /height:\s*surfaceOnly \? '100%' : undefined/);
   assert.equal(banner.includes('paddingBottom: framePaddingBottom'), false);
   assert.equal(banner.includes('const framePaddingBottom'), false);
 });

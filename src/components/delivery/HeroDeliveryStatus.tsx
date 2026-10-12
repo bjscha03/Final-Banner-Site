@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useSyncExternalStore } from 'react';
 import WeekendDeliveryEstimate from './WeekendDeliveryEstimate';
 import { CalendarCheck2, Clock3, Truck } from 'lucide-react';
 import { useDeliveryCountdown } from '@/hooks/useDeliveryCountdown';
@@ -20,7 +20,7 @@ interface HeroDeliveryStatusProps {
   variant?: 'compact' | 'editorial' | 'light' | 'arrival';
 }
 
-const HeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className, variant = 'compact' }) => {
+const LiveHeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className, variant = 'compact' }) => {
   const { estimate, remainingMs } = useDeliveryCountdown({ isHitSelected: false });
   const countdownLabel = estimate.state === 'hit_available'
       ? 'Fast-service cutoff'
@@ -177,6 +177,26 @@ const HeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className, vari
           <p className="mt-1 truncate text-xs font-extrabold sm:text-sm">{formatHeroDate(estimate.deliveryDate)}</p>
         </div>
       </div>
+    </div>
+  );
+};
+
+const subscribeToClient = () => () => {};
+const clientReady = () => true;
+const serverReady = () => false;
+
+const HeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = (props) => {
+  // Build-time HTML can be days old. Hydrate stable shipping copy first, then
+  // mount the live clock. Ordinary client navigation renders the clock directly.
+  const ready = useSyncExternalStore(subscribeToClient, clientReady, serverReady);
+  if (ready) return <LiveHeroDeliveryStatus {...props} />;
+  const light = props.variant === 'light' || props.variant === 'arrival';
+  return (
+    <div data-hero-delivery-status data-state="pending" data-variant={props.variant || 'compact'}
+      className={`min-h-[94px] rounded-md border px-3 py-4 ${light ? 'border-orange-200 bg-[#FFF4EA] text-[#061A31]' : 'border-white/20 bg-[#061A31] text-white'} ${props.className || ''}`}
+      aria-label="Production and shipping">
+      <p className="text-sm font-bold">24-hour standard production</p>
+      <p className="mt-1 text-xs">Free next-day air after production</p>
     </div>
   );
 };

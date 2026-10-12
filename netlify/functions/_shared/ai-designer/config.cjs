@@ -3,6 +3,8 @@
 const MODEL_ALIAS = 'gpt-image-2.5-flare';
 const MODEL_SNAPSHOT = 'gpt-image-2.5-flare-2026-09-08';
 const ALLOWED_IMAGE_MODELS = new Set([
+  'gpt-image-2.5-sunburst',
+  'gpt-image-2.5-sunburst-2026-09-08',
   MODEL_ALIAS,
   MODEL_SNAPSHOT,
   'gpt-image-2',

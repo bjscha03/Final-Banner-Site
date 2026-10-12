@@ -17,6 +17,7 @@ export const stripeCardPaymentElementOptions: StripePaymentElementOptions = {
     spacedAccordionItems: false,
   },
   paymentMethodOrder: ['card'],
-  wallets: { applePay: 'never', googlePay: 'never' },
+  // Disable Link's Bank/Klarna offers and signup fields in this card-only form.
+  wallets: { applePay: 'never', googlePay: 'never', link: 'never' },
   terms: { card: 'never' },
 };

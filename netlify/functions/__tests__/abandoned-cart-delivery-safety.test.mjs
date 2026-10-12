@@ -523,7 +523,7 @@ test('trusted saved promo can beat the raw recovery savings without stacking', (
   assert.equal(pricing.existingDiscountLabel, 'VIP50 discount');
 });
 
-test('historical carts with nullable aggregate totals fall back to saved line-item pricing', async () => {
+test('historical carts with nullable totals use the current authoritative checkout pricing', async () => {
   const fixture = deliveryFixture({
     cartOverrides: {
       total_value: null,
@@ -545,8 +545,12 @@ test('historical carts with nullable aggregate totals fall back to saved line-it
     });
 
     assert.equal(result.success, true);
-    assert.match(fixture.state.payload.html, /Subtotal[\s\S]*\$72\.00/);
-    assert.match(fixture.state.payload.html, /Total[\s\S]*\$72\.50/);
+    // Two 48x24 banners cost $80, less the 5% quantity discount, plus 6% tax.
+    // Recovery email prices must agree with checkout, even for old snapshots.
+    assert.match(fixture.state.payload.html, /Subtotal[\s\S]*\$80\.00/);
+    assert.match(fixture.state.payload.html, /Automatic quantity discount[\s\S]*-\$4\.00/);
+    assert.match(fixture.state.payload.html, /Tax[\s\S]*\$4\.56/);
+    assert.match(fixture.state.payload.html, /Total[\s\S]*\$80\.56/);
     assert.doesNotMatch(fixture.state.payload.html, /Total[\s\S]*\$0\.00/);
   } finally {
     sendModule._test.resetDependencies();

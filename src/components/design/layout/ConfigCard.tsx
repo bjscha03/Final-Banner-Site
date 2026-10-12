@@ -4,7 +4,6 @@ import StepHeader from './StepHeader';
 
 export interface ConfigCardProps {
   compact?: boolean;
-  popularPreset?: { widthIn: number; heightIn: number };
   step?: number;
   title?: string;
   headerRight?: React.ReactNode;
@@ -43,7 +42,6 @@ function parsePresetDimensions(label: string): { widthIn: number; heightIn: numb
  */
 export default function ConfigCard({
   compact = false,
-  popularPreset = { widthIn: 72, heightIn: 36 },
   step,
   title,
   headerRight,
@@ -73,19 +71,11 @@ export default function ConfigCard({
     });
 
     let foundQualifyingPreset = false;
-    let popularButton: HTMLButtonElement | null = null;
 
     presetButtons.forEach((button) => {
-      const label = (button.textContent || '').replace(/\s+/g, ' ').trim();
+      const label = (button.dataset.presetLabel || button.textContent || '').replace(/\s+/g, ' ').trim();
       const dimensions = parsePresetDimensions(label);
       if (!dimensions) return;
-
-      const isPopular = (
-        dimensions.widthIn === popularPreset.widthIn && dimensions.heightIn === popularPreset.heightIn
-      ) || (
-        dimensions.widthIn === popularPreset.heightIn && dimensions.heightIn === popularPreset.widthIn
-      );
-      if (isPopular) popularButton = button;
 
       const isEligible = LARGE_BANNER_PROMOTION_ENABLED && isQualifyingLargeBannerDimensions(
         dimensions.widthIn,
@@ -94,7 +84,6 @@ export default function ConfigCard({
       );
 
       let ariaLabel = label;
-      if (isPopular) ariaLabel += ' — Most popular';
 
       if (isEligible) {
         foundQualifyingPreset = true;
@@ -115,38 +104,8 @@ export default function ConfigCard({
         button.appendChild(badge);
       }
 
-      button.setAttribute('aria-label', ariaLabel);
+      if (!button.dataset.presetLabel) button.setAttribute('aria-label', ariaLabel);
     });
-
-    if (popularButton) {
-      // The recommendation badge is informational only. Selection styling must
-      // remain entirely controlled by the preset button's React state so only
-      // the option the customer actually chose is highlighted.
-      popularButton.classList.remove('ring-1', 'ring-orange-200');
-      popularButton.style.removeProperty('border-color');
-      popularButton.style.removeProperty('background-color');
-      popularButton.style.removeProperty('color');
-      popularButton.classList.add(
-        'relative',
-        "before:content-['MOST_POPULAR']",
-        'before:absolute',
-        'before:-top-2.5',
-        'before:left-1/2',
-        'before:-translate-x-1/2',
-        'before:whitespace-nowrap',
-        'before:rounded-full',
-        'before:bg-[#FF6A00]',
-        'before:px-1.5',
-        'before:py-0.5',
-        'before:text-[9px]',
-        'before:font-bold',
-        'before:leading-none',
-        'before:text-white',
-        'before:shadow-sm',
-        'before:z-10',
-      );
-      popularButton.dataset.recommended = 'true';
-    }
 
     setHasLargeBannerOffer(foundQualifyingPreset);
   });

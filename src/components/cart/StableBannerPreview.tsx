@@ -15,11 +15,9 @@ import {
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
 
 const BRAND_BLUE = '#18448D';
-// Exact proof JPEGs can contain a very small white matte caused by source and
-// product aspect ratios differing by only a few pixels. A presentation-only
-// overscan hides that seam in compact and expanded previews without changing
-// the saved placement, production artwork, or grommet geometry.
-export const FINALIZED_PREVIEW_BLEED_SCALE = 1.03;
+// Saved proofs are the approved print layout. Display every pixel, including
+// intentional margins; preview-only zoom would hide content and white edges
+// that remain in the production file.
 
 export interface BannerPreviewProps {
   widthIn: number;
@@ -218,6 +216,7 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
         className="min-w-0"
         style={{
           width: surfaceOnly ? '100%' : `${previewWidth}px`,
+          height: surfaceOnly ? '100%' : undefined,
           maxWidth: largePreview && !surfaceOnly
             ? `min(100%, calc((100dvh - 160px) * ${aspectRatio}))`
             : '100%',
@@ -228,7 +227,10 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
             ? 'relative block w-full overflow-hidden'
             : 'relative block w-full overflow-hidden rounded-lg ring-2 ring-inset ring-gray-200 bg-white shadow-lg'}
           style={{
-            aspectRatio: `${safeWidth} / ${safeHeight}`,
+            // The scene already owns the exact surface rectangle. Recomputing
+            // its height from a rounded CSS width can leave a subpixel seam.
+            aspectRatio: surfaceOnly ? undefined : `${safeWidth} / ${safeHeight}`,
+            height: surfaceOnly ? '100%' : undefined,
             minHeight: '1px',
             contain: 'layout paint',
             backgroundColor,
@@ -262,10 +264,10 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
           ) : imageUrl && !baseFailed ? (
             <div
               className="absolute inset-0 h-full w-full"
-              data-preview-bleed-compensated={isApprovedSnapshot && !surfaceOnly ? 'true' : 'false'}
+              data-preview-bleed-compensated="false"
               style={{
                 transform: isApprovedSnapshot
-                  ? `scale(${surfaceOnly ? 1 : FINALIZED_PREVIEW_BLEED_SCALE})`
+                  ? 'none'
                   : `translate(${x}%, ${y}%) scale(${scaleX}, ${scaleY})`,
                 transformOrigin: 'center center',
               }}

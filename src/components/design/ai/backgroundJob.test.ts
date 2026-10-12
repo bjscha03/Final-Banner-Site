@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { createHash, webcrypto } from 'node:crypto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { AIJobFailedError, forgetPendingJob, resumeBackgroundJob, runBackgroundJob, type PendingAIJob } from './backgroundJob';
+import { AIJobFailedError, AIRequestRateLimitError, forgetPendingJob, resumeBackgroundJob, runBackgroundJob, type PendingAIJob } from './backgroundJob';
 vi.mock('@/lib/serverAuth', () => ({ authorizedHeaders: (headers: unknown) => headers, authenticatedJsonBody: JSON.stringify }));
 
 const startPath = '/.netlify/functions/ai-designer-brief';
@@ -84,4 +84,24 @@ it('reuses request identity if the queue response is lost', async () => {
   const result = request();
   await new Promise<void>(resolve => setImmediate(resolve)); await vi.advanceTimersByTimeAsync(1100);
   expect(await result).toEqual(complete); expect(keys[0]).toBe(keys[1]);
+});
+
+it('preserves the server retry delay and request identity when queueing is rate limited', async () => {
+  const keys: string[] = [];
+  const fetch = vi.fn(async (url, init) => {
+    if (url.endsWith('/ai-designer-fit')) {
+      keys.push(JSON.parse(init.body).idempotencyKey);
+      return response({ message: 'Please wait' }, 429, { 'Retry-After': '47' });
+    }
+    throw new Error('No worker may be dispatched after rejection');
+  });
+  vi.stubGlobal('fetch', fetch);
+  const run = () => runBackgroundJob('/.netlify/functions/ai-designer-fit', { attempt: 1, widthIn: 120, heightIn: 36 }, new AbortController().signal, 'Waiting', vi.fn());
+  const error = await run().catch(error => error);
+  expect(error).toBeInstanceOf(AIRequestRateLimitError);
+  expect(error.retryAt - Date.now()).toBe(47_000);
+  await expect(run()).rejects.toBeInstanceOf(AIRequestRateLimitError);
+  expect(keys[0]).toBe(keys[1]);
+  const saved = JSON.parse(sessionStorage.getItem('banners_ai_designer_pending_job')!);
+  forgetPendingJob(saved);
 });

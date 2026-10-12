@@ -43,9 +43,18 @@ describe('uncached AI job state', () => {
     const upload = vi.spyOn(cloudinary.uploader, 'upload_stream');
     const record = { status: 'completed', result: { concept: { versionId: 'edited-version' } } };
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(record))));
-    const result = await storage.createJob({ session, action: 'edit', request: {}, jobId: 'a'.repeat(64) });
+    const beforeCreate = vi.fn();
+    const result = await storage.createJob({ session, action: 'edit', request: {}, jobId: 'a'.repeat(64), beforeCreate });
     expect(result.created).toBe(false); expect(result.record).toEqual(record);
     expect(upload).not.toHaveBeenCalled();
+    expect(beforeCreate).not.toHaveBeenCalled();
+  });
+  it('enforces new-job limits before any upload and propagates a denied reservation', async () => {
+    const upload = vi.spyOn(cloudinary.uploader, 'upload_stream');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 404 })));
+    const beforeCreate = vi.fn(async () => { throw new Error('quota exhausted'); });
+    await expect(storage.createJob({ session, action: 'fit', request: {}, jobId: 'b'.repeat(64), beforeCreate })).rejects.toThrow('quota exhausted');
+    expect(beforeCreate).toHaveBeenCalledOnce(); expect(upload).not.toHaveBeenCalled();
   });
   it('reads immediate same-second state changes from the origin, without a CDN or Admin API lookup', async () => {
     const resource = vi.spyOn(cloudinary.api, 'resource');

@@ -5,6 +5,7 @@ import type { CartItem } from '@/store/cart';
 import { createBannerSurfaceMask, formatBannerDimensions, getRealisticBannerGeometry, isRealisticBannerItem } from './realisticBanner';
 import { RealisticBannerScene } from '@/components/preview/RealisticBannerPreview';
 import { rememberDecodedPreviewImage } from '@/lib/previewImageCache';
+import sharp from 'sharp';
 
 const item = { id: 'preview', product_type: 'banner', width_in: 72, height_in: 36, material: '13oz', grommets: 'none', pole_pockets: 'none', rope_feet: 0, final_render_url: 'https://example.test/exact-artwork.png' } as CartItem;
 
@@ -58,14 +59,40 @@ describe('realistic banner order geometry', () => {
     expect(isRealisticBannerItem({ ...item, material: 'magnetic', product_type: 'car_magnet' })).toBe(false);
     expect(isRealisticBannerItem({ ...item, width_in: 0 })).toBe(false);
   });
-  it('uses the exact proof without recropping or repeating already-baked layers', () => {
+  it('preserves the exact saved print layout without cropping or repeating baked layers', () => {
     rememberDecodedPreviewImage({ url: item.final_render_url!, naturalWidth: 1440, naturalHeight: 720 });
     const html = renderToStaticMarkup(<RealisticBannerScene item={{ ...item, text_elements: [{ id: 'baked', content: 'DO NOT REPEAT BAKED TEXT', xPercent: 50, yPercent: 50 } as any], grommets: 'none' }} expanded/>);
     expect(html).toContain(item.final_render_url);
-    expect(html).toContain('transform:scale(1)');
-    expect(html).not.toContain('scale(1.03)');
+    expect(html).toContain('transform:none');
+    expect(html).toContain('data-preview-bleed-compensated="false"');
     expect(html).not.toContain('DO NOT REPEAT BAKED TEXT');
     expect(html).not.toContain('data-realistic-grommet');
     expect(html).not.toContain('data-realistic-anchor');
   });
+
+  it.each([[36, 60], [120, 48], [48, 48], [600, 60]])(
+    'never adds light pixels or white edge strips to a solid %s by %s print',
+    async (w, h) => {
+      for (const pole_pockets of ['none', 'top-bottom', 'left', 'right']) {
+        for (const limits of [[0, 0, 0], [16, 48, 64]]) {
+          const html = renderToStaticMarkup(<RealisticBannerScene item={{ ...item,
+            width_in: w, height_in: h, pole_pockets, grommets: '4-corners',
+        } as CartItem} expanded />);
+        const surface = html.match(/<svg class="realistic-banner-surface-light"[\s\S]*?<\/svg>/)![0];
+        const width = 600;
+        const height = Math.round(width * h / w);
+        // Rasterize the actual production SVG over borderless artwork. This
+        // fails for the old white rim/hem even when the saved proof is correct.
+        const svg = surface.replace('<svg ', `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" `)
+          .replace(/(<svg[^>]*>)/, `$1<rect width="100%" height="100%" fill="rgb(${limits.join(',')})"/>`);
+        const { data, info } = await sharp(Buffer.from(svg)).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+        let lightened = 0;
+        for (let i = 0; i < data.length; i += info.channels) {
+          if (limits.some((limit, channel) => data[i + channel] > limit + 1)) lightened++;
+        }
+        expect(lightened, `${w}×${h}, pockets: ${pole_pockets}`).toBe(0);
+        }
+      }
+    },
+  );
 });

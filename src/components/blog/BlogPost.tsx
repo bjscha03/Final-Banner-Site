@@ -2,7 +2,7 @@
  * Blog Post Component
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { OptimizedImage } from './OptimizedImage';
 import { TagPill } from './TagPill';
@@ -12,6 +12,7 @@ import { TableOfContents } from './TableOfContents';
 import { BlogCard } from './BlogCard';
 import type { BlogPost as BlogPostType, BlogListItem } from '@/lib/blog';
 import { gtag, trackFBViewContent } from '@/lib/analytics';
+import { withResponsiveTables } from '@/lib/blog/responsiveTables';
 
 interface BlogPostProps {
   post: BlogPostType;
@@ -20,6 +21,7 @@ interface BlogPostProps {
 
 export function BlogPost({ post, relatedPosts }: BlogPostProps) {
   const { frontmatter, html, readingTime } = post;
+  const responsiveHtml = useMemo(() => withResponsiveTables(html), [html]);
   
   // Handle both 'hero' and 'heroImage' field names
   const heroImageUrl = (frontmatter as any).heroImage || (frontmatter as any).hero || 'https://via.placeholder.com/1200x600/18448D/ffffff?text=Blog+Post+Image';
@@ -54,7 +56,7 @@ export function BlogPost({ post, relatedPosts }: BlogPostProps) {
   const canonicalUrl = frontmatter.canonical || `https://bannersonthefly.com/blog/${frontmatter.slug}`;
   
   return (
-    <article className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+    <article className="blog-article min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
       <div className="max-w-4xl mx-auto mb-8">
         <Link 
           to="/blog" 
@@ -120,7 +122,7 @@ export function BlogPost({ post, relatedPosts }: BlogPostProps) {
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-8">
+        <div className="min-w-0 lg:col-span-8">
           <div 
             className="prose prose-base sm:prose-lg max-w-none mb-12
               prose-headings:font-bold prose-headings:tracking-tight
@@ -136,7 +138,7 @@ export function BlogPost({ post, relatedPosts }: BlogPostProps) {
               prose-blockquote:border-l-4 prose-blockquote:border-[#18448D] prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-gray-700
               prose-code:text-[#18448D] prose-code:bg-gray-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm
             " 
-            dangerouslySetInnerHTML={{ __html: html }} 
+            dangerouslySetInnerHTML={{ __html: responsiveHtml }}
           />
           
           <div className="border-t-2 border-gray-200 pt-8 mb-8">

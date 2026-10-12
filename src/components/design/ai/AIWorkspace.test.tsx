@@ -67,7 +67,7 @@ function button(name: string): HTMLButtonElement {
 }
 async function click(name: string) { await act(async () => button(name).click()); }
 async function enterEdit(text: string) {
-  const input = [...host.querySelectorAll('textarea')].find(item => item.closest('label')?.textContent?.startsWith('Edit with AI'))!;
+  const input = [...host.querySelectorAll('textarea')].find(item => item.getAttribute('aria-label') === 'Edit with AI')!;
   await act(async () => {
     Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, text);
     input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -115,6 +115,19 @@ afterEach(async () => {
 });
 
 describe('customer AI version selection and handoff', () => {
+  it('keeps style chips connected to the creative brief and protects unapplied changes', async () => {
+    await mount(session());
+    await click('Modern');
+    expect(button('Modern').getAttribute('aria-pressed')).toBe('true');
+    expect(button('Apply your changes before continuing').disabled).toBe(true);
+    const direction = [...host.querySelectorAll('select')].find(item => item.closest('label')?.textContent?.startsWith('Visual direction'))!;
+    expect(direction.value).toBe('Modern minimal');
+    await click('Discard unapplied changes');
+    expect(button('Use this design').disabled).toBe(false);
+    await click('Use this design');
+    expect(generated.mock.calls[0][0].imageBase64).toBe(concept(1).imageBase64);
+  });
+
   it('keeps a new preview through an HTML gateway error and recovers the same edited result', async () => {
     await mount(session());
     const normal = fetchMock.getMockImplementation()!;
@@ -138,7 +151,7 @@ describe('customer AI version selection and handoff', () => {
     expect(selectedImage()).toContain(concept(2).imageBase64);
     expect(editRequests).toHaveLength(1);
     expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/ai-designer-worker-background'))).toHaveLength(1);
-    await click('Use selected version & continue');
+    await click('Use this design');
     expect(generated.mock.calls[0][0].imageBase64).toBe(concept(2).imageBase64);
   });
   it('preserves an interrupted preview across closing and reopening, then retrieves the same edit', async () => {
@@ -194,7 +207,7 @@ describe('customer AI version selection and handoff', () => {
     expect(editRequests.map(item => item.currentBackgroundRef)).toEqual(['background-1', 'background-2', 'background-3']);
     expect(button('Select version 4').getAttribute('aria-pressed')).toBe('true');
     expect(selectedImage()).toBe(`data:image/jpeg;base64,${concept(4).imageBase64}`);
-    await click('Use selected version & continue');
+    await click('Use this design');
     expect(generated).toHaveBeenCalledWith(expect.objectContaining({
       imageBase64: concept(4).imageBase64,
       session: expect.objectContaining({ selectedConcept: expect.objectContaining({ versionId: 'v4', backgroundRef: 'background-4' }), versionHistory: expect.arrayContaining([expect.objectContaining({ versionId: 'v1' }), expect.objectContaining({ versionId: 'v4' })]) }),
@@ -207,7 +220,7 @@ describe('customer AI version selection and handoff', () => {
     expect(button('Select version 4').getAttribute('aria-pressed')).toBe('true');
     await click('Redo');
     expect(button('Select version 2').getAttribute('aria-pressed')).toBe('true');
-    await click('Use selected version & continue');
+    await click('Use this design');
     expect(generated.mock.calls[0][0].imageBase64).toBe(concept(2).imageBase64);
     expect(generated.mock.calls[0][0].session.versionHistory).toHaveLength(4);
   });
@@ -226,7 +239,7 @@ describe('customer AI version selection and handoff', () => {
     await click('Select version 1'); await finishJob();
     expect(selectedImage()).toBe(`data:image/jpeg;base64,${concept(2).imageBase64}`);
     expect(host.textContent).toContain('Please retry this edit.');
-    expect(button('Use selected version & continue').disabled).toBe(false);
+    expect(button('Use this design').disabled).toBe(false);
   });
   it('flushes a quick close and restores all versions and the selection in the same order', async () => {
     await mount(session(concept(3), [concept(1), concept(2), concept(3)]));
@@ -246,7 +259,7 @@ describe('customer AI version selection and handoff', () => {
     const original = concept(1, { artworkRef: 'print-original' });
     const edited = concept(2, { artworkRef: 'print-edited' });
     await mount(session(edited, [original, edited]));
-    await click('Use selected version & continue');
+    await click('Use this design');
     const exportCall = fetchMock.mock.calls.find(([url]) => url.endsWith('/ai-designer-export'))!;
     expect(JSON.parse(exportCall[1].body).artworkRef).toBe('print-edited');
     expect(generated).not.toHaveBeenCalled(); expect(closed).not.toHaveBeenCalled();
@@ -273,7 +286,7 @@ describe('customer print review', () => {
     expect(host.textContent).not.toMatch(/Check text spacing|Give text more space|close to the edge/);
     expect(host.textContent).not.toContain('Internal checker diagnostic');
     expect(host.textContent).not.toContain('Review warning');
-    await click('Use selected version & continue');
+    await click('Use this design');
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     expect(generated.mock.calls[0][0].session.selectedConcept.validation.passed).toBe(false);
     expect(generated.mock.calls[0][0].imageBase64).toBe(original.imageBase64);
@@ -282,7 +295,7 @@ describe('customer print review', () => {
     await mount(session(flagged(['visionUnavailable'], true)));
     expect(host.textContent).toContain('automatic visual check could not finish');
     expect(host.textContent).not.toContain('Wording check: Failed');
-    await click('Use selected version & continue');
+    await click('Use this design');
     expect(generated).toHaveBeenCalledOnce();
     expect(generated.mock.calls[0][0].session.selectedConcept.validation.vision.available).toBe(false);
   });
@@ -315,7 +328,7 @@ describe('customer print review', () => {
     expect(host.querySelector('[data-testid="ai-print-review"]')).toBeNull();
     expect(host.textContent).not.toMatch(/Check text spacing|Give text more space|safe margin/);
     expect(editRequests).toHaveLength(0);
-    await click('Use selected version & continue');
+    await click('Use this design');
     expect(generated).toHaveBeenCalledOnce();
     expect(generated.mock.calls[0][0].session.selectedConcept.validation).toEqual(original.validation);
   });
@@ -323,7 +336,7 @@ describe('customer print review', () => {
     await mount(session(flagged(['importantContentOutsideSafeMargins', 'visionUnavailable'], true)));
     expect(host.textContent).toContain('automatic visual check could not finish');
     expect(host.textContent).not.toMatch(/Check text spacing|Give text more space|close to the edge/);
-    await click('Use selected version & continue');
+    await click('Use this design');
     expect(generated).toHaveBeenCalledOnce();
   });
 });

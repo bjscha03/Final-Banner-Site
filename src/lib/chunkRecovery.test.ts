@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  attemptChunkRecovery,
   canAttemptChunkRecovery,
   installChunkRecovery,
   isChunkLoadFailure,
@@ -13,7 +14,7 @@ const createRecoveryTarget = (storedTimestamp: string | null = null) => {
   const target = {
     addEventListener: vi.fn((type: string, listener: EventListener) => listeners.set(type, listener)),
     removeEventListener: vi.fn((type: string) => listeners.delete(type)),
-    location: { reload },
+    location: { href: 'https://bannersonthefly.com/terms?source=footer#details', replace: reload },
     sessionStorage: {
       getItem: vi.fn(() => timestamp),
       setItem: vi.fn((_key: string, value: string) => { timestamp = value; }),
@@ -43,7 +44,7 @@ describe('chunk recovery', () => {
     expect(canAttemptChunkRecovery('not-a-number', 50_000)).toBe(true);
   });
 
-  it('reloads exactly once and suppresses duplicate errors from the same failed import', () => {
+  it('reloads exactly once and preserves failed import rejections while avoiding duplicate reloads', () => {
     vi.spyOn(Date, 'now').mockReturnValue(50_000);
     const { target, listeners, reload } = createRecoveryTarget();
     installChunkRecovery(target as unknown as Window);
@@ -54,8 +55,8 @@ describe('chunk recovery', () => {
     listeners.get('vite:preloadError')!(duplicateEvent);
 
     expect(reload).toHaveBeenCalledTimes(1);
-    expect(firstEvent.preventDefault).toHaveBeenCalledOnce();
-    expect(duplicateEvent.preventDefault).toHaveBeenCalledOnce();
+    expect(firstEvent.preventDefault).not.toHaveBeenCalled();
+    expect(duplicateEvent.preventDefault).not.toHaveBeenCalled();
   });
 
   it('does not enter a reload loop after the page has already recovered recently', () => {
@@ -135,4 +136,31 @@ describe('chunk recovery', () => {
 
     expect(replace).toHaveBeenCalledWith('https://preview.example/checkout?_botf_refresh=55');
   });
+});
+
+
+it('keeps a failed Vite import rejected instead of resolving undefined for React.lazy', async () => {
+  const { target, listeners } = createRecoveryTarget();
+  installChunkRecovery(target as unknown as Window);
+  const failure = new TypeError('Failed to fetch dynamically imported module: /assets/Terms-old.js');
+  // Vite 5 handlePreloadError swallows the import rejection if the event is cancelled.
+  const viteImport = Promise.reject(failure).catch(error => {
+    const event = new Event('vite:preloadError', { cancelable: true });
+    Object.assign(event, { payload: error });
+    listeners.get('vite:preloadError')!(event);
+    if (!event.defaultPrevented) throw error;
+  });
+  await expect(viteImport).rejects.toBe(failure);
+});
+
+
+it('recovers a caught lazy import through the same guard and cache-busts HTML', () => {
+  vi.spyOn(Date, 'now').mockReturnValue(50_000);
+  const { target, reload } = createRecoveryTarget();
+  expect(attemptChunkRecovery(target as unknown as Window)).toBe(true);
+  expect(attemptChunkRecovery(target as unknown as Window)).toBe(true);
+  expect(reload).toHaveBeenCalledExactlyOnceWith('https://bannersonthefly.com/terms?source=footer&_botf_refresh=50000#details');
+  const nextDocument = createRecoveryTarget('50000');
+  expect(attemptChunkRecovery(nextDocument.target as unknown as Window)).toBe(false);
+  expect(nextDocument.reload).not.toHaveBeenCalled();
 });

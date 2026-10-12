@@ -242,6 +242,10 @@ function buildSeptemberLargeBannerDiscount(now = new Date()) {
 }
 
 function promoSubtotalForItems(items, fullSubtotalCents, promoDiscount) {
+  if (promoDiscount?.discountScope === 'banner_lines') {
+    if (promoDiscount.campaign !== 'louisville-neighbors-25-v1' || Number(promoDiscount.discountPercentage) !== 25) return 0;
+    return (items || []).reduce((sum, item) => item.product_type === 'banner' && Number.isSafeInteger(Number(item.line_total_cents)) && Number(item.line_total_cents) > 0 ? sum + Number(item.line_total_cents) : sum, 0);
+  }
   if (!LARGE_BANNER_PROMOTION_ENABLED && [LARGE_BANNER_RECOVERY_SCOPE, AUTOMATIC_LARGE_BANNER_SCOPE].includes(promoDiscount?.discountScope)) return 0;
   if (!promoDiscount || ![LARGE_BANNER_RECOVERY_SCOPE, AUTOMATIC_LARGE_BANNER_SCOPE, SMALL_BANNER_SCOPE]
     .includes(promoDiscount.discountScope)) {

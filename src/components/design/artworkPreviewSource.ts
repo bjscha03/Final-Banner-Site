@@ -1,11 +1,13 @@
 import type { ArtworkPreviewEditorProps } from './ArtworkPreviewEditor';
+import { buildCloudinaryPdfPreviewUrl } from '@/utils/uploadArtworkFile';
 
 export const isRawPdfPreviewSource = (value?: string | null) => {
   const url = String(value || '').toLowerCase();
   return Boolean(value) && (
-    url.endsWith('.pdf') ||
+    /\.pdf(?:$|[?#])/.test(url) ||
     url.includes('/raw/upload/') ||
-    url.startsWith('application/pdf')
+    url.startsWith('application/pdf') ||
+    url.startsWith('data:application/pdf')
   );
 };
 
@@ -15,8 +17,10 @@ export const resolveArtworkPreviewImageSrc = ({
   resourceType,
   mimeType,
 }: Pick<ArtworkPreviewEditorProps, 'src' | 'previewUrl' | 'resourceType' | 'mimeType'>) => {
-  const candidatePreviewSrc = previewUrl || src;
-  const hasExplicitPreview = Boolean(previewUrl);
+  // Older saved carts use f_jpg transformations with a .pdf extension. They
+  // are image previews; normalize them before applying the raw-PDF guard.
+  const candidatePreviewSrc = buildCloudinaryPdfPreviewUrl(previewUrl || src);
+  const hasExplicitPreview = Boolean(previewUrl) || candidatePreviewSrc !== src;
   const rawPdfRejected = isRawPdfPreviewSource(candidatePreviewSrc) || (!hasExplicitPreview && (resourceType === 'raw' || mimeType === 'application/pdf'));
   return rawPdfRejected ? '' : candidatePreviewSrc;
 };

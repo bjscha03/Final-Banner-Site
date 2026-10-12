@@ -78,6 +78,9 @@ const PoliticalSigns = lazy(() => import("./pages/PoliticalSigns"));
 const AdminOrders = lazy(() => import("./pages/admin/Orders"));
 const AdminCustomers = lazy(() => import("./pages/admin/Customers"));
 const AdminBlogLeads = lazy(() => import("./pages/admin/BlogLeads"));
+const AdminLouisvilleOutreach = lazy(() => import("./pages/admin/LouisvilleOutreach"));
+const LouisvilleOffer = lazy(() => import("./pages/LouisvilleOffer"));
+const AdminSiteIssues = lazy(() => import("./pages/admin/SiteIssues"));
 const AdminAbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
 const AdminCustomQuotes = lazy(() => import("./pages/admin/CustomQuotes"));
 const AdminEmailTemplates = lazy(() => import("./pages/admin/EmailTemplates"));
@@ -149,6 +152,16 @@ const AttributionCapture = () => {
   return null;
 };
 
+// Preserve campaign parameters and saved-cart links from the retired page.
+const DoubleSidedBannerRedirect = () => {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  params.delete('tab');
+  params.set('product', 'banner');
+  params.set('sides', 'double');
+  return <Navigate to={`/design?${params.toString()}${location.hash}`} replace />;
+};
+
 /** Router-dependent application tree shared by BrowserRouter and StaticRouter. */
 export const RoutedApplication = () => (
         <CartSyncWrapper>
@@ -211,6 +224,9 @@ export const RoutedApplication = () => (
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/customers" element={<AdminCustomers />} />
             <Route path="/admin/blog-leads" element={<AdminBlogLeads />} />
+            <Route path="/admin/louisville-outreach" element={<AdminLouisvilleOutreach />} />
+                      <Route path="/louisville-offer" element={<LouisvilleOffer />} />
+                      <Route path="/admin/site-issues" element={<AdminSiteIssues />} />
             <Route path="/admin/abandoned-carts" element={<AdminAbandonedCarts />} />
             <Route path="/admin/custom-quotes" element={<AdminCustomQuotes />} />
             <Route path="/admin/email-templates" element={<AdminEmailTemplates />} />
@@ -263,7 +279,7 @@ export const RoutedApplication = () => (
               }
             />
             <Route path="/large-banners-fast" element={<><PromoBanner /><GoogleAdsBanner key="large-banners-fast" /></>} />
-            <Route path="/double-sided-banners" element={<><PromoBanner /><GoogleAdsBanner key="double-sided" /></>} />
+            <Route path="/double-sided-banners" element={<DoubleSidedBannerRedirect />} />
             <Route
               path="/fall-festival-banners"
               element={

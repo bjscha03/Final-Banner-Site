@@ -7,7 +7,7 @@
 .realistic-banner-shadow { position: absolute; background: #241b13; opacity: .25; filter: blur(2px); transform: translate(1px, 2px); }
 .realistic-banner-shadow.is-suspended { filter: blur(3px); transform: translate(3px, 5px); opacity: .35; }
 .realistic-banner-hardware, .realistic-banner-surface-light { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.realistic-banner-surface { position: absolute; mask-size: 100% 100%; -webkit-mask-size: 100% 100%; mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; }
+.realistic-banner-surface { position: absolute; overflow: hidden; isolation: isolate; mask-size: 100% 100%; -webkit-mask-size: 100% 100%; mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; }
 .realistic-banner-surface > div { width: 100%; height: 100%; }
 .realistic-banner-material-texture { position: absolute; inset: 0; pointer-events: none; background: url('/images/preview/vinyl-surface.webp') center / 100% 100%; mix-blend-mode: multiply; }
 .realistic-banner-zoom { position: absolute; right: 6px; top: 6px; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #ffffffed; color: #18448d; box-shadow: 0 1px 4px #0002; }

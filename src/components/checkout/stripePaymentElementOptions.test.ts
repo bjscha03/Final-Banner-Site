@@ -19,6 +19,7 @@ describe('Stripe card Payment Element options', () => {
     expect(stripeCardPaymentElementOptions.wallets).toEqual({
       applePay: 'never',
       googlePay: 'never',
+      link: 'never',
     });
   });
 

@@ -2,8 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildCloudinaryPdfPreviewUrl,
   CHUNKED_UPLOAD_THRESHOLD_BYTES,
+  DIRECT_UPLOAD_ATTEMPTS,
   getArtworkUploadDiagnostic,
+  getArtworkUploadEvidence,
   MAX_ARTWORK_BYTES,
+  LEGACY_FUNCTION_SAFE_BYTES,
+  SAME_ORIGIN_UPLOAD_TIMEOUT_MS,
   ArtworkUploadError,
   ARTWORK_SIZE_MESSAGE,
   getArtworkUploadMessage,
@@ -124,12 +128,13 @@ class SuccessfulChunkedUploadXhr {
 beforeEach(() => {
   vi.stubGlobal('File', TestFile);
   vi.stubGlobal('window', {
-    setTimeout: globalThis.setTimeout.bind(globalThis),
-    clearTimeout: globalThis.clearTimeout.bind(globalThis),
+    setTimeout: (...args: Parameters<typeof setTimeout>) => globalThis.setTimeout(...args),
+    clearTimeout: (...args: Parameters<typeof clearTimeout>) => globalThis.clearTimeout(...args),
   });
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   SuccessfulUploadXhr.sentFormData = null;
@@ -137,7 +142,7 @@ afterEach(() => {
 });
 
 describe('uploadArtworkFile', () => {
-  it('rejects an original above 50MB before requesting a ticket or starting an upload', async () => {
+  it('rejects an original above 300MB before requesting a ticket or starting an upload', async () => {
     const fetchSpy = vi.fn();
     const xhrSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
@@ -150,9 +155,18 @@ describe('uploadArtworkFile', () => {
   });
 
   it('accepts the exact storage limit and rejects the next byte', () => {
-    expect(MAX_ARTWORK_BYTES).toBe(52_428_800);
+    expect(MAX_ARTWORK_BYTES).toBe(314_572_800);
     expect(validateArtworkFile({ name: 'banner.pdf', type: 'application/pdf', size: MAX_ARTWORK_BYTES })).toBeNull();
     expect(validateArtworkFile({ name: 'banner.pdf', type: 'application/pdf', size: MAX_ARTWORK_BYTES + 1 })).toBe(ARTWORK_SIZE_MESSAGE);
+  });
+
+  it('accepts print files above the former 50MB cap and reports their actual size bucket', () => {
+    for (const extension of ['pdf', 'png', 'jpg']) {
+      const file = { name: `banner.${extension}`, type: '', size: 51 * 1024 * 1024 };
+      expect(validateArtworkFile(file)).toBeNull();
+      expect(getArtworkUploadDiagnostic(null, file).sizeBucket).toBe('50mb-300mb');
+      expect(getArtworkUploadDiagnostic(null, { ...file, size: MAX_ARTWORK_BYTES + 1 }).sizeBucket).toBe('over-300mb');
+    }
   });
 
   it('explains the actual storage rejection without blaming the customer connection', () => {
@@ -171,7 +185,7 @@ describe('uploadArtworkFile', () => {
 
     const oversized = new File(['x'], 'banner.png', { type: 'image/png' });
     Object.defineProperty(oversized, 'size', { value: MAX_ARTWORK_BYTES + 1 });
-    expect(validateArtworkFile(oversized)).toContain('50MB');
+    expect(validateArtworkFile(oversized)).toContain('300MB');
   });
 
   it('creates a browser-safe first-page image for Cloudinary PDFs', () => {
@@ -207,7 +221,7 @@ describe('uploadArtworkFile', () => {
     vi.stubGlobal('XMLHttpRequest', SuccessfulUploadXhr as any);
 
     const progress: number[] = [];
-    const file = new File(['original customer bytes'], 'customer-art.png', { type: 'image/png' });
+    const file = new File([new Uint8Array(LEGACY_FUNCTION_SAFE_BYTES + 1)], 'customer-art.png', { type: 'image/png' });
     const result = await uploadArtworkFile(file, {
       correlationId: 'test-upload',
       onProgress: (value) => progress.push(value),
@@ -291,4 +305,154 @@ describe('uploadArtworkFile', () => {
       mimeType: 'png',
     });
   });
+});
+
+
+describe('same-origin uploads and stalled recovery', () => {
+  const saved = { secure_url: 'https://res.cloudinary.com/test/image/upload/original.png', public_id: 'uploads/original' };
+  const ticket = { apiKey: 'public-key', signature: 'signature', timestamp: 123, folder: 'uploads', uploadUrl: 'https://api.cloudinary.com/v1_1/test/image/upload' };
+
+  it('saves small originals through the same origin without waiting for a direct request', async () => {
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify(saved), { status: 200 }));
+    const xhrSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubGlobal('XMLHttpRequest', xhrSpy);
+    const original = 'unchanged original customer bytes';
+    const result = await uploadArtworkFile(new File([original], 'original.png', { type: 'image/png' }));
+    expect(result.transport).toBe('netlify-same-origin');
+    expect(result.artworkManifest.uploadStatus).toBe('uploaded');
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(fetchSpy.mock.calls[0][0]).toBe('/.netlify/functions/upload-file');
+    const body = fetchSpy.mock.calls[0][1].body as FormData;
+    expect(await (body.get('file') as File).text()).toBe(original);
+    expect(xhrSpy).not.toHaveBeenCalled();
+  });
+
+  it('switches routes if same-origin fetch never settles, even when it ignores abort', async () => {
+    vi.useFakeTimers();
+    let primarySignal: AbortSignal | undefined;
+    const fetchSpy = vi.fn(async (url: string, options?: RequestInit) => {
+      if (url.includes('upload-file')) {
+        primarySignal = options?.signal as AbortSignal;
+        return new Promise<Response>(() => {});
+      }
+      return new Response(JSON.stringify(ticket), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubGlobal('XMLHttpRequest', SuccessfulUploadXhr);
+    const pending = uploadArtworkFile(new File(['original'], 'original.png', { type: 'image/png' }));
+    await vi.advanceTimersByTimeAsync(SAME_ORIGIN_UPLOAD_TIMEOUT_MS + 1);
+    const result = await pending;
+    expect(primarySignal?.aborted).toBe(true);
+    expect(result.transport).toBe('cloudinary-direct');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('bounds stalled response parsing and recovers through the alternate route', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => url.includes('upload-file')
+      ? { ok: true, json: () => new Promise(() => {}) }
+      : new Response(JSON.stringify(ticket), { status: 200 })));
+    vi.stubGlobal('XMLHttpRequest', SuccessfulUploadXhr);
+    const pending = uploadArtworkFile(new File(['original'], 'original.png', { type: 'image/png' }));
+    await vi.advanceTimersByTimeAsync(SAME_ORIGIN_UPLOAD_TIMEOUT_MS + 1);
+    expect((await pending).transport).toBe('cloudinary-direct');
+  });
+
+  it('does not start another transport after cancellation', async () => {
+    const controller = new AbortController();
+    const fetchSpy = vi.fn(() => new Promise<Response>(() => {}));
+    const xhrSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubGlobal('XMLHttpRequest', xhrSpy);
+    const pending = uploadArtworkFile(new File(['original'], 'original.png', { type: 'image/png' }), { signal: controller.signal });
+    const rejected = expect(pending).rejects.toThrow();
+    await Promise.resolve();
+    controller.abort();
+    await rejected;
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(xhrSpy).not.toHaveBeenCalled();
+  });
+
+  it('rejects a silent direct request after its independent stall timer', async () => {
+    vi.useFakeTimers();
+    const abort = vi.fn();
+    class SilentXhr extends SuccessfulUploadXhr {
+      send(_body: FormData) {}
+      abort() { abort(); this.onabort?.(); }
+    }
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(
+      url.includes('upload-file') ? { error: 'Unavailable' } : ticket
+    ), { status: url.includes('upload-file') ? 503 : 200 })));
+    vi.stubGlobal('XMLHttpRequest', SilentXhr);
+    const pending = uploadArtworkFile(new File(['original'], 'original.png', { type: 'image/png' }));
+    const rejected = expect(pending).rejects.toThrow('stopped making progress');
+    await vi.runAllTimersAsync();
+    await rejected;
+    expect(abort).toHaveBeenCalledTimes(DIRECT_UPLOAD_ATTEMPTS);
+  });
+
+  it('recovers a small PNG after both the first upload and first ticket time out', async () => {
+    vi.useFakeTimers();
+    const signals: AbortSignal[] = [];
+    const fetchSpy = vi.fn(async (_url: string, options?: RequestInit) => {
+      signals.push(options?.signal as AbortSignal);
+      if (signals.length <= 2) return new Promise<Response>(() => {});
+      return new Response(JSON.stringify(ticket), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubGlobal('XMLHttpRequest', SuccessfulUploadXhr);
+    const file = new File([new Uint8Array(2_144_002)], 'original.png', { type: 'image/png' });
+    const pending = uploadArtworkFile(file);
+    await vi.runAllTimersAsync();
+    const result = await pending;
+    expect(result.transport).toBe('cloudinary-direct');
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(signals.slice(0, 2).every(signal => signal.aborted)).toBe(true);
+    expect((SuccessfulUploadXhr.sentFormData?.get('file') as File).size).toBe(file.size);
+  });
+
+  it('bounds repeated small-file ticket failures to three attempts', async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ error: 'Unavailable' }), { status: 503 }));
+    const xhrSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubGlobal('XMLHttpRequest', xhrSpy);
+    const pending = uploadArtworkFile(new File(['original'], 'original.png', { type: 'image/png' }));
+    const rejected = expect(pending).rejects.toMatchObject({ phase: 'ticket', status: 503 });
+    await vi.runAllTimersAsync();
+    await rejected;
+    expect(fetchSpy).toHaveBeenCalledTimes(1 + DIRECT_UPLOAD_ATTEMPTS);
+    expect(xhrSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not retry a definitive ticket rejection', async () => {
+    const fetchSpy = vi.fn(async (url: string) => new Response(JSON.stringify({ error: 'Rejected' }), {
+      status: url.includes('upload-file') ? 503 : 415,
+    }));
+    vi.stubGlobal('fetch', fetchSpy);
+    await expect(uploadArtworkFile(new File(['original'], 'original.png', { type: 'image/png' })))
+      .rejects.toMatchObject({ phase: 'ticket', status: 415 });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('cancels during retry backoff without sending another request', async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ error: 'Unavailable' }), { status: 503 }));
+    vi.stubGlobal('fetch', fetchSpy);
+    const pending = uploadArtworkFile(new File(['original'], 'original.png', { type: 'image/png' }), { signal: controller.signal });
+    const rejected = expect(pending).rejects.toThrow();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    controller.abort();
+    await vi.runAllTimersAsync();
+    await rejected;
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+});
+
+it('includes file size and failure reason for admin reports without exposing the filename', () => {
+  const evidence = getArtworkUploadEvidence(new Error('Could not decode customer-private.pdf'), { name: 'customer-private.pdf', size: 62914560 });
+  expect(evidence).toMatchObject({ fileBytes: 62914560, fileLimitBytes: 314572800, errorMessage: 'Could not decode [artwork]' });
 });
