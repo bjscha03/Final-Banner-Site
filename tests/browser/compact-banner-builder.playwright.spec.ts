@@ -51,6 +51,8 @@ test('banner finishing preserves the artwork, price and cart through add-another
     await expect(footer.getByRole('button', { name: 'Add artwork', exact: true })).toBeVisible();
     await expect(footer).toContainText("6' × 3'");
     await expect(footer).toContainText('$72.00');
+    await expect(footer.locator('del')).toHaveText('$90.00');
+    await expect(footer).toContainText('20% off applied');
     expect((await footer.boundingBox())!.height).toBeLessThan(100);
     await expect(page.locator('#options-section')).toHaveCount(0);
     await expect(page.getByTestId('mobile-banner-hero')).toContainText('Estimated delivery');
@@ -60,6 +62,17 @@ test('banner finishing preserves the artwork, price and cart through add-another
     await page.screenshot({ path: testInfo.outputPath('landing-first-screen.png') });
     const heroBox = await page.getByTestId('mobile-banner-hero').boundingBox();
     expect(heroBox!.height).toBeLessThan(440);
+    const sixByTwo = size.getByRole('button', { name: "6' × 2' — $48.00", exact: true });
+    await sixByTwo.click();
+    await expect(sixByTwo.locator('del')).toHaveText('$60.00');
+    await expect(sixByTwo.locator('[data-banner-current-price]')).toHaveCSS('color', 'rgb(4, 120, 87)');
+    await expect(sixByTwo.locator('[data-banner-dimensions]')).toHaveCSS('color', 'rgb(6, 26, 49)');
+    await expect(footer.locator('[data-banner-current-price]')).toHaveText('$48.00');
+    await expect(footer.locator('del')).toHaveText('$60.00');
+    await size.screenshot({ path: testInfo.outputPath('mobile-size-prices.png') });
+    await size.getByRole('button', { name: "6' × 3' — $72.00", exact: true }).click();
+    await expect(footer.locator('[data-banner-current-price]')).toHaveText('$72.00');
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   }
   await expect(size.getByRole('button', { name: 'Custom size', exact: true })).toHaveAttribute('aria-expanded', 'false');
   await size.getByRole('button', { name: 'Custom size', exact: true }).click();
@@ -72,7 +85,8 @@ test('banner finishing preserves the artwork, price and cart through add-another
     if (mobile) {
       await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
       if (await footer.getByRole('button', { name: 'Add artwork', exact: true }).isVisible()) await footer.getByRole('button', { name: 'Add artwork', exact: true }).click();
-      await expect(page.getByTestId('static-google-review')).toContainText('Alma Sanchez');
+      await expect(page.getByTestId('fading-google-reviews').locator('figure')).toHaveCount(7);
+      await expect(page.getByTestId('fading-google-reviews').locator('figure[aria-hidden=false]')).toHaveCount(1);
       await footer.getByRole('button', { name: 'Upload artwork', exact: true }).click();
       // The upload choice must remain visible if the native picker is cancelled.
       // Short artwork pages cannot always scroll the card to the old 180px offset.
@@ -81,23 +95,30 @@ test('banner finishing preserves the artwork, price and cart through add-another
       const choiceBox = (await uploadChoice.boundingBox())!;
       const footerBox = (await footer.boundingBox())!;
       expect(choiceBox.y).toBeGreaterThanOrEqual(0);
-      expect(choiceBox.y + choiceBox.height).toBeLessThanOrEqual(footerBox.y);
+      // Allow a one-pixel border/viewport rounding difference in landscape WebKit.
+      expect(choiceBox.y + choiceBox.height).toBeLessThanOrEqual(footerBox.y + 1);
     } else {
       await page.locator('#upload-section').getByRole('button', { name: /Upload your artwork/ }).click();
     }
     await (await chooserPromise).setFiles({ name: 'compact-test.png', mimeType: 'image/png', buffer: artwork });
     await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText(/Want your banner to match/)).toHaveCount(0);
   };
   await upload();
   // A size upgrade must preserve uploaded artwork and remain selected across units.
   if (mobile) await page.getByRole('button', { name: 'Back to banner', exact: true }).click();
   await size.getByRole('button', { name: mobile ? "8' × 4' — $111.20" : "8' × 4' — Bigger presence", exact: true }).click();
   await expect(size.getByRole('button', { name: mobile ? "8' × 4' — $111.20" : "8' × 4' — Bigger presence", exact: true })).toHaveAttribute('aria-pressed', 'true');
+  if (mobile) {
+    await expect(footer.locator('[data-banner-current-price]')).toHaveText('$111.20');
+    await expect(footer.locator('del')).toHaveText('$139.00');
+  }
   await expect(page.getByAltText('Uploaded artwork preview').first()).toHaveCount(1);
   await size.getByRole('button', { name: 'Inches', exact: true }).click();
   await expect(size.getByRole('button', { name: mobile ? '96" × 48" — $111.20' : '96" × 48" — Bigger presence', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await size.getByRole('button', { name: 'Feet', exact: true }).click();
   await size.getByRole('button', { name: mobile ? "6' × 3' — $72.00" : "6' × 3' — Everyday displays", exact: true }).click();
+  if (mobile) await expect(footer.locator('[data-banner-current-price]')).toHaveText('$72.00');
   if (mobile) await footer.getByRole('button', { name: 'Add artwork', exact: true }).click();
   await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible();
   const finish = page.getByTestId('mobile-finishing-step');

@@ -10,7 +10,7 @@ import { useUploadWatchdog } from '@/hooks/useUploadWatchdog';
 import MobileBannerLandingHero, { MobileBannerLandingProof } from '@/components/design/MobileBannerLandingHero';
 import AIArtworkHelp from '@/components/design/AIArtworkHelp';
 import MobileBannerSteps from '@/components/design/MobileBannerSteps';
-import GoogleReviewSpotlight, { StaticGoogleReview } from '@/components/design/GoogleReviewSpotlight';
+import GoogleReviewSpotlight, { FadingGoogleReviews } from '@/components/design/GoogleReviewSpotlight';
 import LargeBannerSizeCards, { LARGE_BANNER_SIZES } from '@/components/design/LargeBannerSizeCards';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
@@ -386,7 +386,6 @@ const GoogleAdsBanner: React.FC = () => {
   const [mobileFinishingOpen, setMobileFinishingOpen] = useState(false);
   const [mobileFinishingSource, setMobileFinishingSource] = useState<'inline' | 'modal'>('inline');
   const [finishingPreviewTransform, setFinishingPreviewTransform] = useState<NormalizedArtworkTransform | null>(null);
-  const [dismissedOrientation, setDismissedOrientation] = useState<string | null>(null);
   const [finishingChoiceConfirmed, setFinishingChoiceConfirmed] = useState(initialProductType === 'banner');
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
@@ -910,7 +909,11 @@ const GoogleAdsBanner: React.FC = () => {
       items: [{ id: 'current-configurator-line', product_type: productType, width_in: size.w, height_in: size.h, line_total_cents: option.subtotalBeforeDiscountCents }],
     });
     const rush = sameDayHitService ? computeSameDayFeesCents(option.subtotalBeforeDiscountCents, { sameDay: true, saturday: false }).sameDayFeeCents : 0;
-    return usd((option.subtotalBeforeDiscountCents - promo.appliedDiscountAmountCents + rush + (rush > 0 ? previewSaturdayFeeCents : 0)) / 100);
+    const originalCents = option.subtotalBeforeDiscountCents + rush + (rush > 0 ? previewSaturdayFeeCents : 0);
+    return {
+      amount: usd(Math.max(0, originalCents - promo.appliedDiscountAmountCents) / 100),
+      originalAmount: promo.appliedDiscountAmountCents > 0 ? usd(originalCents / 100) : undefined,
+    };
   });
 
   useEffect(() => {
@@ -2763,22 +2766,6 @@ const GoogleAdsBanner: React.FC = () => {
   const mobileBannerAction = hasPermanentArtwork(uploadedFile) && hasCommittedBannerSize && !isProcessingUpsell && !isUploading
     ? { label: 'Next: Finishing', disabled: false, onClick: () => openMobileFinishing('inline') }
     : bannerAction;
-  const orientationKey = `${uploadedFile?.editorIdentity || uploadedFile?.fileKey}:${widthIn}:${heightIn}`;
-  const artworkRatio = uploadedFile?.originalWidth && uploadedFile?.originalHeight
-    ? uploadedFile.originalWidth / uploadedFile.originalHeight : 0;
-  const offerOrientationSwap = !isYardSign && !isCarMagnet && artworkRatio > 0
-    && widthIn > 0 && heightIn > 0 && dismissedOrientation !== orientationKey
-    && ((artworkRatio < 0.8 && widthIn > heightIn) || (artworkRatio > 1.25 && heightIn > widthIn));
-  const swapBannerOrientation = () => {
-    setWidthFtStr(String(Math.floor(heightIn / 12)));
-    setWidthInRStr(String(heightIn % 12));
-    setHeightFtStr(String(Math.floor(widthIn / 12)));
-    setHeightInRStr(String(widthIn % 12));
-    setWidthCustomInStr(String(heightIn));
-    setHeightCustomInStr(String(widthIn));
-    setActivePreset(null);
-    setHasConfirmedSize(true);
-  };
   const bannerPrice = (
     <div>
     <div className="flex flex-wrap items-baseline gap-x-2">
@@ -2788,8 +2775,19 @@ const GoogleAdsBanner: React.FC = () => {
     <PriceDeliveryEstimate compact />
     </div>
   );
-  const compactBannerPrice = <div className="flex flex-wrap items-baseline gap-x-2">
-    <span className="text-2xl font-extrabold tracking-tight text-[#061A31]">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</span>
+  const mobileDiscountLabel = bannerPromoResolution.appliedDiscountAmountCents > 0
+    ? bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20'
+      ? '20% off applied'
+      : bannerPromoResolution.appliedDiscountType === 'quantity'
+        ? `${Math.round(quantityDiscountRate * 100)}% bulk discount`
+        : `${usd(bannerPromoResolution.appliedDiscountAmountCents / 100)} off applied`
+    : null;
+  const compactBannerPrice = <div data-testid="mobile-banner-price">
+    <div className="flex flex-wrap items-baseline gap-x-1.5">
+      <span data-banner-current-price className="text-2xl font-extrabold tracking-tight text-emerald-700">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</span>
+      {bannerPromoResolution.appliedDiscountAmountCents > 0 && <del className="text-xs text-slate-500">{usd((bannerPricing.subtotalBeforeDiscountCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</del>}
+    </div>
+    {mobileDiscountLabel && <p className="text-[10px] font-semibold leading-3 text-emerald-700">{mobileDiscountLabel}</p>}
   </div>;
   const paidMobileAction = mobileStage === 'banner'
     ? { label: 'Add artwork', disabled: !hasCommittedBannerSize, onClick: () => changeMobileStage('artwork') }
@@ -2884,11 +2882,7 @@ const GoogleAdsBanner: React.FC = () => {
   const mobileReviewSummary = <section data-testid="mobile-review-summary" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
     <h2 className="text-base font-bold">Your banner</h2>
     <p className="mt-1 text-xs text-slate-600">{widthDisplay} × {heightDisplay} · {materialLabel} · Qty {quantity}</p>
-    <div className="mt-3 flex items-center gap-3">
-      {bannerPromoResolution.appliedDiscountAmountCents > 0 && <span className="text-sm text-slate-500 line-through">{usd((bannerPricing.subtotalBeforeDiscountCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</span>}
-      {compactBannerPrice}
-    </div>
-    {bannerPromoResolution.appliedDiscountAmountCents > 0 && <p className="mt-1 text-xs font-semibold text-emerald-700">{bannerPromoResolution.promoDiscountCode === 'NEW20' && bannerPromoActuallyApplied ? FIRST_ORDER_APPLIED_LABEL : `${usd(bannerPromoResolution.appliedDiscountAmountCents / 100)} discount applied`}</p>}
+    <div className="mt-3">{compactBannerPrice}</div>
     <dl className="mt-3 space-y-2 border-y border-slate-200 py-3 text-xs"><div className="flex justify-between gap-3"><dt>Shipping</dt><dd className="font-bold text-emerald-700">FREE</dd></div><div className="flex justify-between gap-3"><dt>Tax</dt><dd className="text-slate-500">Calculated at checkout</dd></div></dl>
     <div className="mt-3"><PriceDeliveryEstimate /></div>
     {activeCartPromo?.code === 'NEW20' && firstOrderOffer.message && <p className="mt-2 text-[11px] leading-4 text-slate-500">{firstOrderOffer.message}</p>}
@@ -3310,14 +3304,6 @@ const GoogleAdsBanner: React.FC = () => {
                       <p className="text-xs text-gray-400 text-center mt-2">
                         Size: {isCarMagnet ? `${widthIn}" × ${heightIn}"` : `${widthFt} ft${widthInR > 0 ? ` ${widthInR} in` : ''} × ${heightFt} ft${heightInR > 0 ? ` ${heightInR} in` : ''}`} ({sqft.toFixed(1)} sq ft)
                       </p>
-                      {offerOrientationSwap && <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-[#0B1F3A]">
-                        <p className="font-semibold">Your artwork is {artworkRatio < 1 ? 'portrait' : 'landscape'}. Want your banner to match?</p>
-                        <p className="mt-1 text-xs text-slate-600">Swap the width and height, then check your preview. Your artwork stays uploaded.</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <button type="button" onClick={swapBannerOrientation} className="min-h-11 rounded-lg bg-[#0B1F3A] px-3 py-2 text-sm font-semibold text-white">Switch to {heightDisplay} × {widthDisplay}</button>
-                          <button type="button" onClick={() => setDismissedOrientation(orientationKey)} className="min-h-11 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold">Keep this size</button>
-                        </div>
-                      </div>}
                       {/* Confidence text */}
                       <p className="text-xs text-gray-500 text-center mt-1 font-medium">Your design will be printed based on this preview</p>
                       {/* File info bar */}
@@ -3646,7 +3632,7 @@ const GoogleAdsBanner: React.FC = () => {
                   <div hidden={mobilePaidLayout && mobileStage !== 'artwork'} className="space-y-3">
                     {mobilePaidLayout && <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm"><BannerPrintSides compact doubleSided={isDoubleSidedBanner} onChange={handleBannerPrintSidesChange} />{materialCard}{quantityCard}</div>}
                     {uploadCard}
-                    {mobilePaidLayout && <StaticGoogleReview />}
+                    {mobilePaidLayout && <FadingGoogleReviews />}
                   </div>
                   {isLgScreen && finishingCard}
                 </>}
