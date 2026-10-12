@@ -1,8 +1,12 @@
 import type { ReactNode } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
+import MobileBannerReviewStep from './MobileBannerReviewStep';
 
-interface MobileFinishingStepProps {
+export interface MobileFinishingStepProps {
+  reviewLayout?: boolean;
+  finishingSummary?: ReactNode;
+  onReplaceArtwork?: (file: File) => void;
   open: boolean;
   onBack: () => void;
   children: ReactNode;
@@ -22,9 +26,11 @@ interface MobileFinishingStepProps {
 
 /** A full-screen step: the artwork editor stays mounted behind it so its
  * normalized placement and final render remain intact when saving the item. */
-export default function MobileFinishingStep({ open, onBack, children, preview, summary,
+export default function MobileFinishingStep(props: MobileFinishingStepProps) {
+  const { open, onBack, children, preview, summary,
   price, promotionNote, description, ready, busy, editing, cartItemCount,
-  onViewCart, onCheckout, onAddAnother }: MobileFinishingStepProps) {
+  onViewCart, onCheckout, onAddAnother } = props;
+  if (props.reviewLayout) return <MobileBannerReviewStep {...props} />;
   return (
     <Dialog.Root open={open} onOpenChange={(next) => { if (!next && !busy) onBack(); }}>
       <Dialog.Portal>

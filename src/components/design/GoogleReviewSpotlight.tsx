@@ -14,6 +14,15 @@ const reviews = [
   { name: 'janelle coulcher', text: 'I needed a banner fast for a retirement party for my brother in law out of state and they were great. He loved it and what a wonderful keepsake! 😊' },
 ];
 
+/** Owner-supplied review, kept beside the artwork decision without motion. */
+export function StaticGoogleReview() {
+  const review = reviews[0];
+  return <figure data-testid="static-google-review" className="flex items-start gap-3 border-t border-slate-200 px-1 py-4 text-[#061A31]">
+    <span className="flex shrink-0 gap-0.5 pt-1 text-amber-600" aria-label="5 out of 5 stars">{[0, 1, 2, 3, 4].map(star => <Star key={star} size={15} fill="currentColor" aria-hidden="true" />)}</span>
+    <div><blockquote className="text-sm leading-5">“{review.text}”</blockquote><figcaption className="mt-1 text-xs text-slate-500">— {review.name} · Google review</figcaption></div>
+  </figure>;
+}
+
 export default function GoogleReviewSpotlight({ compactMobile = false }: { compactMobile?: boolean }) {
   const [paused, setPaused] = useState(false);
   const [active, setActive] = useState(0);

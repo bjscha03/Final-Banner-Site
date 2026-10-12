@@ -45,3 +45,33 @@ it('offers the current banner action with an empty cart and blocks repeat taps w
     vi.unstubAllGlobals();
   }
 });
+
+it('keeps the paid mobile size and price beside one action and preserves upload cancellation', () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  const next = vi.fn();
+  const cancel = vi.fn();
+  const render = (busy = false) => act(() => root.render(<MobileSubtotalBar compact
+    selectionLabel="6′ × 3′ · banner" subtotal={<span>$72.00</span>} cartItemCount={0} onViewCart={vi.fn()}
+    primaryAction={{ label: busy ? 'Uploading…' : 'Add artwork', onClick: next, disabled: busy }}
+    uploadRecovery={busy ? { onCancel: cancel } : undefined} />));
+  try {
+    render();
+    expect(container.textContent).toContain('6′ × 3′ · banner');
+    expect(container.textContent).toContain('$72.00');
+    expect(container.querySelectorAll('button')).toHaveLength(1);
+    act(() => container.querySelector<HTMLButtonElement>('[data-banner-primary-action]')!.click());
+    expect(next).toHaveBeenCalledOnce();
+    render(true);
+    act(() => container.querySelector<HTMLButtonElement>('[data-banner-primary-action]')!.click());
+    expect(next).toHaveBeenCalledOnce();
+    act(() => Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Cancel upload')!.click());
+    expect(cancel).toHaveBeenCalledOnce();
+  } finally {
+    act(() => root.unmount());
+    container.remove();
+    vi.unstubAllGlobals();
+  }
+});

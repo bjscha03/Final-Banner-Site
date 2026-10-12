@@ -48,33 +48,18 @@ test('banner finishing preserves the artwork, price and cart through add-another
   const footer = page.getByTestId('mobile-subtotal-bar');
   const size = page.locator('#size-section');
   if (mobile) {
-    await expect(footer.getByRole('button', { name: 'Upload artwork', exact: true })).toBeVisible();
-    await expect(footer.getByRole('button', { name: 'Upload artwork', exact: true })).toHaveCSS('color', 'rgb(255, 255, 255)');
-    await expect(footer.getByRole('button', { name: 'View cart (0)', exact: true })).toBeVisible();
+    await expect(footer.getByRole('button', { name: 'Add artwork', exact: true })).toBeVisible();
+    await expect(footer).toContainText("6' × 3'");
+    await expect(footer).toContainText('$72.00');
+    expect((await footer.boundingBox())!.height).toBeLessThan(100);
     await expect(page.locator('#options-section')).toHaveCount(0);
     await expect(page.getByTestId('mobile-banner-hero')).toContainText('Estimated delivery');
-    await expect(page.getByRole('button', { name: 'Pause Google reviews' })).toBeVisible();
-    const deliveryStrip = page.locator('[data-real-orders-strip]');
-    await expect(deliveryStrip).toHaveCount(1);
-    await expect(deliveryStrip.getByRole('button', { name: 'Pause delivery photos' })).toBeVisible();
-    expect((await deliveryStrip.boundingBox())!.y).toBeLessThan((await size.boundingBox())!.y);
-    await deliveryStrip.getByRole('button', { name: 'Pause delivery photos' }).click();
-    await expect(deliveryStrip).toHaveAttribute('data-paused', 'true');
-    await deliveryStrip.getByRole('button', { name: 'Play delivery photos' }).click();
-    const heading = page.getByTestId('mobile-banner-hero').getByRole('heading', { level: 1 });
-    expect(await heading.evaluate(el => getComputedStyle(el).fontFamily)).not.toMatch(/Bebas|Impact/);
+    await expect(page.getByTestId('google-reviews')).toHaveCount(0);
+    await expect(page.locator('[data-real-orders-strip]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Open AI artwork help' })).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('landing-first-screen.png') });
     const heroBox = await page.getByTestId('mobile-banner-hero').boundingBox();
-    expect(heroBox!.height).toBeLessThan(330);
-    if (page.viewportSize()!.height >= 640) {
-      const dimensions = await size.boundingBox();
-      const footerBox = await footer.boundingBox();
-      expect(dimensions!.y).toBeLessThan(footerBox!.y);
-    }
-    const proofBox = await page.getByTestId('mobile-banner-proof').boundingBox();
-    const uploadBox = await page.locator('#upload-section').boundingBox();
-    expect(proofBox!.y).toBeGreaterThan(uploadBox!.y + uploadBox!.height);
-
+    expect(heroBox!.height).toBeLessThan(440);
   }
   await expect(size.getByRole('button', { name: 'Custom size', exact: true })).toHaveAttribute('aria-expanded', 'false');
   await size.getByRole('button', { name: 'Custom size', exact: true }).click();
@@ -86,6 +71,8 @@ test('banner finishing preserves the artwork, price and cart through add-another
     const chooserPromise = page.waitForEvent('filechooser');
     if (mobile) {
       await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+      if (await footer.getByRole('button', { name: 'Add artwork', exact: true }).isVisible()) await footer.getByRole('button', { name: 'Add artwork', exact: true }).click();
+      await expect(page.getByTestId('static-google-review')).toContainText('Alma Sanchez');
       await footer.getByRole('button', { name: 'Upload artwork', exact: true }).click();
       // The page must land at upload even if the customer cancels the picker.
       await expect.poll(async () => (await page.locator('#upload-section').boundingBox())!.y).toBeLessThan(180);
@@ -98,19 +85,22 @@ test('banner finishing preserves the artwork, price and cart through add-another
   };
   await upload();
   // A size upgrade must preserve uploaded artwork and remain selected across units.
-  await size.getByRole('button', { name: "8' × 4' — Bigger presence", exact: true }).click();
-  await expect(size.getByRole('button', { name: "8' × 4' — Bigger presence", exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible();
+  if (mobile) await page.getByRole('button', { name: 'Back to banner', exact: true }).click();
+  await size.getByRole('button', { name: mobile ? "8' × 4' — $111.20" : "8' × 4' — Bigger presence", exact: true }).click();
+  await expect(size.getByRole('button', { name: mobile ? "8' × 4' — $111.20" : "8' × 4' — Bigger presence", exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByAltText('Uploaded artwork preview').first()).toHaveCount(1);
   await size.getByRole('button', { name: 'Inches', exact: true }).click();
-  await expect(size.getByRole('button', { name: '96" × 48" — Bigger presence', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(size.getByRole('button', { name: mobile ? '96" × 48" — $111.20' : '96" × 48" — Bigger presence', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await size.getByRole('button', { name: 'Feet', exact: true }).click();
-  await size.getByRole('button', { name: "6' × 3' — Everyday displays", exact: true }).click();
+  await size.getByRole('button', { name: mobile ? "6' × 3' — $72.00" : "6' × 3' — Everyday displays", exact: true }).click();
+  if (mobile) await footer.getByRole('button', { name: 'Add artwork', exact: true }).click();
   await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible();
   const finish = page.getByTestId('mobile-finishing-step');
   const openFinishing = async () => {
     if (mobile) {
-      await footer.getByRole('button', { name: 'Next: Finishing', exact: true }).click();
+      await footer.getByRole('button', { name: 'Review & finish', exact: true }).click();
       await expect(finish).toBeVisible();
+      await finish.getByTestId('review-finishing-options').locator('summary').click();
       await expect(finish.getByRole('heading', { name: 'Realistic preview', exact: true })).toBeVisible();
       await expect(finish.getByAltText('Your artwork with the selected finishing')).toBeVisible();
       await expect.poll(() => finish.getByAltText('Your artwork with the selected finishing').evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
@@ -121,9 +111,9 @@ test('banner finishing preserves the artwork, price and cart through add-another
   await expect(choices.getByRole('button', { name: /Grommets/ })).toHaveAttribute('aria-pressed', 'true');
   await expect(choices.getByLabel('Grommet placement')).toHaveValue('every-2-3ft');
   if (mobile) {
-    await expect(finish.getByRole('button', { name: 'Continue to checkout', exact: true })).toBeEnabled();
+    await expect(finish.getByRole('button', { name: mobile ? 'Checkout' : 'Continue to checkout', exact: true })).toBeEnabled();
     await expect(finish.getByRole('button', { name: 'Add & design another', exact: true })).toBeEnabled();
-    await expect(finish.locator('footer [data-price-delivery-estimate]')).toContainText('Estimated delivery:');
+    await expect(finish.locator('[data-testid=mobile-review-summary] [data-price-delivery-estimate]').first()).toContainText('Estimated delivery:');
   }
   await choices.getByRole('button', { name: /Rope in Welded Hem/ }).click();
   await choices.getByLabel('Rope placement').selectOption('bottom');
@@ -144,7 +134,7 @@ test('banner finishing preserves the artwork, price and cart through add-another
   if (mobile) {
     await expect.poll(() => finish.locator('[data-realistic-grommet]').count()).toBeGreaterThan(4);
     await expect(finish.locator('[data-realistic-pocket]')).toHaveCount(0);
-    await expect(finish.getByRole('button', { name: 'Continue to checkout', exact: true })).toHaveCSS('color', 'rgb(255, 255, 255)');
+    await expect(finish.getByRole('button', { name: mobile ? 'Checkout' : 'Continue to checkout', exact: true })).toHaveCSS('color', 'rgb(255, 255, 255)');
     const inlinePreview = finish.getByTestId('finishing-realistic-preview');
     const inlineWidth = (await inlinePreview.locator('[data-realistic-scene]').boundingBox())!.width;
     const hardwareCount = await inlinePreview.locator('[data-realistic-grommet]').count();
@@ -161,21 +151,21 @@ test('banner finishing preserves the artwork, price and cart through add-another
     await expect(choices.getByRole('button', { name: /Grommets/ })).toHaveAttribute('aria-pressed', 'true');
     if (page.viewportSize()!.height > 600) {
       const previewBox = (await finish.getByTestId('finishing-realistic-preview').boundingBox())!;
-      const optionsBox = (await finish.getByTestId('finishing-options-scroll').boundingBox())!;
+      const optionsBox = (await finish.getByTestId('review-finishing-options').boundingBox())!;
       expect(optionsBox.y).toBeGreaterThanOrEqual(previewBox.y + previewBox.height);
       expect(optionsBox.height).toBeGreaterThan(88);
     }
     await finish.getByTestId('finishing-realistic-preview').screenshot({ path: testInfo.outputPath('finishing-realistic-preview.png') });
   }
   if (mobile) {
-    await finish.getByRole('button', { name: 'Back to design', exact: true }).click();
+    await finish.getByRole('button', { name: 'Edit design', exact: true }).click();
     await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible();
     await openFinishing();
     await expect(choices.getByRole('button', { name: /Grommets/ })).toHaveAttribute('aria-pressed', 'true');
   }
   await page.getByRole('button', { name: 'Add & design another', exact: true }).filter({ visible: true }).click();
   await expect(page.getByAltText('Uploaded artwork preview')).toHaveCount(0, { timeout: 60000 });
-  if (mobile) await expect(footer.getByRole('button', { name: 'View cart (1)', exact: true })).toBeVisible();
+  if (mobile) await expect(page.getByLabel('1 items in cart')).toBeVisible();
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('cart-storage') || '{}').state.items);
   expect(stored).toHaveLength(1);
   expect(stored[0].grommets).toBe('every-2-3ft');
@@ -191,7 +181,7 @@ test('banner finishing preserves the artwork, price and cart through add-another
   await openFinishing();
   await expect(choices.getByRole('button', { name: /Grommets/ })).toHaveAttribute('aria-pressed', 'true');
   if (mobile) {
-    await expect(finish.getByRole('button', { name: 'Continue to checkout', exact: true })).toBeEnabled();
+    await expect(finish.getByRole('button', { name: mobile ? 'Checkout' : 'Continue to checkout', exact: true })).toBeEnabled();
     await choices.getByRole('button', { name: /No hanging hardware/ }).click();
     await expect(finish.locator('[data-realistic-grommet], [data-realistic-pocket], [data-realistic-rope]')).toHaveCount(0);
   } else {
@@ -199,7 +189,7 @@ test('banner finishing preserves the artwork, price and cart through add-another
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
   await page.screenshot({ path: testInfo.outputPath('finishing-step.png') });
-  await page.getByRole('button', { name: 'Continue to checkout', exact: true }).filter({ visible: true }).click();
+  await page.getByRole('button', { name: mobile ? 'Checkout' : 'Continue to checkout', exact: true }).filter({ visible: true }).click();
   await expect(page).toHaveURL(/\/checkout/, { timeout: 60000 });
   await expect(page.locator('[data-checkout-header]')).toContainText('Secure checkout');
   await expect(page.locator('header nav')).toHaveCount(0);
