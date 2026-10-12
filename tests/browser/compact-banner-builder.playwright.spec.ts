@@ -74,9 +74,14 @@ test('banner finishing preserves the artwork, price and cart through add-another
       if (await footer.getByRole('button', { name: 'Add artwork', exact: true }).isVisible()) await footer.getByRole('button', { name: 'Add artwork', exact: true }).click();
       await expect(page.getByTestId('static-google-review')).toContainText('Alma Sanchez');
       await footer.getByRole('button', { name: 'Upload artwork', exact: true }).click();
-      // The page must land at upload even if the customer cancels the picker.
-      await expect.poll(async () => (await page.locator('#upload-section').boundingBox())!.y).toBeLessThan(180);
-      expect((await page.locator('#upload-section').boundingBox())!.y).toBeGreaterThanOrEqual(0);
+      // The upload choice must remain visible if the native picker is cancelled.
+      // Short artwork pages cannot always scroll the card to the old 180px offset.
+      const uploadChoice = page.locator('#upload-section').getByRole('button', { name: /I have artwork/ });
+      await expect(uploadChoice).toBeInViewport();
+      const choiceBox = (await uploadChoice.boundingBox())!;
+      const footerBox = (await footer.boundingBox())!;
+      expect(choiceBox.y).toBeGreaterThanOrEqual(0);
+      expect(choiceBox.y + choiceBox.height).toBeLessThanOrEqual(footerBox.y);
     } else {
       await page.locator('#upload-section').getByRole('button', { name: /Upload your artwork/ }).click();
     }
@@ -100,7 +105,7 @@ test('banner finishing preserves the artwork, price and cart through add-another
     if (mobile) {
       await footer.getByRole('button', { name: 'Review & finish', exact: true }).click();
       await expect(finish).toBeVisible();
-      await finish.getByTestId('review-finishing-options').locator('summary').click();
+      await finish.getByTestId('review-finishing-options').locator(':scope > summary').click();
       await expect(finish.getByRole('heading', { name: 'Realistic preview', exact: true })).toBeVisible();
       await expect(finish.getByAltText('Your artwork with the selected finishing')).toBeVisible();
       await expect.poll(() => finish.getByAltText('Your artwork with the selected finishing').evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
