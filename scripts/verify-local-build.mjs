@@ -109,8 +109,8 @@ for (const entry of manifest) {
 
   if (isSpecialty) {
     assert(types.includes(entry.route === '/products' ? 'CollectionPage' : 'Product'), `${entry.route}: specialty page schema missing.`);
-    assert(!types.includes('Offer'), `${entry.route}: unconfirmed quote must not claim a final purchasable offer.`);
-    assert(html.includes('Shipping') || html.includes('shipping'), `${entry.route}: address-based shipping disclosure missing.`);
+    assert(!types.includes('Offer'), `${entry.route}: a draft awaiting verified delivery must not claim a final purchasable offer.`);
+    assert(/shipping|delivery/i.test(html), `${entry.route}: address-based delivery disclosure missing.`);
   }
 
   if (isTradeShowDirectory) {

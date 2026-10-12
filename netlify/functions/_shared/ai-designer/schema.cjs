@@ -101,7 +101,9 @@ function normalizeBrief(input = {}) {
     throw error;
   }
 
-  const productType = ['banner', 'yard_sign', 'car_magnet'].includes(input.productType)
+  const isSpecialty = String(input.productType).startsWith('specialty:');
+  if (isSpecialty) require('../specialty-products.cjs').resolveSpecialtyTemplate(input.productType,widthIn,heightIn);
+  const productType = (isSpecialty || ['banner', 'yard_sign', 'car_magnet'].includes(input.productType))
     ? input.productType
     : 'banner';
   const copy = normalizeCopy(input.copy);

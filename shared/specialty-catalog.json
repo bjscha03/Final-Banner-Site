@@ -1,0 +1,1254 @@
+[
+  {
+    "slug": "standard-retractable-banner",
+    "name": "Standard Retractable Banner",
+    "category": "stands",
+    "visual": "retractable",
+    "eyebrow": "Most popular portable display",
+    "summary": "A complete, easy-to-carry banner stand for events and sales floors.",
+    "description": "Choose a printed graphic with the stand and carrying bag.",
+    "features": [
+      "Aluminum retractable base",
+      "Carrying bag included",
+      "Multiple sizes"
+    ],
+    "variants": [
+      {
+        "label": "23 × 66 in · stand + graphic",
+        "priceCents": 15299,
+        "widthIn": 23,
+        "heightIn": 66,
+        "id": "standard-retractable-banner-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "standard-retractable-banner-1-front"
+          }
+        ]
+      },
+      {
+        "label": "24 × 81 in · stand + graphic",
+        "priceCents": 15899,
+        "widthIn": 24,
+        "heightIn": 81,
+        "id": "standard-retractable-banner-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "standard-retractable-banner-2-front"
+          }
+        ]
+      },
+      {
+        "label": "33 × 81 in · stand + graphic",
+        "priceCents": 12299,
+        "widthIn": 33,
+        "heightIn": 81,
+        "id": "standard-retractable-banner-3",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "standard-retractable-banner-3-front"
+          }
+        ]
+      },
+      {
+        "label": "47 × 81 in · stand + graphic",
+        "priceCents": 24999,
+        "widthIn": 47,
+        "heightIn": 81,
+        "id": "standard-retractable-banner-4",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "standard-retractable-banner-4-front"
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/standard-retractable-banner.webp",
+    "imageAlt": "Standard Retractable Banner with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "Printed graphic and display hardware"
+  },
+  {
+    "slug": "deluxe-retractable-banner",
+    "name": "Deluxe Retractable Banner",
+    "category": "stands",
+    "visual": "retractable",
+    "eyebrow": "Upgraded hardware",
+    "summary": "A sturdier 33-inch display, available with one or two printed sides.",
+    "description": "A premium version of the portable retractable stand for a more permanent presentation.",
+    "features": [
+      "Upgraded stand",
+      "Single or double sided",
+      "33 × 81 in graphic"
+    ],
+    "variants": [
+      {
+        "label": "33 × 81 in · single sided",
+        "priceCents": 18399,
+        "widthIn": 33,
+        "heightIn": 81,
+        "id": "deluxe-retractable-banner-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "deluxe-retractable-banner-1-front"
+          }
+        ]
+      },
+      {
+        "label": "33 × 81 in · double sided",
+        "priceCents": 45299,
+        "widthIn": 33,
+        "heightIn": 81,
+        "id": "deluxe-retractable-banner-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "deluxe-retractable-banner-2-front"
+          },
+          {
+            "id": "back",
+            "label": "Back",
+            "templateId": "deluxe-retractable-banner-2-back"
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/deluxe-retractable-banner.webp",
+    "imageAlt": "Deluxe Retractable Banner with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "Printed graphic and display hardware"
+  },
+  {
+    "slug": "premium-retractable-banner",
+    "name": "Premium Retractable Banner",
+    "category": "stands",
+    "visual": "retractable",
+    "eyebrow": "Wider impact",
+    "summary": "A height-adjustable stand in three wide formats.",
+    "description": "A high-end retractable display with adjustable height for larger presentations.",
+    "features": [
+      "Height-adjustable hardware",
+      "Three widths",
+      "Portable display"
+    ],
+    "variants": [
+      {
+        "label": "36 × 92 in",
+        "priceCents": 24499,
+        "widthIn": 36,
+        "heightIn": 92,
+        "id": "premium-retractable-banner-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-banner-1-front"
+          }
+        ]
+      },
+      {
+        "label": "48 × 92 in",
+        "priceCents": 33399,
+        "widthIn": 48,
+        "heightIn": 92,
+        "id": "premium-retractable-banner-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-banner-2-front"
+          }
+        ]
+      },
+      {
+        "label": "60 × 92 in",
+        "priceCents": 43999,
+        "widthIn": 60,
+        "heightIn": 92,
+        "id": "premium-retractable-banner-3",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-banner-3-front"
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/premium-retractable-banner.webp",
+    "imageAlt": "Premium Retractable Banner with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "Printed graphic and display hardware"
+  },
+  {
+    "slug": "x-banner-stand",
+    "name": "X Banner Stand",
+    "category": "stands",
+    "visual": "xstand",
+    "eyebrow": "Lightweight & interchangeable",
+    "summary": "An affordable stand with graphics that are easy to change.",
+    "description": "A compact, lightweight X-frame suited to short events and promotions.",
+    "features": [
+      "Easy-change graphic",
+      "Lightweight frame",
+      "Two sizes"
+    ],
+    "variants": [
+      {
+        "label": "24 × 63 in · stand + graphic",
+        "priceCents": 6799,
+        "widthIn": 24,
+        "heightIn": 63,
+        "id": "x-banner-stand-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "x-banner-stand-1-front"
+          }
+        ]
+      },
+      {
+        "label": "32 × 71 in · stand + graphic",
+        "priceCents": 9199,
+        "widthIn": 32,
+        "heightIn": 71,
+        "id": "x-banner-stand-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "x-banner-stand-2-front"
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/x-banner-stand.webp",
+    "imageAlt": "X Banner Stand with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "Printed graphic and display hardware"
+  },
+  {
+    "slug": "tabletop-banner-stand",
+    "name": "Tabletop Banner Stand",
+    "category": "stands",
+    "visual": "retractable",
+    "eyebrow": "Small space, strong message",
+    "summary": "A miniature retractable display for counters and tables.",
+    "description": "Put a compact graphic at eye level on a registration desk, counter or event table.",
+    "features": [
+      "Mini retractable hardware",
+      "Stay-flat printed graphic",
+      "Counter-friendly size"
+    ],
+    "variants": [
+      {
+        "label": "11.5 × 17.5 in",
+        "priceCents": 4899,
+        "widthIn": 11.5,
+        "heightIn": 17.5,
+        "id": "tabletop-banner-stand-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "tabletop-banner-stand-1-front"
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/tabletop-banner-stand.webp",
+    "imageAlt": "Tabletop Banner Stand with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "Printed graphic and display hardware"
+  },
+  {
+    "slug": "tension-fabric-stand",
+    "name": "Tension Fabric Stand",
+    "category": "stands",
+    "visual": "backdrop",
+    "eyebrow": "Fabric presentation",
+    "summary": "A portable fabric display with a smooth, polished look.",
+    "description": "Dye-sublimated washable fabric wraps over heavy-duty portable hardware.",
+    "features": [
+      "Single-sided printed fabric",
+      "Frame and steel base",
+      "Carry case included"
+    ],
+    "variants": [
+      {
+        "label": "36 × 90 in · single sided",
+        "priceCents": 31799,
+        "widthIn": 36,
+        "heightIn": 90,
+        "id": "tension-fabric-stand-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "36-x90-download"
+          }
+        ]
+      },
+      {
+        "label": "48 × 90 in · single sided",
+        "priceCents": 36699,
+        "widthIn": 48,
+        "heightIn": 90,
+        "id": "tension-fabric-stand-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "48-x90-download"
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/tension-fabric-stand.webp",
+    "imageAlt": "Tension Fabric Stand with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "Printed graphic and display hardware"
+  },
+  {
+    "slug": "step-and-repeat-backdrop",
+    "name": "Step & Repeat Backdrop",
+    "category": "stands",
+    "visual": "backdrop",
+    "eyebrow": "Photo-ready branding",
+    "summary": "A wide fabric backdrop for photos, stages and sponsor walls.",
+    "description": "A printed fabric graphic on a portable, heavy-duty tube frame.",
+    "features": [
+      "9 oz. printed fabric graphic",
+      "Telescoping aluminum frame and carry bag",
+      "3-inch pole pockets at top and bottom"
+    ],
+    "variants": [
+      {
+        "label": "8 × 8 ft · backdrop + frame",
+        "priceCents": 46500,
+        "widthIn": 96,
+        "heightIn": 96,
+        "id": "step-and-repeat-backdrop-8x8",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "step-and-repeat-backdrop-8x8-front"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/tension-fabric-displays.html",
+          "checkedAt": "2026-10-12T02:00:00Z",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        }
+      },
+      {
+        "label": "10 × 8 ft · backdrop + frame",
+        "priceCents": 52500,
+        "widthIn": 120,
+        "heightIn": 96,
+        "id": "step-and-repeat-backdrop-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "step-and-repeat-backdrop-1-front"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/tension-fabric-displays.html",
+          "checkedAt": "2026-10-12T02:00:00Z",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        }
+      }
+    ],
+    "image": "/images/products/step-and-repeat-backdrop.webp",
+    "imageAlt": "Step & Repeat Backdrop with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "9 oz. wrinkle-resistant fabric · frame and carry bag"
+  },
+  {
+    "slug": "feather-flags",
+    "name": "Feather Flags",
+    "category": "flags",
+    "visual": "flag",
+    "eyebrow": "Storefront favorite",
+    "summary": "A tall outdoor display in angled or convex shapes.",
+    "description": "A printed flag with pole hardware and a ground spike for outdoor installation. Select the assembled height below; the artwork template shows the separate graphic dimensions.",
+    "features": [
+      "Printed single-sided graphic",
+      "Pole set and ground spike",
+      "Product-specific artwork template"
+    ],
+    "variants": [
+      {
+        "label": "Angled · 9 ft · single sided + ground spike",
+        "priceCents": 17500,
+        "id": "feather-flags-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "angled-small"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/feather-flags.html",
+          "checkedAt": "2026-10-12T02:00:00Z",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        }
+      },
+      {
+        "label": "Angled · 10.5 ft · single sided + ground spike",
+        "priceCents": 19500,
+        "id": "feather-flags-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "angled-medium"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/feather-flags.html",
+          "checkedAt": "2026-10-12T02:00:00Z",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        }
+      },
+      {
+        "label": "Angled · 14 ft · single sided + ground spike",
+        "priceCents": 20500,
+        "id": "feather-flags-3",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "angled-large"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/feather-flags.html",
+          "checkedAt": "2026-10-12T02:00:00Z",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        }
+      },
+      {
+        "label": "Angled · 18 ft · single sided + ground spike",
+        "priceCents": 24500,
+        "id": "feather-flags-4",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "angled-x-large"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/feather-flags.html",
+          "checkedAt": "2026-10-12T02:00:00Z",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        }
+      },
+      {
+        "label": "Convex · 9 ft · single sided + ground spike",
+        "priceCents": 14599,
+        "id": "feather-flags-5",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "convex-small"
+          }
+        ]
+      },
+      {
+        "label": "Convex · 10.5 ft · single sided + ground spike",
+        "priceCents": 14599,
+        "id": "feather-flags-6",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "convex-medium"
+          }
+        ]
+      },
+      {
+        "label": "Convex · 14 ft · single sided + ground spike",
+        "priceCents": 15599,
+        "id": "feather-flags-7",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "convex-large"
+          }
+        ]
+      },
+      {
+        "label": "Convex · 18 ft · single sided + ground spike",
+        "priceCents": 19599,
+        "id": "feather-flags-8",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "convex-x-large"
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/feather-flags.webp",
+    "imageAlt": "Feather Flags with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "Printed polyester flag fabric"
+  },
+  {
+    "slug": "teardrop-flags",
+    "name": "Teardrop Flags",
+    "category": "flags",
+    "visual": "flag",
+    "eyebrow": "Wind-friendly shape",
+    "summary": "A curved flag that keeps its message visible at outdoor events.",
+    "description": "A printed flag with pole hardware and a ground spike for outdoor installation. Select the assembled height below; the artwork template shows the separate graphic dimensions.",
+    "features": [
+      "Printed single-sided graphic",
+      "Pole set and ground spike",
+      "Product-specific artwork template"
+    ],
+    "variants": [
+      {
+        "label": "7 ft · single sided + ground spike",
+        "priceCents": 14599,
+        "id": "teardrop-flags-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "teardrop-small"
+          }
+        ]
+      },
+      {
+        "label": "9 ft · single sided + ground spike",
+        "priceCents": 14599,
+        "id": "teardrop-flags-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "teardrop-medium"
+          }
+        ]
+      },
+      {
+        "label": "11.2 ft · single sided + ground spike",
+        "priceCents": 15599,
+        "id": "teardrop-flags-3",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "teardrop-large"
+          }
+        ]
+      },
+      {
+        "label": "13.5 ft · single sided + ground spike",
+        "priceCents": 19599,
+        "id": "teardrop-flags-4",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "teardrop-x-large"
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/teardrop-flags.webp",
+    "imageAlt": "Teardrop Flags with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "Printed polyester flag fabric"
+  },
+  {
+    "slug": "rectangle-flags",
+    "name": "Rectangle Flags",
+    "category": "flags",
+    "visual": "flag",
+    "eyebrow": "More room for your message",
+    "summary": "A straight-sided flag with a broad print area.",
+    "description": "A printed flag with pole hardware and a ground spike for outdoor installation. Select the assembled height below; the artwork template shows the separate graphic dimensions.",
+    "features": [
+      "Printed single-sided graphic",
+      "Pole set and ground spike",
+      "Product-specific artwork template"
+    ],
+    "variants": [
+      {
+        "label": "8.5 ft · single sided + ground spike",
+        "priceCents": 22899,
+        "id": "rectangle-flags-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "rectangle-small"
+          }
+        ]
+      },
+      {
+        "label": "11.8 ft · single sided + ground spike",
+        "priceCents": 25499,
+        "id": "rectangle-flags-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "rectangle-medium"
+          }
+        ]
+      },
+      {
+        "label": "15 ft · single sided + ground spike",
+        "priceCents": 27999,
+        "id": "rectangle-flags-3",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "rectangle-large"
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/rectangle-flags.webp",
+    "imageAlt": "Rectangle Flags with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "Printed polyester flag fabric"
+  },
+  {
+    "slug": "economy-feather-flag",
+    "name": "Economy Feather Flag",
+    "category": "flags",
+    "visual": "flag",
+    "eyebrow": "Simple outdoor setup",
+    "summary": "A single-sided flag with a ground spike included.",
+    "description": "A printed flag with pole hardware and a ground spike for outdoor installation. Select the assembled height below; the artwork template shows the separate graphic dimensions.",
+    "features": [
+      "Printed single-sided graphic",
+      "Pole set and ground spike",
+      "Product-specific artwork template"
+    ],
+    "variants": [
+      {
+        "label": "16 ft · single sided + ground spike",
+        "priceCents": 16899,
+        "id": "economy-feather-flag-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "econo-medium"
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/economy-feather-flag.webp",
+    "imageAlt": "Economy Feather Flag with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "Printed polyester flag fabric"
+  },
+  {
+    "slug": "standard-table-throws",
+    "name": "Standard Table Throws",
+    "category": "events",
+    "visual": "table",
+    "eyebrow": "Dress the whole table",
+    "summary": "Full-color fabric table covers in open or closed back styles.",
+    "description": "A dye-sublimated table cover for a coordinated event setup.",
+    "features": [
+      "Full-color print",
+      "3-sided open back or 4-sided closed back",
+      "4, 6 and 8 ft tables"
+    ],
+    "variants": [
+      {
+        "label": "4 ft · open back",
+        "priceCents": 14099,
+        "widthIn": 48,
+        "id": "standard-table-throws-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full table cover",
+            "templateId": "4ft-table-cover-3-sided-open-back"
+          }
+        ]
+      },
+      {
+        "label": "4 ft · closed back",
+        "priceCents": 18599,
+        "widthIn": 48,
+        "id": "standard-table-throws-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full table cover",
+            "templateId": "4ft-table-cover-4-sided-close-back"
+          }
+        ]
+      },
+      {
+        "label": "6 ft · open back",
+        "priceCents": 18500,
+        "widthIn": 72,
+        "id": "standard-table-throws-3",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full table cover",
+            "templateId": "6ft-table-cover-3-sided-open-back"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/table-throws.html",
+          "checkedAt": "2026-10-12T02:00:00Z",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        }
+      },
+      {
+        "label": "6 ft · closed back",
+        "priceCents": 22000,
+        "widthIn": 72,
+        "id": "standard-table-throws-4",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full table cover",
+            "templateId": "6ft-table-cover-4-sided-close-back"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/table-throws.html",
+          "checkedAt": "2026-10-12T02:00:00Z",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        }
+      },
+      {
+        "label": "8 ft · open back",
+        "priceCents": 21000,
+        "widthIn": 96,
+        "id": "standard-table-throws-5",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full table cover",
+            "templateId": "8ft-table-cover-3-sided-open-back"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/table-throws.html",
+          "checkedAt": "2026-10-12T02:00:00Z",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        }
+      },
+      {
+        "label": "8 ft · closed back",
+        "priceCents": 25000,
+        "widthIn": 96,
+        "id": "standard-table-throws-6",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full table cover",
+            "templateId": "8ft-table-cover-4-sided-close-back"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/table-throws.html",
+          "checkedAt": "2026-10-12T02:00:00Z",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        }
+      }
+    ],
+    "image": "/images/products/standard-table-throws.webp",
+    "imageAlt": "Standard Table Throws with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "Dye-sublimated fabric"
+  },
+  {
+    "slug": "fitted-table-throws",
+    "name": "Fitted Table Throws",
+    "category": "events",
+    "visual": "table",
+    "eyebrow": "Tailored look",
+    "summary": "A box-style table cover for a clean, fitted setup.",
+    "description": "Full-color printed fabric shaped to fit a standard event table.",
+    "features": [
+      "Full-color print",
+      "Open or closed back",
+      "6 and 8 ft tables"
+    ],
+    "variants": [
+      {
+        "label": "6 ft · open back",
+        "priceCents": 17799,
+        "widthIn": 72,
+        "id": "fitted-table-throws-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full fitted cover",
+            "templateId": "fitted-6-open"
+          }
+        ]
+      },
+      {
+        "label": "6 ft · closed back",
+        "priceCents": 17799,
+        "widthIn": 72,
+        "id": "fitted-table-throws-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full fitted cover",
+            "templateId": "fitted-6-closed"
+          }
+        ]
+      },
+      {
+        "label": "8 ft · open back",
+        "priceCents": 19999,
+        "widthIn": 96,
+        "id": "fitted-table-throws-3",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full fitted cover",
+            "templateId": "fitted-8-open"
+          }
+        ]
+      },
+      {
+        "label": "8 ft · closed back",
+        "priceCents": 19999,
+        "widthIn": 96,
+        "id": "fitted-table-throws-4",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full fitted cover",
+            "templateId": "fitted-8-closed"
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/fitted-table-throws.webp",
+    "imageAlt": "Fitted Table Throws with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "Dye-sublimated fabric"
+  },
+  {
+    "slug": "stretch-table-throws",
+    "name": "Stretch Table Throws",
+    "category": "events",
+    "visual": "table",
+    "eyebrow": "Modern fitted shape",
+    "summary": "A taut stretch cover for a sleek booth presentation.",
+    "description": "Full-color dye-sublimated fabric with a fitted silhouette.",
+    "features": [
+      "Stretch fit",
+      "Full-color print",
+      "6 and 8 ft tables"
+    ],
+    "variants": [
+      {
+        "label": "6 ft",
+        "priceCents": 31499,
+        "widthIn": 72,
+        "id": "stretch-table-throws-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full stretch cover",
+            "templateId": "6ft-stretch-table-throw-download"
+          }
+        ]
+      },
+      {
+        "label": "8 ft",
+        "priceCents": 37899,
+        "widthIn": 96,
+        "id": "stretch-table-throws-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full stretch cover",
+            "templateId": "8ft-stretch-table-throw-download"
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/stretch-table-throws.webp",
+    "imageAlt": "Stretch Table Throws with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "Dye-sublimated fabric"
+  },
+  {
+    "slug": "custom-event-tents",
+    "name": "Custom Event Tents",
+    "category": "events",
+    "visual": "tent",
+    "eyebrow": "A whole branded space",
+    "summary": "Printed canopy and aluminum frame in three event sizes.",
+    "description": "Create a branded outdoor footprint. The listed set includes the canopy, frame and carry bag; walls and flags are not included.",
+    "features": [
+      "Printed weather-resistant canopy",
+      "Aluminum frame and carry bag",
+      "10 × 10, 10 × 15 and 10 × 20 ft"
+    ],
+    "variants": [
+      {
+        "label": "10 × 10 ft · canopy + frame",
+        "priceCents": 75500,
+        "widthIn": 120,
+        "heightIn": 120,
+        "id": "custom-event-tents-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front canopy",
+            "templateId": "10ft-event-tent-canopy"
+          },
+          {
+            "id": "right",
+            "label": "Right canopy",
+            "templateId": "10ft-event-tent-canopy"
+          },
+          {
+            "id": "back",
+            "label": "Back canopy",
+            "templateId": "10ft-event-tent-canopy"
+          },
+          {
+            "id": "left",
+            "label": "Left canopy",
+            "templateId": "10ft-event-tent-canopy"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/canopy-tents.html",
+          "checkedAt": "2026-10-12T02:00:00Z",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        }
+      },
+      {
+        "label": "10 × 15 ft · canopy + frame",
+        "priceCents": 116000,
+        "widthIn": 180,
+        "heightIn": 120,
+        "id": "custom-event-tents-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front canopy",
+            "templateId": "15ft-event-tent-canopy-long-side"
+          },
+          {
+            "id": "right",
+            "label": "Right canopy",
+            "templateId": "15ft-event-tent-canopy-short-side"
+          },
+          {
+            "id": "back",
+            "label": "Back canopy",
+            "templateId": "15ft-event-tent-canopy-long-side"
+          },
+          {
+            "id": "left",
+            "label": "Left canopy",
+            "templateId": "15ft-event-tent-canopy-short-side"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/canopy-tents.html",
+          "checkedAt": "2026-10-12T02:00:00Z",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        }
+      },
+      {
+        "label": "10 × 20 ft · canopy + frame",
+        "priceCents": 142000,
+        "widthIn": 240,
+        "heightIn": 120,
+        "id": "custom-event-tents-3",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front canopy",
+            "templateId": "20ft-event-tent-canopy-long-side"
+          },
+          {
+            "id": "right",
+            "label": "Right canopy",
+            "templateId": "20ft-event-tent-canopy-short-side"
+          },
+          {
+            "id": "back",
+            "label": "Back canopy",
+            "templateId": "20ft-event-tent-canopy-long-side"
+          },
+          {
+            "id": "left",
+            "label": "Left canopy",
+            "templateId": "20ft-event-tent-canopy-short-side"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/canopy-tents.html",
+          "checkedAt": "2026-10-12T02:00:00Z",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        }
+      }
+    ],
+    "image": "/images/products/custom-event-tents.webp",
+    "imageAlt": "Custom Event Tents with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "Dye-sublimated fabric"
+  },
+  {
+    "slug": "acrylic-signs",
+    "name": "Acrylic Signs",
+    "category": "signs",
+    "visual": "sign",
+    "eyebrow": "Clean, modern finish",
+    "summary": "Clear acrylic graphics for offices, lobbies and retail walls.",
+    "description": "A custom-sized clear acrylic sign, direct printed on the back with transparent CMYK color. Four chrome standoffs and mounting screws are included. No white ink is printed.",
+    "features": [
+      "1/4-inch clear acrylic",
+      "Transparent CMYK print · no white ink",
+      "Four standoffs and mounting screws included"
+    ],
+    "priceUnit": "sqft",
+    "variants": [
+      {
+        "label": "Transparent print · standoffs included",
+        "priceCents": 3599,
+        "id": "acrylic-signs-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "acrylic-signs-1-front"
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/acrylic-signs.webp",
+    "imageAlt": "Acrylic Signs with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "1/4-inch clear acrylic · transparent CMYK",
+    "sizeLimits": {
+      "min": 6,
+      "maxShort": 38,
+      "maxLong": 48
+    }
+  },
+  {
+    "slug": "aluminum-signs",
+    "name": "Solid Aluminum Signs",
+    "category": "signs",
+    "visual": "sign",
+    "eyebrow": "Built for outdoors",
+    "summary": "Durable .040-inch aluminum for real estate, directions and street-style signage.",
+    "description": "A durable rectangular printed panel for indoor and outdoor use. The listed configuration has square corners and no mounting holes.",
+    "features": [
+      "Custom dimensions",
+      "Single-sided print",
+      "Square corners, no holes"
+    ],
+    "priceUnit": "sqft",
+    "variants": [
+      {
+        "label": "Single-sided print · square corners",
+        "priceCents": 1499,
+        "id": "aluminum-signs-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "aluminum-signs-1-front"
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/aluminum-signs.webp",
+    "imageAlt": "Solid Aluminum Signs with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": ".040-inch aluminum · single sided",
+    "sizeLimits": {
+      "min": 6,
+      "maxShort": 38,
+      "maxLong": 48
+    }
+  },
+  {
+    "slug": "aluminum-composite-signs",
+    "name": "Aluminum Composite Signs",
+    "category": "signs",
+    "visual": "sign",
+    "eyebrow": "Lightweight durability",
+    "summary": "Aluminum faces bonded around a rigid core for polished indoor or outdoor signs.",
+    "description": "A durable rectangular printed panel for indoor and outdoor use. The listed configuration has square corners and no mounting holes.",
+    "features": [
+      "Custom dimensions",
+      "Single-sided print",
+      "Square corners, no holes"
+    ],
+    "priceUnit": "sqft",
+    "variants": [
+      {
+        "label": "Single-sided print · square corners",
+        "priceCents": 1099,
+        "id": "aluminum-composite-signs-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "aluminum-composite-signs-1-front"
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/aluminum-composite-signs.webp",
+    "imageAlt": "Aluminum Composite Signs with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "3 mm aluminum composite · single sided",
+    "sizeLimits": {
+      "min": 6,
+      "maxShort": 38,
+      "maxLong": 48
+    },
+    "priceMatches": [
+      {
+        "widthIn": 18,
+        "heightIn": 24,
+        "priceCents": 4800,
+        "sourceUrl": "https://www.lexingtonsign.com/realtor-signs.html",
+        "checkedAt": "2026-10-12T02:00:00Z",
+        "shippingPolicy": "free_overnight_after_production",
+        "status": "exact_configuration"
+      },
+      {
+        "widthIn": 24,
+        "heightIn": 36,
+        "priceCents": 9000,
+        "sourceUrl": "https://www.lexingtonsign.com/realtor-signs.html",
+        "checkedAt": "2026-10-12T02:00:00Z",
+        "shippingPolicy": "free_overnight_after_production",
+        "status": "exact_configuration"
+      },
+      {
+        "widthIn": 6,
+        "heightIn": 24,
+        "priceCents": 2600,
+        "sourceUrl": "https://www.lexingtonsign.com/realtor-signs.html",
+        "checkedAt": "2026-10-12T02:00:00Z",
+        "shippingPolicy": "free_overnight_after_production",
+        "status": "exact_configuration"
+      },
+      {
+        "widthIn": 6,
+        "heightIn": 36,
+        "priceCents": 3600,
+        "sourceUrl": "https://www.lexingtonsign.com/realtor-signs.html",
+        "checkedAt": "2026-10-12T02:00:00Z",
+        "shippingPolicy": "free_overnight_after_production",
+        "status": "exact_configuration"
+      }
+    ]
+  },
+  {
+    "slug": "display-posters",
+    "name": "Durable Display Posters",
+    "category": "signs",
+    "visual": "poster",
+    "eyebrow": "Smooth, lay-flat graphics",
+    "summary": "A flexible 14 mil PVC poster for displays and inserts.",
+    "description": "These are durable PVC display graphics rather than conventional paper posters. Choose your finished dimensions below.",
+    "features": [
+      "Lay-flat PVC material",
+      "Matte UV print",
+      "Custom size"
+    ],
+    "priceUnit": "sqft",
+    "variants": [
+      {
+        "label": "Single-sided print · square corners",
+        "priceCents": 449,
+        "id": "display-posters-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "display-posters-1-front"
+          }
+        ]
+      }
+    ],
+    "minOrderCents": 1799,
+    "image": "/images/products/display-posters.webp",
+    "imageAlt": "Durable Display Posters with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "fulfillmentStatus": "pending_supplier_verification",
+    "materialLabel": "14 mil PVC · single sided",
+    "sizeLimits": {
+      "min": 6,
+      "maxShort": 52,
+      "maxLong": 120
+    }
+  }
+]

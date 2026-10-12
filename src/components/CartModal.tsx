@@ -1,3 +1,5 @@
+import SavedSpecialtyPreview from '@/components/specialty/SavedSpecialtyPreview';
+import {specialtyItemHasIncludedShipping} from '@/lib/specialtyProducts';
 import { cartEditUrl } from '@/lib/cartEditUrl';
 import CartLinePrice from '@/components/cart/CartLinePrice';
 import { getCartDisplayPrices } from '@/lib/cartDisplayPricing';
@@ -381,7 +383,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                   return (
                     <div key={item.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-lg transition-shadow hover:shadow-xl">
                       <div className="mb-4 flex justify-center">
-                        <ThumbnailPreviewWrapper
+                        {item.product_type === 'specialty' && item.specialty_config ? <SavedSpecialtyPreview configuration={item.specialty_config} /> : <ThumbnailPreviewWrapper
                           title={getItemDisplayName(item)}
                           widthIn={item.width_in}
                           heightIn={item.height_in}
@@ -448,7 +450,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             isFinalizedSnapshot={smallPreview.isExactComposition}
                             compositionSignature={compositionSignature}
                           />
-                        </ThumbnailPreviewWrapper>
+                        </ThumbnailPreviewWrapper>}
                       </div>
 
                       <div className="mb-3 flex items-start justify-between">
@@ -546,7 +548,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
               )}
               <div className={`flex justify-between font-semibold ${hasSameDayFee ? 'text-slate-700' : 'text-green-600'}`}>
                 <span>Shipping:</span>
-                <span>{hasSameDayFee ? 'Next-Day Air Included' : 'FREE'}</span>
+                <span>{items.some(item => !specialtyItemHasIncludedShipping(item)) ? 'Awaiting confirmation' : hasSameDayFee ? 'Next-Day Air Included' : 'FREE'}</span>
               </div>
               {sameDayFeeCents > 0 && (
                 <div className="flex justify-between text-gray-700">

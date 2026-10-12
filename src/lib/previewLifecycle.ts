@@ -24,7 +24,7 @@ export type ArtworkCompositionSpec = {
   revision: number;
 };
 
-export type ReadyPlacementPreviewManifest = PlacementPreviewManifest & {
+export type ReadyPlacementPreviewManifest = Omit<PlacementPreviewManifest, 'error'> & {
   version: typeof PREVIEW_ARTIFACT_VERSION;
   uploadStatus: 'uploaded';
   sourceIdentity: string;

@@ -1,3 +1,5 @@
+import SavedSpecialtyPreview from '@/components/specialty/SavedSpecialtyPreview';
+import {specialtyItemHasIncludedShipping} from '@/lib/specialtyProducts';
 import BOFCashCheckout from '@/components/checkout/BOFCashCheckout';
 import {saveBofReferral,bofPricingItems} from '@/lib/bofCash';
 import { readCheckoutCustomerDraft } from '@/components/checkout/checkoutCustomerDraft';
@@ -398,7 +400,8 @@ const Checkout: React.FC = () => {
     ? 'Please upload at least one design for your yard sign order.'
     : '';
 
-  const canProceed = minimumOrderValidation.isValid && !yardSignInvalid;
+  const specialtyInCart = items.some(item => item.product_type === 'specialty');
+  const canProceed = minimumOrderValidation.isValid && !yardSignInvalid && !specialtyInCart;
   const providerTotalCents = activeCheckout?.totalCents || totalCents;
   const paymentSubmissionBlocked = !canProceed || Boolean(staleCartReview);
   if (flags.freeShipping || flags.minOrderFloor) {
@@ -831,6 +834,7 @@ const Checkout: React.FC = () => {
     discountAmountCents: resolvedDiscount.appliedDiscountAmountCents,
     discountLabel: resolvedDiscount.appliedDiscountLabel,
     discountHelperMessage: resolvedDiscount.helperMessage,
+    shippingPending: items.some(item=>!specialtyItemHasIncludedShipping(item)),
     shippingLabel: flags.freeShipping ? flags.shippingMethodLabel : 'Shipping',
     taxCents,
     sameDayFeeCents,
@@ -838,7 +842,7 @@ const Checkout: React.FC = () => {
     totalCents,
   };
 
-  const orderTotals = <div className="space-y-3"><PriceDeliveryEstimate /><CheckoutOrderTotals {...orderTotalsProps} /></div>;
+  const orderTotals = <div className="space-y-3">{!specialtyInCart && <PriceDeliveryEstimate />}<CheckoutOrderTotals {...orderTotalsProps} /></div>;
 
   const orderReviewContent = (
     <>
@@ -851,6 +855,7 @@ const Checkout: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
+                  {specialtyInCart && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><strong>Your artwork is saved. This new product is being prepared for ordering.</strong><p>Product specifications and fulfillment are being verified before payment is enabled. Confirmed configurations include free overnight shipping after production. Your original files and approved panels stay in your cart.</p></div>}
                   {items.map((item) => {
                     const displayPrice = displayPrices.get(item.id)!;
                     const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
@@ -890,7 +895,7 @@ const Checkout: React.FC = () => {
                     return (
                     <div key={item.id} className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)] last:mb-0 sm:p-5">
                       <div className="grid gap-5 md:grid-cols-[200px_minmax(0,1fr)] md:items-start lg:gap-6">
-                        {isYardSign ? (
+                        {item.product_type === 'specialty' && item.specialty_config ? <SavedSpecialtyPreview configuration={item.specialty_config} /> : isYardSign ? (
                           <div className="flex justify-center shrink-0">
                             <ThumbnailPreviewWrapper
                               title={getItemDisplayName(item)}
@@ -1212,8 +1217,8 @@ const Checkout: React.FC = () => {
               </div>
               <h1 className="mb-2 font-display text-3xl font-bold tracking-[-0.035em] text-[#0B1F3A] sm:text-4xl">Secure checkout</h1>
               <p className="text-sm text-gray-600 sm:hidden">Add your details, then review your order before you pay.</p>
-              <p className="hidden text-base text-gray-600 sm:block">Most standard orders are produced within 24 hours; free next-day air begins after production.</p>
-              <p className="hidden text-sm text-[#18448D] font-medium sm:block">Your expected shipping and delivery dates are shown below.</p>
+              <p className="hidden text-base text-gray-600 sm:block">{specialtyInCart ? 'Production times vary for displays and event gear. Confirmed configurations include overnight shipping.' : 'Most standard orders are produced within 24 hours; free next-day air begins after production.'}</p>
+              <p className="hidden text-sm text-[#18448D] font-medium sm:block">{specialtyInCart ? 'Final product verification is required before payment.' : 'Your expected shipping and delivery dates are shown below.'}</p>
             </div>
 
           </div>

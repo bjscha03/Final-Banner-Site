@@ -1,3 +1,5 @@
+import type { SpecialtyConfiguration } from '@/lib/specialtyArtwork';
+import { getSpecialtyProduct, specialtyUnitPrice, specialtyTemplate } from '@/lib/specialtyProducts';
 import { LARGE_BANNER_PROMOTION_ENABLED, isLargeBannerPromotionIdentifier } from '@/lib/largeBannerPromotion';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -18,7 +20,7 @@ import { getProductConfig } from '@/lib/products';
 import type { ProductTypeSlug } from '@/lib/products';
 import type { ArtworkManifest, PlacementPreviewManifest } from '@/types/artwork';
 import { createStableCartItemId } from '@/lib/cartItemIdentity';
-import { isReadyPlacementPreview, PreviewLifecycleError } from '@/lib/previewLifecycle';
+import { isReadyPlacementPreview, buildCompositionSignature, PreviewLifecycleError } from '@/lib/previewLifecycle';
 import { calculateBannerPricing, type RopePlacement } from '@/lib/bannerPricingEngine';
 import {
   computeSameDayFeesCents,
@@ -48,12 +50,13 @@ const isRetiredCampaignItem = (item: Pick<CartItem, 'product_type'>): boolean =>
 export type PricingMode = 'per_item' | 'per_order';
 
 export interface CartItem {
+  specialty_config?: SpecialtyConfiguration;
   id: string;
   product_type?: string;               // Product type slug (default: 'banner')
   width_in: number;
   height_in: number;
   quantity: number;
-  material: MaterialKey;
+  material: MaterialKey | 'specialty';
   grommets: Grommets;
   pole_pockets: string;
   pole_pocket_size?: string;          // pole pocket size (e.g., "2", "3", "4")
@@ -272,6 +275,7 @@ export interface CartState {
   reconcileSameDayHitService: () => { cleared: boolean; reason: string | null };
   getSameDayFeeCents: () => number;
   getSaturdayDeliveryFeeCents: () => number;
+  saveSpecialtyItem: (input: { configuration: SpecialtyConfiguration; quantity: number; widthIn: number; heightIn: number; editId?: string }) => string;
   addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => string;
   loadItemIntoQuote: (itemId: string) => CartItem | null;
   updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
@@ -325,7 +329,7 @@ const migrateCartItem = (item: CartItem): CartItem => {
     widthIn: item.width_in,
     heightIn: item.height_in,
     quantity: item.quantity,
-    material: item.material,
+    material: item.material as MaterialKey,
     grommets: item.grommets,
     // Backward compatibility: older records may use pole_pocket_position.
     polePockets: item.pole_pockets || item.pole_pocket_position || 'none',
@@ -454,6 +458,43 @@ export const useCartStore = create<CartState>()(
         return fees.saturdayFeeCents;
       },
       
+      saveSpecialtyItem: ({configuration, quantity, widthIn, heightIn, editId}) => {
+        const product = getSpecialtyProduct(configuration.productSlug);
+        const variant = product?.variants.find(v => v.id === configuration.variantId);
+        if (!product || !variant || !Number.isInteger(quantity) || quantity < 1 || quantity > 100) throw new Error('Choose a valid product configuration and quantity.');
+        if (configuration.panels.length!==variant.panels.length || variant.panels.some(p => !configuration.panels.find(panel => {
+          const template=specialtyTemplate(product,variant,p,widthIn,heightIn);
+          return panel.id===p.id && panel.templateId===p.templateId && panel.productionUrl && isReadyPlacementPreview(panel.preview)
+            && panel.composition.productType===`specialty:${product.slug}:${variant.id}:${p.id}` && panel.composition.widthIn===template.widthIn && panel.composition.heightIn===template.heightIn
+            && panel.preview.compositionSignature===buildCompositionSignature(panel.composition);
+        }))) throw new Error('Complete and save every artwork panel first.');
+        const first = configuration.panels[0];
+        const unit = specialtyUnitPrice(product, variant, widthIn, heightIn);
+        const previous = editId ? get().items.find(item => item.id === editId && item.product_type === 'specialty') : undefined;
+        if (editId && !previous) throw new Error('This cart item is no longer available. Add it as a new product.');
+        const id = previous?.id || createStableCartItemId('specialty');
+        const item: CartItem = {
+          id, product_type: 'specialty', specialty_config: configuration,
+          width_in: widthIn, height_in: heightIn, quantity, material: 'specialty',
+          grommets: 'none', pole_pockets: 'none', rope_feet: 0,
+          area_sqft: widthIn * heightIn / 144,
+          unit_price_cents: unit, line_total_cents: unit * quantity, rope_cost_cents: 0, pole_pocket_cost_cents: 0,
+          file_url: first.artwork.productionUrl || first.artwork.url, file_key: first.artwork.fileKey, file_name: first.artwork.name,
+          is_pdf: first.artwork.isPdf, artwork_manifest: first.artwork.artworkManifest,
+          thumbnail_url: first.preview.url, web_preview_url: first.preview.url, placement_preview: first.preview,
+          composition_signature: first.preview.compositionSignature, composition_revision: first.preview.compositionRevision,
+          print_ready_url: first.productionUrl, final_print_pdf_url: first.productionUrl,
+          final_print_pdf_file_key: first.productionFileKey,
+          canvas_state_json: JSON.stringify({kind:'specialty',configuration}),
+          source: 'design', created_at: previous?.created_at || new Date().toISOString(),
+        };
+        set(state => ({items: previous ? state.items.map(value => value.id === id ? item : value) : [...state.items, item]}));
+        const userId = cartSync.getUserId();
+        if (userId && typeof localStorage !== 'undefined') localStorage.setItem('cart_owner_user_id', userId);
+        void get().syncToServer();
+        return id;
+      },
+
       addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing): string => {
         debugLog('🚨 addFromQuote CALLED - Current items in cart:', get().items.length);
         debugLog('🚨 addFromQuote CALLED - Current items in cart:', get().items.length);
@@ -753,6 +794,14 @@ export const useCartStore = create<CartState>()(
           items: state.items.map(item => {
             if (item.id !== id) return item;
 
+            if (item.product_type === 'specialty') {
+              if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) return item;
+              const product = getSpecialtyProduct(item.specialty_config?.productSlug);
+              const variant = product?.variants.find(v => v.id === item.specialty_config?.variantId);
+              if (!product || !variant) return item;
+              const unit = specialtyUnitPrice(product, variant, item.width_in, item.height_in);
+              return {...item, quantity, unit_price_cents: unit, line_total_cents: unit * quantity};
+            }
             // Migrate old item if needed before updating quantity
             const migratedItem = migrateCartItem(item);
 
@@ -1089,7 +1138,7 @@ export const useCartStore = create<CartState>()(
         const projectedSubtotalCents = Math.max(rawSubtotalCents, pricingOptions.minFloorCents || 0);
         const bannerItems = projectedItems.filter((item) => {
           const productType = item.product_type || 'banner';
-          return productType !== 'yard_sign' && productType !== 'car_magnet';
+          return productType === 'banner';
         });
         const bannerQuantity = bannerItems.reduce(
           (sum, item) => sum + Number(item.quantity || 1),
@@ -1509,7 +1558,7 @@ export const useCartStore = create<CartState>()(
         const items = get().items.map(migrateCartItem);
         const bannerItems = items.filter(item => {
           const t = item.product_type || 'banner';
-          return t !== 'yard_sign' && t !== 'car_magnet';
+          return t === 'banner';
         });
         const totalQuantity = bannerItems.reduce((total, item) => total + item.quantity, 0);
         const rawSubtotal = bannerItems.reduce((total, item) => total + item.line_total_cents, 0);
@@ -1535,7 +1584,7 @@ export const useCartStore = create<CartState>()(
         // Banner-only subset for quantity-discount tier + base
         const isBanner = (item: any) => {
           const t = item.product_type || 'banner';
-          return t !== 'yard_sign' && t !== 'car_magnet';
+          return t === 'banner';
         };
         const bannerItems = items.filter(isBanner);
         const bannerQuantity = bannerItems.reduce((total, item) => total + item.quantity, 0);

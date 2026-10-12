@@ -1,12 +1,15 @@
 'use strict';
 
 const crypto = require('crypto');
+const { resolveSpecialtyTemplate, specialtyPrompt } = require('../specialty-products.cjs');
 const FIT_MODEL = 'gpt-image-2.5-sunburst-2026-09-08';
 const FIT_INSPECTION_MODEL = 'gpt-6-astra';
 
 function validateFitRequest(body) {
   const productType = body.productType ?? 'banner';
-  if (!['banner', 'yard_sign', 'car_magnet'].includes(productType)) {
+  const specialty = String(productType).startsWith('specialty:');
+  if (specialty) resolveSpecialtyTemplate(productType, Number(body.widthIn), Number(body.heightIn));
+  if (!specialty && !['banner', 'yard_sign', 'car_magnet'].includes(productType)) {
     throw Object.assign(new Error('Choose a supported print product.'), { code: 'INVALID_REQUEST' });
   }
   const widthIn = Number(body.widthIn), heightIn = Number(body.heightIn);
@@ -44,8 +47,9 @@ function compareWording(expected, detected) {
 }
 
 function buildFitPrompt({ widthIn, heightIn, plan, source, productType = 'banner' }) {
-  const product = { banner: 'banner', yard_sign: 'yard sign', car_magnet: 'car magnet' }[productType];
+  const product = String(productType).startsWith('specialty:') ? resolveSpecialtyTemplate(productType,widthIn,heightIn).product.name : { banner: 'banner', yard_sign: 'yard sign', car_magnet: 'car magnet' }[productType];
   return [
+    specialtyPrompt(productType,widthIn,heightIn),
     `Recompose the supplied customer artwork for a different ${product} shape. This is a faithful layout adaptation of THIS design, not a new creative concept.`,
     `The final ${product} is ${widthIn} inches wide by ${heightIn} inches high (width:height ${widthIn / heightIn}:1).`,
     'Move, proportionally resize and reflow existing elements into a balanced, readable layout. Keep the same visual style, colors, typography character, exact logos, photos, subjects and decorative elements. Preserve recognizable faces and products. Do not stretch anything. Do not replace photographs with different people or objects.',
@@ -157,8 +161,18 @@ async function runFitRequest(body, session, jobId, report = async () => {}, depe
     });
   }
   await report('Rearranging your design for the selected size');
+  let templateReference;
+  if (String(productType).startsWith('specialty:')) {
+    const {template}=resolveSpecialtyTemplate(productType,widthIn,heightIn);
+    const w=Math.round(1024*Math.min(1,widthIn/heightIn)),h=Math.round(1024*Math.min(1,heightIn/widthIn));
+    const front=template.faces?.front;
+    const printable=template.outline ? `<path d="${template.outline}" fill="white"/>` : '<rect width="100" height="100" fill="white"/>';
+    const area=front ? `<rect x="${front[0]*100}" y="${front[1]*100}" width="${front[2]*100}" height="${front[3]*100}" fill="#b8dfd0"/>` : '';
+    templateReference={buffer:await sharp(Buffer.from(`<svg width="${w}" height="${h}" viewBox="0 0 100 100" preserveAspectRatio="none"><rect width="100" height="100" fill="#555555"/>${printable}${area}</svg>`)).png().toBuffer(),mimeType:'image/png'};
+  }
   const result = await edit({
-    prompt: buildFitPrompt({ widthIn, heightIn, plan, source, productType }), size: plan.providerSize,
+    prompt: buildFitPrompt({ widthIn, heightIn, plan, source, productType }) + (templateReference ? '\nThe SECOND image is an exact technical layout guide, not design content. White is printable area; dark gray is discarded. Pale green, if present, is the FRONT table face: put the main text/logo within that face with safe margins. Use ONLY the first image as artwork/style. Do not reproduce any guide colors, borders or labels.' : ''), size: plan.providerSize,
+    ...(templateReference ? {referenceImage:templateReference} : {}),
     currentImage: original.buffer, currentMime: original.mimeType, user,
     model: FIT_MODEL, quality: 'high', idempotencyKey: key('layout'),
   });
@@ -174,15 +188,29 @@ async function runFitRequest(body, session, jobId, report = async () => {}, depe
     width: cropWidth, height: cropHeight,
   }).flatten({ background: '#ffffff' }).jpeg({ quality: 96, chromaSubsampling: '4:4:4' }).toBuffer();
   await report('Checking the new wording, logos and design elements');
-  const inspectCandidate = (buffer, stage) => inspect({ original, candidate: { buffer, mimeType: 'image/jpeg' }, expected: source.lines,
+  const inspectCandidate = async (buffer, stage) => {
+    if (String(productType).startsWith('specialty:')) {
+      const {template} = resolveSpecialtyTemplate(productType,widthIn,heightIn);
+      if (template.outline || template.faces?.front) {
+        const dimensions=await sharp(buffer).metadata();
+        const front=template.faces?.front;
+        // Essential wording must remain readable on the table's front panel,
+        // rather than disappearing onto the back or underneath a seam.
+        const shape=front?`<rect x="${front[0]*100}" y="${front[1]*100}" width="${front[2]*100}" height="${front[3]*100}" fill="white"/>`:`<path d="${template.outline}" fill="white"/>`;
+        const mask=Buffer.from(`<svg width="${dimensions.width}" height="${dimensions.height}" viewBox="0 0 100 100" preserveAspectRatio="none">${shape}</svg>`);
+        buffer=await sharp(buffer).ensureAlpha().composite([{input:mask,blend:'dest-in'}]).flatten({background:'#ffffff'}).jpeg({quality:96}).toBuffer();
+      }
+    }
+    return inspect({ original, candidate: { buffer, mimeType: 'image/jpeg' }, expected: source.lines,
     sourceContext: { artworkType: source.artworkType, incidentalText: source.incidentalText || [], elements: source.elements },
     user, idempotencyKey: key(stage) });
+  };
   let checked = await inspectCandidate(output, 'verify');
   let edgeRecovery = false;
   let outputWidth = cropWidth, outputHeight = cropHeight;
   // If trimming caused a rejection, first verify the complete generated image.
   // Recover only a faithful untrimmed layout, never restore already-bad text.
-  if (!fitCheckPasses(source, checked) && (cropWidth < meta.width || cropHeight < meta.height)) {
+  if (!String(productType).startsWith('specialty:') && !fitCheckPasses(source, checked) && (cropWidth < meta.width || cropHeight < meta.height)) {
     await report('Checking the complete layout before adjusting its edges');
     const fullImage = await sharp(result.buffer).flatten({ background: '#ffffff' }).jpeg({ quality: 96, chromaSubsampling: '4:4:4' }).toBuffer();
     const fullCheck = await inspectCandidate(fullImage, 'verify-untrimmed');

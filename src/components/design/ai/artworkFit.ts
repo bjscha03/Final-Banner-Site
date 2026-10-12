@@ -4,7 +4,7 @@ import { base64ToFile } from '@/utils/base64ToFile';
 import { uploadArtworkFile } from '@/utils/uploadArtworkFile';
 import { preloadPreviewImage } from '@/lib/previewImageCache';
 
-export type ArtworkFitProduct = 'banner' | 'yard_sign' | 'car_magnet';
+export type ArtworkFitProduct = 'banner' | 'yard_sign' | 'car_magnet' | `specialty:${string}`;
 
 export type ArtworkFitResult = {
   id: string; sourceHash: string; imageBase64: string; mimeType: string;

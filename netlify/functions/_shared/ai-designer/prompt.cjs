@@ -1,4 +1,5 @@
 'use strict';
+const { specialtyPrompt } = require('../specialty-products.cjs');
 const { logoPrompt, requestsLogoColors } = require('./logo.cjs');
 
 const { FLAT_ARTWORK_CONSTRAINT } = require('./config.cjs');
@@ -40,13 +41,14 @@ function extremeRatioInstruction(plan, mode = 'edit') {
 
 function buildGenerationPrompt(brief, plan, variationIndex = 0) {
   if (brief.typographyMode === 'ai') return [
-    FLAT_ARTWORK_CONSTRAINT, integratedLettering(brief),
+    FLAT_ARTWORK_CONSTRAINT, integratedLettering(brief), specialtyPrompt(brief.productType,brief.widthIn,brief.heightIn),
     `Canvas: ${brief.widthIn} by ${brief.heightIn} inches, width:height ${brief.aspectRatio.toFixed(6)}:1.`,
     `Art direction: ${brief.visualStyle}. Mood: ${brief.brandPersonality}. Palette: ${brief.colorPalette}. Imagery: ${brief.subjectMatter}. Audience: ${brief.targetAudience}. Viewing distance: ${brief.viewingDistance}.`,
     extremeRatioInstruction(plan, 'generation'),
   ].filter(Boolean).join('\n');
   return [
     FLAT_ARTWORK_CONSTRAINT,
+    specialtyPrompt(brief.productType,brief.widthIn,brief.heightIn),
     'Create the imagery, background, supporting graphics, and professional visual direction for a large-format commercial print design.',
     'Do not render words, letters, numbers, logos, fake copy, placeholder copy, gibberish typography, or watermarks. Exact customer wording and logos are added afterward as deterministic layers.',
     `Final physical dimensions: ${brief.widthIn} inches wide by ${brief.heightIn} inches high. Exact aspect ratio: ${brief.aspectRatio.toFixed(6)}:1. The printable background must extend fully to all four edges.`,
@@ -77,6 +79,7 @@ function customerPhotoPrompt(photoCount) {
 function buildEditPrompt(brief, plan, instruction) {
   if (brief.typographyMode === 'ai') return [
     FLAT_ARTWORK_CONSTRAINT,
+    specialtyPrompt(brief.productType,brief.widthIn,brief.heightIn),
     `Edit the supplied existing finished design. Requested change: ${instruction}.`,
     'Preserve all unrelated artwork, characters, composition and lettering as closely as possible. Change the existing lettering in place rather than adding a second text layer. When changing wording, erase the old wording cleanly and match its artistic treatment.',
     integratedLettering(brief, true),
@@ -84,6 +87,7 @@ function buildEditPrompt(brief, plan, instruction) {
   ].filter(Boolean).join('\n');
   return [
     FLAT_ARTWORK_CONSTRAINT,
+    specialtyPrompt(brief.productType,brief.widthIn,brief.heightIn),
     `Edit the supplied current flat artwork background. Requested change: ${instruction}.`,
     'Keep every unrelated visual element as unchanged as technically possible. Preserve composition, focal subject, negative-space typography zone, edge-to-edge background coverage, and overall brand character.',
     'Do not add any words, letters, numbers, logos, fake copy, placeholder copy, or watermarks. Exact customer wording and logos remain separate deterministic layers.',
@@ -98,6 +102,7 @@ function buildRepairPrompt(brief, plan, failures) {
   if (brief.typographyMode === 'ai') return buildEditPrompt(brief, plan, `Correct these inspection issues without replacing the design: ${failures.join('; ')}`);
   return [
     FLAT_ARTWORK_CONSTRAINT,
+    specialtyPrompt(brief.productType,brief.widthIn,brief.heightIn),
     'Repair the supplied image while preserving its intended theme and all compliant visual elements.',
     `Remove or correct these validation failures: ${failures.join('; ')}.`,
     `Return an edge-to-edge ${brief.aspectRatio.toFixed(6)}:1 composition with the essential subject inside safe margins.`,

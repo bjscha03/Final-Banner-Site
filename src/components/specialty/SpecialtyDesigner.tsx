@@ -1,0 +1,140 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Check, Loader2, Upload, ShoppingCart, WandSparkles, ArrowRight } from 'lucide-react';
+import { useCartStore } from '@/store/cart';
+import { specialtyTemplate, specialtyUnitPrice, specialtyPriceMatch, formatSpecialtyPrice, type SpecialtyProduct } from '@/lib/specialtyProducts';
+import type { UploadedArtworkFile } from '@/lib/cartArtworkForEditor';
+import { getPermanentArtworkPreviewUrl } from '@/lib/cartArtworkForEditor';
+import { createPermanentPlacementPreview } from '@/lib/previewArtifactCoordinator';
+import { PREVIEW_ARTIFACT_VERSION, type ArtworkCompositionSpec, type NormalizedArtworkTransform } from '@/lib/previewLifecycle';
+import { exportSpecialtyPanel, specialtyArtworkPpi, type SpecialtySavedPanel } from '@/lib/specialtyArtwork';
+import ArtworkPreviewEditor, { type ArtworkPreviewEditorHandle, type ArtworkTransform } from '@/components/design/ArtworkPreviewEditor';
+import AIArtworkFitDialog, { ArtworkFitButton } from '@/components/design/AIArtworkFitDialog';
+import CreateWithAIModal from '@/components/design/CreateWithAIModal';
+import { artworkFitIdentity } from '@/components/design/ai/artworkFit';
+import { uploadArtworkFile, validateArtworkFile } from '@/utils/uploadArtworkFile';
+import { renderPositionedThumbnailBlob } from '@/utils/generatePositionedThumbnail';
+import SpecialtyPreview, { SpecialtyTemplateGuide } from './SpecialtyPreview';
+import { base64ToFile } from '@/utils/base64ToFile';
+
+type DraftPanel = { artwork: UploadedArtworkFile; originalArtwork?: UploadedArtworkFile; transform: NormalizedArtworkTransform; revision: number; reviewed: boolean };
+const initialTransform = { xPct: 0, yPct: 0, scaleX: 1, scaleY: 1 };
+const initialPixels = { x: 0, y: 0, scaleX: 1, scaleY: 1 };
+
+export default function SpecialtyDesigner({ product }: { product: SpecialtyProduct }) {
+  const navigate=useNavigate(); const [params]=useSearchParams();
+  const editId=params.get('editItem'); const existing=useCartStore(s=>s.items.find(x=>x.id===editId && x.specialty_config?.productSlug===product.slug));
+  const initialVariant=product.variants.find(v=>v.id===existing?.specialty_config?.variantId) || product.variants.find(v=>v.priceMatch) || product.variants[0];
+  const [variantId,setVariantId]=useState(initialVariant.id);
+  const variant=product.variants.find(v=>v.id===variantId) || product.variants[0];
+  const [quantity,setQuantity]=useState(existing?.quantity || 1);
+  const [width,setWidth]=useState(String(existing?.width_in || 24)); const [height,setHeight]=useState(String(existing?.height_in || 18));
+  const [panelId,setPanelId]=useState(variant.panels[0].id);
+  const panel=variant.panels.find(p=>p.id===panelId) || variant.panels[0];
+  const template=specialtyTemplate(product,variant,panel,Number(width),Number(height));
+  const [drafts,setDrafts]=useState<Record<string,DraftPanel>>(()=>Object.fromEntries((existing?.specialty_config?.panels || []).map(p=>[p.id,{artwork:p.artwork,originalArtwork:p.originalArtwork,transform:p.composition.transform,revision:p.composition.revision,reviewed:true}])));
+  const [pixels,setPixels]=useState<ArtworkTransform>(initialPixels);
+  const [constrain,setConstrain]=useState(true); const [guides,setGuides]=useState(true);
+  const [busy,setBusy]=useState(''); const [error,setError]=useState(''); const [preview,setPreview]=useState('');
+  const [fitOpen,setFitOpen]=useState(false); const [createOpen,setCreateOpen]=useState(false);
+  const [showRealistic,setShowRealistic]=useState(true);
+  const editor=useRef<ArtworkPreviewEditorHandle>(null); const revision=useRef(0); const frame=useRef(0);
+  const input=useRef<HTMLInputElement>(null); const unmounted=useRef(false);
+  const draft=drafts[panel.id]; const artwork=draft?.artwork || null;
+  const specialtyAIType=`specialty:${product.slug}:${variant.id}:${panel.id}` as const;
+  const compositionKey=[product.slug,variant.id,panel.id,artwork?.fileKey,template.widthIn,template.heightIn].join('|');
+  const effectivePpi=artwork&&draft?specialtyArtworkPpi(artwork,{widthIn:template.widthIn,heightIn:template.heightIn,transform:draft.transform}):null;
+  let unit=0,priceError=''; try {unit=specialtyUnitPrice(product,variant,Number(width),Number(height));} catch(e) {priceError=(e as Error).message;}
+  const priceMatch=specialtyPriceMatch(product,variant,Number(width),Number(height));
+  useEffect(()=>{unmounted.current=false;return()=>{unmounted.current=true;cancelAnimationFrame(frame.current);};},[]);
+  function capture() {
+    if (!artwork || !editor.current) return;
+    let snapshot;try { snapshot=editor.current.getCompositionSnapshot(); } catch { setError('Wait for the artwork editor to finish loading, then review the placement.');return; }
+    setDrafts(d=>({...d,[panel.id]:{...d[panel.id],transform:snapshot.transform,revision:snapshot.revision}}));
+    return snapshot;
+  }
+  function move(next: ArtworkTransform) {
+    setPixels(next);setError('');
+    cancelAnimationFrame(frame.current);
+    frame.current=requestAnimationFrame(()=>{
+      if (!editor.current) return;
+      try {const snapshot=editor.current.getCompositionSnapshot();revision.current++;setDrafts(d=>d[panel.id]?({...d,[panel.id]:{...d[panel.id],transform:snapshot.transform,revision:snapshot.revision,reviewed:false}}):d);} catch {/* The image is still decoding. */}
+    });
+  }
+  function changeConfiguration(next: ()=>void) {
+    capture();revision.current++; next();setFitOpen(false);setCreateOpen(false);setPixels(initialPixels);setPreview('');
+    setDrafts(d=>Object.fromEntries(Object.entries(d).map(([key,value])=>[key,{...value,transform:initialTransform,revision:value.revision+1,reviewed:false}])));
+  }
+  useEffect(()=>{
+    let stopped=false;let objectUrl='';setPreview('');
+    if (!draft) return;
+    const timer=window.setTimeout(()=>{
+      void renderPositionedThumbnailBlob({imageUrl:getPermanentArtworkPreviewUrl(draft.artwork),widthIn:template.widthIn,heightIn:template.heightIn,imgPosPercent:{x:draft.transform.xPct,y:draft.transform.yPct},imgScale:draft.transform.scaleX,imgScaleY:draft.transform.scaleY,backgroundColor:product.slug==='acrylic-signs'?'transparent':'#ffffff',mimeType:product.slug==='acrylic-signs'?'image/png':'image/jpeg',maxOutputPx:1400,maxOutputPixels:1_500_000})
+      .then(result=>{if(stopped)return;objectUrl=URL.createObjectURL(result.blob);setPreview(objectUrl);}).catch(()=>{if(!stopped)setError('Preview could not load. Please retry the artwork upload before continuing.');});
+    },200);
+    return ()=>{stopped=true;clearTimeout(timer);if(objectUrl)URL.revokeObjectURL(objectUrl);};
+  },[compositionKey,draft?.transform.xPct,draft?.transform.yPct,draft?.transform.scaleX,draft?.transform.scaleY]);
+
+  async function upload(file: File) {
+    if (busy) return;const token=++revision.current;setBusy('Uploading your original artwork…');setError('');
+    try {
+      const validation=validateArtworkFile(file);if(validation) throw new Error(typeof validation==='string'?validation: 'Choose a PDF, PNG or JPG file up to 300 MB.');
+      const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name);
+      if (isPdf) {const {PDFDocument}=await import('pdf-lib');const doc=await PDFDocument.load(await file.arrayBuffer());if(doc.getPageCount()!==1) throw new Error('Use a separate single-page PDF for each panel. This file contains more than one page.');}
+      const saved=await uploadArtworkFile(file);let previewUrl=saved.previewUrl;let pixelWidth=saved.width,pixelHeight=saved.height;
+      if(isPdf){setBusy('Preparing a clear PDF preview…');const {renderPdfToDataUrl}=await import('@/utils/pdf/renderPdfToDataUrl');const raster=await renderPdfToDataUrl(file,{minWidth:1800,minHeight:1800,maxPixels:4_000_000});try {const blob=await (await fetch(raster.previewUrl)).blob();const uploaded=await uploadArtworkFile(new File([blob],'pdf-preview.jpg',{type:blob.type}));previewUrl=uploaded.previewUrl;pixelWidth=raster.width;pixelHeight=raster.height;}finally{raster.cleanup();}}
+      if (unmounted.current||token!==revision.current) return;
+      const next:UploadedArtworkFile={editorIdentity:`${saved.fileKey}:${Date.now()}`,name:file.name,url:saved.secureUrl,fileKey:saved.fileKey,size:file.size,isPdf,previewUrl,permanentPreviewUrl:previewUrl,thumbnailUrl:previewUrl,productionUrl:saved.productionUrl,productionPublicId:saved.productionPublicId,resourceType:saved.resourceType,mimeType:saved.mimeType,originalWidth:pixelWidth,originalHeight:pixelHeight,artworkManifest:saved.artworkManifest};
+      setDrafts(d=>({...d,[panel.id]:{artwork:next,transform:initialTransform,revision:0,reviewed:false}}));setPixels(initialPixels);
+    }catch(e){setError((e as Error).message||'Upload failed. Your existing artwork is still available.');}finally{if(!unmounted.current)setBusy('');if(input.current)input.current.value='';}
+  }
+  async function addToCart() {
+    if(busy||priceError) return;
+    const latest=capture();const token=++revision.current;setBusy('Saving your approved artwork and previews…');setError('');
+    try {
+      if (!latest) throw new Error('Wait for your artwork editor to finish loading before saving.');
+      const panels:SpecialtySavedPanel[]=[];
+      for(const definition of variant.panels){
+        const d=drafts[definition.id];if(!d?.reviewed)throw new Error(`Review and approve the ${definition.label.toLowerCase()} artwork first.`);
+        const t=specialtyTemplate(product,variant,definition,Number(width),Number(height));
+        const state=definition.id===panel.id&&latest ? {transform:latest.transform,revision:latest.revision}:d;
+        const spec:ArtworkCompositionSpec={version:PREVIEW_ARTIFACT_VERSION,sourceUrl:getPermanentArtworkPreviewUrl(d.artwork),sourceIdentity:d.artwork.editorIdentity||d.artwork.fileKey,productType:`specialty:${product.slug}:${variant.id}:${definition.id}`,widthIn:t.widthIn,heightIn:t.heightIn,fitMode:'fit',transform:state.transform,revision:state.revision};
+        const ready=await createPermanentPlacementPreview(spec);const production=await exportSpecialtyPanel(d.artwork,spec,t);
+        const ppi=specialtyArtworkPpi(d.artwork,spec);
+        panels.push({...definition,artwork:d.artwork,originalArtwork:d.originalArtwork,composition:spec,preview:ready,...production,effectivePpi:ppi});
+      }
+      if(token!==revision.current||unmounted.current)throw new Error('The design changed while saving. Review the latest version and try again.');
+      useCartStore.getState().saveSpecialtyItem({configuration:{version:1,productSlug:product.slug,variantId:variant.id,productName:product.name,variantLabel:variant.label,materialLabel:product.materialLabel,panels,approvedAt:new Date().toISOString()},quantity,widthIn:panels[0].composition.widthIn,heightIn:panels[0].composition.heightIn,editId:existing?.id});
+      navigate('/checkout');
+    }catch(e){setError((e as Error).message||'We could not save this design. Please retry.');}finally{if(!unmounted.current)setBusy('');}
+  }
+  const allReviewed=variant.panels.every(p=>drafts[p.id]?.reviewed);
+  return <div className="space-y-8">
+    <div className="grid gap-8 lg:grid-cols-[1.05fr_1fr]">
+      <div><img src={product.image} alt={product.imageAlt} className="aspect-square w-full rounded-2xl border border-slate-200 bg-white object-contain"/><p className="mt-2 text-xs text-slate-500">Fictional business example. Your selected size and artwork appear in the preview below.</p></div>
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8" aria-label="Product configuration">
+        <p className="text-xs font-black uppercase tracking-widest text-orange-700">1 · Make it yours</p><h2 className="mt-2 text-2xl font-bold">Choose your configuration</h2>
+        <label htmlFor="specialty-variant" className="mt-6 block text-sm font-bold">Size & configuration</label><select id="specialty-variant" value={variantId} disabled={!!busy} onChange={e=>changeConfiguration(()=>{setVariantId(e.target.value);setPanelId('front');})} className="mt-2 min-h-12 w-full rounded-lg border border-slate-300 bg-white px-3">{product.variants.map(v=><option key={v.id} value={v.id}>{v.label}</option>)}</select>
+        {product.priceUnit==='sqft'&&<div className="mt-4 grid grid-cols-2 gap-4">{[['Width',width,setWidth],['Height',height,setHeight]].map(([label,value,setter])=><label key={String(label)} className="text-sm font-bold">{String(label)} (in)<input type="number" min={product.sizeLimits?.min} step=".25" value={String(value)} disabled={!!busy} onChange={e=>changeConfiguration(()=>{(setter as (s:string)=>void)(e.target.value);})} className="mt-2 min-h-12 w-full rounded-lg border px-3"/></label>)}</div>}
+        {product.priceMatches&&<div className="mt-3 flex flex-wrap gap-2" aria-label="Standard priced sizes">{product.priceMatches.map(size=><button type="button" disabled={!!busy} key={`${size.widthIn}x${size.heightIn}`} className="min-h-11 rounded-lg border px-3 text-sm font-semibold hover:border-orange-600" onClick={()=>changeConfiguration(()=>{setWidth(String(size.widthIn));setHeight(String(size.heightIn));})}>{size.widthIn} × {size.heightIn} in · {formatSpecialtyPrice(size.priceCents!)}</button>)}</div>}
+        <label className="mt-5 block text-sm font-bold" htmlFor="specialty-qty">Quantity</label><input id="specialty-qty" type="number" min="1" max="100" step="1" value={quantity} disabled={!!busy} onChange={e=>setQuantity(Math.max(1,Math.min(100,Math.floor(Number(e.target.value)||1))))} className="mt-2 min-h-12 w-28 rounded-lg border px-3"/>
+        <div className="my-6 border-y py-5"><p className="text-sm text-slate-600">{priceMatch?'Product subtotal':'Estimated product subtotal'}</p><p className="mt-1 text-4xl font-black tracking-tight">{priceError?'Choose a valid size':formatSpecialtyPrice(unit*quantity)}</p><p className="mt-2 text-xs text-slate-500">{formatSpecialtyPrice(unit)} each · {priceMatch?'Free overnight shipping included after production. Tax calculated separately.':'Price and delivery awaiting confirmation.'}</p></div>
+        <ul className="space-y-3 text-sm text-slate-700">{product.features.map(feature=><li key={feature} className="flex gap-2"><Check className="h-4 w-4 flex-none text-orange-600"/>{feature}</li>)}</ul>
+        <a href="#specialty-artwork" className="mt-7 flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#c94e00] px-4 font-bold text-white">Customize your artwork<ArrowRight className="h-4 w-4"/></a>
+      </section>
+    </div>
+    <section id="specialty-artwork" className="scroll-mt-28 rounded-2xl border border-slate-200 bg-white p-5 sm:p-8">
+      <p className="text-xs font-black uppercase tracking-widest text-orange-700">2 · Design & preview</p><h2 className="mt-2 text-2xl font-bold">Your artwork, on your product</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Upload a PDF, PNG or JPG, or create a design with AI. Adjust the artwork, check the print boundaries, and approve each panel.</p>
+      {variant.panels.length>1&&<div className="my-5 flex flex-wrap gap-2" role="tablist" aria-label="Print panels">{variant.panels.map(p=><button role="tab" type="button" aria-selected={panel.id===p.id} key={p.id} disabled={!!busy} onClick={()=>{capture();setPanelId(p.id);setPixels(initialPixels);setFitOpen(false);setCreateOpen(false);}} className={`min-h-11 rounded-lg border px-4 text-sm font-bold ${panel.id===p.id?'border-orange-600 bg-orange-50':'border-slate-300'}`}>{p.label}{drafts[p.id]?.reviewed?' ✓':''}</button>)}</div>}
+      <div className="mt-6 flex flex-wrap gap-3"><input ref={input} type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={e=>{if(e.target.files?.[0])void upload(e.target.files[0]);}} className="sr-only" aria-label={`Upload ${panel.label} artwork`}/><button type="button" disabled={!!busy||!!priceError} onClick={()=>input.current?.click()} className="inline-flex min-h-12 items-center gap-2 rounded-lg bg-slate-900 px-5 font-bold text-white disabled:opacity-50"><Upload className="h-4 w-4"/>{artwork?'Replace artwork':'Upload artwork'}</button><button type="button" disabled={!!busy||!!priceError} onClick={()=>setCreateOpen(true)} className="inline-flex min-h-12 items-center gap-2 rounded-lg border border-orange-300 px-4 font-bold text-orange-800 disabled:opacity-50"><WandSparkles className="h-4 w-4"/>Create with AI</button>{template.sourceUrl&&<a href={template.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center px-2 text-sm font-semibold text-blue-800 underline">Download artwork template</a>}</div>
+      <div className="mt-5 rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-700"><strong>{panel.label}: {template.widthIn.toFixed(2).replace(/\.00$/,'')}″ × {template.heightIn.toFixed(2).replace(/\.00$/,'')}″ artwork</strong><p>{template.fitNotes}</p>{template.safeInsetsIn&&<p>Safe margins: top {template.safeInsetsIn[0]}″, right {template.safeInsetsIn[1]}″, bottom {template.safeInsetsIn[2]}″, left {template.safeInsetsIn[3]}″.</p>}{template.exportScale!==1&&<p>The downloaded print PDF uses the supplier’s 1:{1/template.exportScale} template scale.</p>}</div>
+      {artwork?<><div className="mt-6 grid items-start gap-6 lg:grid-cols-2"><div className={busy?'pointer-events-none opacity-75':''}><div className="mb-3 flex items-center justify-between"><h3 className="font-bold">Artwork placement</h3><label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={guides} onChange={e=>setGuides(e.target.checked)}/>Show guides</label></div><div className="mx-auto" style={{maxWidth:Math.min(600,460*template.widthIn/template.heightIn)}}><ArtworkPreviewEditor key={compositionKey} ref={editor} compositionKey={compositionKey} src={artwork.url} previewUrl={artwork.permanentPreviewUrl||artwork.previewUrl} productionUrl={artwork.productionUrl} resourceType={artwork.resourceType} mimeType={artwork.mimeType} paddingPct={`${template.heightIn/template.widthIn*100}%`} value={pixels} onChange={move} constrain={constrain} onConstrainChange={setConstrain} initialNormalizedTransform={draft.transform} initialCompositionRevision={draft.revision} overlay={guides?<SpecialtyTemplateGuide template={template}/>:undefined}/></div><p className="mt-3 break-all text-xs text-slate-500">{artwork.name} · Original file preserved</p><ArtworkFitButton disabled={!!busy} onClick={()=>{capture();setFitOpen(true);}} onRestore={draft.originalArtwork?()=>{revision.current++;setDrafts(d=>({...d,[panel.id]:{artwork:d[panel.id].originalArtwork!,transform:initialTransform,revision:0,reviewed:false}}));setPixels(initialPixels);}:undefined}/></div><div><div className="mb-3 flex min-h-11 items-center justify-between"><h3 className="font-bold">Product preview</h3><button type="button" className="min-h-11 text-sm font-semibold text-blue-800 underline" onClick={()=>setShowRealistic(v=>!v)}>{showRealistic?'See flat artwork':'See product'}</button></div>{preview?(showRealistic?<SpecialtyPreview product={product} template={template} imageUrl={preview}/>:<img src={preview} alt={`${panel.label} flat artwork without guides`} className="max-h-[520px] w-full rounded-lg border object-contain"/>):<div role="status" className="flex min-h-60 items-center justify-center gap-2 rounded-lg bg-slate-50"><Loader2 className="h-5 w-5 animate-spin"/>Updating preview…</div>}</div></div><label className="mt-6 flex items-start gap-3 rounded-xl border border-slate-200 p-4 text-sm leading-6"><input type="checkbox" checked={draft.reviewed} disabled={!!busy||!preview} onChange={e=>{if(!capture())return;const checked=e.target.checked;setDrafts(d=>({...d,[panel.id]:{...d[panel.id],reviewed:checked}}));}} className="mt-1 h-5 w-5 accent-orange-600"/><span>I checked the {panel.label.toLowerCase()} artwork, wording, image clarity, and placement inside the safe area.</span></label></>:<div className="mt-6 rounded-xl border-2 border-dashed border-slate-200 p-12 text-center text-slate-500"><Upload className="mx-auto mb-3 h-8 w-8"/><p>Your {panel.label.toLowerCase()} artwork and product preview will appear here.</p></div>}
+      {effectivePpi!==null&&effectivePpi<150&&<p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Image resolution at this placement: approximately {Math.round(effectivePpi)} pixels per inch. For sharper print, use artwork with at least 150 pixels per inch at full size, or a vector PDF. Check small text carefully before approving.</p>}
+      {(error||priceError)&&<p role="alert" className="mt-5 rounded-lg bg-red-50 p-4 text-sm text-red-800">{error||priceError}</p>}
+      {busy&&<p role="status" className="mt-5 flex items-center gap-2 text-sm"><Loader2 className="h-5 w-5 animate-spin"/>{busy}</p>}
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t pt-6"><div><p className="text-sm text-slate-500">{quantity} × {product.name}</p><p className="text-2xl font-black">{formatSpecialtyPrice(unit*quantity)}</p></div><button type="button" disabled={!!busy||!!priceError||!allReviewed} onClick={()=>void addToCart()} className="inline-flex min-h-14 items-center gap-3 rounded-lg bg-[#c94e00] px-7 text-lg font-bold text-white hover:bg-orange-800 disabled:cursor-not-allowed disabled:opacity-40"><ShoppingCart className="h-5 w-5"/>{existing?'Save changes to cart':'Add to cart'}</button></div><p className="mt-3 text-xs text-slate-500">{allReviewed?'Your approved artwork travels with this cart item.':'Complete and approve each artwork panel to add this product to your cart.'}</p>
+    </section>
+    <AIArtworkFitDialog open={fitOpen} onOpenChange={setFitOpen} artwork={artwork} widthIn={template.widthIn} heightIn={template.heightIn} productType={specialtyAIType} onApply={(next,expected)=>{if(expected!==artworkFitIdentity(artwork,template.widthIn,template.heightIn,specialtyAIType))return;revision.current++;setDrafts(d=>({...d,[panel.id]:{artwork:next,originalArtwork:d[panel.id].originalArtwork||d[panel.id].artwork,transform:initialTransform,revision:0,reviewed:false}}));setPixels(initialPixels);}}/>
+    <CreateWithAIModal open={createOpen} onOpenChange={setCreateOpen} productType={specialtyAIType} material={product.materialLabel} materialLabel={product.materialLabel} widthIn={template.widthIn} heightIn={template.heightIn} quantity={quantity} onGenerated={async result=>{await upload(base64ToFile(result.imageBase64,result.fileName,result.mimeType));setCreateOpen(false);}}/>
+  </div>;
+}

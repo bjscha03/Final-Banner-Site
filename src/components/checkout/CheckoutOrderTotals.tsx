@@ -9,6 +9,7 @@ export interface CheckoutOrderTotalsProps {
   discountLabel?: string;
   discountHelperMessage?: string;
   shippingLabel: string;
+  shippingPending?: boolean;
   taxCents: number;
   taxRate?: number;
   sameDayFeeCents?: number;
@@ -28,6 +29,7 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
   discountLabel = 'Discount',
   discountHelperMessage,
   shippingLabel,
+  shippingPending = false,
   taxCents,
   taxRate = 0.06,
   sameDayFeeCents = 0,
@@ -49,7 +51,7 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
           <h3 id={headingId} className="text-base font-bold text-[#0B1F3A] sm:text-lg">
             Price details
           </h3>
-          <p className="text-xs text-slate-500">Complete total, including tax</p>
+          <p className="text-xs text-slate-500">{shippingPending ? 'Product estimate before delivery' : 'Complete total, including tax'}</p>
         </div>
         <span className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">USD</span>
       </div>
@@ -90,7 +92,7 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
 
         <div className="flex justify-between gap-4">
           <span className="text-slate-600">{shippingLabel}</span>
-          {sameDayFeeCents > 0 ? (
+          {shippingPending ? <span className="text-amber-800 font-semibold">Not yet calculated</span> : sameDayFeeCents > 0 ? (
             <span className="whitespace-nowrap font-semibold text-slate-700">Next-Day Air Included</span>
           ) : (
             <span className="flex items-center gap-1 whitespace-nowrap font-semibold text-green-700">

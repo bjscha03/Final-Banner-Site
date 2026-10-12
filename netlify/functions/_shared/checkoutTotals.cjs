@@ -196,7 +196,7 @@ const computeTotals = (items, taxRate, opts, promoDiscount = null) => {
   // and car magnets use flat pricing with NO quantity discounts.
   const isBanner = (i) => {
     const t = i.product_type || 'banner';
-    return t !== 'yard_sign' && t !== 'car_magnet';
+    return t === 'banner';
   };
   const bannerItems = items.filter(isBanner);
   const bannerQuantity = bannerItems.reduce((sum, i) => sum + (i.quantity || 1), 0);
