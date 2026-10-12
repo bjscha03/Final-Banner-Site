@@ -9,6 +9,8 @@
 .google-review-slide.is-active { opacity: 1; visibility: visible; }
 .google-review-slide blockquote { margin: 0; font-size: 16px; line-height: 1.5; overflow-wrap: anywhere; }
 .google-review-slide figcaption { margin-top: 5px; color: #526174; font-size: 13px; line-height: 1.5; }
+.google-review-fade .google-review-slide blockquote { font-size: 14px; line-height: 1.5; }
+.google-review-fade .google-review-slide figcaption { font-size: 12px; }
 @media (max-width: 767px) {
   .google-review-inner { padding: 12px 16px; grid-template-columns: minmax(0, 1fr); gap: 8px 12px; }
   .google-review-label { flex-direction: row; align-items: center; gap: 10px; min-width: 0; }

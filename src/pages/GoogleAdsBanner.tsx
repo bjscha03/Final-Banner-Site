@@ -8,7 +8,9 @@ import BannerPrintSides from '@/components/design/BannerPrintSides';
 import { useBannerPrinting } from '@/hooks/useBannerPrinting';
 import { useUploadWatchdog } from '@/hooks/useUploadWatchdog';
 import MobileBannerLandingHero, { MobileBannerLandingProof } from '@/components/design/MobileBannerLandingHero';
-import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
+import AIArtworkHelp from '@/components/design/AIArtworkHelp';
+import MobileBannerSteps from '@/components/design/MobileBannerSteps';
+import GoogleReviewSpotlight, { FadingGoogleReviews } from '@/components/design/GoogleReviewSpotlight';
 import LargeBannerSizeCards, { LARGE_BANNER_SIZES } from '@/components/design/LargeBannerSizeCards';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
@@ -50,7 +52,6 @@ import CustomBannerSize from '@/components/design/CustomBannerSize';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
 import MobileFinishingStep from '@/components/design/MobileFinishingStep';
 import LiveFinishingPreview from '@/components/design/LiveFinishingPreview';
-import AIArtworkHelp from '@/components/design/AIArtworkHelp';
 import RealOrdersStrip from '@/components/design/RealOrdersStrip';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
 import GrommetOverlay from '@/components/preview/GrommetOverlay';
@@ -385,7 +386,6 @@ const GoogleAdsBanner: React.FC = () => {
   const [mobileFinishingOpen, setMobileFinishingOpen] = useState(false);
   const [mobileFinishingSource, setMobileFinishingSource] = useState<'inline' | 'modal'>('inline');
   const [finishingPreviewTransform, setFinishingPreviewTransform] = useState<NormalizedArtworkTransform | null>(null);
-  const [dismissedOrientation, setDismissedOrientation] = useState<string | null>(null);
   const [finishingChoiceConfirmed, setFinishingChoiceConfirmed] = useState(initialProductType === 'banner');
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
@@ -743,6 +743,20 @@ const GoogleAdsBanner: React.FC = () => {
   const [isLgScreen, setIsLgScreen] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : false
   );
+  const paidBannerLanding = compactMobileLanding && designerPath === '/google-ads-banner';
+  const mobilePaidLayout = paidBannerLanding && !isLgScreen;
+  const [mobileStage, setMobileStage] = useState<'banner' | 'artwork'>('banner');
+  const changeMobileStage = (stage: 'banner' | 'artwork') => {
+    setMobileStage(stage);
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      document.getElementById(stage === 'artwork' ? 'mobile-artwork-heading' : 'mobile-size-heading')?.focus({ preventScroll: true });
+    });
+  };
+  // Restored cart artwork and AI creations enter the artwork step automatically.
+  useEffect(() => {
+    if (uploadedFile) setMobileStage('artwork');
+  }, [uploadedFile?.fileKey]);
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');
     const handler = () => setIsLgScreen(mq.matches);
@@ -885,6 +899,22 @@ const GoogleAdsBanner: React.FC = () => {
     return computeSameDayFeesCents(previewSubtotal, { sameDay: true, saturday: false }).sameDayFeeCents;
   }, [sameDayHitService, isCarMagnet, isYardSign, carMagnetPricing?.baseSubtotalCents, yardSignPricing?.totalCents, bannerPricing.subtotalBeforeDiscountCents]);
   const previewSaturdayFeeCents = saturdayDelivery && previewSameDayFeeCents > 0 ? Math.round(sameDayConfig.saturdayDeliveryFee * 100) : 0;
+
+  // Each option uses the same best-discount-wins and finishing math as checkout.
+  const mobileSizePrices = PRESET_SIZES.map(size => {
+    const option = calculateBannerPricing({ widthIn: size.w, heightIn: size.h, quantity, material, grommets, addRope, ropePlacement, polePockets });
+    const promo = resolvePromo({
+      subtotalCents: option.subtotalBeforeDiscountCents, quantity, code: effectivePromoCode,
+      validatedPromo: activeCartPromo,
+      items: [{ id: 'current-configurator-line', product_type: productType, width_in: size.w, height_in: size.h, line_total_cents: option.subtotalBeforeDiscountCents }],
+    });
+    const rush = sameDayHitService ? computeSameDayFeesCents(option.subtotalBeforeDiscountCents, { sameDay: true, saturday: false }).sameDayFeeCents : 0;
+    const originalCents = option.subtotalBeforeDiscountCents + rush + (rush > 0 ? previewSaturdayFeeCents : 0);
+    return {
+      amount: usd(Math.max(0, originalCents - promo.appliedDiscountAmountCents) / 100),
+      originalAmount: promo.appliedDiscountAmountCents > 0 ? usd(originalCents / 100) : undefined,
+    };
+  });
 
   useEffect(() => {
     // Flag this session as coming from Google Ads landing page
@@ -1745,6 +1775,7 @@ const GoogleAdsBanner: React.FC = () => {
 
   const resetPreview = useCallback(() => {
     removeArtwork();
+    setMobileStage('banner');
     setPolePocketSize('2');
     setHasJustAddedToCart(false);
     setShowPostAddResetNotice(false);
@@ -2735,22 +2766,6 @@ const GoogleAdsBanner: React.FC = () => {
   const mobileBannerAction = hasPermanentArtwork(uploadedFile) && hasCommittedBannerSize && !isProcessingUpsell && !isUploading
     ? { label: 'Next: Finishing', disabled: false, onClick: () => openMobileFinishing('inline') }
     : bannerAction;
-  const orientationKey = `${uploadedFile?.editorIdentity || uploadedFile?.fileKey}:${widthIn}:${heightIn}`;
-  const artworkRatio = uploadedFile?.originalWidth && uploadedFile?.originalHeight
-    ? uploadedFile.originalWidth / uploadedFile.originalHeight : 0;
-  const offerOrientationSwap = !isYardSign && !isCarMagnet && artworkRatio > 0
-    && widthIn > 0 && heightIn > 0 && dismissedOrientation !== orientationKey
-    && ((artworkRatio < 0.8 && widthIn > heightIn) || (artworkRatio > 1.25 && heightIn > widthIn));
-  const swapBannerOrientation = () => {
-    setWidthFtStr(String(Math.floor(heightIn / 12)));
-    setWidthInRStr(String(heightIn % 12));
-    setHeightFtStr(String(Math.floor(widthIn / 12)));
-    setHeightInRStr(String(widthIn % 12));
-    setWidthCustomInStr(String(heightIn));
-    setHeightCustomInStr(String(widthIn));
-    setActivePreset(null);
-    setHasConfirmedSize(true);
-  };
   const bannerPrice = (
     <div>
     <div className="flex flex-wrap items-baseline gap-x-2">
@@ -2760,6 +2775,25 @@ const GoogleAdsBanner: React.FC = () => {
     <PriceDeliveryEstimate compact />
     </div>
   );
+  const mobileDiscountLabel = bannerPromoResolution.appliedDiscountAmountCents > 0
+    ? bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20'
+      ? '20% off applied'
+      : bannerPromoResolution.appliedDiscountType === 'quantity'
+        ? `${Math.round(quantityDiscountRate * 100)}% bulk discount`
+        : `${usd(bannerPromoResolution.appliedDiscountAmountCents / 100)} off applied`
+    : null;
+  const compactBannerPrice = <div data-testid="mobile-banner-price">
+    <div className="flex flex-wrap items-baseline gap-x-1.5">
+      <span data-banner-current-price className="text-2xl font-extrabold tracking-tight text-emerald-700">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</span>
+      {bannerPromoResolution.appliedDiscountAmountCents > 0 && <del className="text-xs text-slate-500">{usd((bannerPricing.subtotalBeforeDiscountCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</del>}
+    </div>
+    {mobileDiscountLabel && <p className="text-[10px] font-semibold leading-3 text-emerald-700">{mobileDiscountLabel}</p>}
+  </div>;
+  const paidMobileAction = mobileStage === 'banner'
+    ? { label: 'Add artwork', disabled: !hasCommittedBannerSize, onClick: () => changeMobileStage('artwork') }
+    : hasPermanentArtwork(uploadedFile) && hasCommittedBannerSize && !isUploading && !isProcessingUpsell
+      ? { ...mobileBannerAction, label: 'Review & finish' }
+      : bannerAction;
 
   const bannerSummary = (<>
                   {(!activeCartPromo || activeCartPromo.code === 'NEW20') && firstOrderOffer.status !== 'eligible' && firstOrderOffer.status !== 'unverified' && (
@@ -2845,6 +2879,16 @@ const GoogleAdsBanner: React.FC = () => {
                   />
   </>);
 
+  const mobileReviewSummary = <section data-testid="mobile-review-summary" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <h2 className="text-base font-bold">Your banner</h2>
+    <p className="mt-1 text-xs text-slate-600">{widthDisplay} × {heightDisplay} · {materialLabel} · Qty {quantity}</p>
+    <div className="mt-3">{compactBannerPrice}</div>
+    <dl className="mt-3 space-y-2 border-y border-slate-200 py-3 text-xs"><div className="flex justify-between gap-3"><dt>Shipping</dt><dd className="font-bold text-emerald-700">FREE</dd></div><div className="flex justify-between gap-3"><dt>Tax</dt><dd className="text-slate-500">Calculated at checkout</dd></div></dl>
+    <div className="mt-3"><PriceDeliveryEstimate /></div>
+    {activeCartPromo?.code === 'NEW20' && firstOrderOffer.message && <p className="mt-2 text-[11px] leading-4 text-slate-500">{firstOrderOffer.message}</p>}
+    <details className="mt-2"><summary className="min-h-11 cursor-pointer py-3 text-xs font-semibold text-[#18448D] underline">Price details & promo code</summary>{/* Retain all existing discounts, fees and eligibility controls. */}{bannerSummary}</details>
+  </section>;
+
   const materialCard = isDoubleSidedBanner ? (
     <ConfigCard compact step={2} title="Material" id="material-section">
       <p className="font-semibold text-[#0B1F3A]">18 oz vinyl · Double-sided</p>
@@ -2866,10 +2910,10 @@ const GoogleAdsBanner: React.FC = () => {
                           onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
                         <span className="min-w-0 flex-1 text-left font-semibold text-gray-800">{selectedMaterial.label}</span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#EAF1FB] px-2 py-1 text-[11px] font-bold text-[#18448D]">
+                        {!mobilePaidLayout && <span className="inline-flex items-center gap-1 rounded-full bg-[#EAF1FB] px-2 py-1 text-[11px] font-bold text-[#18448D]">
                           <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
                           Selected
-                        </span>
+                        </span>}
                         <svg className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${materialDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                       </button>
                       {materialDropdownOpen && (
@@ -2902,7 +2946,7 @@ const GoogleAdsBanner: React.FC = () => {
                       )}
                     </div>
                   </ConfigCard>);
-  const quantityCard = (<ConfigCard compact={!isCarMagnet} step={isCarMagnet ? 2 : 3} title="Quantity" id="quantity-section">
+  const quantityCard = (<ConfigCard className={mobilePaidLayout ? 'flex flex-wrap items-center justify-between gap-2' : undefined} compact={!isCarMagnet} step={isCarMagnet ? 2 : 3} title="Quantity" id="quantity-section">
                   {isCarMagnet && (
                     <div className="mb-4 flex items-start gap-2 rounded-xl border border-[#D7E3F4] bg-[#F4F8FD] px-3 py-2.5 text-sm text-slate-700">
                       <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#18448D]" aria-hidden="true" />
@@ -2928,7 +2972,7 @@ const GoogleAdsBanner: React.FC = () => {
                       Large Banner 25% Off applied automatically. Quantity discounts cannot be combined.
                     </p>
                   )}
-                  {!isCarMagnet && quantity === 1 && bannerPromoResolution.promotionId !== 'LARGE_BANNER_25' && (
+                  {!mobilePaidLayout && !isCarMagnet && quantity === 1 && bannerPromoResolution.promotionId !== 'LARGE_BANNER_25' && (
                     <p className="text-xs text-gray-700 mt-1.5">Order 2+ for up to 13% off</p>
                   )}
                 </ConfigCard>);
@@ -3019,10 +3063,10 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
   );
   const sizeCard = (<ConfigCard
-                  className={compactMobileLanding ? '!p-3 lg:!p-6' : undefined}
+                  className={paidBannerLanding ? '!border-0 !p-0 !shadow-none lg:!border lg:!p-6 lg:!shadow-sm' : compactMobileLanding ? '!p-3 lg:!p-6' : undefined}
                   bodyClassName={compactMobileLanding ? '!mt-2 lg:!mt-4' : undefined}
                   step={1}
-                  title={isCarMagnet ? "Choose your size" : isLargeBannerLanding ? "Choose your large banner size" : "Size & quantity"}
+                  title={isCarMagnet || mobilePaidLayout ? "Choose your size" : isLargeBannerLanding ? "Choose your large banner size" : "Size & quantity"}
                   id="size-section"
                   headerRight={!isCarMagnet ? (
                     <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs" role="group" aria-label="Display unit">
@@ -3063,15 +3107,16 @@ const GoogleAdsBanner: React.FC = () => {
                               <button key={p.label} onClick={() => setCarMagnetSizeLabel(p.label)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${carMagnetSizeLabel === p.label ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
                                 {p.label}
                               </button>
-                            ))}</div></div> : <BannerSizeChoices sizes={PRESET_SIZES} widthIn={widthIn} heightIn={heightIn} unit={unit} onSelect={applyPreset} />}
+                            ))}</div></div> : <BannerSizeChoices sizes={PRESET_SIZES} widthIn={widthIn} heightIn={heightIn} unit={unit} onSelect={applyPreset} prices={mobilePaidLayout ? mobileSizePrices : undefined} />}
                     </div>}
                     {!isCarMagnet && <CustomBannerSize hasCustomSize={!(isLargeBannerLanding ? LARGE_BANNER_SIZES : PRESET_SIZES).some(size => size.w === widthIn && size.h === heightIn)}>
                       {sizeDimensions}
                     </CustomBannerSize>}
                   </div>
                 {isLargeBannerLanding && <p className="mt-3 text-xs text-slate-600">Online sizes up to 50 ft on the long side and 16 ft on the short side. Larger project? <Link to="/custom-quote" className="font-semibold text-orange-700 underline">Request a quote</Link>.</p>}
-                {!isCarMagnet && <BannerPrintSides doubleSided={isDoubleSidedBanner} onChange={handleBannerPrintSidesChange} />}
-                {!isCarMagnet && <div className="mt-5 grid gap-4 border-t border-slate-200 pt-4 sm:grid-cols-[minmax(0,1fr)_auto]">{materialCard}{quantityCard}</div>}
+                {mobilePaidLayout && <p className="mt-2 text-center text-[11px] text-slate-500">{bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? 'First-order prices shown' : 'Current prices shown'} · {quantity > 1 ? `For ${quantity} banners · ` : ''}Before tax</p>}
+                {!isCarMagnet && !mobilePaidLayout && <BannerPrintSides doubleSided={isDoubleSidedBanner} onChange={handleBannerPrintSidesChange} />}
+                {!isCarMagnet && !mobilePaidLayout && <div className="mt-5 grid gap-4 border-t border-slate-200 pt-4 sm:grid-cols-[minmax(0,1fr)_auto]">{materialCard}{quantityCard}</div>}
                 </ConfigCard>);
   const bannerFinishingOptions = (
 <FinishingOptionsCard
@@ -3107,7 +3152,7 @@ const GoogleAdsBanner: React.FC = () => {
       onRestore={fitUndo?.appliedIdentity === uploadedFile.editorIdentity ? restoreArtworkBeforeFit : undefined} />
   ) : null;
 
-  const uploadCard = (<ConfigCard step={isCarMagnet ? 4 : 2} title="Upload your artwork" id="upload-section">
+  const uploadCard = (<ConfigCard className={mobilePaidLayout ? '!border-0 !p-0 !shadow-none !scroll-mt-20' : undefined} step={mobilePaidLayout ? undefined : isCarMagnet ? 4 : 2} title="Upload your artwork" id="upload-section">
                   {/* Helper banner: shown when the user reaches the upload card before
                       completing required choices. Doesn't block upload — just surfaces
                       what still needs to happen before "Add to Cart" works. */}
@@ -3122,7 +3167,7 @@ const GoogleAdsBanner: React.FC = () => {
                       </p>
                     );
                   })()}
-                  {!isYardSign && !isCarMagnet && (
+                  {!paidBannerLanding && !isYardSign && !isCarMagnet && (
                     <AIArtworkHelp
                       widthIn={widthIn}
                       heightIn={heightIn}
@@ -3142,13 +3187,18 @@ const GoogleAdsBanner: React.FC = () => {
                         onUpload={handleFileUpload}
                         acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"
                         maxSize={MAX_ARTWORK_BYTES}
-                        label="Upload your artwork"
-                        subText={`PNG, JPG, or PDF • Max ${MAX_ARTWORK_MB}MB • ${widthDisplay} × ${heightDisplay}`}
+                        choiceCard={mobilePaidLayout}
+                        label={mobilePaidLayout ? 'Upload artwork' : 'Upload your artwork'}
+                        subText={`PNG, JPG, or PDF • Max ${MAX_ARTWORK_MB}MB${mobilePaidLayout ? '' : ` • ${widthDisplay} × ${heightDisplay}`}`}
                         isUploading={isUploading}
-                        style={previewCanvasStyle}
+                        style={mobilePaidLayout ? undefined : previewCanvasStyle}
                         className="mx-auto"
                       />
-                      {!isYardSign && !isCarMagnet && showCreateWithAI && (
+                      {mobilePaidLayout && showCreateWithAI && <button type="button" onClick={() => setAiModalOpen(true)} disabled={!hasCommittedBannerSize || !material || isUploading} className="mt-3 flex w-full items-start gap-4 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-orange-400 focus-visible:ring-2 focus-visible:ring-orange-600 disabled:opacity-50">
+                        <Sparkles className="mt-1 h-8 w-8 shrink-0 text-orange-500" aria-hidden="true" />
+                        <span className="min-w-0 flex-1"><span className="block text-lg font-bold text-[#061A31]">I need a design</span><span className="mt-0.5 block text-xs text-slate-600">Describe your idea and create with AI</span><span className="mt-2 flex min-h-11 items-center justify-center rounded-lg border border-orange-500 px-3 text-sm font-bold text-orange-700">Create with AI</span></span>
+                      </button>}
+                      {!mobilePaidLayout && !isYardSign && !isCarMagnet && showCreateWithAI && (
                         <div className="mt-3 flex flex-col items-center gap-2">
                         <span className="text-sm font-medium text-slate-500">or</span>
                           <button
@@ -3254,14 +3304,6 @@ const GoogleAdsBanner: React.FC = () => {
                       <p className="text-xs text-gray-400 text-center mt-2">
                         Size: {isCarMagnet ? `${widthIn}" × ${heightIn}"` : `${widthFt} ft${widthInR > 0 ? ` ${widthInR} in` : ''} × ${heightFt} ft${heightInR > 0 ? ` ${heightInR} in` : ''}`} ({sqft.toFixed(1)} sq ft)
                       </p>
-                      {offerOrientationSwap && <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-[#0B1F3A]">
-                        <p className="font-semibold">Your artwork is {artworkRatio < 1 ? 'portrait' : 'landscape'}. Want your banner to match?</p>
-                        <p className="mt-1 text-xs text-slate-600">Swap the width and height, then check your preview. Your artwork stays uploaded.</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <button type="button" onClick={swapBannerOrientation} className="min-h-11 rounded-lg bg-[#0B1F3A] px-3 py-2 text-sm font-semibold text-white">Switch to {heightDisplay} × {widthDisplay}</button>
-                          <button type="button" onClick={() => setDismissedOrientation(orientationKey)} className="min-h-11 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold">Keep this size</button>
-                        </div>
-                      </div>}
                       {/* Confidence text */}
                       <p className="text-xs text-gray-500 text-center mt-1 font-medium">Your design will be printed based on this preview</p>
                       {/* File info bar */}
@@ -3342,7 +3384,7 @@ const GoogleAdsBanner: React.FC = () => {
         {location.pathname.replace(/\/+$/, "") === "/google-ads-banner" ? (
         <header data-site-header className="w-full border-b border-white/10 bg-[#061A31] py-2 px-4 sticky top-0 z-50 lg:border-gray-100 lg:bg-white lg:py-3">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
-            <div className="w-10" />
+            <div className={mobilePaidLayout ? "hidden w-10 lg:block" : "w-10"} />
             <picture><source media="(max-width: 1023px)" srcSet="/images/homepage/header-logo-reverse.png" /><img src="/images/header-logo.png" alt="Banners On The Fly" width="248" height="70" className="h-8 w-auto object-contain lg:h-10" loading="eager" /></picture>
             <button
               onClick={() => setIsCartOpen(true)}
@@ -3365,11 +3407,11 @@ const GoogleAdsBanner: React.FC = () => {
           <Header compactMobile={compactMobileLanding} cartCount={cartItemCount} onCartClick={() => setIsCartOpen(true)} />
         )}
 
-        {!isYardSign && !isCarMagnet && <GoogleReviewSpotlight compactMobile={compactMobileLanding} />}
+        {!isYardSign && !isCarMagnet && !mobilePaidLayout && <GoogleReviewSpotlight compactMobile={compactMobileLanding} />}
 
         {/* HERO */}
         {!isYardSign && !isCarMagnet ? (
-          isLargeBannerLanding ? <ProductPageHero productSlug="large-banners-fast" ctaUrl="#order-builder" onStart={scrollToOrder} /> : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <><MobileBannerLandingHero /><div className="hidden lg:block"><FastBannerAdHero onStart={scrollToOrder} /></div></>
+          isLargeBannerLanding ? <ProductPageHero productSlug="large-banners-fast" ctaUrl="#order-builder" onStart={scrollToOrder} /> : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <>{(!mobilePaidLayout || mobileStage === 'banner') && <MobileBannerLandingHero redesigned={paidBannerLanding} />}<div className="hidden lg:block"><FastBannerAdHero onStart={scrollToOrder} /></div></>
         ) : (
         <section className="relative overflow-hidden border-b-4 border-[#FF6A00] bg-[#0B1F3A] px-4 py-10 sm:py-12 lg:py-16">
           <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:gap-14">
@@ -3444,16 +3486,22 @@ const GoogleAdsBanner: React.FC = () => {
         </section>
         )}
 
-        <RealOrdersStrip compactMobile={compactMobileLanding} expanded />
+        {!mobilePaidLayout && <RealOrdersStrip compactMobile={compactMobileLanding} expanded />}
 
-        <section ref={orderRef} id="order-builder" className={compactMobileLanding ? "bg-gray-50 px-4 py-3 lg:py-12" : "py-12 px-4 bg-gray-50"}>
-          <div className="max-w-4xl lg:max-w-7xl mx-auto">
+        <section ref={orderRef} id="order-builder" className={paidBannerLanding ? "bg-white px-4 py-3 lg:bg-gray-50 lg:py-12" : compactMobileLanding ? "bg-gray-50 px-4 py-3 lg:py-12" : "py-12 px-4 bg-gray-50"}>
+          <div className={mobilePaidLayout ? 'mx-auto max-w-xl' : 'max-w-4xl lg:max-w-7xl mx-auto'}>
             <p className={`mb-3 text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF6A00] ${compactMobileLanding ? "hidden lg:block" : ""}`}>
               {isDoubleSidedBanner ? 'Double-sided · 18 oz vinyl' : isYardSign ? '24″ × 18″ yard signs' : isCarMagnet ? 'Custom car magnets' : 'Custom vinyl banners'}
             </p>
-            {compactMobileLanding && <p className="mb-2 flex items-center justify-between gap-2 text-xs font-medium text-slate-500 lg:hidden" aria-label="Ordering steps">
-              <span className="font-bold text-orange-700" aria-current="step">1 Design</span><span aria-hidden="true">→</span><span>2 Finishing</span><span aria-hidden="true">→</span><span>3 Checkout</span>
-            </p>}
+            {compactMobileLanding && !paidBannerLanding && <p className="mb-2 flex items-center justify-between gap-2 text-xs font-medium text-slate-500 lg:hidden" aria-label="Ordering steps"><span className="font-bold text-orange-700" aria-current="step">1 Design</span><span aria-hidden="true">→</span><span>2 Finishing</span><span aria-hidden="true">→</span><span>3 Checkout</span></p>}
+            {mobilePaidLayout && (mobileStage === 'banner' ? <>
+              <h2 id="mobile-size-heading" tabIndex={-1} className="sr-only">Choose your banner</h2>
+              {bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' && <p className="mb-4 rounded-full bg-orange-50 px-3 py-2 text-center text-xs font-bold text-orange-700">20% off your first order</p>}
+            </> : <>
+              <MobileBannerSteps current={2} onBanner={() => changeMobileStage('banner')} />
+              <h2 id="mobile-artwork-heading" tabIndex={-1} className="text-3xl font-extrabold tracking-tight text-[#061A31] focus:outline-none">Make it yours.</h2>
+              <p className="mb-4 mt-1 text-sm font-semibold text-slate-600">{widthDisplay} × {heightDisplay} · {usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</p>
+            </>)}
             <h2
               ref={builderStartRef}
               id="builder-start"
@@ -3578,9 +3626,16 @@ const GoogleAdsBanner: React.FC = () => {
             /* Compact banner builder; existing product handlers remain shared. */
             <div data-compact-banner-builder={!isCarMagnet || undefined} className={isCarMagnet ? "grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 max-w-full" : "grid gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]"}>
               <div className="space-y-5 min-w-0 max-w-full">
-                {sizeCard}
+                <div hidden={mobilePaidLayout && mobileStage !== 'banner'}>{sizeCard}</div>
                 {isCarMagnet && quantityCard}
-                {isCarMagnet ? <>{finishingCard}{uploadCard}</> : <>{uploadCard}{isLgScreen && finishingCard}</>}
+                {isCarMagnet ? <>{finishingCard}{uploadCard}</> : <>
+                  <div hidden={mobilePaidLayout && mobileStage !== 'artwork'} className="space-y-3">
+                    {mobilePaidLayout && <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm"><BannerPrintSides compact doubleSided={isDoubleSidedBanner} onChange={handleBannerPrintSidesChange} />{materialCard}{quantityCard}</div>}
+                    {uploadCard}
+                    {mobilePaidLayout && <FadingGoogleReviews />}
+                  </div>
+                  {isLgScreen && finishingCard}
+                </>}
 
               </div>
 
@@ -3667,8 +3722,8 @@ const GoogleAdsBanner: React.FC = () => {
           </div>
         </section>
 
-        {compactMobileLanding && <div className="lg:hidden"><MobileBannerLandingProof /></div>}
-        <TrustStrip />
+        {compactMobileLanding && !paidBannerLanding && <MobileBannerLandingProof />}
+        <TrustStrip className={paidBannerLanding ? 'hidden lg:block' : undefined} />
 
         <div className="py-4 pb-24 md:pb-4 text-center text-xs text-gray-400 border-t border-gray-100">
           <div className="mb-2">
@@ -3683,10 +3738,13 @@ const GoogleAdsBanner: React.FC = () => {
       </div>
 
         <MobileFinishingStep
+          reviewLayout={mobilePaidLayout}
+          finishingSummary={<>{addRope ? `Rope: ${getDisplayPlacement(ropePlacement)}` : polePockets !== 'none' ? `Pole pockets: ${getDisplayPlacement(polePockets)}` : `Grommets: ${grommetsLabel}`}<br />Hemming included</>}
+          onReplaceArtwork={file => { setMobileFinishingOpen(false); void handleFileUpload(file); }}
           open={mobileFinishingOpen && !isLgScreen && !isYardSign && !isCarMagnet}
           onBack={() => setMobileFinishingOpen(false)}
           description={`${widthDisplay} × ${heightDisplay} · ${materialLabel} · Qty ${quantity}`}
-          price={bannerPrice}
+          price={mobilePaidLayout ? compactBannerPrice : bannerPrice}
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
           ready={finishingChoiceConfirmed && Boolean(uploadedFile) && hasCommittedBannerSize}
           busy={isUploading || isProcessingUpsell}
@@ -3695,8 +3753,9 @@ const GoogleAdsBanner: React.FC = () => {
           onViewCart={() => { setMobileFinishingOpen(false); setShowPreview(false); openCartDrawer(); }}
           onCheckout={() => { if (finishingChoiceConfirmed) void prepareAndRoutePlacement('checkout', mobileFinishingSource); }}
           onAddAnother={() => { if (finishingChoiceConfirmed) void prepareAndRoutePlacement('cart', mobileFinishingSource); }}
-          summary={<>{bannerSummary}<SameDayHitServiceCard variant="compact" previewHasPrice={Boolean(uploadedFile)} previewSubtotalCents={bannerPricing.subtotalBeforeDiscountCents} /></>}
+          summary={<>{mobilePaidLayout ? mobileReviewSummary : bannerSummary}<div className="mt-3"><SameDayHitServiceCard variant="compact" previewHasPrice={Boolean(uploadedFile)} previewSubtotalCents={bannerPricing.subtotalBeforeDiscountCents} /></div></>}
           preview={uploadedFile && finishingPreviewTransform && <LiveFinishingPreview
+            prominent={mobilePaidLayout}
             src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
             transform={finishingPreviewTransform}
             choiceConfirmed={finishingChoiceConfirmed}
@@ -3715,15 +3774,17 @@ const GoogleAdsBanner: React.FC = () => {
           {(!activeCartPromo || activeCartPromo.code === 'NEW20') && firstOrderOffer.status === 'unavailable' && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{firstOrderOffer.message} <button type="button" onClick={firstOrderOffer.retry} className="min-h-11 font-semibold underline">Retry offer</button></p>}
         </MobileFinishingStep>
         <MobileSubtotalBar
+          compact={mobilePaidLayout}
+          selectionLabel={`${widthDisplay} × ${heightDisplay} · ${quantity > 1 ? `Qty ${quantity}` : mobileStage === 'banner' ? 'banner' : isDoubleSidedBanner ? '18oz · 2 sides' : material}`}
           uploadRecovery={!isYardSign && !isCarMagnet && isUploading ? { onCancel: cancelArtworkUpload } : undefined}
-          primaryAction={!isYardSign && !isCarMagnet ? mobileBannerAction : undefined}
+          primaryAction={!isYardSign && !isCarMagnet ? mobilePaidLayout ? paidMobileAction : mobileBannerAction : undefined}
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
           cartItemCount={cartItemCount}
           onViewCart={openCartDrawer}
           priceNote={!hasCommittedBannerSize ? undefined : isLargeBannerLanding && widthIn === 120 && heightIn === 48 ? "10′ × 4′ large banner selected" : showPopularBannerPriceNote ? POPULAR_BANNER_PRESET.mobilePriceNote : undefined}
           subtotal={
             !isYardSign && !isCarMagnet ? (
-              bannerPrice
+              mobilePaidLayout ? compactBannerPrice : bannerPrice
             ) : isYardSign && yardSignPricing ? (
               <p className="text-xl font-bold text-gray-900">
                 {yardSignTotalQty > 0 ? usd(yardSignPricing.totalCents / 100) : '—'}

@@ -13,6 +13,7 @@ interface FileUploaderProps {
   disabled?: boolean;
   className?: string;
   style?: React.CSSProperties;
+  choiceCard?: boolean;
 }
 
 export interface FileUploaderHandle {
@@ -38,6 +39,7 @@ const FileUploader = forwardRef<FileUploaderHandle, FileUploaderProps>(({
   disabled = false,
   className = '',
   style,
+  choiceCard = false,
 }, ref) => {
   const localInputRef = useRef<HTMLInputElement>(null);
   const [isDragActive, setIsDragActive] = useState(false);
@@ -65,9 +67,9 @@ const FileUploader = forwardRef<FileUploaderHandle, FileUploaderProps>(({
   return (
     <div
       className={[
-        'w-full rounded-xl border-2 border-dashed text-center transition-all duration-200 ease-in-out',
+        choiceCard ? 'w-full rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm' : 'w-full rounded-xl border-2 border-dashed text-center border-[#E5E7EB] bg-[#FAFAFA] p-6 md:p-8',
+        'transition-all duration-200 ease-in-out',
         'flex items-center justify-center',
-        'border-[#E5E7EB] bg-[#FAFAFA] p-6 md:p-8',
         isDragActive ? 'border-[#F97316] bg-[#FFF3E0]' : 'hover:border-[#F97316] hover:bg-[#FFF7ED]',
         (disabled || isUploading) ? 'cursor-not-allowed opacity-80' : 'cursor-pointer',
         className,
@@ -119,6 +121,15 @@ const FileUploader = forwardRef<FileUploaderHandle, FileUploaderProps>(({
         <div className="flex flex-col items-center justify-center">
           <Loader2 className="mb-2 h-8 w-8 animate-spin text-[#F97316] md:h-10 md:w-10" />
           <p className="text-sm font-medium text-gray-600">Uploading...</p>
+        </div>
+      ) : choiceCard ? (
+        <div className="flex w-full items-start gap-4">
+          <Upload className="mt-1 h-8 w-8 shrink-0 text-[#18448D]" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <p className="text-lg font-bold text-[#061A31]">I have artwork</p>
+            <p className="mt-0.5 text-xs text-slate-600">{derivedSubText}</p>
+            <span className="mt-2 flex min-h-11 items-center justify-center rounded-lg border border-orange-500 px-3 text-sm font-bold text-orange-700">{label}</span>
+          </div>
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center">

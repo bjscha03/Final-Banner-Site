@@ -40,10 +40,15 @@ for (const route of ROUTES) {
 
     if (isMobile) {
       await expect(mobileFooter).toBeVisible();
+      if (isAds) {
+        await expect(mobileFooter).toContainText("6' × 3'");
+        await expect(mobileFooter.getByRole('button', { name: 'Add artwork', exact: true })).toBeVisible();
+      } else {
       await expect(mobileFooter.getByText('This banner · Before tax', { exact: true })).toBeVisible();
       await expect(mobileFooter.getByRole('button', { name: /View Cart \(0\)/i })).toBeVisible();
       await expect(page.locator('[data-mobile-guided-action]')).toHaveCount(0);
       await expect(mobileFooter.getByRole('button', { name: /^Upload artwork$/i })).toBeVisible();
+      }
     } else {
       await expect(mobileTimer).toBeHidden();
       await expect(mobileFooter).toBeHidden();

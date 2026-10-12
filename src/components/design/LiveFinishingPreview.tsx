@@ -7,11 +7,12 @@ import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, D
 import BannerDimensions from '@/components/preview/BannerDimensions';
 
 /** Display-only scene: the editor remains the authority for saving artwork. */
-export default function LiveFinishingPreview({ item, src, transform, choiceConfirmed }: {
+export default function LiveFinishingPreview({ item, src, transform, choiceConfirmed, prominent = false }: {
   item: CartItem;
   src: string;
   transform: NormalizedArtworkTransform;
   choiceConfirmed: boolean;
+  prominent?: boolean;
 }) {
   const details = normalizeOrderItemDisplay(item);
   const selected = item.rope_feet > 0
@@ -38,7 +39,7 @@ export default function LiveFinishingPreview({ item, src, transform, choiceConfi
         <span className="text-xs text-[#18448D]">Tap to enlarge</span>
       </div>
       <DialogTrigger asChild>
-        <button type="button" aria-label="Enlarge realistic preview" className="realistic-banner-trigger mx-auto" style={{ maxWidth: `min(100%, calc(20dvh * ${ratio}))` }}>
+        <button type="button" aria-label="Enlarge realistic preview" className="realistic-banner-trigger mx-auto" style={{ maxWidth: prominent ? `min(100%, 480px, calc(36dvh * ${ratio}))` : `min(100%, calc(20dvh * ${ratio}))` }}>
           <RealisticBannerScene item={item} artwork={artwork} />
           <span className="realistic-banner-zoom" aria-hidden="true"><ZoomIn size={16} /></span>
         </button>
