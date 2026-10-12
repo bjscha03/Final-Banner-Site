@@ -39,7 +39,7 @@ export default function LiveFinishingPreview({ item, src, transform, choiceConfi
         <span className="text-xs text-[#18448D]">Tap to enlarge</span>
       </div>
       <DialogTrigger asChild>
-        <button type="button" aria-label="Enlarge realistic preview" className="realistic-banner-trigger mx-auto" style={{ maxWidth: prominent ? '100%' : `min(100%, calc(20dvh * ${ratio}))` }}>
+        <button type="button" aria-label="Enlarge realistic preview" className="realistic-banner-trigger mx-auto" style={{ maxWidth: `min(100%, calc(${prominent ? 36 : 20}dvh * ${ratio}))` }}>
           <RealisticBannerScene item={item} artwork={artwork} />
           <span className="realistic-banner-zoom" aria-hidden="true"><ZoomIn size={16} /></span>
         </button>

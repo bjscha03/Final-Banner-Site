@@ -3789,7 +3789,7 @@ const GoogleAdsBanner: React.FC = () => {
         </MobileFinishingStep>
         <MobileSubtotalBar
           compact={mobilePaidLayout}
-          selectionLabel={`${widthDisplay} × ${heightDisplay} · ${quantity > 1 ? `Qty ${quantity}` : mobileStage === 'banner' ? 'banner' : materialLabel}`}
+          selectionLabel={`${widthDisplay} × ${heightDisplay} · ${quantity > 1 ? `Qty ${quantity}` : mobileStage === 'banner' ? 'banner' : isDoubleSidedBanner ? '18oz · 2 sides' : material}`}
           uploadRecovery={!isYardSign && !isCarMagnet && isUploading ? { onCancel: cancelArtworkUpload } : undefined}
           primaryAction={!isYardSign && !isCarMagnet ? mobilePaidLayout ? paidMobileAction : mobileBannerAction : undefined}
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
