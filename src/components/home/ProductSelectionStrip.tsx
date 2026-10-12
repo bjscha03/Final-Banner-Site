@@ -54,6 +54,10 @@ const ProductSelectionStrip: React.FC = () => {
           <span className="inline-flex items-center gap-2 font-semibold">Design yours <ArrowRight className="h-4 w-4" /></span>
         </Link>
         <p className="mt-5 text-sm text-slate-600">Free next-day air after production on orders $20 and up.</p>
+        <Link to="/products" className="group mt-10 flex flex-wrap items-center justify-between gap-5 overflow-hidden border-l-4 border-[#FF6A00] bg-[#0B1F3A] px-6 py-7 text-white transition hover:bg-[#153b62] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6A00] sm:px-8">
+          <span><span className="text-xs font-black uppercase tracking-[0.18em] text-[#ff9b65]">Expand your display</span><strong className="mt-2 block font-display text-2xl font-black sm:text-3xl">Banner stands, flags, table covers, tents & signs</strong><span className="mt-2 block text-sm text-slate-200">Explore more products. Shipping for these items is quoted by address.</span></span>
+          <span className="inline-flex items-center gap-2 font-bold">Explore displays & signs <ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" /></span>
+        </Link>
       </div>
     </section>
   );
