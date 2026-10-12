@@ -261,7 +261,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
             </ScrollToTopLink>
           </div>
 
-          <nav className="hidden items-center gap-6 lg:flex" aria-label="Primary navigation">
+          <nav className="hidden items-center gap-3 xl:gap-4 2xl:gap-6 lg:flex" aria-label="Primary navigation">
             {[
               { name: 'Vinyl Banners', href: '/vinyl-banners' },
     { name: 'Double-Sided Banners', href: '/design?product=banner&sides=double' },
@@ -274,7 +274,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
               <ScrollToTopLink
                 key={item.href}
                 to={item.href}
-                className={`relative py-2 text-sm font-semibold transition-colors after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:origin-left after:bg-[#FF6A00] after:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] ${
+                className={`relative whitespace-nowrap py-2 text-xs font-semibold transition-colors after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:origin-left after:bg-[#FF6A00] after:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] xl:text-sm ${
                   location.pathname === item.href
                     ? 'text-white after:scale-x-100'
                     : 'text-white/85 hover:text-white after:scale-x-0 hover:after:scale-x-100'
