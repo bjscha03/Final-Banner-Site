@@ -342,6 +342,13 @@ describe('customer print review', () => {
 });
 
 describe('product-specific AI sessions',()=>{
+  it('preserves the existing banner draft when its selected dimensions change',async()=>{
+    const saved=session();await mount(saved);
+    await act(async()=>root.render(<AIWorkspace productType="banner" widthIn={96} heightIn={48} material="13oz" initialSession={saved} onGenerated={generated}/>));
+    expect(selectedImage()).toContain(concept(1).imageBase64);
+    expect(button('Apply your changes before continuing').disabled).toBe(true);
+    expect(host.textContent).toContain('8 ft × 4 ft');
+  });
   it('replaces the banner example and clears its versions when changing to a flag',async()=>{
     await mount(session());
     expect(selectedImage()).toContain(concept(1).imageBase64);

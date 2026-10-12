@@ -179,8 +179,12 @@ function formatDuration(milliseconds: number) {
 }
 
 export default function AIWorkspace(props: Props) {
-  const initialSession=sameAIProduct(props.initialSession?.brief,props)?props.initialSession:null;
-  return <AIWorkspaceSession key={`${props.productType}:${props.widthIn}:${props.heightIn}`} {...props} initialSession={initialSession}/>;
+  const specialty=props.productType.startsWith('specialty:');
+  const initialSession=!specialty||sameAIProduct(props.initialSession?.brief,props)?props.initialSession:null;
+  // Existing banner/yard-sign/magnet resizing retains its editable draft.
+  // A specialty size can change the physical template and required faces.
+  const sessionKey=specialty?`${props.productType}:${props.widthIn}:${props.heightIn}`:props.productType;
+  return <AIWorkspaceSession key={sessionKey} {...props} initialSession={initialSession}/>;
 }
 
 function AIWorkspaceSession(props: Props) {

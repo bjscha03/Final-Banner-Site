@@ -4,7 +4,7 @@ Updated October 12, 2026. Draft PR #601; **not ready for production**.
 
 ## Scope and safeguards
 
-The catalog has 19 product families, 60 variants, 103 supplier templates and 133 registered variant/panel combinations. It uses the existing artwork-to-cart flow. Existing banner, yard-sign and magnet price tables are unchanged; targeted regression checks cover their pricing and the banner AI workspace.
+The catalog has 19 product families, 60 variants, 103 supplier templates and 133 registered variant/panel combinations. It uses the existing artwork-to-cart flow. Existing banner, yard-sign and magnet price tables are unchanged; existing banner resizing retains its editable AI draft; targeted regression checks cover their pricing and the banner AI workspace.
 
 Each family has a fictional-business catalog image. Product pages also expose manufacturer photography that follows size and accessory selections, supplier details, available template files, installation instructions and videos. The captured data covers 24 supplier profiles and 91 normalized selection groups. Six illustrated installation PDF guides were created from manufacturer instructions and inspected page by page.
 
@@ -46,7 +46,7 @@ This pass includes automated coverage for all registered AI dimensions, crop-mas
 
 The public-asset audit contains 350 unique URLs: 110 binary responses verified; 240 could not be verified because the environment returned proxy 403 responses. These are access failures, not proof of broken supplier links. See `specialty-assets-verification.json`. All six newly created local guides were rendered and reviewed.
 
-The final local run passed 258 AI tests, 48 frontend/library tests, 19 pricing/catalog tests and three PDF-job/snapshot tests. All seven Chromium integration checks passed with zero page errors. The production build passed SSR/prerender, metadata, schema, sitemap and 233 generated route checks. A first concurrent build/test attempt timed out under local resource contention; the separate reruns passed. Project-wide TypeScript checking still has pre-existing parse/type failures; do not call the repository type-clean. The earlier hosted build passed, but its broader CI failed at existing Admin commerce browser contracts (missing analytics heading/period controls). Targeted specialty passes do not establish a green full CI run.
+The final local run passed 258 AI tests, 49 frontend/library tests, 19 pricing/catalog tests and three PDF-job/snapshot tests. All seven Chromium integration checks passed with zero page errors. The production build passed SSR/prerender, metadata, schema, sitemap and 233 generated route checks. A first concurrent build/test attempt timed out under local resource contention; the separate reruns passed. Project-wide TypeScript checking still has pre-existing parse/type failures; do not call the repository type-clean. The earlier hosted build passed, but its broader CI failed at existing Admin commerce browser contracts (missing analytics heading/period controls). Targeted specialty passes do not establish a green full CI run.
 
 ## Release dependencies
 
@@ -55,3 +55,5 @@ The final local run passed 258 AI tests, 48 frontend/library tests, 19 pricing/c
 3. Test real flag Fit with AI and Create with AI on every distinct template family, including double-face files and multi-panel products. Inspect provider/job logs for the originally reported flag error. Local geometry fixes are verified; that specific live failure has not been reproduced in the authenticated environment.
 4. Complete hosted upload/cart/order/admin/email tests and test-mode checkout against an isolated preview database. Apply `database-migrations/add-specialty-artwork.sql` there first. Check artwork download permissions and every selected panel.
 5. Confirm supplier CMYK/transparency preflight, hardware/assembly previews, all asset links and unresolved finishing geometry. Enable fulfillment only after these checks pass.
+
+The hosted deployment for commit `cfc1444` failed with Netlify’s generic build-stage exit code 3. The connector did not expose the detailed build log. Local packaging of the AI fit and paid-order PDF functions succeeded. The hosted regression run passed upload recovery, checkout/order/email tests, specialty AI and preview unit stages, then failed the existing Admin commerce browser contracts. Hosted readiness is still unverified.
