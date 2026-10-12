@@ -1537,8 +1537,8 @@ const Checkout: React.FC = () => {
                   <div className="flex flex-wrap gap-1.5">
                     {[
                       { icon: <Lock className="h-3 w-3" />, label: 'Secure encrypted checkout' },
-                      { icon: <CircleCheck className="h-3 w-3" />, label: 'Most standard orders: 24-hour production' },
-                      { icon: <Truck className="h-3 w-3" />, label: 'Free next-day air anywhere in the U.S.' },
+                      { icon: <CircleCheck className="h-3 w-3" />, label: specialtyInCart ? 'Production varies by product' : 'Most standard orders: 24-hour production' },
+                      { icon: <Truck className="h-3 w-3" />, label: specialtyInCart ? (items.every(specialtyItemHasIncludedShipping) ? 'Overnight shipping included after production' : 'Shipping pending verification') : 'Free next-day air anywhere in the U.S.' },
                     ].map((badge) => (
                       <span key={badge.label} className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-600">
                         {badge.icon}
@@ -1546,7 +1546,7 @@ const Checkout: React.FC = () => {
                       </span>
                     ))}
                   </div>
-                  <p className="mt-2 text-xs text-gray-600">Secure checkout · No PayPal account required · Upload almost any file type · We check your file before production.</p>
+                  <p className="mt-2 text-xs text-gray-600">Secure checkout · No PayPal account required · {specialtyInCart ? 'Upload PDF, PNG or JPG artwork' : 'Upload almost any file type'} · We check your file before production.</p>
                   <p className="text-xs text-gray-600">Production time and carrier transit are separate; delivery dates are estimates.</p>
                 </div>
               </div>
