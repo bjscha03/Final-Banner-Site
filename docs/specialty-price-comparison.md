@@ -1,9 +1,10 @@
 # Lexington Sign price mapping
 
-Verified from live public product pages and their configurator on October 11, 2026 (America/New_York). USD, per item. All matched prices include overnight shipping after production, before tax. These values apply only to new specialty products.
+Public product/configurator prices checked October 11–12, 2026. Owner policy reaffirmed October 12: use Lexington retail prices and free shipping for matching new products; the owner will supply remaining prices/shipping later. USD, per item. All matched prices include overnight shipping after production, before tax. These values apply only to new specialty products.
 
 | Our configuration | Matched retail | Source |
 |---|---:|---|
+| Standard retractable kit, 33 × 81 in, single-sided print/stand/bag | $189 | [Retractable stands](https://www.lexingtonsign.com/banner-stands.html), owner-directed equivalent retail mapping |
 | Step-and-repeat kit, 8 × 8 ft, 9 oz fabric/frame/bag | $465 | [Backdrop kits](https://www.lexingtonsign.com/tension-fabric-displays.html) |
 | Step-and-repeat kit, 10 × 8 ft, 9 oz fabric/frame/bag | $525 | [Backdrop kits](https://www.lexingtonsign.com/tension-fabric-displays.html) |
 | Standard table throw, 6 ft, open back | $185 | [Table throws](https://www.lexingtonsign.com/table-throws.html) |
@@ -24,11 +25,13 @@ Verified from live public product pages and their configurator on October 11, 20
 
 The ACM prices apply in either orientation. They are fixed size prices: deriving one universal square-foot rate would produce incorrect totals. The $36 rider is present in the live size selector even though the short page pricing table omits that row.
 
-## Unmatched configurations
+The $189 mapping applies to our standard silver-base 33 × 81-inch complete single-sided kit. Lexington labels its corresponding kit 33.5 × 80 inches. This is an owner-directed retail price mapping, **not a claim of identical dimensions or SKU**; our actual product, artwork template and production dimensions remain unchanged.
+
+## Prices to be supplied by the owner
 
 | Product/configuration | Remaining issue |
 |---|---|
-| Standard/deluxe/premium retractables | Lexington lists one $189 kit at 33.5 × 80 in. Our standard/deluxe are 33 × 81 in; other sizes and premium hardware are not priced there. Confirm the corresponding SKU before assigning that price. |
+| Other retractable sizes, black base, deluxe and premium hardware | Lexington publishes one $189 single-sided retractable kit. Remaining size/hardware adjustments are for the owner to price. |
 | X-banner stand, tabletop stand, narrow tension-fabric stand | No matching published listing found. The 8/10-ft fabric backdrop is a different product. |
 | Convex feather, teardrop, rectangle and economy flags | Lexington's published flag table specifies angled feather flags. No matching shape-specific table found. |
 | 4-ft standard table throw | Published table begins at 6 ft. |
@@ -62,6 +65,6 @@ Sources: the [flag](https://www.lexingtonsign.com/feather-flags.html), [tent](ht
 
 Lexington's public configurator also exposes rush and Saturday charges. These are **not enabled**: a competitor charge does not establish our facility/service eligibility or arrival date. The existing banner rush policy is not automatically applied to new products.
 
-Lexington's homepage was checked again on October 12, 2026: it advertises free overnight shipping on every order, no minimum, to all 50 states. This is a retail offer, not a statement of B2Sign's wholesale freight cost. The site applies that $0 shipping policy to the matched configurations above; it does not infer shipping terms for unrelated B2Sign products or unmatched sizes.
+Lexington's homepage was checked again on October 12, 2026: it advertises free overnight shipping on every order, no minimum, to all 50 states. This is a retail offer, not a statement of B2Sign's wholesale freight cost. Per the owner's October 12 instruction, that $0 policy applies to the six matching product families: standard retractables, step-and-repeat backdrops, feather flags, standard table throws, event tents and ACM signs. It persists when a customer chooses an as-yet-unpriced size or accessory. Other product families await the owner's shipping policy.
 
-Matched configurations with fully priced options and complete approved artwork can proceed through checkout. A missing option price blocks payment without erasing the matched base product's included-shipping policy. Unmatched configurations remain unavailable for payment. Existing banners, yard signs and car magnets retain their price tables, shipping and quantity-discount eligibility.
+Matched configurations with fully priced options and complete approved artwork can proceed through checkout. A missing option price keeps the base price and all known adjustments visible, clearly labeled as incomplete, and preserves free shipping. Only the incomplete configuration remains unavailable for payment; its artwork and options can still be saved. Catalog cards and size/option selectors display published prices directly, and unlisted products say Price coming soon without a request form or draft estimates. Existing banners, yard signs and car magnets retain their price tables, shipping and quantity-discount eligibility.

@@ -2,6 +2,7 @@ import SavedSpecialtyPreview from '@/components/specialty/SavedSpecialtyPreview'
 import {specialtyItemHasIncludedShipping, specialtyItemHasVerifiedPrice} from '@/lib/specialtyProducts';
 import { cartEditUrl } from '@/lib/cartEditUrl';
 import CartLinePrice from '@/components/cart/CartLinePrice';
+import SpecialtyPendingPrice from '@/components/specialty/SpecialtyPendingPrice';
 import { getCartDisplayPrices } from '@/lib/cartDisplayPricing';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -457,7 +458,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
 
                       <div className="mb-3 flex items-start justify-between">
                         <h3 className="text-base font-semibold text-gray-900">{getItemDisplayName(item)}</h3>
-                        {specialtyItemHasVerifiedPrice(item) ? <CartLinePrice {...displayPrice} quantity={item.quantity} /> : <p className="text-sm font-semibold text-amber-800">Price pending</p>}
+                        {specialtyItemHasVerifiedPrice(item) ? <CartLinePrice {...displayPrice} quantity={item.quantity} /> : <SpecialtyPendingPrice item={item}/>}
                       </div>
 
                       <dl className="mb-3 grid grid-cols-2 gap-2">

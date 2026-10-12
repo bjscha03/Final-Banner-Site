@@ -68,7 +68,7 @@
       },
       {
         "label": "33 × 81 in",
-        "priceCents": 12299,
+        "priceCents": 18900,
         "widthIn": 33,
         "heightIn": 81,
         "id": "standard-retractable-banner-3",
@@ -90,7 +90,14 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/banner-stands.html",
+          "checkedAt": "2026-10-12",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "owner_retail_mapping",
+          "note": "Owner-directed Lexington retail pricing for the corresponding standard single-sided retractable kit. Lexington advertises 33.5 × 80 in; supplied product and artwork remain B2Sign 33 × 81 in."
+        }
       },
       {
         "label": "47 × 81 in",
@@ -147,7 +154,8 @@
     "image": "/images/products/standard-retractable-banner.webp",
     "imageAlt": "Standard Retractable Banner with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "materialLabel": "Printed graphic and display hardware"
+    "materialLabel": "Printed graphic and display hardware",
+    "shippingPolicy": "free_overnight_after_production"
   },
   {
     "slug": "deluxe-retractable-banner",
@@ -827,7 +835,8 @@
     "image": "/images/products/step-and-repeat-backdrop.webp",
     "imageAlt": "Step & Repeat Backdrop with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "materialLabel": "9 oz. wrinkle-resistant fabric · frame and carry bag"
+    "materialLabel": "9 oz. wrinkle-resistant fabric · frame and carry bag",
+    "shippingPolicy": "free_overnight_after_production"
   },
   {
     "slug": "feather-flags",
@@ -1334,7 +1343,8 @@
     "image": "/images/products/feather-flags.webp",
     "imageAlt": "Feather Flags with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "materialLabel": "Printed polyester flag fabric"
+    "materialLabel": "Printed polyester flag fabric",
+    "shippingPolicy": "free_overnight_after_production"
   },
   {
     "slug": "teardrop-flags",
@@ -1952,7 +1962,8 @@
     "image": "/images/products/standard-table-throws.webp",
     "imageAlt": "Standard Table Throws with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "materialLabel": "Dye-sublimated fabric"
+    "materialLabel": "Dye-sublimated fabric",
+    "shippingPolicy": "free_overnight_after_production"
   },
   {
     "slug": "fitted-table-throws",
@@ -2873,7 +2884,8 @@
     "image": "/images/products/custom-event-tents.webp",
     "imageAlt": "Custom Event Tents with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "materialLabel": "Dye-sublimated fabric"
+    "materialLabel": "Dye-sublimated fabric",
+    "shippingPolicy": "free_overnight_after_production"
   },
   {
     "slug": "acrylic-signs",
@@ -3114,7 +3126,8 @@
         "shippingPolicy": "free_overnight_after_production",
         "status": "exact_configuration"
       }
-    ]
+    ],
+    "shippingPolicy": "free_overnight_after_production"
   },
   {
     "slug": "display-posters",

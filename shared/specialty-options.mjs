@@ -62,6 +62,11 @@ function validateDimensions(product,variant,width,height) {
     if(!Number.isFinite(width)||!Number.isFinite(height)||width<l.minWidth||width>l.maxWidth||height<l.minHeight||height>l.maxHeight||width%l.step||height%l.step) throw new Error(`Choose a width of ${l.minWidth}–${l.maxWidth} in and a height of ${l.minHeight}–${l.maxHeight} in, in ${l.step}-inch increments.`);
   }
 }
+function optionPriceCents(variant,width,height,options,key) {
+  if(String(options[key])===String(variant.baselineOptions?.[key])) return 0;
+  const dimensional=(variant.dimensionOptionPrices||[]).find(r=>r.when[key]!==undefined&&Object.entries(r.when).every(([k,v])=>options[k]===v)&&((r.widthIn===width&&r.heightIn===height)||(r.widthIn===height&&r.heightIn===width)));
+  return dimensional?.addCents??variant.optionPrices?.[key]?.[options[key]];
+}
 function priceConfiguration(product,variant,width,height,input={}) {
   validateDimensions(product,variant,width,height);
   const options=optionsFor(variant,input,true), match=priceMatch(product,variant,width,height);
@@ -71,15 +76,13 @@ function priceConfiguration(product,variant,width,height,input={}) {
   for(const group of profileFor(variant)?.groups||[]) {
     if(!matches(group.visible,options)||String(options[group.key])===String(variant.baselineOptions?.[group.key])) continue;
     const selected=group.options.find(o=>String(o.key)===String(options[group.key]));
-    let cents=variant.optionPrices?.[group.key]?.[options[group.key]];
-    const dimensional=(variant.dimensionOptionPrices||[]).find(r=>Object.entries(r.when).every(([k,v])=>options[k]===v)&&((r.widthIn===width&&r.heightIn===height)||(r.widthIn===height&&r.heightIn===width)));
-    if(dimensional?.when[group.key]!==undefined)cents=dimensional.addCents;
+    const cents=optionPriceCents(variant,width,height,options,group.key);
     const label=`${group.label}: ${selected?.label||options[group.key]}`;
     if(!Number.isInteger(cents)) missing.push(label); else adjustments.push({key:group.key,label,cents});
   }
-  // A missing accessory price does not erase the matched product's shipping policy.
-  // Unmatched products/sizes still need an independently confirmed retail policy.
-  return {unitCents:base+adjustments.reduce((n,a)=>n+a.cents,0),baseCents:base,adjustments,verified:missing.length===0,missing,options,sourceUrl:match?.sourceUrl,shippingPolicy:match?.shippingPolicy};
+  // The owner's retail shipping policy belongs to the product family and is
+  // independent of whether every size/accessory has been priced yet.
+  return {unitCents:base+adjustments.reduce((n,a)=>n+a.cents,0),baseCents:base,baseVerified:!!match,adjustments,verified:missing.length===0,missing,options,sourceUrl:match?.sourceUrl,shippingPolicy:product.shippingPolicy||match?.shippingPolicy};
 }
 function materialLabel(product,variant,options={}) {
   const values=optionsFor(variant,options),group=profileFor(variant)?.groups.find(g=>g.key==='material');
@@ -89,4 +92,4 @@ function optionSummary(variant, options={}) {
   const values=optionsFor(variant,options);
   return (profileFor(variant)?.groups||[]).filter(g=>matches(g.visible,values)&&g.visible!==false).map(g=>({key:g.key,label:g.label,value:g.options.find(o=>String(o.key)===values[g.key])?.label||values[g.key]}));
 }
-export default {materialLabel,profiles,matches,profileFor,optionsFor,panelDefinitions,allPanelDefinitions,priceMatch,validateDimensions,priceConfiguration,optionSummary};
+export default {materialLabel,profiles,matches,profileFor,optionsFor,panelDefinitions,allPanelDefinitions,priceMatch,validateDimensions,optionPriceCents,priceConfiguration,optionSummary};

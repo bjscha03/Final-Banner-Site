@@ -6,6 +6,7 @@ import { readCheckoutCustomerDraft } from '@/components/checkout/checkoutCustome
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { cartEditUrl } from '@/lib/cartEditUrl';
 import CartLinePrice from '@/components/cart/CartLinePrice';
+import SpecialtyPendingPrice from '@/components/specialty/SpecialtyPendingPrice';
 import { trackAIEvent } from '@/lib/aiAnalytics';
 import { getCartDisplayPrices, getEnteredPromoLabel } from '@/lib/cartDisplayPricing';
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
@@ -1042,7 +1043,7 @@ const Checkout: React.FC = () => {
                                 </span>
                               </div>
                             </div>
-                            {specialtyItemHasVerifiedPrice(item) ? <CartLinePrice {...displayPrice} quantity={item.quantity} /> : <p className="text-sm font-semibold text-amber-800">Price pending</p>}
+                            {specialtyItemHasVerifiedPrice(item) ? <CartLinePrice {...displayPrice} quantity={item.quantity} /> : <SpecialtyPendingPrice item={item}/>}
                           </div>
 
                           <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -1198,7 +1199,7 @@ const Checkout: React.FC = () => {
 
   const paymentOrderSummary = (
     <section aria-label="Review order before payment" data-testid="payment-order-summary" className="space-y-3">
-      <CheckoutArtworkSummary showTotal={false} items={items} totalCents={totalCents}
+      <CheckoutArtworkSummary showTotal={false} items={items} totalCents={totalCents} linePrices={displayPrices}
         editAction={<CheckoutReviewDialog label="Edit order">{orderReviewContent}</CheckoutReviewDialog>} />
       {orderTotals}
     </section>

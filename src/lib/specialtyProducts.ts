@@ -7,7 +7,8 @@ export type SpecialtyVisual = 'retractable' | 'xstand' | 'backdrop' | 'flag' | '
 
 export interface SpecialtyPanel { id: string; label: string; templateId: string; }
 export interface SpecialtyPriceMatch {
-  sourceUrl:string; checkedAt:string; shippingPolicy:'free_overnight_after_production'; status:'exact_configuration';
+  sourceUrl:string; checkedAt:string; shippingPolicy:'free_overnight_after_production'; status:'exact_configuration'|'owner_retail_mapping';
+  note?:string;
   widthIn?:number; heightIn?:number; priceCents?:number;
 }
 
@@ -32,6 +33,7 @@ export interface SpecialtyProduct {
   imageAlt: string;
   materialLabel: string;
   priceMatches?: SpecialtyPriceMatch[];
+  shippingPolicy?: 'free_overnight_after_production';
   sizeLimits?: { min: number; maxShort: number; maxLong: number };
   name: string;
   category: SpecialtyCategory;
@@ -66,7 +68,7 @@ export function formatSpecialtyPrice(cents: number): string {
 export function specialtyStartingPrice(product: SpecialtyProduct): number | undefined {
   if(product.priceMatches?.length)return Math.min(...product.priceMatches.map(p=>p.priceCents!));
   const confirmed=product.variants.filter(v=>v.priceMatch);
-  const prices = confirmed.map((variant) => variant.priceCents).filter((price): price is number => typeof price === 'number');
+  const prices = confirmed.map((variant) => variant.priceMatch?.priceCents ?? variant.priceCents).filter((price): price is number => typeof price === 'number');
   return prices.length ? Math.min(...prices) : undefined;
 }
 
@@ -119,6 +121,7 @@ export const specialtyAllPanels = optionsEngine.allPanelDefinitions as (variant:
 export const specialtyOptionMatches=optionsEngine.matches as (conditions:unknown,values:SpecialtyOptions)=>boolean;
 export const specialtyProfile=optionsEngine.profileFor as (variant:SpecialtyVariant)=>{supplierItemId:number;groups:SpecialtyOptionGroup[];sourceUrl:string}|undefined;
 export const specialtyOptionSummary=optionsEngine.optionSummary as (variant:SpecialtyVariant,options?:SpecialtyOptions)=>Array<{key:string;label:string;value:string}>;
-export const specialtyConfigurationPrice=optionsEngine.priceConfiguration as (product:SpecialtyProduct,variant:SpecialtyVariant,width:number,height:number,options?:SpecialtyOptions)=>{unitCents:number;baseCents:number;adjustments:Array<{key:string;label:string;cents:number}>;verified:boolean;missing:string[];options:SpecialtyOptions;sourceUrl?:string;shippingPolicy?:string};
+export const specialtyConfigurationPrice=optionsEngine.priceConfiguration as (product:SpecialtyProduct,variant:SpecialtyVariant,width:number,height:number,options?:SpecialtyOptions)=>{unitCents:number;baseCents:number;baseVerified:boolean;adjustments:Array<{key:string;label:string;cents:number}>;verified:boolean;missing:string[];options:SpecialtyOptions;sourceUrl?:string;shippingPolicy?:string};
+export const specialtyOptionPriceCents=optionsEngine.optionPriceCents as (variant:SpecialtyVariant,width:number,height:number,options:SpecialtyOptions,key:string)=>number|undefined;
 
 export const specialtyMaterialLabel=optionsEngine.materialLabel as (product:SpecialtyProduct,variant:SpecialtyVariant,options?:SpecialtyOptions)=>string;

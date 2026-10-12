@@ -1,6 +1,6 @@
-import {specialtyProfile,specialtyOptionMatches,specialtyOptions,type SpecialtyProduct,type SpecialtyVariant,type SpecialtyOptions as Options} from '@/lib/specialtyProducts';
+import {specialtyProfile,specialtyOptionMatches,specialtyOptions,specialtyOptionPriceCents,formatSpecialtyPrice,type SpecialtyProduct,type SpecialtyVariant,type SpecialtyOptions as Options} from '@/lib/specialtyProducts';
 
-export default function SpecialtyOptions({product,variant,value,onChange,disabled}:{product:SpecialtyProduct;variant:SpecialtyVariant;value:Options;onChange:(options:Options)=>void;disabled:boolean}) {
+export default function SpecialtyOptions({product,variant,value,onChange,disabled,width,height,basePriced}:{product:SpecialtyProduct;variant:SpecialtyVariant;value:Options;onChange:(options:Options)=>void;disabled:boolean;width:number;height:number;basePriced:boolean}) {
   const profile=specialtyProfile(variant);
   return <div className="mt-5 space-y-5">
     {profile?.groups.filter(g=>!Object.prototype.hasOwnProperty.call(variant.supplierFixed||{},g.key)&&specialtyOptionMatches(g.visible,value)).map(group=>{
@@ -11,7 +11,11 @@ export default function SpecialtyOptions({product,variant,value,onChange,disable
         <label htmlFor={`option-${group.key}`} className="block text-sm font-bold whitespace-pre-line">{group.label}</label>
         <div className="mt-2 flex items-start gap-3">
           <select id={`option-${group.key}`} value={value[group.key]} disabled={disabled} onChange={e=>onChange(specialtyOptions(variant,{...value,[group.key]:e.target.value}))} className="min-h-12 min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-base">
-            {choices.map(option=><option key={option.key} value={option.key}>{option.label}</option>)}
+            {choices.map(option=>{
+              const cents=specialtyOptionPriceCents(variant,width,height,{...value,[group.key]:String(option.key)},group.key);
+              const priceLabel=basePriced?(cents===undefined?'Price coming soon':cents===0?'Included':`${cents>0?'+':'−'}${formatSpecialtyPrice(Math.abs(cents))}`):'';
+              return <option key={option.key} value={option.key}>{option.label}{priceLabel?` · ${priceLabel}`:''}</option>;
+            })}
           </select>
           {image&&<a href={image.s1000} target="_blank" rel="noreferrer" className="shrink-0 rounded-lg border border-slate-200 bg-white p-1" aria-label={`View ${group.label.toLowerCase()} photograph`}><img src={image.s200} alt={group.label} loading="lazy" className="h-14 w-14 object-contain"/></a>}
         </div>

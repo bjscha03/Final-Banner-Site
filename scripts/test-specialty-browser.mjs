@@ -68,9 +68,29 @@ try{
  await check('premium size selection changes the manufacturer photograph',async()=>{
   await open('premium-retractable-banner');const hero=page.locator('button[aria-label^="Enlarge"] img').first();const before=await hero.getAttribute('src');await page.locator('#specialty-variant').selectOption('premium-retractable-banner-3');assert.notEqual(await hero.getAttribute('src'),before);
  });
+ await check('catalog shows Lexington prices and free shipping; retractable defaults to the 189 dollar kit',async()=>{
+  await open('standard-retractable-banner');
+  assert.equal(await page.locator('#specialty-variant').inputValue(),'standard-retractable-banner-3');
+  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$189.00');
+  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE overnight/);
+  await page.locator('#specialty-qty').fill('2');assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$378.00');
+  await page.locator('#specialty-variant').selectOption('standard-retractable-banner-1');
+  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'Price coming soon');
+  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE overnight/);
+  await page.goto(origin+'/products');await page.getByRole('heading',{name:'Make the entire space yours.'}).waitFor();
+  for(const [slug,price] of [['standard-retractable-banner','$189.00'],['feather-flags','$175.00'],['standard-table-throws','$185.00'],['custom-event-tents','$755.00'],['step-and-repeat-backdrop','$465.00'],['aluminum-composite-signs','$26.00']]){
+   const card=page.locator(`a[href="/products/${slug}"]`).filter({has:page.locator('h3')});
+   assert.ok((await card.innerText()).includes(price),slug);assert.match(await card.innerText(),/Free overnight shipping/);
+  }
+  const unpriced=page.locator('a[href="/products/acrylic-signs"]').filter({has:page.locator('h3')});
+  assert.match(await unpriced.innerText(),/Price coming soon/);assert.doesNotMatch(await unpriced.innerText(),/\$|Free overnight/);
+  await page.locator('#stands').screenshot({path:out+'/catalog-prices.png'});
+ });
  await check('flag size, options and quantities update the price while shipping remains free',async()=>{
   await open('feather-flags');const subtotal=page.getByTestId('specialty-subtotal');
   assert.equal(await subtotal.innerText(),'$175.00');
+  assert.match(await page.locator('#option-sides option[value="2"]').innerText(),/\+\$70\.00/);
+  assert.match(await page.locator('#option-flaghardware option[value="PB"]').innerText(),/\+\$30\.00/);
   await page.locator('#option-sides').selectOption('2');
   await page.locator('#option-flaghardware').selectOption('PB');
   await page.locator('#option-carrybag').selectOption('1');
@@ -84,7 +104,9 @@ try{
   await open('custom-event-tents');await page.locator('#option-tent_sandbag').selectOption('1');
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$815.00');
   await page.locator('#option-tent_full_wall').selectOption('A');
-  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'Awaiting verified price');
+  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$815.00');
+  assert.match(await page.getByTestId('specialty-price').innerText(),/Base \+ priced options/);
+  assert.match(await page.getByTestId('specialty-price').innerText(),/Price coming soon:.*Full Wall/);
   assert.match(await page.getByTestId('specialty-price').innerText(),/FREE overnight/);
   await open('aluminum-composite-signs');await page.getByRole('button',{name:'24 × 36 in · $90.00',exact:true}).click();
   await page.locator('#option-sides').selectOption('2');await page.locator('#specialty-qty').fill('2');
@@ -106,6 +128,7 @@ try{
   if(process.env.BOF_QA_TEST_CHECKOUT)assert.equal(await page.getByRole('button',{name:'Place Test Order — No Payment',exact:true}).isEnabled(),true);
   await page.evaluate(async()=>{const {useCartStore}=await import('/src/store/cart.ts');const item=useCartStore.getState().items[0];useCartStore.getState().replaceItemsFromRecovery([{...item,specialty_config:{...item.specialty_config,priceVerified:true,options:{...item.specialty_config.options,sides:'-1'}}}]);});
   await page.reload();await totals.waitFor();assert.match(await totals.innerText(),/Pending/);assert.match(await totals.innerText(),/FREE/);
+  assert.match(await page.getByTestId('specialty-pending-price').first().innerText(),/\$450\.00/);
   await page.getByRole('status').filter({hasText:'These selections need confirmed prices'}).waitFor();
   if(process.env.BOF_QA_TEST_CHECKOUT)assert.equal(await page.getByRole('button',{name:'Place Test Order — No Payment',exact:true}).isDisabled(),true);
   await page.evaluate(async item=>{const {useCartStore}=await import('/src/store/cart.ts');useCartStore.getState().replaceItemsFromRecovery([item]);},original);

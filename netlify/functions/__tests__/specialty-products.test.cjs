@@ -42,7 +42,7 @@ test('payment accepts matched prices and shipping without a blanket specialty bl
    checked++;
   }
  }
- assert.equal(checked,17);
+ assert.equal(checked,18);
 });
 test('flag options and quantity reach payment at their canonical price with free shipping',()=>{
  for(const [base,addition] of Object.entries({PG:0,PB:3000,PBG:4000,PBW:3500,PBS:8000})){
@@ -64,6 +64,20 @@ test('a missing accessory price does not change a matched product shipping polic
  assert.equal(quote.verified,false);
  assert.equal(quote.shippingPolicy,'free_overnight_after_production');
  assert.throws(()=>repriceStripeCart([itemFor(product.slug,0,{tent_full_wall:'A'})]),e=>e.code==='SPECIALTY_PRICE_NOT_VERIFIED');
+});
+test('owner shipping policy persists across unpriced sizes without making them payable',()=>{
+ for(const [slug,index,w,h] of [['standard-retractable-banner',0,23,66],['feather-flags',4,25,80],['standard-table-throws',0,48,30],['aluminum-composite-signs',0,20,30]]){
+  const product=catalog.find(p=>p.slug===slug),q=engine.priceConfiguration(product,product.variants[index],w,h);
+  assert.equal(q.baseVerified,false,slug);assert.equal(q.verified,false,slug);
+  assert.equal(q.shippingPolicy,'free_overnight_after_production',slug);
+ }
+ const unlisted=catalog.find(p=>p.slug==='acrylic-signs');
+ assert.equal(engine.priceConfiguration(unlisted,unlisted.variants[0],24,18).shippingPolicy,undefined);
+ const product=catalog.find(p=>p.slug==='standard-retractable-banner'),variant=product.variants[2];
+ const [priced]=repriceStripeCart([itemFor(product.slug,2)]);
+ assert.equal(priced.unit_price_cents,18900);assert.equal(priced.line_total_cents,37800);
+ assert.equal(variant.priceMatch.status,'owner_retail_mapping');
+ assert.equal(templates[variant.panels[0].templateId].widthIn,33);
 });
 test('mixed-cart shipping is free and specialty quantity does not alter banner discounts',()=>{
  const banner={product_type:'banner',width_in:48,height_in:24,quantity:2,material:'13oz'};
@@ -101,6 +115,7 @@ test('custom sign price dimensions cannot differ from uploaded artwork dimension
 
 test('new matched prices follow Lexington configurations without changing legacy pricing',()=>{
  for(const [slug,indices,prices] of [
+ ['standard-retractable-banner',[2],[18900]],
  ['feather-flags',[0,1,2,3],[17500,19500,20500,24500]],
  ['standard-table-throws',[2,3,4,5],[18500,22000,21000,25000]],
  ['custom-event-tents',[0,1,2],[75500,116000,142000]],
@@ -112,7 +127,7 @@ test('new matched prices follow Lexington configurations without changing legacy
  for(const [w,h,cents] of [[18,24,4800],[24,36,9000],[6,24,2600],[6,36,3600]]){
   assert.equal(priceSpecialty(acm,acm.variants[0],w,h),cents);assert.equal(priceSpecialty(acm,acm.variants[0],h,w),cents);
  }
- assert.equal(catalog.reduce((n,p)=>n+p.variants.filter(v=>v.priceMatch).length+(p.priceMatches?.length||0),0),17);
+ assert.equal(catalog.reduce((n,p)=>n+p.variants.filter(v=>v.priceMatch).length+(p.priceMatches?.length||0),0),18);
 });
 
 test('every verified flag accessory price is added once and unknown options stay unverified',()=>{

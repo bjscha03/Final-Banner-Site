@@ -10,13 +10,17 @@ import { getGrommetModeForPreview } from '@/lib/cartGrommet';
 import { getItemDisplayName, normalizeOrderItemDisplay } from '@/lib/product-display';
 import { usd } from '@/lib/pricing';
 import SavedSpecialtyPreview from '@/components/specialty/SavedSpecialtyPreview';
+import SpecialtyPendingPrice from '@/components/specialty/SpecialtyPendingPrice';
+import CartLinePrice from '@/components/cart/CartLinePrice';
+import {specialtyItemHasVerifiedPrice} from '@/lib/specialtyProducts';
 
 /** Keep the saved composition visible on arrival without opening an order dialog. */
-export default function CheckoutArtworkSummary({ items, totalCents, editAction, showTotal = true }: {
+export default function CheckoutArtworkSummary({ items, totalCents, editAction, showTotal = true, linePrices }: {
   items: CartItem[];
   totalCents: number;
   editAction: React.ReactNode;
   showTotal?: boolean;
+  linePrices?: Map<string,{originalCents:number;totalCents:number}>;
 }) {
   return (
     <section aria-label="Your artwork and order" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" data-testid="checkout-artwork-summary">
@@ -72,7 +76,12 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction, 
                 </ThumbnailPreviewWrapper>}
               </div>
               {isBanner&&<div className="mt-4 flex justify-center"><RealisticBannerPreview item={item} className="!w-full max-w-[600px]" previewSize={600} /></div>}
-              <h3 className="mt-3 text-sm font-semibold text-[#0B1F3A]">{title}</h3>
+              <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
+                <h3 className="text-sm font-semibold text-[#0B1F3A]">{title}</h3>
+                {item.product_type==='specialty'&&(specialtyItemHasVerifiedPrice(item)
+                  ? <CartLinePrice {...(linePrices?.get(item.id)||{originalCents:item.line_total_cents,totalCents:item.line_total_cents})} quantity={item.quantity}/>
+                  : <SpecialtyPendingPrice item={item}/>)}
+              </div>
               <div className="mt-1 text-sm text-slate-600">
                 {isBanner ? <BannerDimensions widthIn={item.width_in} heightIn={item.height_in}/> : details.sizeDisplay}
                 <p className="mt-1">Qty {details.qtyDisplay} · {details.materialDisplay}</p>
@@ -87,7 +96,7 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction, 
           <p className="text-sm font-semibold text-slate-700">Order total</p>
           <p className="text-xs text-slate-500">Including tax</p>
         </div>
-        <p className="text-xl font-bold text-[#0B1F3A]">{items.some(item=>item.product_type==='specialty'&&!item.specialty_config?.priceVerified)?'Price pending':usd(totalCents / 100)}</p>
+        <p className="text-xl font-bold text-[#0B1F3A]">{items.some(item=>!specialtyItemHasVerifiedPrice(item))?'Price pending':usd(totalCents / 100)}</p>
       </div>}
     </section>
   );
