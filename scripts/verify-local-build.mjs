@@ -55,6 +55,13 @@ for (const entry of manifest) {
   const isTradeShowDetail = /^\/trade-shows\/[^/]+$/.test(entry.route);
   const isSpecialty = specialtyEntries.includes(entry);
 
+  // The account-installed Cloudinary plugin embeds image URLs in CSS selectors.
+  // A newline in a captured supplier URL crashes its post-build HTML pass.
+  for (const image of tags(html, 'img')) {
+    const src = attribute(image, 'src');
+    assert(!src || (src === src.trim() && !/[\r\n\f]/.test(src)), `${entry.route}: image URL contains whitespace that breaks deployment.`);
+  }
+
   assert(!/href=["']\/trade-shows(?:[\/"'])/.test(html), `${entry.route}: retired trade-show link remains.`);
   assert(html.includes('data-prerendered="true"'), `${entry.route}: missing prerender marker.`);
   assert(html.includes('<h1'), `${entry.route}: missing crawlable H1.`);

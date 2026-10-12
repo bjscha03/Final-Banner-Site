@@ -17,6 +17,18 @@ SOURCES = ['standard-retractable', 'deluxe-retractable', 'sd-retractable', 'x-st
  'clear-acrylic-transparent', 'aluminum-sign', 'aluminum-sandwich-board', 'posters']
 def text(node):
     return re.sub(r'\s+', ' ', node.text_content()).strip()
+def normalize_urls(value):
+    """Clean captured URL whitespace, including reviewed installation records."""
+    if isinstance(value, dict):
+        return {key: normalize_urls(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [normalize_urls(item) for item in value]
+    if isinstance(value, str) and re.match(r'^https?://', value.strip()):
+        cleaned = value.strip()
+        if re.search(r'[\r\n\t\f]', cleaned):
+            raise ValueError('Supplier URL contains embedded control characters: '+repr(cleaned))
+        return cleaned
+    return value
 def fetch(slug, cache):
     path = Path(cache)/f'{slug}.json' if cache else None
     if path and path.exists(): data = json.loads(path.read_text())
@@ -68,6 +80,7 @@ if __name__ == '__main__':
         for key in ('installation','installationNotes','videos','templateIds'):
             if key in old: record[key]=old[key]
         record['downloads'].extend(d for d in old.get('downloads',[]) if d.get('localUrl'))
+    records = normalize_urls(records)
     target.write_text(json.dumps(records, indent=2, ensure_ascii=False)+'\n')
     print(f'{len(records)} profiles, {sum(len(p["groups"]) for p in records.values())} option groups, '
           f'{sum(len(p["downloads"]) for p in records.values())} downloads, '
