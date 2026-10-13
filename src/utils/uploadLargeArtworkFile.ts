@@ -121,15 +121,25 @@ export async function uploadLargeArtworkFile(file: File, options: UploadArtworkO
     state = undefined;
   }
   if (!state) {
-    const preview = await makePreview(file, options);
-    // Preview upload uses the established small-file path. Production always
-    // points to the untouched original below, never to this display image.
-    const savedPreview = await uploadArtworkFile(preview.file, { signal: options.signal, onAttempt: options.onAttempt });
+    // Raster previews are made server-side from the intact original. A mobile
+    // canvas may silently draw a large PNG as entirely transparent pixels.
+    // PDFs retain their existing bounded first-page browser renderer.
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    let previewUrl = '';
+    let width = options.originalWidth || 0;
+    let height = options.originalHeight || 0;
+    if (isPdf) {
+      const preview = await makePreview(file, options);
+      const savedPreview = await uploadArtworkFile(preview.file, { signal: options.signal, onAttempt: options.onAttempt });
+      previewUrl = savedPreview.secureUrl;
+      width = preview.width;
+      height = preview.height;
+    }
     const session = await request('start', JSON.stringify({ fileName: file.name, size: file.size }), options);
     if (!session.id || !session.token || !Number.isSafeInteger(session.chunkBytes) || session.chunkBytes <= 0 || session.chunkBytes > 3 * 1024 * 1024) {
       throw new ArtworkUploadError('Artwork upload session was incomplete.', { phase: 'ticket', retryable: true });
     }
-    state = { session, previewUrl: savedPreview.secureUrl, width: preview.width, height: preview.height, nextOffset: 0, createdAt: Date.now() };
+    state = { session, previewUrl, width, height, nextOffset: 0, createdAt: Date.now() };
     pendingOriginals.set(file, state);
   }
   const { session } = state;
