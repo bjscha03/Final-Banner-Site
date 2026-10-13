@@ -44,6 +44,12 @@ test('banner finishing preserves the artwork, price and cart through add-another
   const artwork = await asymmetricArtwork();
   const harness = await installUploadAndFunctionHarness(page, `compact-${testInfo.project.name}`);
   await page.goto('/google-ads-banner', { waitUntil: 'domcontentloaded' });
+  const header = page.locator('[data-site-header]');
+  await expect(header).toBeVisible();
+  await expect(header.getByAltText('Banners On The Fly')).toBeVisible();
+  await expect(header.getByRole('button', { name: 'Shopping cart', exact: true })).toBeVisible();
+  await expect(header.getByRole('button', { name: /navigation menu/i })).toHaveCount(0);
+  await expect(header.getByRole('navigation')).toHaveCount(0);
   const mobile = (page.viewportSize()?.width ?? 1024) < 1024;
   const footer = page.getByTestId('mobile-subtotal-bar');
   const size = page.locator('#size-section');
