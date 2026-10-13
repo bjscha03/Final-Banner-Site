@@ -23,7 +23,7 @@ const PageLoader = () => (
 );
 
 // Route-level splitting is important even for the homepage: paid-design traffic
-// must not download homepage, city-page, trade-show, and blog dependencies before
+// must not download homepage, trade-show, and blog dependencies before
 // its configurator can render.
 const Index = lazy(() => import("./pages/Index"));
 const Design = lazy(() => import("./pages/Design"));
@@ -65,7 +65,6 @@ const BlogTagPage = lazy(() => import("./pages/BlogTagPage"));
 
 // Category/SEO pages - lazy load
 const CategoryPage = lazy(() => import("./pages/CategoryPage"));
-const CityProductPage = lazy(() => import("./pages/CityProductPage"));
 const ProductHubPage = lazy(() => import("./pages/ProductHubPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -290,10 +289,6 @@ export const RoutedApplication = () => (
               }
             />
 
-            {/* Programmatic SEO city pages (vinyl banners, yard signs, car magnets) */}
-            <Route path="/vinyl-banners/:citySlug" element={<CityProductPage productSlug="vinyl-banners" />} />
-            <Route path="/yard-signs/:citySlug" element={<CityProductPage productSlug="yard-signs" />} />
-            <Route path="/car-magnets/:citySlug" element={<CityProductPage productSlug="car-magnets" />} />
 
             <Route path="/political-signs" element={<PoliticalSigns />} />
 

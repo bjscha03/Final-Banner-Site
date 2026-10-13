@@ -38,10 +38,12 @@ function schemaNodes(html) {
 
 const localEntries = manifest.filter((entry) => /^\/(vinyl-banners|yard-signs|car-magnets)(?:\/[^/]+)?$/.test(entry.route));
 const tradeShowEntries = manifest.filter((entry) => entry.route === '/trade-shows' || /^\/trade-shows\/[^/]+$/.test(entry.route));
-assert(localEntries.length === 213, `Expected 213 product/local routes; found ${localEntries.length}.`);
+assert(localEntries.length === 3, `Expected 3 product hub routes; found ${localEntries.length}.`);
+assert(!manifest.some((entry) => /^\/(vinyl-banners|yard-signs|car-magnets)\/[^/]+/.test(entry.route)), 'Retired city routes must not be prerendered.');
+assert(![...sitemapUrls].some((url) => /^https:\/\/bannersonthefly\.com\/(vinyl-banners|yard-signs|car-magnets)\/[^/]+/.test(url)), 'Retired city URLs must not be in the sitemap.');
 assert(tradeShowEntries.length === 0, 'Retired trade-show routes must not be prerendered.');
 assert(![...sitemapUrls].some((url) => url.includes('/trade-shows')), 'Retired trade-show URLs must not be in the sitemap.');
-assert(manifest.length === 213, `Expected 213 generated routes; found ${manifest.length}.`);
+assert(manifest.length === 3, `Expected 3 generated routes; found ${manifest.length}.`);
 assert(new Set(manifest.map((entry) => entry.route)).size === manifest.length, 'Generated route manifest contains duplicates.');
 
 for (const entry of manifest) {
@@ -74,7 +76,7 @@ for (const entry of manifest) {
   assert(entry.indexable ? /\bindex\b/i.test(robots) && !/noindex/i.test(robots) : /noindex/i.test(robots), `${entry.route}: robots directive disagrees with publish gate.`);
   assert(sitemapUrls.has(canonicalUrl) === entry.indexable, `${entry.route}: sitemap inclusion disagrees with publish gate.`);
   const localPageAnchors = [...html.matchAll(/<a\b[^>]*href=["']\/(?:vinyl-banners|yard-signs|car-magnets)\/[^"']+["']/gi)];
-  if (!entry.indexable) assert(localPageAnchors.length === 0, `${entry.route}: unpublished local-page links are crawlable.`);
+  assert(localPageAnchors.length === 0, `${entry.route}: retired city-page links remain.`);
 
   const nodes = schemaNodes(html);
   const types = nodes.map((node) => node?.['@type']);
