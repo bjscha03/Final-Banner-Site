@@ -15,6 +15,8 @@ import LargeBannerSizeCards, { LARGE_BANNER_SIZES } from '@/components/design/La
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
 import ProductPageHero from '@/components/product/ProductPageHero';
+import LightProductHero from '@/components/product/LightProductHero';
+import BannerDiscountOffer from '@/components/design/BannerDiscountOffer';
 import { cartEditUrl } from '@/lib/cartEditUrl';
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
@@ -46,7 +48,6 @@ import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import { sameDayConfig } from '@/lib/sameDayConfig';
-import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import PriceDeliveryEstimate from '@/components/delivery/PriceDeliveryEstimate';
 import CustomBannerSize from '@/components/design/CustomBannerSize';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
@@ -140,104 +141,28 @@ const PRESET_SIZES = [
 
 
 const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
-  <section
-    data-google-ads-hero
-    className="relative isolate overflow-hidden border-b-4 border-[#FF6A00] bg-[#F86408] text-[#071C35]"
-  >
-    <div
-      className="pointer-events-none absolute inset-0 z-0 opacity-45"
-      style={{
-        backgroundImage: 'radial-gradient(circle at 13% 18%, rgba(255,188,74,.72), transparent 35%), radial-gradient(circle at 39% 76%, rgba(146,48,0,.24), transparent 38%)',
-      }}
-      aria-hidden="true"
-    />
-
-    <div className="relative z-10 mx-auto flex max-w-[1855px] items-center px-5 py-10 sm:px-8 sm:py-12 xl:min-h-[700px] xl:px-16 xl:py-16 2xl:min-h-[748px]">
-      <div className="w-full xl:max-w-[760px]">
-        <h1 className="homepage-condensed max-w-[760px] [--homepage-mobile-size:clamp(3.8rem,17vw,5.1rem)] text-[5.1rem] font-black uppercase leading-[0.86] tracking-[-0.015em] text-[#071C35] sm:text-[6.6rem] xl:text-[7.5rem]">
-          Custom banners.<br />Without the wait.
-        </h1>
-
-        <button
-          type="button"
-          onClick={onStart}
-          className="mt-7 inline-flex min-h-14 w-full max-w-[505px] items-center justify-center gap-4 rounded-md bg-[#071C35] px-6 py-4 text-base font-black uppercase tracking-[0.035em] text-white shadow-[0_12px_30px_rgba(7,28,53,.2)] transition-colors hover:bg-[#10375f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#F86408] sm:w-auto sm:min-w-[440px] sm:text-lg"
-        >
-          Build &amp; price my banner <ArrowRight className="h-6 w-6" aria-hidden="true" />
-        </button>
-
-        <div className="mt-5 grid w-full max-w-[505px] grid-cols-[auto_1fr] items-center gap-4 rounded-md border border-white/70 bg-white px-5 py-4 text-[#071C35] shadow-[0_9px_20px_rgba(57,20,0,.2)] sm:gap-5 sm:px-6">
-          <p className="homepage-condensed whitespace-nowrap [--homepage-mobile-size:3rem] text-5xl font-black uppercase leading-none text-[#E95413] sm:text-[4rem]">20% off</p>
-          <div className="border-l-2 border-[#E95413] pl-4 text-sm font-bold uppercase leading-5 tracking-[0.04em] sm:text-base sm:leading-6">
-            First order<br />Automatically applied
-          </div>
-        </div>
-        <HeroDeliveryStatus className="mt-5 w-full max-w-[505px]" />
-      </div>
-    </div>
-
-    <picture className="relative z-[5] block w-full overflow-hidden bg-[#15283e] xl:absolute xl:bottom-[82px] xl:right-0 xl:top-0 xl:w-[57%]">
-      <source
-        type="image/avif"
-        srcSet="/images/google-ads/banner-collage-520.avif 520w, /images/google-ads/banner-collage-800.avif 800w, /images/google-ads/banner-collage-1040.avif 1040w"
-        sizes="(min-width: 1280px) 57vw, 100vw"
-      />
-      <source
-        type="image/webp"
-        srcSet="/images/google-ads/banner-collage-520.webp 520w, /images/google-ads/banner-collage-800.webp 800w, /images/google-ads/banner-collage-1040.webp 1040w"
-        sizes="(min-width: 1280px) 57vw, 100vw"
-      />
-      <img
-        src="/images/google-ads/banner-collage-1040.webp"
-        alt="Custom vinyl and mesh banners installed at a storefront, sports field, and market event"
-        width="1040"
-        height="748"
-        loading="eager"
-        decoding="sync"
-        fetchPriority="high"
-        className="aspect-[1040/748] h-auto w-full object-cover xl:h-full xl:object-cover xl:object-center"
-      />
-    </picture>
-
-    <div className="pointer-events-none absolute inset-y-0 left-0 z-[6] hidden w-[58%] bg-[linear-gradient(90deg,#F86408_0%,rgba(248,100,8,.99)_64%,rgba(248,100,8,.86)_82%,transparent_100%)] xl:block" aria-hidden="true" />
-
-    <div className="relative z-20 border-t border-[#FF6A00] bg-[#101820]/95 text-white">
-      <ul className="mx-auto grid max-w-[1600px] grid-cols-3 divide-x divide-[#FF6900]/80 px-2 py-3 sm:px-7 sm:py-4 xl:py-5" aria-label="Banner ordering benefits">
-        <li className="flex items-center justify-center gap-2 px-2 sm:gap-4 sm:px-6">
-          <Clock className="h-5 w-5 flex-none text-[#FF6900] sm:h-9 sm:w-9" aria-hidden="true" />
-          <span className="text-[9px] font-bold uppercase leading-3 sm:text-sm xl:text-base">24-hour standard production</span>
-        </li>
-        <li className="flex items-center justify-center gap-2 px-2 sm:gap-4 sm:px-6">
-          <Truck className="h-5 w-5 flex-none text-[#FF6900] sm:h-9 sm:w-9" aria-hidden="true" />
-          <span className="text-[9px] font-bold uppercase leading-3 sm:text-sm xl:text-base">Free next-day air after production</span>
-        </li>
-        <li className="flex items-center justify-center gap-2 px-2 sm:gap-4 sm:px-6">
-          <Monitor className="h-5 w-5 flex-none text-[#FF6900] sm:h-9 sm:w-9" aria-hidden="true" />
-          <span className="text-[9px] font-bold uppercase leading-3 sm:text-sm xl:text-base">Live print preview</span>
-        </li>
-      </ul>
-    </div>
-  </section>
+  <LightProductHero
+    attributes={{ 'data-google-ads-hero': true }}
+    productSlug="vinyl-banners"
+    eyebrow="Beautiful custom banners. Made for your next big moment."
+    title="Custom banners. Without the wait."
+    primaryLabel="Build & price my banner"
+    onStart={onStart}
+    offer={<BannerDiscountOffer />}
+  />
 );
 
-
 const FallFestivalHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
-  <section data-fall-festival-hero className="border-b border-amber-100 bg-[#fffaf1] text-[#3a1f12]">
-    <div className="mx-auto grid max-w-[1536px] gap-6 px-5 py-7 sm:px-8 sm:py-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:gap-10 lg:px-10 lg:py-12">
-      <div className="min-w-0">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#b45309] sm:text-sm">Custom banners for autumn events</p>
-        <h1 className="mt-3 font-sans text-[clamp(2.2rem,8.7vw,3.5rem)] font-extrabold leading-[1.05] tracking-[-0.045em] lg:text-[clamp(2.5rem,4.25vw,4.5rem)]">Custom Fall Festival Banners <span className="text-[#b45309]">— Printed &amp; Shipped Fast</span></h1>
-        <p className="mt-5 max-w-xl text-base leading-relaxed text-[#65412c] sm:text-xl">Full-color vinyl banners for fall festivals, church festivals, harvest events, and trunk-or-treats. Upload your own artwork or create a banner with AI, then order online in minutes.</p>
-        <button type="button" onClick={onStart} className="mt-6 inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-lg bg-[#b45309] px-4 py-4 text-base font-bold text-white transition-colors hover:bg-[#92400e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3a1f12] focus-visible:ring-offset-4 sm:max-w-[505px] sm:text-lg">Create my fall festival banner <ArrowRight className="h-5 w-5 shrink-0" aria-hidden="true" /></button>
-        <p className="mt-2 text-xs leading-5 text-[#76503a] sm:text-sm">24-hour production · Free next-day air shipping · Easy online ordering</p>
-        <HeroDeliveryStatus variant="light" className="mt-6 w-full" />
-      </div>
-      <figure className="min-w-0">
-        <img src="/images/seasonal-halloween-2026-desktop.webp" alt="Finished custom Fall Festival vinyl banner at a church fall festival with pumpkins and families arriving" width="1448" height="1086" loading="eager" decoding="async" fetchPriority="high" className="aspect-[4/3] w-full rounded-xl object-cover shadow-sm" />
-        <figcaption className="mt-2 text-center text-xs text-[#76503a]">Made for church, school, business, and community fall events.</figcaption>
-      </figure>
-    </div>
-  </section>
+  <LightProductHero
+    attributes={{ 'data-fall-festival-hero': true }}
+    productSlug="vinyl-banners"
+    eyebrow="Custom banners for autumn events"
+    title="Make your fall event easy to find."
+    description="Full-color vinyl banners for festivals, harvest markets, and trunk-or-treats. Upload your artwork or create a design online."
+    primaryLabel="Create my fall festival banner"
+    onStart={onStart}
+    photo={<img src="/images/homepage/freshfield-fall-desktop.webp" alt="Freshfield Fall Market vinyl banner secured between timber posts in natural daylight" width="1536" height="1024" loading="eager" fetchPriority="high" />}
+  />
 );
 
 
@@ -3382,10 +3307,10 @@ const GoogleAdsBanner: React.FC = () => {
       <div className="min-h-screen bg-white text-gray-900">
         {/* Keep the paid landing page's logo-and-cart header at every viewport size. */}
         {location.pathname.replace(/\/+$/, "") === "/google-ads-banner" ? (
-        <header data-site-header className="w-full border-b border-white/10 bg-[#061A31] py-2 px-4 sticky top-0 z-50 lg:border-gray-100 lg:bg-white lg:py-3">
+        <header data-site-header className="w-full border-b border-[#e5dfd6] bg-white py-2 px-4 sticky top-0 z-50 lg:py-3">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div className={mobilePaidLayout ? "hidden w-10 lg:block" : "w-10"} />
-            <picture><source media="(max-width: 1023px)" srcSet="/images/homepage/header-logo-reverse.png" /><img src="/images/header-logo.png" alt="Banners On The Fly" width="248" height="70" className="h-8 w-auto object-contain lg:h-10" loading="eager" /></picture>
+            <picture><img src="/images/header-logo.png" alt="Banners On The Fly" width="248" height="70" className="h-8 w-auto object-contain lg:h-10" loading="eager" /></picture>
             <button
               onClick={() => setIsCartOpen(true)}
               aria-label="Shopping cart"
@@ -3413,77 +3338,16 @@ const GoogleAdsBanner: React.FC = () => {
         {!isYardSign && !isCarMagnet ? (
           isLargeBannerLanding ? <ProductPageHero productSlug="large-banners-fast" ctaUrl="#order-builder" onStart={scrollToOrder} /> : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <>{(!mobilePaidLayout || mobileStage === 'banner') && <MobileBannerLandingHero redesigned={paidBannerLanding} />}<div className="hidden lg:block"><FastBannerAdHero onStart={scrollToOrder} /></div></>
         ) : (
-        <section className="relative overflow-hidden border-b-4 border-[#FF6A00] bg-[#0B1F3A] px-4 py-10 sm:py-12 lg:py-16">
-          <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:gap-14">
-            <div className="text-center lg:text-left">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF8A3D]">{heroContent.eyebrow}</p>
-              <h1 className="mt-4 max-w-3xl font-display text-4xl font-black leading-[1.04] tracking-[-0.04em] text-white sm:text-5xl lg:text-6xl">
-                {heroContent.headline}
-              </h1>
-              <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-200 sm:text-lg lg:mx-0">
-                {heroContent.intro}
-              </p>
-
-              <div data-mobile-delivery-timer className="mx-auto mt-5 max-w-xl text-left md:hidden">
-                <DeliveryTimer reflectCartSelection variant="compact" className="shadow-lg" />
-              </div>
-
-              <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-3 text-sm font-semibold text-white lg:justify-start">
-                <span className="inline-flex items-center gap-2"><Clock className="h-4 w-4 text-[#FF8A3D]" />Most standard orders: 24-hour production</span>
-                <span className="inline-flex items-center gap-2"><Truck className="h-4 w-4 text-[#FF8A3D]" />Free next-day air anywhere in the U.S.</span>
-                <span className="inline-flex items-center gap-2"><FileCheck className="h-4 w-4 text-[#FF8A3D]" />Every file reviewed before print</span>
-              </div>
-
-              <div className="mt-7 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
-                <button
-                  type="button"
-                  onClick={scrollToOrder}
-                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 bg-[#C94E00] px-7 py-3.5 text-base font-bold text-white shadow-[0_10px_28px_rgba(255,106,0,0.24)] transition-colors hover:bg-[#B84300] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1F3A] sm:w-auto"
-                >
-                  {heroContent.cta}
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </button>
-                <p className="text-sm font-semibold text-[#FFB27D]">{heroContent.offer}</p>
-              </div>
-
-              <div className="mt-7 flex items-center justify-center gap-3 border-t border-white/15 pt-5 lg:justify-start">
-                <img
-                  src="https://res.cloudinary.com/dtrxl120u/image/upload/w_128,h_128,c_fill,f_auto,q_auto/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg"
-                  alt="Dan Oliver of Dan-O's Seasoning"
-                  width="48"
-                  height="48"
-                  className="h-12 w-12 rounded-full border-2 border-white/70 object-cover"
-                />
-                <div className="text-left">
-                  <span className="text-[#FF8A3D]" role="img" aria-label="Five-star customer feedback">★★★★★</span>
-                  <p className="text-xs font-semibold text-white">Trusted by Dan-O&rsquo;s Seasoning</p>
-                </div>
-              </div>
-            </div>
-
-            <aside className="border border-white/15 bg-white text-[#0B1F3A] shadow-[0_24px_60px_rgba(0,0,0,0.24)]" aria-label="Popular order example">
-              <div className="border-t-4 border-[#FF6A00] p-6 sm:p-7">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Popular starting point</p>
-                <div className="mt-3 flex items-end justify-between gap-5 border-b border-slate-200 pb-5">
-                  <div>
-                    <p className="font-display text-xl font-bold">{heroContent.priceLabel}</p>
-                    <p className="mt-1 text-sm text-slate-500">Before destination-based tax</p>
-                  </div>
-                  <p className="font-display text-3xl font-black text-[#0B1F3A]">{heroContent.price}</p>
-                </div>
-                <ol className="mt-5 grid gap-3 text-sm">
-                  <li className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B1F3A] text-xs font-bold text-white">1</span>Choose your configuration</li>
-                  <li className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B1F3A] text-xs font-bold text-white">2</span>Upload your artwork</li>
-                  <li className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B1F3A] text-xs font-bold text-white">3</span>Review the on-screen preview</li>
-                  <li className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B1F3A] text-xs font-bold text-white">4</span>Continue to secure checkout</li>
-                </ol>
-                <div className="mt-5 border-l-4 border-[#FF6A00] bg-[#FFF7F1] px-4 py-3 text-sm leading-6 text-slate-700">
-                  Free next-day air anywhere in the United States is included after production. Production time and carrier transit are shown separately.
-                </div>
-              </div>
-            </aside>
-          </div>
-        </section>
+        <LightProductHero
+          attributes={{ 'data-google-product-hero': isYardSign ? 'yard-signs' : 'car-magnets' }}
+          productSlug={isYardSign ? 'yard-signs' : 'car-magnets'}
+          title={heroContent.headline}
+          eyebrow={heroContent.eyebrow}
+          description={heroContent.intro}
+          primaryLabel={heroContent.cta}
+          onStart={scrollToOrder}
+          offer={<p className="text-sm font-semibold">{heroContent.priceLabel} from {heroContent.price} · {heroContent.offer}</p>}
+        />
         )}
 
         {!mobilePaidLayout && <RealOrdersStrip compactMobile={compactMobileLanding} expanded />}

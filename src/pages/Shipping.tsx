@@ -48,14 +48,14 @@ const Shipping: React.FC = () => (
       schema={shippingSchema}
     />
 
-    <section className="border-b border-white/10 bg-[#0B1F3A] px-4 py-14 text-white sm:py-20">
+    <section className="border-b border-[#e5dfd6] bg-[#f8f6f1] px-4 py-14 text-[#061A31] sm:py-20">
       <div className="mx-auto max-w-4xl text-center">
-        <Truck className="mx-auto h-9 w-9 text-[#FF8A3D]" aria-hidden="true" />
+        <Truck className="mx-auto h-9 w-9 text-[#b84300]" aria-hidden="true" />
         <h1 className="mt-4 font-display text-4xl font-bold tracking-[-0.04em] sm:text-5xl">Production and shipping information</h1>
-        <p className="mx-auto mt-5 max-w-3xl text-lg leading-8 text-slate-200">
+        <p className="mx-auto mt-5 max-w-3xl text-lg leading-8 text-slate-600">
           Production happens first. Carrier transit begins after the finished order ships. Review both parts of the timeline before choosing an event date.
         </p>
-        <HeroDeliveryStatus className="mx-auto mt-7 max-w-[570px] text-left" />
+        <HeroDeliveryStatus variant="light" className="mx-auto mt-7 max-w-[570px] text-left" />
       </div>
     </section>
 

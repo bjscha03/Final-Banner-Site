@@ -1,0 +1,41 @@
+name: Light product hero browser checks
+on:
+  pull_request:
+    paths:
+      - 'src/components/product/**'
+      - 'src/components/design/*Hero.tsx'
+      - 'src/components/Header.tsx'
+      - 'src/components/PageHeader.tsx'
+      - 'src/components/blog/BlogHero.tsx'
+      - 'src/styles/product-hero.css'
+      - 'src/pages/GoogleAdsBanner.tsx'
+      - 'src/pages/PoliticalSigns.tsx'
+      - 'src/pages/Shipping.tsx'
+      - 'src/pages/CustomQuote.tsx'
+      - 'public/images/product-heroes/**'
+      - 'tests/browser/light-product-heroes.playwright.spec.ts'
+      - 'playwright.hero.config.ts'
+      - '.github/workflows/light-product-heroes.yml'
+permissions:
+  contents: read
+jobs:
+  hero-browsers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Verify storefront heroes at phone, tablet and desktop sizes
+        run: npx playwright test --config=playwright.hero.config.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: product-hero-browser-results
+          path: test-results/
+          retention-days: 7

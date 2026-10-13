@@ -93,9 +93,8 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
       {...(isHomepage ? { 'data-homepage-header': '' } : {})}
       className={isHomepage
         ? 'relative z-50 border-b border-[#e5dfd6] bg-white text-[#061A31]'
-        : 'sticky top-0 z-50 border-b border-white/10 bg-[#061A31]/95 text-white shadow-[0_8px_28px_rgba(6,26,49,0.18)] backdrop-blur'}
+        : 'sticky top-0 z-50 border-b border-[#e5dfd6] bg-white text-[#061A31]'}
     >
-      {!isHomepage && <div className="h-1 bg-[#F45B08]" />}
       <div className="mx-auto max-w-[1740px] px-4 sm:px-6 lg:px-8">
         <div className={isHomepage ? 'flex h-[72px] items-center justify-between lg:h-[92px]' : compactMobile ? 'flex h-[52px] items-center justify-between lg:h-[78px]' : 'flex h-[72px] items-center justify-between lg:h-[78px]'}>
           {/* Compact navigation for mobile and tablet */}
@@ -105,7 +104,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
                 setIsAccountMenuOpen(false);
                 setIsMenuOpen((open) => !open);
               }}
-              className="min-h-11 min-w-11 rounded-md p-2 text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
+              className="min-h-11 min-w-11 rounded-md p-2 text-[#061A31] transition-colors hover:bg-[#f3f0eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
               aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
               aria-expanded={isMenuOpen}
               aria-controls="mobile-navigation"
@@ -250,7 +249,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
           <div className="flex-shrink-0">
             <ScrollToTopLink to="/" className="flex items-center">
               <img
-                src={isHomepage ? "/images/header-logo.png" : "/images/homepage/header-logo-reverse.png"}
+                src="/images/header-logo.png"
                 alt="Banners On The Fly"
                 width="248"
                 height="70"
@@ -272,8 +271,8 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
                 to={item.href}
                 className={`relative py-2 text-sm font-semibold transition-colors after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:origin-left after:bg-[#FF6A00] after:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] ${
                   location.pathname === item.href
-                    ? 'text-white after:scale-x-100'
-                    : 'text-white/85 hover:text-white after:scale-x-0 hover:after:scale-x-100'
+                    ? 'text-[#061A31] after:scale-x-100'
+                    : 'text-[#26374a] hover:text-[#b84300] after:scale-x-0 hover:after:scale-x-100'
                 }`}
               >
                 {item.name}
@@ -301,7 +300,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
               >
                 <DropdownMenuTrigger asChild>
                   <button
-                    className="min-h-11 min-w-11 rounded-md p-2 text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
+                    className="min-h-11 min-w-11 rounded-md p-2 text-[#061A31] transition-colors hover:bg-[#f3f0eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
                     aria-label="Account"
                   >
                     <User className="h-5 w-5" />
@@ -384,7 +383,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
             <button
               onClick={handleCartClick}
               aria-label="Shopping cart"
-              className="relative min-h-11 min-w-11 rounded-md p-2 text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
+              className="relative min-h-11 min-w-11 rounded-md p-2 text-[#061A31] transition-colors hover:bg-[#f3f0eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
             >
               <ShoppingCart className="h-5 w-5" />
               {cartCount > 0 && (
