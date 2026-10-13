@@ -3,7 +3,7 @@ import sharp from 'sharp';
 import { CHECKOUT_ITEM, installCheckoutHarness } from './checkoutHarness';
 
 test.beforeEach(async ({ page }) => {
-  await installCheckoutHarness(page, [{ ...CHECKOUT_ITEM, width_in: 72, height_in: 36, area_sqft: 18, unit_price_cents: 9000, line_total_cents: 9000 }]);
+  await installCheckoutHarness(page, [{ ...CHECKOUT_ITEM, grommets: 'every-2-3ft', width_in: 72, height_in: 36, area_sqft: 18, unit_price_cents: 9000, line_total_cents: 9000 }]);
   await page.route('**/.netlify/functions/stripe-config', route => route.fulfill({ json: { enabled: true, environment: 'test', publishableKey: 'pk_test_visual_fixture' } }));
   await page.route('**/.netlify/functions/validate-discount-code', route => {
     const input = route.request().postDataJSON();
@@ -20,8 +20,9 @@ test('approved responsive layout keeps artwork and authoritative totals visible'
   await expect(page.getByRole('heading', { name: 'Let’s make it official.' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Apple Pay test fixture' })).toBeVisible();
   const summary = page.getByTestId('checkout-artwork-summary');
-  await expect(summary.locator('[data-preview-ready="true"]')).toHaveCount(1);
+  await expect(summary.locator('[data-preview-ready="true"], [data-realistic-artwork-ready="true"]')).toHaveCount(1);
   await expect(summary.locator('[data-realistic-scene]')).toHaveCount(1);
+  await expect(summary.locator('[data-realistic-grommet]')).toHaveCount(10);
   const total = page.getByTestId('checkout-order-totals');
   await expect(total).toHaveCount(1); await expect(total).toContainText('$76.32');
   const pay = page.getByRole('button', { name: 'Pay $76.32', exact: true });
@@ -67,12 +68,12 @@ test('validation, address editing, provider switching and order editing remain s
   await page.getByRole('dialog').getByRole('button', { name: /Increase quantity/ }).first().click();
   await page.getByRole('button', { name: 'Back to checkout', exact: true }).click();
   await expect(page.getByTestId('checkout-artwork-summary')).toContainText('Qty 2');
-  await expect(page.getByTestId('checkout-artwork-summary').locator('[data-preview-ready="true"]')).toHaveCount(1);
+  await expect(page.getByTestId('checkout-artwork-summary').locator('[data-preview-ready="true"], [data-realistic-artwork-ready="true"]')).toHaveCount(1);
   const artwork = page.getByTestId('checkout-artwork-summary');
   await expect(artwork.locator('[data-realistic-scene]')).toHaveCount(1);
   await artwork.getByRole('button', { name: 'Print layout', exact: true }).click();
   await expect(artwork.locator('[data-realistic-scene]')).toHaveCount(0);
-  await expect(artwork.locator('[data-preview-ready="true"]')).toHaveCount(1);
+  await expect(artwork.locator('[data-preview-ready="true"], [data-realistic-artwork-ready="true"]')).toHaveCount(1);
   await artwork.getByRole('button', { name: 'Realistic preview', exact: true }).click();
   await expect(artwork.locator('[data-realistic-scene]')).toHaveCount(1);
   await expect(page.locator('#stripe-email')).toHaveValue('checkout-qa@example.com');
@@ -94,7 +95,7 @@ test('deploy preview matches the wallet and card layout without accepting paymen
   await expect(page.locator('.checkout-preview-card input')).toHaveCount(0);
   const pay = page.getByRole('button', { name: 'Place test order · $76.32', exact: true });
   await expect(pay).toBeEnabled();
-  await expect(page.getByTestId('checkout-artwork-summary').locator('[data-preview-ready="true"]')).toHaveCount(1);
+  await expect(page.getByTestId('checkout-artwork-summary').locator('[data-preview-ready="true"], [data-realistic-artwork-ready="true"]')).toHaveCount(1);
   await expect(page.getByTestId('checkout-order-totals')).toContainText('$76.32');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   await page.screenshot({ path: info.outputPath('deploy-preview-checkout.png'), fullPage: true });

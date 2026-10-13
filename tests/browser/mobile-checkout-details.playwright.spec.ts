@@ -32,7 +32,7 @@ test('contact and delivery details are visible before either payment method', as
   if ((page.viewportSize()?.width ?? 1024) < 1024) {
     const artworkSummary = page.getByTestId('checkout-artwork-summary');
     await expect(artworkSummary).toBeVisible();
-    await expect(artworkSummary.locator('[data-preview-ready="true"]')).toHaveCount(1);
+    await expect(artworkSummary.locator('[data-preview-ready="true"], [data-realistic-artwork-ready="true"]')).toHaveCount(1);
     const paymentBox = await contactHeading.boundingBox();
     const orderSummaryBox = await artworkSummary.boundingBox();
     expect(paymentBox).not.toBeNull();
@@ -58,12 +58,12 @@ test('order summary above payment enlarges artwork directly, and keeps all items
   const { paymentEndpointRequests } = await installCheckoutHarness(page, [CHECKOUT_ITEM, second]);
   await page.goto('/checkout', { waitUntil: 'domcontentloaded' });
   const summary = page.getByTestId('checkout-artwork-summary');
-  await expect(summary.locator('[data-preview-ready="true"]')).toHaveCount(2);
+  await expect(summary.locator('[data-preview-ready="true"], [data-realistic-artwork-ready="true"]')).toHaveCount(2);
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
   await summary.getByRole('button', { name: /Enlarge artwork for item 1/ }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByRole('dialog').locator('[data-preview-ready="true"]')).toHaveCount(1);
+  await expect(page.getByRole('dialog').locator('[data-preview-ready="true"], [data-realistic-artwork-ready="true"]')).toHaveCount(1);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
@@ -73,7 +73,7 @@ test('order summary above payment enlarges artwork directly, and keeps all items
   await editor.getByRole('button', { name: /Increase quantity/ }).first().click();
   await editor.getByRole('button', { name: 'Back to checkout', exact: true }).click();
   await expect(summary.locator('[data-checkout-artwork-item="mobile-checkout-banner"]')).toContainText('Qty 2');
-  await expect(summary.locator('[data-preview-ready="true"]')).toHaveCount(2);
+  await expect(summary.locator('[data-preview-ready="true"], [data-realistic-artwork-ready="true"]')).toHaveCount(2);
   expect(paymentEndpointRequests).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 });

@@ -266,8 +266,8 @@ test('banner finishing preserves the artwork, price and cart through add-another
   const artworkItems = page.getByTestId('checkout-artwork-summary').locator('[data-checkout-artwork-item]');
   await expect(artworkItems).toHaveCount(2);
   const firstItem = artworkItems.first();
-  const printPreview = firstItem.locator('[data-commerce-preview]');
-  await expect(printPreview).toHaveAttribute('data-preview-ready', 'true');
+  const printPreview = firstItem.locator('[data-realistic-artwork-ready]');
+  await expect(printPreview).toHaveAttribute('data-realistic-artwork-ready', 'true');
   const previewBox = (await printPreview.boundingBox())!;
   expect(previewBox.width).toBeGreaterThan(50);
   expect(previewBox.width / previewBox.height).toBeCloseTo(2, 1);
@@ -276,7 +276,7 @@ test('banner finishing preserves the artwork, price and cart through add-another
   await firstItem.screenshot({ path: testInfo.outputPath('checkout-saved-artwork.png') });
   await firstItem.getByRole('button', { name: /Enlarge artwork/ }).click();
   const lightbox = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Close preview' }) });
-  await expect(lightbox.locator('[data-preview-ready="true"]')).toHaveCount(1);
+  await expect(lightbox.locator('[data-realistic-artwork-ready="true"]')).toHaveCount(1);
   await lightbox.getByRole('button', { name: 'Close preview', exact: true }).last().click();
 });
 
