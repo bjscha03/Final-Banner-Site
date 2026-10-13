@@ -3201,15 +3201,15 @@ const GoogleAdsBanner: React.FC = () => {
                         <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
                       </div>
                       {/* Banner preview with depth background */}
-                      <div className="rounded-xl p-4 pt-[104px] md:p-6 md:pt-[108px] max-w-full overflow-hidden bg-slate-300 border border-slate-400/70 shadow-inner">
+                      <div data-testid="artwork-workspace" className="rounded-xl p-4 pt-[104px] md:p-6 md:pt-[108px] max-w-full overflow-hidden bg-slate-300 border border-slate-400/70 shadow-inner">
                         {/* Width wrapper — constrains max-width so padding-bottom produces correct height */}
                         <PreviewRulerFrame
                           widthIn={widthIn}
                           heightIn={heightIn}
                           unit={isCarMagnet ? 'in' : unit}
                           debug={import.meta.env.DEV}
-                          className="mx-auto max-w-full"
-                          style={previewWrapperStyle}
+                          className="banner-artwork-ruler mx-auto max-w-full"
+                          style={{ ...previewWrapperStyle, '--artwork-aspect': widthIn / heightIn } as React.CSSProperties}
                         >
                           {/* PR3: Modern Canva-style artwork editor (drag,
                               resize handles, fit/fill/reset/constrain). */}

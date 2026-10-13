@@ -31,7 +31,7 @@ async function upload(page: Page, scenario: string, artwork: Buffer, name = 'art
   const image = page.getByAltText('Uploaded artwork preview').first();
   await expect(image).toBeVisible();
   await expect(page.getByTestId('artwork-selection')).toBeVisible();
-  await page.getByTestId('artwork-editor').scrollIntoViewIfNeeded();
+  await page.getByTestId('artwork-workspace').scrollIntoViewIfNeeded();
   return image;
 }
 async function patternedArtwork() {
@@ -52,6 +52,15 @@ test('all eight handles, crop, snap, undo and deletion work in the actual banner
   const toolbarBox = await box(page.getByRole('toolbar',{name:'Selected artwork',exact:true}));
   const topHandle = await box(canvas.locator('[data-handle=t]'));
   expect(toolbarBox.y+toolbarBox.height).toBeLessThanOrEqual(topHandle.y);
+  if (info.project.name === 'webkit-iphone15pro-landscape') {
+    const footer = await box(page.getByTestId('mobile-subtotal-bar'));
+    const header = await box(page.locator('[data-site-header]'));
+    expect(toolbarBox.y).toBeGreaterThanOrEqual(header.y+header.height);
+    for (const handle of await canvas.locator('[data-handle]').all()) {
+      const target = await box(handle);
+      expect(target.y+target.height).toBeLessThanOrEqual(footer.y);
+    }
+  }
   const c = await box(canvas);
   await drag(page,canvas.locator('[data-handle=br]'),-c.width*0.25,-c.height*0.25);
   for (const handle of ['tl','tr','bl','br']) {
