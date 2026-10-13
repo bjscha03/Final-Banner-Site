@@ -105,13 +105,13 @@ export function BlogHero({ post }: BlogHeroProps) {
               />
             </Link>
 
-            <div className="pointer-events-none absolute left-0 top-0 z-10 bg-white text-[#061A31] px-5 py-3 text-[11px] font-semibold tracking-[0.12em] text-white sm:px-6 sm:text-xs">
+            <div className="pointer-events-none absolute left-0 top-0 z-10 bg-white text-[#061A31] px-5 py-3 text-[11px] font-semibold tracking-[0.12em] sm:px-6 sm:text-xs">
               Featured guide
             </div>
 
             <div className="absolute inset-x-0 bottom-0 flex h-[39%] min-h-[230px] flex-col justify-between border-t border-[#e5dfd6] bg-white px-6 py-6 text-[#061A31] sm:h-[35%] sm:px-8 sm:py-7 lg:px-9 xl:px-10">
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold tracking-[0.14em] text-[#F26A21] sm:text-xs">
+                <p className="text-[11px] font-semibold tracking-[0.14em] text-[#b84300] sm:text-xs">
                   {category}
                 </p>
                 <Link to={articleUrl} className="group inline-block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F45B08]">

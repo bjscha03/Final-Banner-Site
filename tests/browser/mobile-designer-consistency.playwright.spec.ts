@@ -33,22 +33,20 @@ for (const route of ROUTES) {
   test(`${route} keeps the timer and mobile footer consistent`, async ({ page }) => {
     await page.goto(route, { waitUntil: 'domcontentloaded' });
 
-    const isAds = route.startsWith('/google-ads-banner');
     const isMobile = (page.viewportSize()?.width ?? 1024) < 1024;
     const mobileTimer = page.locator('[data-mobile-delivery-timer]');
     const mobileFooter = page.getByTestId('mobile-subtotal-bar');
 
     if (isMobile) {
       await expect(mobileFooter).toBeVisible();
-      if (isAds) {
-        await expect(mobileFooter).toContainText("6' × 3'");
-        await expect(mobileFooter.getByRole('button', { name: 'Add artwork', exact: true })).toBeVisible();
-      } else {
-      await expect(mobileFooter.getByText('This banner · Before tax', { exact: true })).toBeVisible();
-      await expect(mobileFooter.getByRole('button', { name: /View Cart \(0\)/i })).toBeVisible();
+      await expect(mobileFooter).toContainText("6' × 3'");
+      await expect(mobileFooter.getByRole('button', { name: 'Add artwork', exact: true })).toBeVisible();
       await expect(page.locator('[data-mobile-guided-action]')).toHaveCount(0);
+      await mobileFooter.getByRole('button', { name: 'Add artwork', exact: true }).click();
+      await expect(page.getByRole('heading', { name: 'Make it yours.' })).toBeVisible();
+      await expect(page.getByRole('radio', { name: /Double-sided/ })).toBeVisible();
+      await expect(page.getByTestId('fading-google-reviews')).toBeVisible();
       await expect(mobileFooter.getByRole('button', { name: /^Upload artwork$/i })).toBeVisible();
-      }
     } else {
       await expect(mobileTimer).toBeHidden();
       await expect(mobileFooter).toBeHidden();
