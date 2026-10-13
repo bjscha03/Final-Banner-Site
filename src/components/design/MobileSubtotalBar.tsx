@@ -100,7 +100,7 @@ export default function MobileSubtotalBar({
           <div className="mobile-subtotal-details min-w-0 flex-1">
             <p className="text-xs font-semibold text-white">{selectionLabel}</p>
             {displayedSubtotal}
-            <p className="flex flex-wrap items-baseline gap-x-1 text-[11px] leading-4 text-[#B8C8DC]">
+            <p className="flex flex-wrap items-baseline gap-x-1 text-[11px] leading-[14px] text-[#B8C8DC]">
               {compactDiscountLabel && <span>{compactDiscountLabel} <span aria-hidden="true">·</span></span>}
               <span>Before tax</span>
             </p>
