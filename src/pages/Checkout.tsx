@@ -18,6 +18,7 @@ import PriceDeliveryEstimate from '@/components/delivery/PriceDeliveryEstimate';
 import { usd, formatDimensions, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
 import PayPalCheckout from '@/components/checkout/PayPalCheckoutReliable';
+import { shouldUseDeployPreviewTestCheckout } from '@/components/checkout/checkoutEnvironment';
 import StripeCheckout from '@/components/checkout/StripeCheckout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1492,7 +1493,7 @@ const Checkout: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="checkout-fallback-methods">
+                    {!shouldUseDeployPreviewTestCheckout() && <div className="checkout-fallback-methods">
                       <p className="text-xs text-gray-600">
                         Pay securely by card or PayPal. No PayPal account required.
                       </p>
@@ -1505,7 +1506,7 @@ const Checkout: React.FC = () => {
                           decoding="async"
                         />
                       </div>
-                    </div>
+                    </div>}
                     <PayPalCheckout
                         orderSummary={paymentOrderSummary}
                       disabled={firstOrderOffer.checking || paymentSubmissionBlocked || (checkoutLocked && activeCheckout?.provider !== 'paypal')}
@@ -1525,7 +1526,7 @@ const Checkout: React.FC = () => {
               </div>
 
               <div className="checkout-account">
-                {user ? <p>Order saved to {user.email}</p> : <p>Checking out as a guest. <button type="button" onClick={() => navigate('/sign-in?from=checkout&next=/checkout')}>Sign in</button></p>}
+                {user ? <p>{user.email ? `Order saved to ${user.email}` : 'Your order will be saved to your account.'}</p> : <p>Checking out as a guest. <button type="button" onClick={() => navigate('/sign-in?from=checkout&next=/checkout')}>Sign in</button></p>}
               </div>
             </div>
             </div>

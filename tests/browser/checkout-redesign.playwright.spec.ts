@@ -21,6 +21,7 @@ test('approved responsive layout keeps artwork and authoritative totals visible'
   await expect(page.getByRole('button', { name: 'Apple Pay test fixture' })).toBeVisible();
   const summary = page.getByTestId('checkout-artwork-summary');
   await expect(summary.locator('[data-preview-ready="true"]')).toHaveCount(1);
+  await expect(summary.locator('[data-realistic-scene]')).toHaveCount(1);
   const total = page.getByTestId('checkout-order-totals');
   await expect(total).toHaveCount(1); await expect(total).toContainText('$76.32');
   const pay = page.getByRole('button', { name: 'Pay $76.32', exact: true });
@@ -67,6 +68,44 @@ test('validation, address editing, provider switching and order editing remain s
   await page.getByRole('button', { name: 'Back to checkout', exact: true }).click();
   await expect(page.getByTestId('checkout-artwork-summary')).toContainText('Qty 2');
   await expect(page.getByTestId('checkout-artwork-summary').locator('[data-preview-ready="true"]')).toHaveCount(1);
+  const artwork = page.getByTestId('checkout-artwork-summary');
+  await expect(artwork.locator('[data-realistic-scene]')).toHaveCount(1);
+  await artwork.getByRole('button', { name: 'Print layout', exact: true }).click();
+  await expect(artwork.locator('[data-realistic-scene]')).toHaveCount(0);
+  await expect(artwork.locator('[data-preview-ready="true"]')).toHaveCount(1);
+  await artwork.getByRole('button', { name: 'Realistic preview', exact: true }).click();
+  await expect(artwork.locator('[data-realistic-scene]')).toHaveCount(1);
   await expect(page.locator('#stripe-email')).toHaveValue('checkout-qa@example.com');
   expect(submitted).toEqual([]);
+});
+
+test('deploy preview matches the wallet and card layout without accepting payment data', async ({ page }, info) => {
+  await page.route('**/.netlify/functions/stripe-config', route => route.fulfill({ json: { enabled: false } }));
+  const providerRequests: string[] = [];
+  page.on('request', request => {
+    if (/paypal\.com\/sdk|js\.stripe\.com|\/(stripe-create-payment-intent|paypal-create-order|paypal-capture-minimal)(?:\?|$)/.test(request.url())) providerRequests.push(request.url());
+  });
+  await page.goto('/checkout?checkoutVisualMode=deploy-preview');
+  await expect(page.getByRole('button', { name: 'Apple Pay — preview only', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'PayPal — preview only', exact: true })).toBeDisabled();
+  await expect(page.getByRole('heading', { name: 'Payment', exact: true })).toBeVisible();
+  await expect(page.locator('#checkout-email')).toHaveAttribute('placeholder', 'you@example.com');
+  await expect(page.locator('.checkout-fallback-methods')).toHaveCount(0);
+  await expect(page.locator('.checkout-preview-card input')).toHaveCount(0);
+  const pay = page.getByRole('button', { name: 'Place test order · $76.32', exact: true });
+  await expect(pay).toBeEnabled();
+  await expect(page.getByTestId('checkout-artwork-summary').locator('[data-preview-ready="true"]')).toHaveCount(1);
+  await expect(page.getByTestId('checkout-order-totals')).toContainText('$76.32');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  await page.screenshot({ path: info.outputPath('deploy-preview-checkout.png'), fullPage: true });
+  await page.screenshot({ path: info.outputPath('deploy-preview-first-screen.png') });
+  let testOrder: Record<string, unknown> | undefined;
+  await page.route('**/.netlify/functions/create-order', route => {
+    testOrder = route.request().postDataJSON();
+    return route.fulfill({ status: 403, json: { error: 'Preview order requires admin access.' } });
+  });
+  await pay.click();
+  await expect(page.getByText('Preview order requires admin access.', { exact: true }).first()).toBeVisible();
+  expect(testOrder).toMatchObject({ checkout_mode: 'admin_deploy_preview_test', payment_method: 'admin_deploy_preview_test', total_cents: 7632 });
+  expect(providerRequests).toEqual([]);
 });

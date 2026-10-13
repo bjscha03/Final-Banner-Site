@@ -271,12 +271,13 @@ test('banner finishing preserves the artwork, price and cart through add-another
   const previewBox = (await printPreview.boundingBox())!;
   expect(previewBox.width).toBeGreaterThan(50);
   expect(previewBox.width / previewBox.height).toBeCloseTo(2, 1);
-  await expect(firstItem.getByText('Realistic preview', { exact: true })).toHaveCount(0);
+  await expect(firstItem.getByRole('button', { name: 'Realistic preview', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(firstItem.locator('[data-realistic-scene]')).toHaveCount(1);
   await firstItem.screenshot({ path: testInfo.outputPath('checkout-saved-artwork.png') });
   await firstItem.getByRole('button', { name: /Enlarge artwork/ }).click();
   const lightbox = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Close preview' }) });
   await expect(lightbox.locator('[data-preview-ready="true"]')).toHaveCount(1);
-  await lightbox.getByRole('button', { name: 'Close preview', exact: true }).click();
+  await lightbox.getByRole('button', { name: 'Close preview', exact: true }).last().click();
 });
 
 
@@ -391,7 +392,7 @@ test('single and double sided pricing, artwork and cart editing share one design
   await expect(page.getByTestId('checkout-order-totals')).toContainText('$124.50');
   await expect(page.getByTestId('checkout-order-totals')).toContainText('-$24.90');
   await expect(page.getByTestId('checkout-order-totals')).toContainText('$105.58');
-  await page.getByTestId('payment-order-summary').screenshot({ path: info.outputPath('double-sided-checkout.png') });
+  await page.getByTestId('checkout-order-totals').screenshot({ path: info.outputPath('double-sided-checkout.png') });
   // Follow the actual checkout edit action, then save over the same cart item.
   await page.getByRole('button', { name: 'Edit order', exact: true }).click();
   await page.getByRole('button', { name: 'Edit banner', exact: true }).click();

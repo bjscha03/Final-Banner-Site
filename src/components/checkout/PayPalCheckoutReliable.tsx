@@ -9,7 +9,8 @@ import {
   PayPalScriptProvider,
   usePayPalCardFields,
 } from '@paypal/react-paypal-js';
-import { Clock3, Loader2, RefreshCw } from 'lucide-react';
+import { Clock3, Loader2, Lock, RefreshCw } from 'lucide-react';
+import { PreviewCardPayment, PreviewExpressCheckout } from './CheckoutPreviewPayment';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
@@ -1173,7 +1174,8 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         aria-labelledby="checkout-customer-heading"
         className="checkout-contact"
       >
-        <div className="mb-4">
+        <div className="checkout-section-title">
+          <span className="flex items-center justify-center rounded-full bg-[#071C35] font-bold text-white" aria-hidden="true">1</span>
           <h3 id="checkout-customer-heading" className="text-base font-bold text-[#0B1F3A]">
             Contact &amp; delivery
           </h3>
@@ -1194,6 +1196,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
                 <Input
                   id={`checkout-${field}`}
                   name={`billing-${field}`}
+                  placeholder={field === 'email' ? 'you@example.com' : field === 'phone' ? '(555) 555-5555' : field === 'street' ? 'Street address' : label.replace(' *', '')}
                   data-checkout-field={field}
                   className="mt-1 h-11 text-base sm:text-sm"
                   type={type}
@@ -1325,22 +1328,22 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   if (isDeployPreview) {
     return (
       <div className="space-y-4">
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
-          <strong>Deploy Preview Test Checkout:</strong> Create an order without processing a real payment.
-        </div>
+        <PreviewExpressCheckout />
         {renderCustomerDetails()}
+        <PreviewCardPayment />
         {orderSummary}
         <Button
+          type="button"
           onClick={handleTestPayment}
-          disabled={disabled || isPreparing}
-          variant="outline"
-          className="w-full"
+          disabled={disabled || providerLocked || isPreparing}
+          className="checkout-pay-button w-full"
           size="lg"
         >
           {isPreparing
             ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing Test Order...</>
-            : 'Place Test Order — No Payment'}
+            : <><Lock className="mr-2 h-4 w-4" aria-hidden="true" />Place test order · ${(total / 100).toFixed(2)}</>}
         </Button>
+        <p className="checkout-preview-note text-center">Test order only. No payment will be taken.</p>
         {checkoutError ? <p className="text-sm text-red-700">{checkoutError}</p> : null}
       </div>
     );

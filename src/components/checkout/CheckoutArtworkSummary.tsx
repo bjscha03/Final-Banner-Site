@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { CartItem } from '@/store/cart';
 import BannerPreview from '@/components/cart/StableBannerPreview';
 import ThumbnailPreviewWrapper from '@/components/preview/StableThumbnailPreviewWrapper';
-import { formatBannerDimensions } from '@/lib/preview/realisticBanner';
+import { formatBannerDimensions, isRealisticBannerItem } from '@/lib/preview/realisticBanner';
+import { RealisticBannerScene } from '@/components/preview/RealisticBannerPreview';
 import { getSmallPreviewSelection, getExpandedPreviewSelection } from '@/lib/previewSelection';
 import { getGrommetModeForPreview, getGrommetLabelForDisplay } from '@/lib/cartGrommet';
 import { getItemDisplayName, normalizeOrderItemDisplay } from '@/lib/product-display';
@@ -15,6 +16,7 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction, 
   editAction: React.ReactNode;
   showTotal?: boolean;
 }) {
+  const [printLayoutItems, setPrintLayoutItems] = useState<Record<string, boolean>>({});
   return (
     <section aria-label="Your artwork and order" className="checkout-artwork" data-testid="checkout-artwork-summary">
       <div className="checkout-artwork-heading">
@@ -30,6 +32,8 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction, 
           const expanded = getExpandedPreviewSelection(item);
           const details = normalizeOrderItemDisplay(item);
           const isBanner = details.productType === 'banner';
+          const hasRealisticPreview = isRealisticBannerItem(item) && Boolean(small.url) && !item.design_service_enabled;
+          const showRealisticPreview = hasRealisticPreview && !printLayoutItems[item.id];
           const bannerSize = formatBannerDimensions(item.width_in, item.height_in);
           const title = isBanner ? `${item.material === '18oz_double' ? 'Double-Sided Banner' : 'Custom Banner'} ${bannerSize.feet}` : getItemDisplayName(item);
           const previewProps = {
@@ -49,6 +53,10 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction, 
           };
           return (
             <div key={item.id} className="checkout-artwork-item" data-checkout-artwork-item={item.id}>
+              {hasRealisticPreview && <div className="checkout-preview-mode" role="group" aria-label={`Preview style for item ${index + 1}`}>
+                <button type="button" aria-pressed={showRealisticPreview} onClick={() => setPrintLayoutItems(current => ({ ...current, [item.id]: false }))}>Realistic preview</button>
+                <button type="button" aria-pressed={!showRealisticPreview} onClick={() => setPrintLayoutItems(current => ({ ...current, [item.id]: true }))}>Print layout</button>
+              </div>}
               <div className="checkout-artwork-image" style={{ "--checkout-artwork-ratio": item.width_in / item.height_in } as React.CSSProperties}>
                 <ThumbnailPreviewWrapper
                   title={title}
@@ -61,11 +69,13 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction, 
                     { label: 'Material', value: details.materialDisplay },
                     { label: 'Qty', value: details.qtyDisplay },
                   ]}
-                  renderLargePreview={() => (
-                    <BannerPreview {...previewProps} imageUrl={expanded.url} isFinalizedSnapshot={expanded.isExactComposition} maxSize={820} />
-                  )}
+                  renderLargePreview={() => showRealisticPreview
+                    ? <RealisticBannerScene item={item} expanded />
+                    : <BannerPreview {...previewProps} imageUrl={expanded.url} isFinalizedSnapshot={expanded.isExactComposition} maxSize={820} />}
                 >
-                  <BannerPreview {...previewProps} imageUrl={small.url} isFinalizedSnapshot={small.isExactComposition} maxSize={600} />
+                  {showRealisticPreview
+                    ? <RealisticBannerScene item={item} previewSize={600} />
+                    : <BannerPreview {...previewProps} imageUrl={small.url} isFinalizedSnapshot={small.isExactComposition} maxSize={600} />}
                 </ThumbnailPreviewWrapper>
               </div>
               <div className="checkout-artwork-copy">
