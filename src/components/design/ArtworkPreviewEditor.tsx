@@ -41,6 +41,7 @@ export interface ArtworkPreviewEditorProps {
   compactControls?: boolean;
   canvasStyle?: React.CSSProperties;
   mobileToolbarContainer?: HTMLElement | null;
+  primaryFitControl?: React.ReactNode;
   fitControls?: React.ReactNode;
   imageCrossOrigin?: '' | 'anonymous' | 'use-credentials';
   onRetryPreview?: () => void | Promise<void>;
@@ -123,6 +124,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   compactControls = false,
   canvasStyle,
   mobileToolbarContainer,
+  primaryFitControl,
   fitControls,
   imageCrossOrigin,
   onRetryPreview,
@@ -636,10 +638,10 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
           <span className="inline-flex items-center gap-1.5"><Minimize2 aria-hidden="true" className="h-4 w-4 shrink-0" />Show entire design</span>
           <span className="text-[11px] font-normal text-slate-500">May leave blank margins</span>
         </button>
-        <button type="button" onClick={fill} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600">
+        {primaryFitControl || <button type="button" onClick={fill} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600">
           <span className="inline-flex items-center gap-1.5"><Maximize2 aria-hidden="true" className="h-4 w-4 shrink-0" />Fill banner</span>
           <span className="text-[11px] font-normal text-slate-500">Edges may crop</span>
-        </button>
+        </button>}
       </div>
       <p className="mt-1 flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
         <Hand aria-hidden="true" className="h-3.5 w-3.5" />Drag to move · Pinch or drag corners to resize

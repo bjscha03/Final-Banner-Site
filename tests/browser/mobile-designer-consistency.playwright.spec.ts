@@ -51,7 +51,7 @@ for (const route of ROUTES) {
       await expect(page.getByTestId('fading-google-reviews')).toBeVisible();
       await expect(mobileFooter.getByRole('button', { name: /^Upload artwork$/i })).toBeVisible();
     } else {
-      const reviews = page.getByTestId('google-reviews');
+      const reviews = page.getByTestId('google-reviews').filter({ visible: true });
       await expect(reviews).toBeVisible();
       expect((await reviews.boundingBox())!.height).toBeLessThanOrEqual(44);
       await expect(reviews.locator('.google-review-marquee-track')).toHaveCSS('animation-name', 'google-review-marquee');

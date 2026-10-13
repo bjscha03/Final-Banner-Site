@@ -1,4 +1,5 @@
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
+import GoogleReviewSpotlight from './GoogleReviewSpotlight';
 
 export default function MobileBannerLandingHero({ redesigned = false }: { redesigned?: boolean }) {
   if (!redesigned) return (
@@ -25,7 +26,10 @@ export default function MobileBannerLandingHero({ redesigned = false }: { redesi
         <picture>
           <img src="/images/product-heroes/vinyl-banners-640.webp" srcSet="/images/product-heroes/vinyl-banners-640.webp 640w, /images/product-heroes/vinyl-banners-1440.webp 1440w" sizes="(max-width: 576px) 100vw, 576px" alt="Meadow & Stem flower market vinyl banner with botanical artwork and reinforced grommets" width="1440" height="960" fetchPriority="high" className="h-36 w-full object-cover object-[center_58%] sm:h-48" />
         </picture>
-        <div className="bg-white px-4 pt-3"><HeroDeliveryStatus variant="arrival" /></div>
+        <div className="bg-white px-4 pt-2">
+          <HeroDeliveryStatus variant="arrival" condensed />
+          <div className="mt-2"><GoogleReviewSpotlight /></div>
+        </div>
       </div>
     </section>
   );

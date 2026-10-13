@@ -54,7 +54,6 @@ import MobileFinishingStep from '@/components/design/MobileFinishingStep';
 import LiveFinishingPreview from '@/components/design/LiveFinishingPreview';
 import RealOrdersStrip from '@/components/design/RealOrdersStrip';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
-import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import PreviewRulerFrame from '@/components/preview/PreviewRulerFrame';
 import ArtworkPreviewEditor, { type ArtworkPreviewEditorHandle } from '@/components/design/ArtworkPreviewEditor';
 import {
@@ -293,7 +292,7 @@ const GoogleAdsBanner: React.FC = () => {
   };
   const [materialDropdownOpen, setMaterialDropdownOpen] = useState(false);
   const materialDropdownRef = useRef<HTMLDivElement>(null);
-  const [grommets, setGrommets] = useState(initialProductType === 'banner' ? 'every-2-3ft' : 'none');
+  const [grommets, setGrommets] = useState('none');
   const [polePockets, setPolePockets] = useState('none');
   const [polePocketSize, setPolePocketSize] = useState('2');
   // Display unit for size inputs and the live preview ruler. Single source
@@ -306,11 +305,11 @@ const GoogleAdsBanner: React.FC = () => {
     () => (localStorage.getItem('banner-unit-pref') as 'in' | 'ft' | null) ?? 'ft'
   );
   const [addRope, setAddRope] = useState(false);
-  const [finishingType, setFinishingType] = useState<FinishingType>(initialProductType === 'banner' ? 'grommets' : 'none');
+  const [finishingType, setFinishingType] = useState<FinishingType>('none');
   const [mobileFinishingOpen, setMobileFinishingOpen] = useState(false);
   const [mobileFinishingSource, setMobileFinishingSource] = useState<'inline' | 'modal'>('inline');
   const [finishingPreviewTransform, setFinishingPreviewTransform] = useState<NormalizedArtworkTransform | null>(null);
-  const [finishingChoiceConfirmed, setFinishingChoiceConfirmed] = useState(initialProductType === 'banner');
+  const [finishingChoiceConfirmed, setFinishingChoiceConfirmed] = useState(false);
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -1063,13 +1062,14 @@ const GoogleAdsBanner: React.FC = () => {
     // new product never starts with these auto-selected.
     useCartStore.getState().setSameDayHitService(false);
     useCartStore.getState().setSaturdayDelivery(false);
-    // Each new banner starts with free grommets. Cart edits restore their saved choice.
+    // New banners start without hardware; customers choose their finishing.
+    // Cart edits restore the customer's saved choice.
     if (newType === 'banner') {
-      setGrommets('every-2-3ft');
+      setGrommets('none');
       setPolePockets('none');
       setAddRope(false);
-      setFinishingType('grommets');
-      setFinishingChoiceConfirmed(true);
+      setFinishingType('none');
+      setFinishingChoiceConfirmed(false);
     }
     // Reset yard sign state when switching
     if (newType === 'yard_sign') {
@@ -1705,9 +1705,9 @@ const GoogleAdsBanner: React.FC = () => {
   const resetAfterSuccessfulAdd = useCallback(() => {
     resetPreview();
     setMobileFinishingOpen(false);
-    setFinishingChoiceConfirmed(productType === 'banner');
-    setFinishingType(productType === 'banner' ? 'grommets' : 'none');
-    setGrommets(productType === 'banner' ? 'every-2-3ft' : 'none');
+    setFinishingChoiceConfirmed(false);
+    setFinishingType('none');
+    setGrommets('none');
     setPolePockets('none');
     setAddRope(false);
     setShowPostAddResetNotice(true);
@@ -2220,6 +2220,11 @@ const GoogleAdsBanner: React.FC = () => {
     actionType: 'checkout' | 'cart',
     editorSource: 'inline' | 'modal',
   ): Promise<void> => {
+    if (productType === 'banner' && !finishingChoiceConfirmed) {
+      setShowPreview(false);
+      scrollToStepAnchor('options-section');
+      return Promise.resolve();
+    }
     if (!isYardSign && !isCarMagnet && !hasCommittedBannerSize) {
       toast({
         title: 'Choose a banner size',
@@ -2285,7 +2290,7 @@ const GoogleAdsBanner: React.FC = () => {
     })();
     actionPreparationRef.current = promise;
     return promise;
-  }, [finishingType, hasCommittedBannerSize, hasReviewedOptions, heightIn, isCarMagnet, isYardSign, performCheckout, prepareCurrentPlacementPreview, productType, toast, widthIn]);
+  }, [finishingChoiceConfirmed, finishingType, hasCommittedBannerSize, hasReviewedOptions, heightIn, isCarMagnet, isYardSign, performCheckout, prepareCurrentPlacementPreview, productType, toast, widthIn]);
 
   // Proceed directly to checkout only after the actual editor canvas is finalized.
   const handleCheckout = useCallback(() => {
@@ -3033,7 +3038,7 @@ const GoogleAdsBanner: React.FC = () => {
 <FinishingOptionsCard
                         compact
                         finishingType={finishingType}
-                        explicitChoice={!isLgScreen}
+                        explicitChoice
                         choiceConfirmed={finishingChoiceConfirmed}
                         setFinishingType={(value) => { setFinishingType(value); setFinishingChoiceConfirmed(true); }}
                         grommets={grommets}
@@ -3057,11 +3062,22 @@ const GoogleAdsBanner: React.FC = () => {
                     ) : bannerFinishingOptions}
                   </div>
                 </ConfigCard>);
-  const artworkFitControls = !isYardSign && ENABLE_AI && uploadedFile ? (
-    <ArtworkFitButton onClick={() => setFitModalOpen(true)}
-      disabled={!hasCommittedBannerSize || isUploading || isProcessingUpsell || !hasPermanentArtwork(uploadedFile)}
-      onRestore={fitUndo?.appliedIdentity === uploadedFile.editorIdentity ? restoreArtworkBeforeFit : undefined} />
+  const artworkFitDisabled = !hasCommittedBannerSize || isUploading || isProcessingUpsell || !hasPermanentArtwork(uploadedFile);
+  const primaryArtworkFitControl = !isYardSign && !isCarMagnet && ENABLE_AI && uploadedFile ? (
+    <button type="button" onClick={() => setFitModalOpen(true)} disabled={artworkFitDisabled}
+      className="flex min-h-14 items-center justify-center gap-1.5 rounded-lg bg-orange-600 px-2 py-2 text-xs font-bold leading-snug text-white hover:bg-orange-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600 disabled:cursor-not-allowed disabled:opacity-50">
+      <Sparkles aria-hidden="true" className="h-4 w-4 shrink-0" />
+      <span>Fit my banner with AI</span>
+    </button>
   ) : null;
+  const artworkFitControls = !isYardSign && ENABLE_AI && uploadedFile ? (isCarMagnet ? (
+    <ArtworkFitButton onClick={() => setFitModalOpen(true)}
+      disabled={artworkFitDisabled}
+      onRestore={fitUndo?.appliedIdentity === uploadedFile.editorIdentity ? restoreArtworkBeforeFit : undefined} />
+  ) : fitUndo?.appliedIdentity === uploadedFile.editorIdentity ? (
+    <button type="button" onClick={restoreArtworkBeforeFit} disabled={artworkFitDisabled}
+      className="mt-2 min-h-11 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-800 disabled:opacity-50">Restore original</button>
+  ) : null) : null;
 
   const uploadCard = (<ConfigCard className={mobilePaidLayout ? '!border-0 !p-0 !shadow-none !scroll-mt-20' : undefined} step={mobilePaidLayout ? undefined : isCarMagnet ? 4 : 2} title="Upload your artwork" id="upload-section">
                   {/* Helper banner: shown when the user reaches the upload card before
@@ -3166,6 +3182,7 @@ const GoogleAdsBanner: React.FC = () => {
                             paddingPct={previewPaddingPct}
                             containerRef={previewContainerRef}
                             mobileToolbarContainer={inlineMobileToolbarEl}
+                            primaryFitControl={primaryArtworkFitControl}
                             fitControls={artworkFitControls}
                             value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                             onChange={(v) => {
@@ -3182,24 +3199,6 @@ const GoogleAdsBanner: React.FC = () => {
                               border: '1px solid #94a3b8',
                               boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
                             }}
-                            overlay={
-                              grommets !== 'none' ? (
-                                <svg
-                                  className="absolute inset-0 w-full h-full pointer-events-none"
-                                  viewBox={`0 0 ${widthIn} ${heightIn}`}
-                                  preserveAspectRatio="none"
-                                  style={{ zIndex: 10 }}
-                                  aria-hidden="true"
-                                >
-                                  <GrommetOverlay
-                                    widthIn={widthIn}
-                                    heightIn={heightIn}
-                                    option={grommets}
-                                    idSuffix="ga-inline"
-                                  />
-                                </svg>
-                              ) : null
-                            }
                           />
                         </PreviewRulerFrame>{/* close ruler frame */}
                       </div>
@@ -3535,7 +3534,7 @@ const GoogleAdsBanner: React.FC = () => {
                 <>
                 <button onClick={handleCheckout} disabled={!uploadedFile || !hasCommittedBannerSize || isUploading || isProcessingUpsell} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && hasCommittedBannerSize && !isUploading && !isProcessingUpsell ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                   <Lock className="h-4 w-4" aria-hidden="true" />
-                  {isProcessingUpsell ? 'Saving your design…' : (editItemId ? 'Save & checkout' : 'Continue to checkout')}
+                  {isProcessingUpsell ? 'Saving your design…' : !isCarMagnet && !finishingChoiceConfirmed ? 'Choose finishing' : (editItemId ? 'Save & checkout' : 'Continue to checkout')}
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
                 </button>
                 <button
@@ -3688,6 +3687,7 @@ const GoogleAdsBanner: React.FC = () => {
                     paddingPct={previewPaddingPct}
                     containerRef={previewContainerRef}
                     mobileToolbarContainer={modalMobileToolbarEl}
+                    primaryFitControl={primaryArtworkFitControl}
                     fitControls={artworkFitControls}
                     value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                     onChange={(v) => {
@@ -3704,24 +3704,6 @@ const GoogleAdsBanner: React.FC = () => {
                       border: '1px solid #94a3b8',
                       boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
                     }}
-                    overlay={
-                      grommets !== 'none' ? (
-                        <svg
-                          className="absolute inset-0 w-full h-full pointer-events-none"
-                          viewBox={`0 0 ${widthIn} ${heightIn}`}
-                          preserveAspectRatio="none"
-                          style={{ zIndex: 10 }}
-                          aria-hidden="true"
-                        >
-                          <GrommetOverlay
-                            widthIn={widthIn}
-                            heightIn={heightIn}
-                            option={grommets}
-                            idSuffix="ga-modal"
-                          />
-                        </svg>
-                      ) : null
-                    }
                   />
                 </PreviewRulerFrame>
               </div>
