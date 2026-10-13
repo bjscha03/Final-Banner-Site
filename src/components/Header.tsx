@@ -1,3 +1,4 @@
+import { availableSpecialtyProducts } from '@/lib/specialtyProducts';
 import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, Mail, UserCheck, Users, Gift } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -51,7 +52,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
     { name: 'Double-Sided Banners', href: '/design?product=banner&sides=double' },
     { name: 'Yard Signs', href: '/yard-signs' },
     { name: 'Car Magnets', href: '/car-magnets' },
-    { name: 'Displays & Signs', href: '/products' },
+    ...(availableSpecialtyProducts.length ? [{ name: 'Displays & Signs', href: '/products' }] : []),
     { name: 'Shipping', href: '/shipping' },
     { name: 'Blog', href: '/blog' },
     { name: 'Design Tool', href: '/design' },
@@ -267,7 +268,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
     { name: 'Double-Sided Banners', href: '/design?product=banner&sides=double' },
               { name: 'Yard Signs', href: '/yard-signs' },
               { name: 'Car Magnets', href: '/car-magnets' },
-              { name: 'Displays & Signs', href: '/products' },
+              ...(availableSpecialtyProducts.length ? [{ name: 'Displays & Signs', href: '/products' }] : []),
               { name: 'Shipping', href: '/shipping' },
               { name: 'Custom Quote', href: '/custom-quote' },
             ].map((item) => (

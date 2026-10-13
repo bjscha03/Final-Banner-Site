@@ -3,6 +3,9 @@ import path from 'node:path';
 import sharp from 'sharp';
 
 const distDir = path.join(process.cwd(), 'dist');
+const catalog = JSON.parse(await readFile('shared/specialty-catalog.json','utf8'));
+const release = JSON.parse(await readFile('shared/specialty-release.json','utf8'));
+const available = catalog.filter(p=>release.categories[p.category]!==false&&release.products[p.slug]!==false);
 const manifest = JSON.parse(await readFile(path.join(distDir, 'local-page-manifest.json'), 'utf8'));
 const sitemap = await readFile(path.join(distDir, 'sitemap.xml'), 'utf8');
 const sitemapUrls = new Set([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1].replace(/\/$/, '')));
@@ -42,7 +45,7 @@ const specialtyEntries = manifest.filter((entry) => /^\/products(?:\/[^/]+)?$/.t
 assert(localEntries.length === 213, `Expected 213 product/local routes; found ${localEntries.length}.`);
 assert(tradeShowEntries.length === 0, 'Retired trade-show routes must not be prerendered.');
 assert(![...sitemapUrls].some((url) => url.includes('/trade-shows')), 'Retired trade-show URLs must not be in the sitemap.');
-assert(specialtyEntries.length === 20, `Expected catalog and 19 specialty products; found ${specialtyEntries.length}.`);
+assert(specialtyEntries.length === available.length+1, `Expected catalog and ${available.length} enabled specialty products; found ${specialtyEntries.length}.`);
 assert(manifest.length === localEntries.length + specialtyEntries.length, `Unexpected generated route count: ${manifest.length}.`);
 assert(new Set(manifest.map((entry) => entry.route)).size === manifest.length, 'Generated route manifest contains duplicates.');
 

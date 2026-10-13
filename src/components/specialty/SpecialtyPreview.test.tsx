@@ -14,10 +14,11 @@ describe('selected physical product options',()=>{
   const graphic=preview('tension-fabric-stand',{hardware:'p'});
   expect(graphic).not.toContain('data-preview-part="stand-base"');expect(graphic).not.toContain('data-preview-part="led-light"');
  });
- it('shows holes without adding unselected acrylic standoffs and preserves corner radius',()=>{
-  const html=preview('acrylic-signs',{hardware:'TL;TR',cornerstyle:'1'});
-  expect(html.match(/data-preview-part="mounting-hole"/g)).toHaveLength(2);
-  expect(html).toMatch(/data-preview-part="sign-edge"[^>]+rx="15"/);
+ it('shows standoffs only when selected for the Signs365 acrylic panel',()=>{
+  expect(preview('acrylic-signs',{hardware:'acrylic+standoff'}).match(/data-preview-part="acrylic-standoff"/g)).toHaveLength(4);
+  const panel=preview('acrylic-signs',{hardware:'acrylic'});
+  expect(panel).not.toContain('data-preview-part="acrylic-standoff"');
+  expect(panel).not.toContain('mix-blend-mode:multiply');
  });
  it('maps saved custom hole positions in physical inches and clips the selected corner radius',()=>{
   const html=preview('aluminum-signs',{holespunch:'custom',cornerstyle:'1_2'},[{xIn:2,yIn:3},{xIn:22,yIn:15}]);

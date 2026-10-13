@@ -4010,5 +4010,170 @@
     ],
     "sourceUrl": "https://www.b2sign.com/posters",
     "checkedAt": "2026-10-12"
+  },
+  "signs365-acrylic": {
+    "groups": [
+      {
+        "key": "hardware",
+        "label": "Mounting",
+        "images": [],
+        "options": [
+          {
+            "key": "acrylic+standoff",
+            "label": "Wall standoffs",
+            "images": []
+          },
+          {
+            "key": "acrylic",
+            "label": "Panel only",
+            "images": []
+          }
+        ]
+      }
+    ],
+    "sourceUrl": "https://www.signs365.com/portal/static/managed/catalog/SignageCatalog9-23-HQ.pdf",
+    "checkedAt": "2026-10-12"
+  },
+  "signs365-acm": {
+    "groups": [
+      {
+        "key": "sides",
+        "label": "# of Sides",
+        "options": [
+          {
+            "key": "1",
+            "label": "1 Side",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "2",
+            "label": "2 Sides",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "holespunch",
+        "label": "Holes Punch",
+        "options": [
+          {
+            "key": "0",
+            "label": "None",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "TL;TR;BL;BR",
+            "label": "All Four Corners",
+            "images": []
+          },
+          {
+            "key": "TC;BC",
+            "label": "Center-Top and Bottom",
+            "images": []
+          },
+          {
+            "key": "TL;TR",
+            "label": "Top Corners",
+            "images": []
+          },
+          {
+            "key": "custom1",
+            "label": "Custom Hole Punch",
+            "custom": {
+              "type": "hole",
+              "size_key": [
+                "hot_size",
+                "_size"
+              ],
+              "is_grommet": false
+            },
+            "images": []
+          },
+          {
+            "key": "custom2",
+            "label": "Custom Grommets",
+            "custom": {
+              "type": "hole",
+              "size_key": [
+                "hot_size",
+                "_size"
+              ],
+              "is_grommet": true
+            },
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "cornerstyle",
+        "label": "Round Corners",
+        "options": [
+          {
+            "key": "R",
+            "label": "1/4\"",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1_2",
+            "label": "1/2\"",
+            "images": []
+          },
+          {
+            "key": "3_4",
+            "label": "3/4\"",
+            "images": []
+          },
+          {
+            "key": "1",
+            "label": "1\"",
+            "images": []
+          },
+          {
+            "key": "S",
+            "label": "None",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "material",
+        "label": "Material",
+        "options": [
+          {
+            "key": "1/8in_aluminum",
+            "label": "3 mm aluminum composite",
+            "default": true,
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "lamination",
+        "label": "Print",
+        "options": [
+          {
+            "key": "UV",
+            "label": "Standard printed finish",
+            "default": true,
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.signs365.com/portal/static/managed/catalog/SignageCatalog9-23-HQ.pdf",
+    "checkedAt": "2026-10-12"
   }
 }

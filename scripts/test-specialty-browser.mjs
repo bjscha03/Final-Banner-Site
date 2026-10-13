@@ -61,29 +61,29 @@ async function open(slug){
 }
 async function uploadArt(){await page.locator('#specialty-artwork input[type=file]').setInputFiles({name:'qa-market.png',mimeType:'image/png',buffer:fixture});await page.getByRole('button',{name:'Replace artwork',exact:true}).waitFor();await page.getByLabel('I checked the', {exact:false}).waitFor({timeout:30000});}
 try{
- await check('all 19 product pages and 60 variants render valid supplier selections',async()=>{
+ await check('all 19 product pages and 58 variants render valid supplier selections',async()=>{
   const catalog=JSON.parse(await readFile(root+'shared/specialty-catalog.json','utf8'));
   for(const product of catalog){await open(product.slug);for(const variant of product.variants){await page.locator('#specialty-variant').selectOption(variant.id);assert.equal(await page.locator('select').evaluateAll(els=>els.some(el=>!el.value||![...el.options].some(o=>o.value===el.value))),false,variant.id);}}
  });
- await check('premium size selection changes the manufacturer photograph',async()=>{
+ await check('premium size selection changes the branded product photograph',async()=>{
   await open('premium-retractable-banner');const hero=page.locator('button[aria-label^="Enlarge"] img').first();const before=await hero.getAttribute('src');await page.locator('#specialty-variant').selectOption('premium-retractable-banner-3');assert.notEqual(await hero.getAttribute('src'),before);
  });
  await check('catalog shows Lexington prices and free shipping; retractable defaults to the 189 dollar kit',async()=>{
   await open('standard-retractable-banner');
   assert.equal(await page.locator('#specialty-variant').inputValue(),'standard-retractable-banner-3');
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$189.00');
-  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE overnight/);
+  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
   await page.locator('#specialty-qty').fill('2');assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$378.00');
   await page.locator('#specialty-variant').selectOption('standard-retractable-banner-1');
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'Price coming soon');
-  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE overnight/);
+  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
   await page.goto(origin+'/products');await page.getByRole('heading',{name:'Make the entire space yours.'}).waitFor();
   for(const [slug,price] of [['standard-retractable-banner','$189.00'],['feather-flags','$175.00'],['standard-table-throws','$185.00'],['custom-event-tents','$755.00'],['step-and-repeat-backdrop','$465.00'],['aluminum-composite-signs','$26.00']]){
    const card=page.locator(`a[href="/products/${slug}"]`).filter({has:page.locator('h3')});
-   assert.ok((await card.innerText()).includes(price),slug);assert.match(await card.innerText(),/Free overnight shipping/);
+   assert.ok((await card.innerText()).includes(price),slug);assert.match(await card.innerText(),/Free Next Day Air shipping/);
   }
   const unpriced=page.locator('a[href="/products/acrylic-signs"]').filter({has:page.locator('h3')});
-  assert.match(await unpriced.innerText(),/Price coming soon/);assert.doesNotMatch(await unpriced.innerText(),/\$|Free overnight/);
+  assert.match(await unpriced.innerText(),/Price coming soon/);assert.doesNotMatch(await unpriced.innerText(),/\$/);assert.match(await unpriced.innerText(),/Free Next Day Air/);
   await page.locator('#stands').screenshot({path:out+'/catalog-prices.png'});
  });
  await check('flag size, options and quantities update the price while shipping remains free',async()=>{
@@ -96,7 +96,7 @@ try{
   await page.locator('#option-carrybag').selectOption('1');
   assert.equal(await subtotal.innerText(),'$295.00');
   await page.locator('#specialty-qty').fill('3');assert.equal(await subtotal.innerText(),'$885.00');
-  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE overnight/);
+  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
   await page.locator('#specialty-variant').selectOption('feather-flags-2');
   assert.equal(await subtotal.innerText(),'$585.00');
  });
@@ -107,7 +107,7 @@ try{
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$815.00');
   assert.match(await page.getByTestId('specialty-price').innerText(),/Base \+ priced options/);
   assert.match(await page.getByTestId('specialty-price').innerText(),/Price coming soon:.*Full Wall/);
-  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE overnight/);
+  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
   await open('aluminum-composite-signs');await page.getByRole('button',{name:'24 × 36 in · $90.00',exact:true}).click();
   await page.locator('#option-sides').selectOption('2');await page.locator('#specialty-qty').fill('2');
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$220.00');
@@ -141,6 +141,17 @@ try{
   const item=await page.evaluate(async()=>{const {useCartStore}=await import('/src/store/cart.ts');return useCartStore.getState().items.find(i=>i.specialty_config?.productSlug==='display-posters')});
   assert.equal(item.specialty_config.panels[0].artwork.isPdf,true);const printed=uploads.get(item.specialty_config.panels[0].productionFileKey),output=await PDFDocument.load(printed.bytes);assert.deepEqual(output.getPage(0).getSize(),{width:1728,height:1296});assert.match(output.getPage(0).node.Resources().toString(),/XObject/);
   await open('display-posters');pdf.addPage();await page.locator('#specialty-artwork input[type=file]').setInputFiles({name:'qa-multipage.pdf',mimeType:'application/pdf',buffer:Buffer.from(await pdf.save())});await page.getByRole('alert').filter({hasText:'separate single-page PDF'}).waitFor();assert.equal(await page.getByRole('button',{name:'Add to cart',exact:true}).isDisabled(),true);
+ });
+ await check('selected tent wall artwork guide downloads at the correct print scale',async()=>{
+  await open('custom-event-tents');await page.locator('#specialty-variant').selectOption('custom-event-tents-3');await page.locator('#option-tent_full_wall_long').selectOption('L1');
+  await page.getByText('Artwork templates & file setup',{exact:true}).click();
+  const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:/Long full wall 1.*PDF guide/}).click()]);
+  const file=out+'/tent-long-wall-guide.pdf';await download.saveAs(file);const guide=await PDFDocument.load(await readFile(file));
+  assert.equal(guide.getPageCount(),2);assert.ok(Math.abs(guide.getPage(0).getWidth()-230.1214*72*.5)<.001);assert.ok(Math.abs(guide.getPage(0).getHeight()-80.02778*72*.5)<.01);
+ });
+ await check('product galleries load local branded images for every variant',async()=>{
+  const catalog=JSON.parse(await readFile(root+'shared/specialty-catalog.json','utf8'));
+  for(const product of catalog){await open(product.slug);assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);for(const variant of product.variants){await page.locator('#specialty-variant').selectOption(variant.id);const hero=page.locator('button[aria-label^="Enlarge"] img').first();assert.match(await hero.getAttribute('src'),/^\/images\/products\//);await hero.evaluate(img=>img.decode());assert.equal(await page.locator('img[src*="b2sign.com"]').count(),0);}}
  });
  await check('mobile flag controls remain outside the narrow artboard',async()=>{await page.setViewportSize({width:390,height:844});await open('feather-flags');await uploadArt();const fit=page.getByRole('button',{name:/^Show entire design/});await fit.waitFor();const box=await fit.boundingBox();assert.ok(box.width>110);assert.ok(box.x>=0&&box.x+box.width<=390);await page.locator('#specialty-artwork').screenshot({path:out+'/flag-mobile.png'});});
  assert.deepEqual(errors,[]);

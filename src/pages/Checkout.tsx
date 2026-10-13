@@ -840,7 +840,7 @@ const Checkout: React.FC = () => {
     discountHelperMessage: resolvedDiscount.helperMessage,
     pricingPending,
     shippingPending,
-    shippingLabel: specialtyInCart && !shippingPending ? 'Overnight shipping after production' : flags.freeShipping ? flags.shippingMethodLabel : 'Shipping',
+    shippingLabel: specialtyInCart && !shippingPending ? 'Next Day Air shipping after production' : flags.freeShipping ? flags.shippingMethodLabel : 'Shipping',
     taxCents,
     sameDayFeeCents,
     saturdayFeeCents,
@@ -1226,7 +1226,7 @@ const Checkout: React.FC = () => {
               </div>
               <h1 className="mb-2 font-display text-3xl font-bold tracking-[-0.035em] text-[#0B1F3A] sm:text-4xl">Secure checkout</h1>
               <p className="text-sm text-gray-600 sm:hidden">Add your details, then review your order before you pay.</p>
-              <p className="hidden text-base text-gray-600 sm:block">{specialtyInCart ? 'Production times vary for displays and event gear. Confirmed configurations include overnight shipping.' : 'Most standard orders are produced within 24 hours; free next-day air begins after production.'}</p>
+              <p className="hidden text-base text-gray-600 sm:block">{specialtyInCart ? 'Production times vary for displays and event gear. Free Next Day Air shipping is included after production.' : 'Most standard orders are produced within 24 hours; free next-day air begins after production.'}</p>
               <p className="hidden text-sm text-[#18448D] font-medium sm:block">{specialtyInCart ? (specialtyPending ? 'Review the selections awaiting prices or shipping below.' : 'Your selected options and shipping are included in the total below.') : 'Your expected shipping and delivery dates are shown below.'}</p>
             </div>
 
@@ -1547,7 +1547,7 @@ const Checkout: React.FC = () => {
                     {[
                       { icon: <Lock className="h-3 w-3" />, label: 'Secure encrypted checkout' },
                       { icon: <CircleCheck className="h-3 w-3" />, label: specialtyInCart ? 'Production varies by product' : 'Most standard orders: 24-hour production' },
-                      { icon: <Truck className="h-3 w-3" />, label: specialtyInCart ? (items.every(specialtyItemHasIncludedShipping) ? 'Overnight shipping included after production' : 'Shipping pending verification') : 'Free next-day air anywhere in the U.S.' },
+                      { icon: <Truck className="h-3 w-3" />, label: specialtyInCart ? (items.every(specialtyItemHasIncludedShipping) ? 'Free Next Day Air after production' : 'Shipping pending verification') : 'Free next-day air anywhere in the U.S.' },
                     ].map((badge) => (
                       <span key={badge.label} className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-600">
                         {badge.icon}

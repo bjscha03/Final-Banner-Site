@@ -6,26 +6,43 @@ const {repriceStripeCart}=require('../_shared/stripe-server-pricing.cjs');
 const {validateFitRequest,buildFitPrompt}=require('../_shared/ai-designer/fit.cjs');
 const engine=require('../../../shared/specialty-options.cjs');
 const {computeTotals}=require('../_shared/checkoutTotals.cjs');
+test('every specialty family has owner-approved free Next Day Air independent of pricing',()=>{
+ for(const p of catalog){
+  assert.equal(p.shippingPolicy,'free_overnight_after_production');
+  for(const v of p.variants)if(!v.priceMatch)assert.equal(v.priceCents,0,`${v.id} must not expose an estimated price`);
+ }
+});
+test('release controls block both quotes and server checkout and retain the canonical supplier',()=>{
+ const release=require('../../../shared/specialty-release.json');
+ const {requireSpecialtyFulfillment}=require('../_shared/specialty-products.cjs');
+ const product=catalog.find(p=>p.slug==='feather-flags'),variant=product.variants[0];
+ const item=normalizeSpecialtyItem(itemFor(product.slug));
+ assert.equal(item.specialty_config.fulfillmentSupplier,'B2Sign');
+ const before=release.products[product.slug];
+ try{release.products[product.slug]=false;assert.equal(engine.priceConfiguration(product,variant,25,80,{}).verified,false);assert.throws(()=>requireSpecialtyFulfillment([item]),{code:'SPECIALTY_PRODUCT_UNAVAILABLE'});}
+ finally{release.products[product.slug]=before;}
+ assert.equal(normalizeSpecialtyItem(itemFor('acrylic-signs')).specialty_config.fulfillmentSupplier,'Signs365');
+});
 function itemFor(slug,variantIndex=0,options={},width,height){
  const product=catalog.find(p=>p.slug===slug),variant=product.variants[variantIndex];
  const panels=engine.panelDefinitions(variant,options).map(p=>{const registered=templates[p.templateId],t=width&&height?{...registered,widthIn:width,heightIn:height}:registered,source=`https://res.cloudinary.com/test/image/upload/${p.id}.png`,preview=`https://res.cloudinary.com/test/image/upload/${p.id}-preview.png`,type=`specialty:${slug}:${variant.id}:${p.id}`;return {...p,artwork:{url:source,fileKey:p.id},composition:{version:3,fitMode:'fit',sourceUrl:source,sourceIdentity:p.id,productType:type,widthIn:t.widthIn,heightIn:t.heightIn,revision:3,transform:{xPct:2,yPct:-1,scaleX:1.2,scaleY:1.2}},preview:{version:3,fitMode:'fit',previewPublicId:p.id+'-preview',previewWidthPx:800,previewHeightPx:600,sourceUrl:source,sourceIdentity:p.id,productType:type,widthIn:t.widthIn,heightIn:t.heightIn,compositionRevision:3,positionPct:{x:2,y:-1},scaleX:1.2,scaleY:1.2,uploadStatus:'uploaded',url:preview},productionUrl:`https://res.cloudinary.com/test/raw/upload/${p.id}.pdf`,productionFileKey:p.id+'-print'};});
  for(const p of panels)p.preview.compositionSignature=buildCompositionSignatureFromPreview(p.preview);
  return {product_type:'specialty',quantity:2,width_in:panels[0].composition.widthIn,height_in:panels[0].composition.heightIn,line_total_cents:1,unit_price_cents:1,specialty_config:{version:1,productSlug:slug,variantId:variant.id,options,panels}};
 }
-test('all 60 configurations have registered artwork panels and catalog images',()=>{
- assert.equal(catalog.length,19);assert.equal(catalog.reduce((n,p)=>n+p.variants.length,0),60);
+test('all 58 configurations have registered artwork panels and catalog images',()=>{
+ assert.equal(catalog.length,19);assert.equal(catalog.reduce((n,p)=>n+p.variants.length,0),58);
  for(const p of catalog)for(const v of p.variants){if(v.priceMatch)assert.ok(v.priceCents>0);assert.ok(v.panels.length);assert.ok(require('node:fs').existsSync(require('node:path').join(__dirname,'../../../public',p.image)));for(const panel of v.panels){const t=templates[panel.templateId];assert.ok(t.widthIn>0&&t.heightIn>0);assert.ok(t.exportScale>0&&t.exportScale<=1);}}
 });
 test('retail totals are rebuilt from the registered variant, ignoring browser amounts',()=>{
- const item=itemFor('deluxe-retractable-banner',1);const clean=normalizeSpecialtyItem(item);assert.equal(clean.unit_price_cents,45299);assert.equal(clean.line_total_cents,90598);assert.equal(clean.specialty_config.panels.length,2);
+ const item=itemFor('deluxe-retractable-banner',1);const clean=normalizeSpecialtyItem(item);assert.equal(clean.unit_price_cents,0);assert.equal(clean.line_total_cents,0);assert.equal(clean.specialty_config.panels.length,2);
 });
 test('tent panels, source placement and permanent production uploads are required',()=>{
  const complete=itemFor('custom-event-tents',2);assert.equal(normalizeSpecialtyItem(complete).specialty_config.panels.length,4);
  for(const change of [x=>x.specialty_config.panels.pop(),x=>x.specialty_config.panels[0].composition.transform.xPct=9,x=>x.specialty_config.panels[0].templateId='wrong',x=>x.specialty_config.panels[0].productionUrl='blob:temporary']){const item=structuredClone(complete);change(item);assert.throws(()=>normalizeSpecialtyItem(item));}
 });
 test('custom signs enforce shipped dimensions and poster minimums',()=>{
- const poster=catalog.find(p=>p.slug==='display-posters');assert.equal(priceSpecialty(poster,poster.variants[0],6,6),1799);
- const aluminum=catalog.find(p=>p.slug==='aluminum-signs');assert.equal(priceSpecialty(aluminum,aluminum.variants[0],24,18),4497);assert.throws(()=>priceSpecialty(aluminum,aluminum.variants[0],96,48));
+ const poster=catalog.find(p=>p.slug==='display-posters');assert.equal(priceSpecialty(poster,poster.variants[0],6,6),0);
+ const aluminum=catalog.find(p=>p.slug==='aluminum-signs');assert.equal(priceSpecialty(aluminum,aluminum.variants[0],24,18),0);assert.throws(()=>priceSpecialty(aluminum,aluminum.variants[0],96,48));
 });
 test('payment accepts matched prices and shipping without a blanket specialty block',()=>{
  assert.throws(()=>repriceStripeCart([itemFor('standard-retractable-banner')]),e=>e.code==='SPECIALTY_PRICE_NOT_VERIFIED');
@@ -72,7 +89,7 @@ test('owner shipping policy persists across unpriced sizes without making them p
   assert.equal(q.shippingPolicy,'free_overnight_after_production',slug);
  }
  const unlisted=catalog.find(p=>p.slug==='acrylic-signs');
- assert.equal(engine.priceConfiguration(unlisted,unlisted.variants[0],24,18).shippingPolicy,undefined);
+ assert.equal(engine.priceConfiguration(unlisted,unlisted.variants[0],24,18).shippingPolicy,'free_overnight_after_production');
  const product=catalog.find(p=>p.slug==='standard-retractable-banner'),variant=product.variants[2];
  const [priced]=repriceStripeCart([itemFor(product.slug,2)]);
  assert.equal(priced.unit_price_cents,18900);assert.equal(priced.line_total_cents,37800);

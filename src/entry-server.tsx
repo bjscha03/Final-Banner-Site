@@ -6,7 +6,7 @@ import type { HelmetServerState } from 'react-helmet-async';
 import { RoutedApplication } from '@/App';
 import AppProviders from '@/components/AppProviders';
 import { getAllCityProductPaths, getIndexableCityProductPaths } from '@/lib/seo/cityData';
-import { specialtyProducts } from '@/lib/specialtyProducts';
+import { availableSpecialtyProducts as specialtyProducts } from '@/lib/specialtyProducts';
 
 const productHubPaths = ['/vinyl-banners', '/yard-signs', '/car-magnets'] as const;
 const specialtyPaths = ['/products', ...specialtyProducts.map(product => `/products/${product.slug}`)];

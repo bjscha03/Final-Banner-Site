@@ -32,8 +32,7 @@ export default function SpecialtyPreview({ product, template, imageUrl, panels =
   const radiusIn=options.cornerstyle==='R'?(product.slug==='aluminum-signs'?.75:.25):({'1_4':.25,'1_2':.5,'3_4':.75,'1':1}[options.cornerstyle]||0);
   const radius=radiusIn*w/template.widthIn;
   const lightCount=hasHardware?Math.min(2,Math.max(0,Number(options.led||options.tradeshow_led)||0)):0;
-  const acrylicHoles=product.slug==='acrylic-signs'&&options.hardware?.includes(';')?options.hardware.split(';').map(key=>({xIn:key.endsWith('L')?1.5:key.endsWith('R')?template.widthIn-1.5:template.widthIn/2,yIn:key.startsWith('T')?1.5:template.heightIn-1.5})):[];
-  const holes=options.holespunch?.startsWith('custom')?customHoles:acrylicHoles;
+  const holes=options.holespunch?.startsWith('custom')?customHoles:[];
   const crop = (key: 'front'|'top'|'side', width: number, height: number) => {
     const r=template.faces?.[key] || [0,0,1,1];
     return <svg width={width} height={height} viewBox={`${r[0]*100} ${r[1]*100} ${r[2]*100} ${r[3]*100}`} preserveAspectRatio="none" overflow="hidden"><image href={image} width="100" height="100" preserveAspectRatio="none" /></svg>;
@@ -84,16 +83,16 @@ export default function SpecialtyPreview({ product, template, imageUrl, panels =
         {hasHardware && product.slug === 'tension-fabric-stand' && <path data-preview-part="stand-base" d={`M${x-12} 369H${x+w+12}L${x+w+21} 385H${x-21}Z`} fill={`url(#${uid}-metal)`}/>}
         {product.slug!=='acrylic-signs' && <rect x={x+3} y={y+3} width={w} height={h} rx={radius} fill="#000" opacity=".08"/>}
         <rect x={x} y={y} width={w} height={h} rx={radius} fill="white" opacity={product.slug==='acrylic-signs'?.12:1}/>
-        <image href={image} x={x} y={y} width={w} height={h} preserveAspectRatio="none" clipPath={`url(#${uid}-sign)`} style={product.slug==='acrylic-signs'?{mixBlendMode:'multiply'}:undefined}/>
+        <image href={image} x={x} y={y} width={w} height={h} preserveAspectRatio="none" clipPath={`url(#${uid}-sign)`}/>
         {['backdrop','xstand'].includes(visual) && <rect x={x} y={y} width={w} height={h} fill={`url(#${uid}-cloth)`}/>}
         {visual==='retractable' && <><rect x={x-2} y={y-3} width={w+4} height="5" rx="1.5" fill={`url(#${uid}-metal)`}/>{product.slug === 'standard-retractable-banner' && <path d={`M${x+8} 388l-14 8M${x+w-8} 388l14 8`} stroke="#838a90" strokeWidth="5"/>}<rect x={x-9} y="370" width={w+18} height="18" rx="6" fill={options.size==='33x81b'?'#20252a':`url(#${uid}-metal)`}/><path d={`M${x-3} 375H${x+w+3}`} stroke="#535c62" strokeWidth="1.3"/></>}
         {visual==='xstand' && [x+4,x+w-4].flatMap(cx=>[y+4,y+h-4].map(cy=><circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="2.6" fill="#454a4e" stroke="#e1e4e7" strokeWidth="1.5"/>))}
-        {product.slug==='acrylic-signs' && (options.hardware||'acrylic+standoff').includes('standoff') && (options.hardware==='acrylic+2standoff_center'?[[.5,1.5/template.heightIn],[.5,1-1.5/template.heightIn]]:[...[1.5/template.widthIn,1-1.5/template.widthIn].flatMap(cx=>(options.hardware==='acrylic+2standoff_top'?[1.5/template.heightIn]:[1.5/template.heightIn,1-1.5/template.heightIn]).map(cy=>[cx,cy])),...(options.hardware==='acrylic+6standoff'?[[.5,1.5/template.heightIn],[.5,1-1.5/template.heightIn]]:[])]).map(([cx,cy])=><circle key={`${cx}-${cy}`} cx={x+w*cx} cy={y+h*cy} r={w*.5/template.widthIn} fill={`url(#${uid}-metal)`} stroke="#7b848c" strokeWidth=".75"/>)}
+        {product.slug==='acrylic-signs' && options.hardware==='acrylic+standoff' && [[.065,.085],[.935,.085],[.065,.915],[.935,.915]].map(([cx,cy])=><circle data-preview-part="acrylic-standoff" key={`${cx}-${cy}`} cx={x+w*cx} cy={y+h*cy} r={Math.max(3,w*.016)} fill={`url(#${uid}-metal)`} stroke="#7b848c" strokeWidth=".75"/>)}
         {visual==='sign' && <rect data-preview-part="sign-edge" x={x} y={y} width={w} height={h} rx={radius} fill="none" stroke="#9ca3af" strokeWidth="1"/>}
         {holes.filter(hole=>Number.isFinite(hole.xIn)&&Number.isFinite(hole.yIn)&&hole.xIn>=0&&hole.yIn>=0&&hole.xIn<=template.widthIn&&hole.yIn<=template.heightIn).map((hole,i)=><circle key={i} data-preview-part="mounting-hole" cx={x+w*hole.xIn/template.widthIn} cy={y+h*hole.yIn/template.heightIn} r={w*(product.slug==='acrylic-signs'?.1875:.125)/template.widthIn} fill="#e8e7e4" stroke={options.holespunch==='custom2'?'#8e969c':'#64748b'} strokeWidth={options.holespunch==='custom2'?2:.6}/>)}
         {Array.from({length:lightCount},(_,i)=><g key={i} data-preview-part="led-light" transform={`translate(${x+w*(lightCount===1?.5:(i+1)/3)} ${y})`}><path d="M0 0V-16L8 -22" fill="none" stroke="#48515a" strokeWidth="3"/><rect x="-7" y="-27" width="31" height="8" rx="3" fill="#38424c"/><path d="M-4 -20H20" stroke="#f9f0ce" strokeWidth="2"/></g>)}
       </g>}
     </svg>
-    <p className="px-4 pb-3 text-center text-xs leading-5 text-slate-500">{template.doubleFlag?'Front and back views of one flag. ':''}Appearance preview. Your saved flat artwork controls print placement. Color and fabric drape can vary.</p>
+    <p className="px-4 pb-3 text-center text-xs leading-5 text-slate-500">{template.doubleFlag?'Front and back views of one flag. ':''}Appearance preview. Your saved flat artwork controls print placement. Color and fabric drape can vary.{product.slug==='acrylic-signs'?' Mounting is illustrative; final hole positions are confirmed before production.':''}</p>
   </div>;
 }

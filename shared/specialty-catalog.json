@@ -16,7 +16,7 @@
     "variants": [
       {
         "label": "23 × 66 in",
-        "priceCents": 15299,
+        "priceCents": 0,
         "widthIn": 23,
         "heightIn": 66,
         "id": "standard-retractable-banner-1",
@@ -42,7 +42,7 @@
       },
       {
         "label": "24 × 81 in",
-        "priceCents": 15899,
+        "priceCents": 0,
         "widthIn": 24,
         "heightIn": 81,
         "id": "standard-retractable-banner-2",
@@ -101,7 +101,7 @@
       },
       {
         "label": "47 × 81 in",
-        "priceCents": 24999,
+        "priceCents": 0,
         "widthIn": 47,
         "heightIn": 81,
         "id": "standard-retractable-banner-4",
@@ -148,14 +148,16 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceCents": 0
       }
     ],
     "image": "/images/products/standard-retractable-banner.webp",
     "imageAlt": "Standard Retractable Banner with a fictional business design; example appearance",
     "shippingClass": "specialty",
     "materialLabel": "Printed graphic and display hardware",
-    "shippingPolicy": "free_overnight_after_production"
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
   },
   {
     "slug": "deluxe-retractable-banner",
@@ -174,7 +176,7 @@
     "variants": [
       {
         "label": "33 × 81 in · single sided",
-        "priceCents": 18399,
+        "priceCents": 0,
         "widthIn": 33,
         "heightIn": 81,
         "id": "deluxe-retractable-banner-1",
@@ -200,7 +202,7 @@
       },
       {
         "label": "33 × 81 in · double sided",
-        "priceCents": 45299,
+        "priceCents": 0,
         "widthIn": 33,
         "heightIn": 81,
         "id": "deluxe-retractable-banner-2",
@@ -233,7 +235,9 @@
     "image": "/images/products/deluxe-retractable-banner.webp",
     "imageAlt": "Deluxe Retractable Banner with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "materialLabel": "Printed graphic and display hardware"
+    "materialLabel": "Printed graphic and display hardware",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
   },
   {
     "slug": "premium-retractable-banner",
@@ -252,7 +256,7 @@
     "variants": [
       {
         "label": "36 × 92 in",
-        "priceCents": 24499,
+        "priceCents": 0,
         "widthIn": 36,
         "heightIn": 92,
         "id": "premium-retractable-banner-1",
@@ -278,7 +282,7 @@
       },
       {
         "label": "48 × 92 in",
-        "priceCents": 33399,
+        "priceCents": 0,
         "widthIn": 48,
         "heightIn": 92,
         "id": "premium-retractable-banner-2",
@@ -304,7 +308,7 @@
       },
       {
         "label": "60 × 92 in",
-        "priceCents": 43999,
+        "priceCents": 0,
         "widthIn": 60,
         "heightIn": 92,
         "id": "premium-retractable-banner-3",
@@ -351,7 +355,8 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceCents": 0
       },
       {
         "id": "premium-retractable-36x80",
@@ -376,7 +381,8 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceCents": 0
       },
       {
         "id": "premium-retractable-48x69",
@@ -401,7 +407,8 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceCents": 0
       },
       {
         "id": "premium-retractable-48x80",
@@ -426,7 +433,8 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceCents": 0
       },
       {
         "id": "premium-retractable-60x69",
@@ -451,7 +459,8 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceCents": 0
       },
       {
         "id": "premium-retractable-60x80",
@@ -476,13 +485,16 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceCents": 0
       }
     ],
     "image": "/images/products/premium-retractable-banner.webp",
     "imageAlt": "Premium Retractable Banner with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "materialLabel": "Printed graphic and display hardware"
+    "materialLabel": "Printed graphic and display hardware",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
   },
   {
     "slug": "x-banner-stand",
@@ -501,7 +513,7 @@
     "variants": [
       {
         "label": "24 × 63 in",
-        "priceCents": 6799,
+        "priceCents": 0,
         "widthIn": 24,
         "heightIn": 63,
         "id": "x-banner-stand-1",
@@ -526,7 +538,7 @@
       },
       {
         "label": "32 × 71 in",
-        "priceCents": 9199,
+        "priceCents": 0,
         "widthIn": 32,
         "heightIn": 71,
         "id": "x-banner-stand-2",
@@ -553,7 +565,9 @@
     "image": "/images/products/x-banner-stand.webp",
     "imageAlt": "X Banner Stand with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "materialLabel": "Printed graphic and display hardware"
+    "materialLabel": "Printed graphic and display hardware",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
   },
   {
     "slug": "tabletop-banner-stand",
@@ -572,7 +586,7 @@
     "variants": [
       {
         "label": "11.5 × 17.5 in",
-        "priceCents": 4899,
+        "priceCents": 0,
         "widthIn": 11.5,
         "heightIn": 17.5,
         "id": "tabletop-banner-stand-1",
@@ -599,7 +613,9 @@
     "image": "/images/products/tabletop-banner-stand.webp",
     "imageAlt": "Tabletop Banner Stand with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "materialLabel": "Printed graphic and display hardware"
+    "materialLabel": "Printed graphic and display hardware",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
   },
   {
     "slug": "tension-fabric-stand",
@@ -617,7 +633,7 @@
     "variants": [
       {
         "label": "36 × 90 in",
-        "priceCents": 31799,
+        "priceCents": 0,
         "widthIn": 36,
         "heightIn": 90,
         "id": "tension-fabric-stand-1",
@@ -656,7 +672,7 @@
       },
       {
         "label": "48 × 90 in",
-        "priceCents": 36699,
+        "priceCents": 0,
         "widthIn": 48,
         "heightIn": 90,
         "id": "tension-fabric-stand-2",
@@ -697,7 +713,9 @@
     "image": "/images/products/tension-fabric-stand.webp",
     "imageAlt": "Tension Fabric Stand with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "materialLabel": "Printed graphic and display hardware"
+    "materialLabel": "Printed graphic and display hardware",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
   },
   {
     "slug": "step-and-repeat-backdrop",
@@ -729,7 +747,7 @@
         ],
         "priceMatch": {
           "sourceUrl": "https://www.lexingtonsign.com/tension-fabric-displays.html",
-          "checkedAt": "2026-10-12T02:00:00Z",
+          "checkedAt": "2026-10-12",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
         },
@@ -760,7 +778,7 @@
         ],
         "priceMatch": {
           "sourceUrl": "https://www.lexingtonsign.com/tension-fabric-displays.html",
-          "checkedAt": "2026-10-12T02:00:00Z",
+          "checkedAt": "2026-10-12",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
         },
@@ -775,68 +793,14 @@
           "material": "9oz_wrinklefree_fabric"
         },
         "optionPrices": {}
-      },
-      {
-        "id": "step-and-repeat-9x8",
-        "label": "9 × 8 ft",
-        "widthIn": 108,
-        "heightIn": 96,
-        "panels": [
-          {
-            "id": "front",
-            "label": "Front",
-            "templateId": "step-and-repeat-9x8-front"
-          }
-        ],
-        "supplierProfile": "step-repeat-backdrop",
-        "supplierFixed": {
-          "size": "108x96"
-        },
-        "panelRules": [],
-        "baselineOptions": {
-          "hardware": "ph",
-          "size": "108x96",
-          "material": "9oz_wrinklefree_fabric"
-        },
-        "optionPrices": {}
-      },
-      {
-        "id": "step-and-repeat-custom",
-        "label": "Custom size · 6–10 ft wide × 4–8 ft high",
-        "widthIn": 96,
-        "heightIn": 96,
-        "panels": [
-          {
-            "id": "front",
-            "label": "Front",
-            "templateId": "step-and-repeat-custom-front"
-          }
-        ],
-        "supplierProfile": "step-repeat-backdrop",
-        "supplierFixed": {
-          "size": "custom"
-        },
-        "customSize": {
-          "minWidth": 72,
-          "maxWidth": 120,
-          "minHeight": 48,
-          "maxHeight": 96,
-          "step": 1
-        },
-        "panelRules": [],
-        "baselineOptions": {
-          "hardware": "ph",
-          "size": "custom",
-          "material": "9oz_wrinklefree_fabric"
-        },
-        "optionPrices": {}
       }
     ],
     "image": "/images/products/step-and-repeat-backdrop.webp",
     "imageAlt": "Step & Repeat Backdrop with a fictional business design; example appearance",
     "shippingClass": "specialty",
     "materialLabel": "9 oz. wrinkle-resistant fabric · frame and carry bag",
-    "shippingPolicy": "free_overnight_after_production"
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
   },
   {
     "slug": "feather-flags",
@@ -864,7 +828,7 @@
         ],
         "priceMatch": {
           "sourceUrl": "https://www.lexingtonsign.com/feather-flags.html",
-          "checkedAt": "2026-10-12T02:00:00Z",
+          "checkedAt": "2026-10-12",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
         },
@@ -936,7 +900,7 @@
         ],
         "priceMatch": {
           "sourceUrl": "https://www.lexingtonsign.com/feather-flags.html",
-          "checkedAt": "2026-10-12T02:00:00Z",
+          "checkedAt": "2026-10-12",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
         },
@@ -1008,7 +972,7 @@
         ],
         "priceMatch": {
           "sourceUrl": "https://www.lexingtonsign.com/feather-flags.html",
-          "checkedAt": "2026-10-12T02:00:00Z",
+          "checkedAt": "2026-10-12",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
         },
@@ -1080,7 +1044,7 @@
         ],
         "priceMatch": {
           "sourceUrl": "https://www.lexingtonsign.com/feather-flags.html",
-          "checkedAt": "2026-10-12T02:00:00Z",
+          "checkedAt": "2026-10-12",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
         },
@@ -1141,7 +1105,7 @@
       },
       {
         "label": "Convex · 9 ft",
-        "priceCents": 14599,
+        "priceCents": 0,
         "id": "feather-flags-5",
         "panels": [
           {
@@ -1191,7 +1155,7 @@
       },
       {
         "label": "Convex · 10.5 ft",
-        "priceCents": 14599,
+        "priceCents": 0,
         "id": "feather-flags-6",
         "panels": [
           {
@@ -1241,7 +1205,7 @@
       },
       {
         "label": "Convex · 14 ft",
-        "priceCents": 15599,
+        "priceCents": 0,
         "id": "feather-flags-7",
         "panels": [
           {
@@ -1291,7 +1255,7 @@
       },
       {
         "label": "Convex · 18 ft",
-        "priceCents": 19599,
+        "priceCents": 0,
         "id": "feather-flags-8",
         "panels": [
           {
@@ -1344,7 +1308,8 @@
     "imageAlt": "Feather Flags with a fictional business design; example appearance",
     "shippingClass": "specialty",
     "materialLabel": "Printed polyester flag fabric",
-    "shippingPolicy": "free_overnight_after_production"
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
   },
   {
     "slug": "teardrop-flags",
@@ -1361,7 +1326,7 @@
     "variants": [
       {
         "label": "7 ft",
-        "priceCents": 14599,
+        "priceCents": 0,
         "id": "teardrop-flags-1",
         "panels": [
           {
@@ -1411,7 +1376,7 @@
       },
       {
         "label": "9 ft",
-        "priceCents": 14599,
+        "priceCents": 0,
         "id": "teardrop-flags-2",
         "panels": [
           {
@@ -1461,7 +1426,7 @@
       },
       {
         "label": "11.2 ft",
-        "priceCents": 15599,
+        "priceCents": 0,
         "id": "teardrop-flags-3",
         "panels": [
           {
@@ -1511,7 +1476,7 @@
       },
       {
         "label": "13.5 ft",
-        "priceCents": 19599,
+        "priceCents": 0,
         "id": "teardrop-flags-4",
         "panels": [
           {
@@ -1563,7 +1528,9 @@
     "image": "/images/products/teardrop-flags.webp",
     "imageAlt": "Teardrop Flags with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "materialLabel": "Printed polyester flag fabric"
+    "materialLabel": "Printed polyester flag fabric",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
   },
   {
     "slug": "rectangle-flags",
@@ -1580,7 +1547,7 @@
     "variants": [
       {
         "label": "8.5 ft",
-        "priceCents": 22899,
+        "priceCents": 0,
         "id": "rectangle-flags-1",
         "panels": [
           {
@@ -1630,7 +1597,7 @@
       },
       {
         "label": "11.8 ft",
-        "priceCents": 25499,
+        "priceCents": 0,
         "id": "rectangle-flags-2",
         "panels": [
           {
@@ -1680,7 +1647,7 @@
       },
       {
         "label": "15 ft",
-        "priceCents": 27999,
+        "priceCents": 0,
         "id": "rectangle-flags-3",
         "panels": [
           {
@@ -1732,7 +1699,9 @@
     "image": "/images/products/rectangle-flags.webp",
     "imageAlt": "Rectangle Flags with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "materialLabel": "Printed polyester flag fabric"
+    "materialLabel": "Printed polyester flag fabric",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
   },
   {
     "slug": "economy-feather-flag",
@@ -1749,7 +1718,7 @@
     "variants": [
       {
         "label": "16 ft",
-        "priceCents": 16899,
+        "priceCents": 0,
         "id": "economy-feather-flag-1",
         "panels": [
           {
@@ -1786,7 +1755,9 @@
     "image": "/images/products/economy-feather-flag.webp",
     "imageAlt": "Economy Feather Flag with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "materialLabel": "Printed polyester flag fabric"
+    "materialLabel": "Printed polyester flag fabric",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
   },
   {
     "slug": "standard-table-throws",
@@ -1804,7 +1775,7 @@
     "variants": [
       {
         "label": "4 ft · open back",
-        "priceCents": 14099,
+        "priceCents": 0,
         "widthIn": 48,
         "id": "standard-table-throws-1",
         "panels": [
@@ -1826,7 +1797,7 @@
       },
       {
         "label": "4 ft · closed back",
-        "priceCents": 18599,
+        "priceCents": 0,
         "widthIn": 48,
         "id": "standard-table-throws-2",
         "panels": [
@@ -1860,7 +1831,7 @@
         ],
         "priceMatch": {
           "sourceUrl": "https://www.lexingtonsign.com/table-throws.html",
-          "checkedAt": "2026-10-12T02:00:00Z",
+          "checkedAt": "2026-10-12",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
         },
@@ -1888,7 +1859,7 @@
         ],
         "priceMatch": {
           "sourceUrl": "https://www.lexingtonsign.com/table-throws.html",
-          "checkedAt": "2026-10-12T02:00:00Z",
+          "checkedAt": "2026-10-12",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
         },
@@ -1916,7 +1887,7 @@
         ],
         "priceMatch": {
           "sourceUrl": "https://www.lexingtonsign.com/table-throws.html",
-          "checkedAt": "2026-10-12T02:00:00Z",
+          "checkedAt": "2026-10-12",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
         },
@@ -1944,7 +1915,7 @@
         ],
         "priceMatch": {
           "sourceUrl": "https://www.lexingtonsign.com/table-throws.html",
-          "checkedAt": "2026-10-12T02:00:00Z",
+          "checkedAt": "2026-10-12",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
         },
@@ -1963,7 +1934,8 @@
     "imageAlt": "Standard Table Throws with a fictional business design; example appearance",
     "shippingClass": "specialty",
     "materialLabel": "Dye-sublimated fabric",
-    "shippingPolicy": "free_overnight_after_production"
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
   },
   {
     "slug": "fitted-table-throws",
@@ -1981,7 +1953,7 @@
     "variants": [
       {
         "label": "6 ft · open back",
-        "priceCents": 17799,
+        "priceCents": 0,
         "widthIn": 72,
         "id": "fitted-table-throws-1",
         "panels": [
@@ -2005,7 +1977,7 @@
       },
       {
         "label": "6 ft · closed back",
-        "priceCents": 17799,
+        "priceCents": 0,
         "widthIn": 72,
         "id": "fitted-table-throws-2",
         "panels": [
@@ -2029,7 +2001,7 @@
       },
       {
         "label": "8 ft · open back",
-        "priceCents": 19999,
+        "priceCents": 0,
         "widthIn": 96,
         "id": "fitted-table-throws-3",
         "panels": [
@@ -2053,7 +2025,7 @@
       },
       {
         "label": "8 ft · closed back",
-        "priceCents": 19999,
+        "priceCents": 0,
         "widthIn": 96,
         "id": "fitted-table-throws-4",
         "panels": [
@@ -2079,7 +2051,9 @@
     "image": "/images/products/fitted-table-throws.webp",
     "imageAlt": "Fitted Table Throws with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "materialLabel": "Dye-sublimated fabric"
+    "materialLabel": "Dye-sublimated fabric",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
   },
   {
     "slug": "stretch-table-throws",
@@ -2097,7 +2071,7 @@
     "variants": [
       {
         "label": "6 ft",
-        "priceCents": 31499,
+        "priceCents": 0,
         "widthIn": 72,
         "id": "stretch-table-throws-1",
         "panels": [
@@ -2119,7 +2093,7 @@
       },
       {
         "label": "8 ft",
-        "priceCents": 37899,
+        "priceCents": 0,
         "widthIn": 96,
         "id": "stretch-table-throws-2",
         "panels": [
@@ -2143,7 +2117,9 @@
     "image": "/images/products/stretch-table-throws.webp",
     "imageAlt": "Stretch Table Throws with a fictional business design; example appearance",
     "shippingClass": "specialty",
-    "materialLabel": "Dye-sublimated fabric"
+    "materialLabel": "Dye-sublimated fabric",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
   },
   {
     "slug": "custom-event-tents",
@@ -2190,7 +2166,7 @@
         ],
         "priceMatch": {
           "sourceUrl": "https://www.lexingtonsign.com/canopy-tents.html",
-          "checkedAt": "2026-10-12T02:00:00Z",
+          "checkedAt": "2026-10-12",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
         },
@@ -2532,7 +2508,7 @@
         ],
         "priceMatch": {
           "sourceUrl": "https://www.lexingtonsign.com/canopy-tents.html",
-          "checkedAt": "2026-10-12T02:00:00Z",
+          "checkedAt": "2026-10-12",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
         },
@@ -2721,7 +2697,7 @@
         ],
         "priceMatch": {
           "sourceUrl": "https://www.lexingtonsign.com/canopy-tents.html",
-          "checkedAt": "2026-10-12T02:00:00Z",
+          "checkedAt": "2026-10-12",
           "shippingPolicy": "free_overnight_after_production",
           "status": "exact_configuration"
         },
@@ -2875,8 +2851,8 @@
             "black": 0
           },
           "tent_sandbag": {
-            "2": 0,
-            "1": 8000
+            "1": 8000,
+            "2": 0
           }
         }
       }
@@ -2885,7 +2861,8 @@
     "imageAlt": "Custom Event Tents with a fictional business design; example appearance",
     "shippingClass": "specialty",
     "materialLabel": "Dye-sublimated fabric",
-    "shippingPolicy": "free_overnight_after_production"
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
   },
   {
     "slug": "acrylic-signs",
@@ -2894,18 +2871,18 @@
     "visual": "sign",
     "eyebrow": "Clean, modern finish",
     "summary": "Clear acrylic graphics for offices, lobbies and retail walls.",
-    "description": "A custom-sized clear acrylic sign, direct printed on the back with transparent CMYK color. Four chrome standoffs and mounting screws are included. No white ink is printed.",
+    "description": "A polished acrylic sign for offices, lobbies and retail walls. Your design is printed on the back of 3 mm acrylic with a white underbase for clear, vibrant color. Wall standoffs create a floating display.",
     "features": [
-      "1/4-inch clear acrylic",
-      "Transparent CMYK print · no white ink",
-      "Four standoffs and mounting screws included",
-      "Choose print, hardware and accessories below"
+      "3 mm acrylic",
+      "Back-printed color with a white underbase",
+      "Wall standoffs available",
+      "Free Next Day Air shipping after production"
     ],
     "priceUnit": "sqft",
     "variants": [
       {
-        "label": "Transparent print · standoffs included",
-        "priceCents": 3599,
+        "label": "Back print with white underbase",
+        "priceCents": 0,
         "id": "acrylic-signs-1",
         "panels": [
           {
@@ -2914,25 +2891,26 @@
             "templateId": "acrylic-signs-1-front"
           }
         ],
-        "supplierProfile": "clear-acrylic-transparent",
+        "supplierProfile": "signs365-acrylic",
         "supplierFixed": {},
         "panelRules": [],
         "baselineOptions": {
-          "hardware": "acrylic+standoff",
-          "cornerstyle": "none"
+          "hardware": "acrylic+standoff"
         },
         "optionPrices": {}
       }
     ],
-    "image": "/images/products/acrylic-signs.webp",
-    "imageAlt": "Acrylic Signs with a fictional business design; example appearance",
+    "image": "/images/products/gallery/acrylic-signs-1.webp",
+    "imageAlt": "Willow & Stone acrylic wall sign with back-printed artwork and aluminum standoffs",
     "shippingClass": "specialty",
-    "materialLabel": "1/4-inch clear acrylic · transparent CMYK",
+    "materialLabel": "3 mm acrylic · back print with white underbase",
     "sizeLimits": {
       "min": 6,
       "maxShort": 38,
       "maxLong": 48
-    }
+    },
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "Signs365"
   },
   {
     "slug": "aluminum-signs",
@@ -2950,7 +2928,7 @@
     "variants": [
       {
         "label": "Single-sided print · square corners",
-        "priceCents": 1499,
+        "priceCents": 0,
         "id": "aluminum-signs-1",
         "panels": [
           {
@@ -2993,7 +2971,9 @@
       "min": 6,
       "maxShort": 38,
       "maxLong": 48
-    }
+    },
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
   },
   {
     "slug": "aluminum-composite-signs",
@@ -3011,7 +2991,7 @@
     "variants": [
       {
         "label": "Single-sided print · square corners",
-        "priceCents": 1099,
+        "priceCents": 0,
         "id": "aluminum-composite-signs-1",
         "panels": [
           {
@@ -3020,7 +3000,7 @@
             "templateId": "aluminum-composite-signs-1-front"
           }
         ],
-        "supplierProfile": "aluminum-sandwich-board",
+        "supplierProfile": "signs365-acm",
         "supplierFixed": {},
         "panelRules": [
           {
@@ -3095,7 +3075,7 @@
         "heightIn": 24,
         "priceCents": 4800,
         "sourceUrl": "https://www.lexingtonsign.com/realtor-signs.html",
-        "checkedAt": "2026-10-12T02:00:00Z",
+        "checkedAt": "2026-10-12",
         "shippingPolicy": "free_overnight_after_production",
         "status": "exact_configuration"
       },
@@ -3104,7 +3084,7 @@
         "heightIn": 36,
         "priceCents": 9000,
         "sourceUrl": "https://www.lexingtonsign.com/realtor-signs.html",
-        "checkedAt": "2026-10-12T02:00:00Z",
+        "checkedAt": "2026-10-12",
         "shippingPolicy": "free_overnight_after_production",
         "status": "exact_configuration"
       },
@@ -3113,7 +3093,7 @@
         "heightIn": 24,
         "priceCents": 2600,
         "sourceUrl": "https://www.lexingtonsign.com/realtor-signs.html",
-        "checkedAt": "2026-10-12T02:00:00Z",
+        "checkedAt": "2026-10-12",
         "shippingPolicy": "free_overnight_after_production",
         "status": "exact_configuration"
       },
@@ -3122,12 +3102,13 @@
         "heightIn": 36,
         "priceCents": 3600,
         "sourceUrl": "https://www.lexingtonsign.com/realtor-signs.html",
-        "checkedAt": "2026-10-12T02:00:00Z",
+        "checkedAt": "2026-10-12",
         "shippingPolicy": "free_overnight_after_production",
         "status": "exact_configuration"
       }
     ],
-    "shippingPolicy": "free_overnight_after_production"
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "Signs365"
   },
   {
     "slug": "display-posters",
@@ -3147,7 +3128,7 @@
     "variants": [
       {
         "label": "Single-sided print · square corners",
-        "priceCents": 449,
+        "priceCents": 0,
         "id": "display-posters-1",
         "panels": [
           {
@@ -3167,7 +3148,6 @@
         "optionPrices": {}
       }
     ],
-    "minOrderCents": 1799,
     "image": "/images/products/display-posters.webp",
     "imageAlt": "Durable Display Posters with a fictional business design; example appearance",
     "shippingClass": "specialty",
@@ -3176,6 +3156,8 @@
       "min": 6,
       "maxShort": 52,
       "maxLong": 1908
-    }
+    },
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
   }
 ]

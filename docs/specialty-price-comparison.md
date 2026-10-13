@@ -1,6 +1,6 @@
 # Lexington Sign price mapping
 
-Public product/configurator prices checked October 11–12, 2026. Owner policy reaffirmed October 12: use Lexington retail prices and free shipping for matching new products; the owner will supply remaining prices/shipping later. USD, per item. All matched prices include overnight shipping after production, before tax. These values apply only to new specialty products.
+Public product/configurator prices checked October 11–12, 2026. Owner policy reaffirmed October 12: use Lexington retail prices where a valid match exists; FREE Next Day Air applies to all 19 specialty families after production. The owner will supply remaining product and option prices later. USD, per item. All matched prices include overnight shipping after production, before tax. These values apply only to new specialty products.
 
 | Our configuration | Matched retail | Source |
 |---|---:|---|
@@ -65,6 +65,6 @@ Sources: the [flag](https://www.lexingtonsign.com/feather-flags.html), [tent](ht
 
 Lexington's public configurator also exposes rush and Saturday charges. These are **not enabled**: a competitor charge does not establish our facility/service eligibility or arrival date. The existing banner rush policy is not automatically applied to new products.
 
-Lexington's homepage was checked again on October 12, 2026: it advertises free overnight shipping on every order, no minimum, to all 50 states. This is a retail offer, not a statement of B2Sign's wholesale freight cost. Per the owner's October 12 instruction, that $0 policy applies to the six matching product families: standard retractables, step-and-repeat backdrops, feather flags, standard table throws, event tents and ACM signs. It persists when a customer chooses an as-yet-unpriced size or accessory. Other product families await the owner's shipping policy.
+Lexington's homepage was checked again on October 12, 2026: it advertises free overnight shipping on every order, no minimum, to all 50 states. This is a retail offer, not a statement of B2Sign's wholesale freight cost. Per the owner's October 12 instruction, that $0 policy applies to all 19 specialty product families, including still-unpriced sizes and accessories. No specialty shipping-policy confirmation remains outstanding.
 
 Matched configurations with fully priced options and complete approved artwork can proceed through checkout. A missing option price keeps the base price and all known adjustments visible, clearly labeled as incomplete, and preserves free shipping. Only the incomplete configuration remains unavailable for payment; its artwork and options can still be saved. Catalog cards and size/option selectors display published prices directly, and unlisted products say Price coming soon without a request form or draft estimates. Existing banners, yard signs and car magnets retain their price tables, shipping and quantity-discount eligibility.

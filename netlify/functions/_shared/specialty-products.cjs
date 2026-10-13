@@ -1,5 +1,6 @@
 'use strict';
 const catalog = require('../../../shared/specialty-catalog.json');
+const release = require('../../../shared/specialty-release.json');
 const templates = require('../../../shared/specialty-templates.json');
 const optionsEngine=require('../../../shared/specialty-options.cjs');
 const {assertReadyPlacementPreview}=require('./preview-artifact.cjs');
@@ -52,11 +53,12 @@ function normalizeSpecialtyItem(item){
     if(![p.artwork?.url,p.artwork?.productionUrl||p.artwork?.url,p.composition.sourceUrl,p.preview.url,p.productionUrl].every(permanent)||!p.productionFileKey)fail('SPECIALTY_UPLOAD_INCOMPLETE','An original file or print panel has not finished saving.');
   }
   const panels=requiredPanels.map(expected=>config.panels.find(p=>p.id===expected.id));
-  return {...item,product_type:'specialty',material:'specialty',width_in:panels[0].composition.widthIn,height_in:panels[0].composition.heightIn,specialty_config:{...config,options,optionSummary:optionsEngine.optionSummary(variant,options),priceVerified:optionsEngine.priceConfiguration(product,variant,item.width_in,item.height_in,options).verified,panels,productName:product.name,variantLabel:variant.label,materialLabel:optionsEngine.materialLabel(product,variant,options)},unit_price_cents:unit,line_total_cents:unit*item.quantity,rope_feet:0,rope_cost_cents:0,pole_pockets:'none',pole_pocket_cost_cents:0,grommets:'none'};
+  return {...item,product_type:'specialty',material:'specialty',width_in:panels[0].composition.widthIn,height_in:panels[0].composition.heightIn,specialty_config:{...config,options,optionSummary:optionsEngine.optionSummary(variant,options),priceVerified:optionsEngine.priceConfiguration(product,variant,item.width_in,item.height_in,options).verified,panels,fulfillmentSupplier:product.fulfillmentSupplier,productName:product.name,variantLabel:variant.label,materialLabel:optionsEngine.materialLabel(product,variant,options)},unit_price_cents:unit,line_total_cents:unit*item.quantity,rope_feet:0,rope_cost_cents:0,pole_pockets:'none',pole_pocket_cost_cents:0,grommets:'none'};
 }
 function requireSpecialtyFulfillment(items){
   for(const item of items.filter(item=>item.product_type==='specialty')){
     const product=catalog.find(p=>p.slug===item.specialty_config?.productSlug),variant=product?.variants.find(v=>v.id===item.specialty_config?.variantId);
+    if(product && (release.categories[product.category]===false || release.products[product.slug]===false))fail('SPECIALTY_PRODUCT_UNAVAILABLE',`${product.name} is not currently available to order. Your artwork is saved in your cart.`);
     const quote=product&&variant&&optionsEngine.priceConfiguration(product,variant,item.width_in,item.height_in,item.specialty_config?.options);
     if(!quote?.verified)fail('SPECIALTY_PRICE_NOT_VERIFIED',`${product?.name||'Product'}: pricing is not available for ${quote?.missing.join('; ')||'this configuration'}. Your artwork is saved in your cart.`);
     if(quote.shippingPolicy!=='free_overnight_after_production')fail('SPECIALTY_SHIPPING_NOT_VERIFIED',`${product.name}: shipping is not available for this configuration. Your artwork is saved in your cart.`);

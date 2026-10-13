@@ -1,3 +1,4 @@
+import media from '../../../shared/specialty-media.json';
 import {specialtyProfile,specialtyOptionMatches,specialtyOptions,specialtyOptionPriceCents,formatSpecialtyPrice,type SpecialtyProduct,type SpecialtyVariant,type SpecialtyOptions as Options} from '@/lib/specialtyProducts';
 
 export default function SpecialtyOptions({product,variant,value,onChange,disabled,width,height,basePriced}:{product:SpecialtyProduct;variant:SpecialtyVariant;value:Options;onChange:(options:Options)=>void;disabled:boolean;width:number;height:number;basePriced:boolean}) {
@@ -5,7 +6,7 @@ export default function SpecialtyOptions({product,variant,value,onChange,disable
   return <div className="mt-5 space-y-5">
     {profile?.groups.filter(g=>!Object.prototype.hasOwnProperty.call(variant.supplierFixed||{},g.key)&&specialtyOptionMatches(g.visible,value)).map(group=>{
       const choices=group.options.filter(o=>specialtyOptionMatches(o.visible,value));
-      const image=choices.find(o=>String(o.key)===value[group.key])?.images?.find(i=>specialtyOptionMatches(i.match,value))||group.images.find(i=>specialtyOptionMatches(i.match,value));
+      const image=(media.options as Record<string,string>)[`${variant.supplierProfile}:${group.key}`];
       if(choices.length===1)return <p key={group.key} className="text-sm text-slate-600"><strong>{group.label}:</strong> {choices[0].label}</p>;
       return <div key={group.key}>
         <label htmlFor={`option-${group.key}`} className="block text-sm font-bold whitespace-pre-line">{group.label}</label>
@@ -17,7 +18,7 @@ export default function SpecialtyOptions({product,variant,value,onChange,disable
               return <option key={option.key} value={option.key}>{option.label}{priceLabel?` · ${priceLabel}`:''}</option>;
             })}
           </select>
-          {image&&<a href={image.s1000} target="_blank" rel="noreferrer" className="shrink-0 rounded-lg border border-slate-200 bg-white p-1" aria-label={`View ${group.label.toLowerCase()} photograph`}><img src={image.s200} alt={group.label} loading="lazy" className="h-14 w-14 object-contain"/></a>}
+          {image&&<a href={image} target="_blank" rel="noreferrer" className="shrink-0 rounded-lg border border-slate-200 bg-white p-1" aria-label={`View ${group.label.toLowerCase()} options`}><img src={image} alt={group.label} loading="lazy" className="h-14 w-14 object-contain"/></a>}
         </div>
       </div>;
     })}

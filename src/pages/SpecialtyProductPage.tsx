@@ -3,13 +3,13 @@ import { ArrowLeft, ArrowRight } from 'lucide-react';
 import Layout from '@/components/Layout';
 import SEO from '@/components/SEO';
 import SpecialtyDesigner from '@/components/specialty/SpecialtyDesigner';
-import { getSpecialtyProduct, specialtyCategories, specialtyProducts } from '@/lib/specialtyProducts';
+import { getSpecialtyProduct, specialtyCategories, availableSpecialtyProducts as specialtyProducts, isSpecialtyProductAvailable } from '@/lib/specialtyProducts';
 import {useCartStore} from '@/store/cart';
 export default function SpecialtyProductPage() {
   const location=useLocation();const {slug}=useParams();const product=getSpecialtyProduct(slug);
   const editId=new URLSearchParams(location.search).get('editItem');
   const savedItemId=useCartStore(s=>s.items.find(item=>item.id===editId&&item.specialty_config?.productSlug===slug)?.id);
-  if(!product)return <Navigate to="/products" replace/>;
+  if(!product||!isSpecialtyProductAvailable(product.slug))return <Navigate to="/products" replace/>;
   const related=specialtyProducts.filter(p=>p.category===product.category&&p.slug!==slug).slice(0,3);
   const url=`https://bannersonthefly.com/products/${product.slug}`;
   const description=`${product.summary} Upload, design, preview and add to cart.`.slice(0,160);

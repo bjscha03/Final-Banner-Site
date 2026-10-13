@@ -1,4 +1,5 @@
 import catalog from '../../shared/specialty-catalog.json';
+import release from '../../shared/specialty-release.json';
 import templateCatalog from '../../shared/specialty-templates.json';
 import optionsEngine from '../../shared/specialty-options.mjs';
 
@@ -32,6 +33,7 @@ export interface SpecialtyProduct {
   image: string;
   imageAlt: string;
   materialLabel: string;
+  fulfillmentSupplier?: 'B2Sign' | 'Signs365';
   priceMatches?: SpecialtyPriceMatch[];
   shippingPolicy?: 'free_overnight_after_production';
   sizeLimits?: { min: number; maxShort: number; maxLong: number };
@@ -56,6 +58,11 @@ export const specialtyCategories: Record<SpecialtyCategory, { label: string; des
 };
 
 export const specialtyProducts = catalog as SpecialtyProduct[];
+export const availableSpecialtyProducts = specialtyProducts.filter(product =>
+  release.categories[product.category] !== false &&
+  (release.products as Record<string, boolean>)[product.slug] !== false
+);
+export const isSpecialtyProductAvailable = (slug:string) => availableSpecialtyProducts.some(product=>product.slug===slug);
 
 export function getSpecialtyProduct(slug?: string | null): SpecialtyProduct | undefined {
   return specialtyProducts.find((product) => product.slug === slug);

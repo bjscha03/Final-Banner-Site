@@ -10034,5 +10034,265 @@
     "downloads": [],
     "installation": [],
     "videos": []
+  },
+  "signs365-acrylic": {
+    "id": "clear-acrylic-transparent",
+    "supplierItemId": 245,
+    "name": "Acrylic Signs",
+    "sourceUrl": "https://www.signs365.com/portal/static/managed/catalog/SignageCatalog9-23-HQ.pdf",
+    "checkedAt": "2026-10-12",
+    "groups": [],
+    "turnaround": [
+      {
+        "match": [
+          {
+            "key": "_qty",
+            "value": 200,
+            "op": ">"
+          }
+        ],
+        "options": [
+          {
+            "key": "v5",
+            "label": "5 Business Days"
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "key": "_qty",
+            "value": 100,
+            "op": ">"
+          }
+        ],
+        "options": [
+          {
+            "key": "v3",
+            "label": "3 Business Days"
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "key": "_qty",
+            "value": 10,
+            "op": ">"
+          }
+        ],
+        "options": [
+          {
+            "key": "v1",
+            "label": "Next Day"
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "key": "_qty",
+            "value": 0,
+            "op": ">"
+          }
+        ],
+        "options": [
+          {
+            "key": "v1",
+            "label": "Next Day"
+          },
+          {
+            "key": "v0",
+            "label": "Same Day",
+            "visible": [
+              {
+                "op": "group",
+                "value": [
+                  {
+                    "key": "_business_day",
+                    "value": false
+                  },
+                  {
+                    "key": "_time",
+                    "value": "12:00:00",
+                    "op": "<",
+                    "logic": "or"
+                  }
+                ]
+              },
+              {
+                "op": "group",
+                "value": [
+                  {
+                    "key": "_size",
+                    "value": null,
+                    "op": "="
+                  },
+                  {
+                    "key": "_size",
+                    "value": "120x120",
+                    "op": "outside",
+                    "logic": "or_not"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "v-2",
+            "label": "Free Same Day",
+            "visible": [
+              {
+                "key": "_business_day",
+                "value": false
+              },
+              {
+                "key": "_time",
+                "value": "06:00:00",
+                "op": "<",
+                "logic": "or"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "gallery": [],
+    "specifications": [
+      "3 mm acrylic",
+      "Printed on the back with a white underbase",
+      "Single-sided display",
+      "Aluminum wall standoffs stand ¾ inch from the wall",
+      "Remove any artwork guides before exporting your print file."
+    ],
+    "downloads": [],
+    "installation": [],
+    "videos": [],
+    "fulfillmentSupplier": "Signs365"
+  },
+  "signs365-acm": {
+    "id": "aluminum-sandwich-board",
+    "supplierItemId": 13,
+    "name": "Aluminum Composite Signs",
+    "sourceUrl": "https://www.signs365.com/portal/static/managed/catalog/SignageCatalog9-23-HQ.pdf",
+    "checkedAt": "2026-10-12",
+    "groups": [],
+    "turnaround": [
+      {
+        "match": [
+          {
+            "key": "_qty",
+            "value": 200,
+            "op": ">"
+          }
+        ],
+        "options": [
+          {
+            "key": "v5",
+            "label": "5 Business Days"
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "key": "_qty",
+            "value": 100,
+            "op": ">"
+          }
+        ],
+        "options": [
+          {
+            "key": "v3",
+            "label": "3 Business Days"
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "key": "_qty",
+            "value": 10,
+            "op": ">"
+          }
+        ],
+        "options": [
+          {
+            "key": "v1",
+            "label": "Next Day"
+          }
+        ]
+      },
+      {
+        "match": [
+          {
+            "key": "_qty",
+            "value": 0,
+            "op": ">"
+          }
+        ],
+        "options": [
+          {
+            "key": "v1",
+            "label": "Next Day"
+          },
+          {
+            "key": "v0",
+            "label": "Same Day",
+            "visible": [
+              {
+                "op": "group",
+                "value": [
+                  {
+                    "key": "_business_day",
+                    "value": false
+                  },
+                  {
+                    "key": "_time",
+                    "value": "12:00:00",
+                    "op": "<",
+                    "logic": "or"
+                  },
+                  {
+                    "key": "_time",
+                    "value": "16:00:00",
+                    "op": ">=",
+                    "logic": "or"
+                  }
+                ]
+              },
+              {
+                "op": "group",
+                "value": [
+                  {
+                    "key": "_size",
+                    "value": null,
+                    "op": "="
+                  },
+                  {
+                    "key": "_size",
+                    "value": "120x120",
+                    "op": "outside",
+                    "logic": "or_not"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "gallery": [],
+    "specifications": [
+      "3 mm aluminum composite panel",
+      "Aluminum faces around a rigid composite core",
+      "Single- or double-sided printing",
+      "For indoor and outdoor signage",
+      "Standard retail prices are available for the listed preset sizes."
+    ],
+    "downloads": [],
+    "installation": [],
+    "videos": [],
+    "fulfillmentSupplier": "Signs365"
   }
 }

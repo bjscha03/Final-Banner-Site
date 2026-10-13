@@ -138,7 +138,7 @@ export default function SpecialtyDesigner({ product }: { product: SpecialtyProdu
           <p className="mt-1 text-3xl font-black tracking-tight" data-testid="specialty-subtotal">{priceError?'Choose a valid size':pricing?.baseVerified?formatSpecialtyPrice(unit*quantity):'Price coming soon'}</p>
           {pricing?.baseVerified&&pricing.adjustments.length>0&&<div className="mt-3 flex justify-between gap-4 text-sm text-slate-600"><span>Base product × {quantity}</span><span>{formatSpecialtyPrice(pricing.baseCents*quantity)}</span></div>}
           {pricing?.adjustments.map(a=><div key={a.key} className="mt-2 flex justify-between gap-4 text-sm text-slate-600"><span>{a.label}</span><span className="whitespace-nowrap">{a.cents===0?'Included':`+${formatSpecialtyPrice(a.cents*quantity)}`}</span></div>)}
-          <div className="mt-3 flex justify-between gap-4 text-sm font-semibold"><span>Shipping after production</span><span className={pricing?.shippingPolicy?'text-green-700':'text-amber-800'}>{pricing?.shippingPolicy?'FREE overnight':'Shipping coming soon'}</span></div>
+          <div className="mt-3 flex justify-between gap-4 text-sm font-semibold"><span>Shipping after production</span><span className={pricing?.shippingPolicy?'text-green-700':'text-amber-800'}>{pricing?.shippingPolicy?'FREE Next Day Air':'Shipping coming soon'}</span></div>
           <p className="mt-3 text-xs leading-5 text-slate-500">{priceMatch?`${formatSpecialtyPrice(unit)} each, including selected options. Tax calculated separately.`:pricing?.baseVerified?'The amount above includes the base product and priced options. Options listed below are not included yet.':'Customize your artwork and save it to your cart while pricing is added.'}</p>
           {!priceMatch&&pricing&&<p className="mt-2 text-xs leading-5 text-amber-800">Price coming soon: {pricing.missing.join('; ')}.</p>}
         </div>
@@ -146,7 +146,7 @@ export default function SpecialtyDesigner({ product }: { product: SpecialtyProdu
         <a href="#specialty-artwork" className="mt-7 flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#c94e00] px-4 font-bold text-white">Customize your artwork<ArrowRight className="h-4 w-4"/></a>
       </section>
     </div>
-    <SpecialtyProductResources variant={variant}/>
+    <SpecialtyProductResources product={product} variant={variant} options={options} width={Number(width)} height={Number(height)}/>
     <section id="specialty-artwork" className="scroll-mt-28 rounded-2xl border border-slate-200 bg-white p-5 sm:p-8">
       <p className="text-xs font-black uppercase tracking-widest text-orange-700">2 · Design & preview</p><h2 className="mt-2 text-2xl font-bold">Your artwork, on your product</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Upload a PDF, PNG or JPG, or create a design with AI. Adjust the artwork, check the print boundaries, and approve each panel.</p>
       {definitions.length>1&&<div className="my-5 flex flex-wrap gap-2" role="tablist" aria-label="Print panels">{definitions.map(p=><button role="tab" type="button" aria-selected={panel.id===p.id} key={p.id} disabled={!!busy} onClick={()=>{capture();setPanelId(p.id);setPixels(initialPixels);setFitOpen(false);setCreateOpen(false);}} className={`min-h-11 rounded-lg border px-4 text-sm font-bold ${panel.id===p.id?'border-orange-600 bg-orange-50':'border-slate-300'}`}>{p.label}{drafts[p.id]?.reviewed?' ✓':''}</button>)}</div>}
