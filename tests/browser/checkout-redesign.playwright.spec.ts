@@ -2,6 +2,16 @@ import { expect, test } from '@playwright/test';
 import sharp from 'sharp';
 import { CHECKOUT_ITEM, installCheckoutHarness } from './checkoutHarness';
 
+async function expectCardLogos(page: import('@playwright/test').Page) {
+  const cards = page.getByRole('group', { name: 'Accepted cards', exact: true });
+  await expect(cards).toBeVisible();
+  for (const name of ['Visa', 'Mastercard', 'American Express', 'Discover']) {
+    const logo = cards.getByRole('img', { name, exact: true });
+    await expect(logo).toBeVisible();
+    await expect.poll(() => logo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+  }
+}
+
 test.beforeEach(async ({ page }) => {
   await installCheckoutHarness(page, [{ ...CHECKOUT_ITEM, grommets: 'every-2-3ft', width_in: 72, height_in: 36, area_sqft: 18, unit_price_cents: 9000, line_total_cents: 9000 }]);
   await page.route('**/.netlify/functions/stripe-config', route => route.fulfill({ json: { enabled: true, environment: 'test', publishableKey: 'pk_test_visual_fixture' } }));
@@ -29,6 +39,23 @@ test('approved responsive layout keeps artwork and authoritative totals visible'
   await expect(pay).toBeEnabled();
   const form = page.locator('.checkout-payment-panel');
   const formBox = await form.boundingBox(); const summaryBox = await summary.boundingBox();
+  const walletBoxes = [];
+  for (const name of ['Apple Pay test fixture', 'Google Pay test fixture', 'PayPal']) {
+    const button = page.getByRole('button', { name, exact: true });
+    await expect(button).toBeVisible();
+    const box = (await button.boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(140);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.x).toBeGreaterThanOrEqual(formBox!.x - 1);
+    expect(box.x + box.width).toBeLessThanOrEqual(formBox!.x + formBox!.width + 1);
+    walletBoxes.push(box);
+  }
+  if ((page.viewportSize()?.width || 0) < 768) {
+    expect(walletBoxes[1].y).toBeGreaterThanOrEqual(walletBoxes[0].y + walletBoxes[0].height);
+    expect(walletBoxes[2].y).toBeGreaterThanOrEqual(walletBoxes[1].y + walletBoxes[1].height);
+    for (const box of walletBoxes) expect(box.width).toBeGreaterThanOrEqual(formBox!.width - 1);
+  }
+  await expectCardLogos(page);
   if ((page.viewportSize()?.width || 0) >= 1024) {
     expect(summaryBox!.x).toBeGreaterThan(formBox!.x + formBox!.width);
   } else {
@@ -39,6 +66,8 @@ test('approved responsive layout keeps artwork and authoritative totals visible'
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   await page.screenshot({ path: info.outputPath('checkout-arrival.png'), fullPage: true });
   await page.screenshot({ path: info.outputPath('checkout-first-screen.png') });
+  await page.locator('.checkout-express-options').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath('checkout-wallets-and-cards.png') });
   await pay.scrollIntoViewIfNeeded();
   await page.screenshot({ path: info.outputPath('checkout-payment.png') });
   await page.getByRole('button', { name: 'Have a promo code?', exact: true }).click();
@@ -47,6 +76,20 @@ test('approved responsive layout keeps artwork and authoritative totals visible'
   await expect(total).toContainText('$71.55');
   await expect(page.getByRole('button', { name: 'Pay $71.55', exact: true })).toBeEnabled();
   expect(errors).toEqual([]);
+});
+
+test('single-wallet and card-only devices retain clear payment choices', async ({ page }) => {
+  for (const mode of ['single', 'none']) {
+    await page.goto(`/checkout?walletFixture=${mode}`);
+    const apple = page.getByRole('button', { name: 'Apple Pay test fixture', exact: true });
+    if (mode === 'single') await expect(apple).toBeVisible();
+    else await expect(apple).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Google Pay test fixture', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'PayPal', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Pay $76.32', exact: true })).toBeEnabled();
+    await expectCardLogos(page);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  }
 });
 
 test('validation, address editing, provider switching and order editing remain safe', async ({ page }) => {
@@ -93,6 +136,7 @@ test('deploy preview matches the wallet and card layout without accepting paymen
   await expect(page.locator('#checkout-email')).toHaveAttribute('placeholder', 'you@example.com');
   await expect(page.locator('.checkout-fallback-methods')).toHaveCount(0);
   await expect(page.locator('.checkout-preview-card input')).toHaveCount(0);
+  await expectCardLogos(page);
   const pay = page.getByRole('button', { name: 'Place test order · $76.32', exact: true });
   await expect(pay).toBeEnabled();
   await expect(page.getByTestId('checkout-artwork-summary').locator('[data-preview-ready="true"], [data-realistic-artwork-ready="true"]')).toHaveCount(1);

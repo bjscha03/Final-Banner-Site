@@ -1,5 +1,6 @@
 import React from 'react';
 import { CreditCard, Lock } from 'lucide-react';
+import { CheckoutCardDivider } from './CheckoutCardDivider';
 
 /** Design-only controls for the existing no-charge deploy-preview checkout.
  * Never mount a provider SDK or collect card information in this component.
@@ -21,7 +22,7 @@ export function PreviewExpressCheckout() {
         </button>
       </div>
       <p id="checkout-preview-note" className="checkout-preview-note">Payment controls are display-only in this preview.</p>
-      <div className="checkout-payment-divider" aria-hidden="true"><span />or pay by card<span /></div>
+      <CheckoutCardDivider />
     </section>
   );
 }

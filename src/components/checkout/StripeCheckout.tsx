@@ -14,6 +14,7 @@ import { CircleAlert, Clock3, CreditCard, Lock, Loader2, RefreshCw } from 'lucid
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useAbandonedCartCapture } from '@/hooks/useAbandonedCartCapture';
 import { getStoredAttribution } from '@/lib/attribution';
 import {
@@ -57,6 +58,7 @@ import type {
 import { getStripeExpressShippingRates } from './stripeExpressShipping';
 import { isValidCheckoutPhone, selectWalletCheckoutPhone } from './stripeWalletPhone';
 import { stripeCardPaymentElementOptions } from './stripePaymentElementOptions';
+import { CheckoutCardDivider } from './CheckoutCardDivider';
 
 interface StripeCheckoutProps {
   orderSummary?: React.ReactNode;
@@ -164,10 +166,10 @@ const fetchWithTimeout = async (
   }
 };
 
-const hasSupportedWallet = (event: any): boolean => {
+const countSupportedWallets = (event: any): number => {
   const methods = event?.availablePaymentMethods || event?.paymentMethods || {};
   const available = (value: any) => value === true || value?.available === true;
-  return available(methods.applePay) || available(methods.googlePay);
+  return Number(available(methods.applePay)) + Number(available(methods.googlePay));
 };
 
 const humanizeStripeError = (error: any): string => {
@@ -306,10 +308,12 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
 }) => {
   const stripe = useStripe();
   const elements = useElements();
+  const isMobile = useIsMobile();
   const { user } = useAuth();
   const { items, discountCode, sameDayHitService, saturdayDelivery } = useCartStore();
   const resumedStripe = resumeCheckout?.provider === 'stripe' ? resumeCheckout : null;
-  const [walletsAvailable, setWalletsAvailable] = useState(false);
+  const [availableWalletCount, setAvailableWalletCount] = useState(0);
+  const walletsAvailable = availableWalletCount > 0;
   const [walletsReady, setWalletsReady] = useState(false);
   useEffect(() => {
     // Card checkout remains available if a wallet provider never reports readiness.
@@ -1193,7 +1197,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   return (
     <div className="checkout-stripe relative space-y-5">
       {!verificationMessage && <p className="checkout-express-label">Express checkout</p>}
-      <div className={`checkout-express-options ${expressCheckoutVisible ? 'has-wallet' : ''}`}>
+      <div className={`checkout-express-options ${expressCheckoutVisible ? 'has-wallet' : ''} ${availableWalletCount > 1 ? 'has-multiple-wallets' : ''}`}>
       <section
         aria-labelledby="express-checkout-heading"
         aria-hidden={walletsReady && !expressCheckoutVisible}
@@ -1240,12 +1244,11 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                   billingAddressRequired: true,
                   buttonHeight: 48,
                   buttonTheme: { applePay: 'black', googlePay: 'black' },
-                  buttonType: { applePay: 'buy', googlePay: 'buy' },
+                  buttonType: { applePay: 'plain', googlePay: 'plain' },
                   emailRequired: true,
-                  // Stripe requires `overflow: "auto"` when maxRows is non-zero.
-                  // Keep both eligible wallet buttons on one row while allowing
-                  // Stripe to manage constrained widths without failing to mount.
-                  layout: { maxColumns: 2, maxRows: 1, overflow: 'auto' },
+                  // Give each phone wallet its own full-width row. Unlimited rows
+                  // keep eligible wallets visible without a cramped overflow menu.
+                  layout: { maxColumns: isMobile ? 1 : 2, maxRows: 0, overflow: 'never' },
                   paymentMethodOrder: ['apple_pay', 'google_pay'],
                   paymentMethods: {
                     applePay: 'always',
@@ -1261,17 +1264,17 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                 }}
                 onReady={(event: any) => {
                   setWalletsReady(true);
-                  setWalletsAvailable(hasSupportedWallet(event));
-                  if (hasSupportedWallet(event)) trackCheckoutDiagnostic('payment_fields_ready', { provider: 'stripe', method: 'wallet' });
+                  setAvailableWalletCount(countSupportedWallets(event));
+                  if (countSupportedWallets(event)) trackCheckoutDiagnostic('payment_fields_ready', { provider: 'stripe', method: 'wallet' });
                 }}
                 onAvailablePaymentMethodsChange={(event: any) => {
                   setWalletsReady(true);
-                  setWalletsAvailable(hasSupportedWallet(event));
+                  setAvailableWalletCount(countSupportedWallets(event));
                 }}
                 onLoadError={() => {
                   trackCheckoutDiagnostic('payment_fields_load_failed', { provider: 'stripe', method: 'wallet' });
                   setWalletsReady(true);
-                  setWalletsAvailable(false);
+                  setAvailableWalletCount(0);
                 }}
                 onClick={(event: any) => {
                   trackCheckoutDiagnostic('pay_clicked', { provider: 'stripe', method: event.expressPaymentType || 'wallet' });
@@ -1351,11 +1354,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       </div>
 
       {!verificationMessage && (walletsAvailable || alternativePayment) ? (
-        <div className="flex items-center gap-3" aria-hidden="true">
-          <span className="h-px flex-1 bg-slate-200" />
-          <span className="text-xs font-medium text-slate-500">or pay by card</span>
-          <span className="h-px flex-1 bg-slate-200" />
-        </div>
+        <CheckoutCardDivider />
       ) : null}
 
       {verificationMessage ? (

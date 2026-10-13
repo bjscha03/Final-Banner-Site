@@ -7,10 +7,22 @@ export const loadStripe = async () => stripe;
 export const Elements = ({ children }: any) => children;
 export const useStripe = () => stripe;
 export const useElements = () => elements;
-export function ExpressCheckoutElement({ onReady }: any) {
+export function ExpressCheckoutElement({ onReady, options }: any) {
   const ready = useRef(onReady);
-  useEffect(() => { ready.current?.({ availablePaymentMethods: { applePay: true } }); }, []);
-  return <button type="button" aria-label="Apple Pay test fixture" style={{ background: '#000', color: '#fff', borderRadius: 6, height: 48, width: '100%', fontSize: 21 }}>Apple Pay</button>;
+  const walletMode = new URLSearchParams(window.location.search).get('walletFixture') || 'both';
+  useEffect(() => {
+    ready.current?.({ availablePaymentMethods: { applePay: walletMode !== 'none', googlePay: walletMode === 'both' } });
+  }, [walletMode]);
+  if (walletMode === 'none') return null;
+  const wallet = (label: string, type: string) => (
+    <button type="button" aria-label={`${label} test fixture`} style={{ background: '#000', color: '#fff', borderRadius: 6, height: options.buttonHeight, width: '100%', minWidth: type === 'plain' ? 100 : 140, whiteSpace: 'nowrap', fontSize: 21 }}>{type === 'plain' ? label : `Buy with ${label}`}</button>
+  );
+  // Model both eligible native buttons and their minimum widths. A one-wallet
+  // fixture missed the real two-wallet clipping regression on phones.
+  return <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(walletMode === 'both' ? 2 : 1, options.layout.maxColumns)}, minmax(0, 1fr))`, gap: 12 }}>
+    {wallet('Apple Pay', options.buttonType.applePay)}
+    {walletMode === 'both' && wallet('Google Pay', options.buttonType.googlePay)}
+  </div>;
 }
 export function PaymentElement({ onReady }: any) {
   const ready = useRef(onReady);
