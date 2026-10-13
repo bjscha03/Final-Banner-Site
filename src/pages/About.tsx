@@ -106,7 +106,7 @@ const About: React.FC = () => (
           <p className="mt-3 max-w-2xl text-slate-300">Compare the supported options and current pricing before opening the design tool.</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Link to="/vinyl-banners" className="brand-button-primary gap-2">Browse product guides <ArrowRight className="h-5 w-5" /></Link>
+          <Link to="/design?product=banner" className="brand-button-primary gap-2">Design your banner <ArrowRight className="h-5 w-5" /></Link>
           <Link to="/contact" className="brand-button-on-dark">Contact support</Link>
         </div>
       </div>

@@ -6,7 +6,7 @@ import type { HelmetServerState } from 'react-helmet-async';
 import { RoutedApplication } from '@/App';
 import AppProviders from '@/components/AppProviders';
 
-const productHubPaths = ['/vinyl-banners', '/yard-signs', '/car-magnets'] as const;
+const productHubPaths = ['/yard-signs', '/car-magnets'] as const;
 
 export const prerenderRoutes = [
   ...productHubPaths,

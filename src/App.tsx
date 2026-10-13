@@ -255,10 +255,10 @@ export const RoutedApplication = () => (
             <Route path="/pdf-diagnostic" element={<Layout><PdfDiagnostic /></Layout>} />
             
             {/* SEO Category Pages */}
-            <Route path="/vinyl-banners" element={<ProductHubPage productSlug="vinyl-banners" />} />
+            <Route path="/vinyl-banners" element={<Navigate to="/design?product=banner&material=13oz" replace />} />
             <Route path="/yard-signs" element={<ProductHubPage productSlug="yard-signs" />} />
             <Route path="/car-magnets" element={<ProductHubPage productSlug="car-magnets" />} />
-            <Route path="/mesh-banners" element={<CategoryPage />} />
+            <Route path="/mesh-banners" element={<Navigate to="/design?product=banner&material=mesh" replace />} />
             <Route path="/trade-show-banners" element={<CategoryPage />} />
             <Route path="/food-truck-banners" element={<CategoryPage />} />
             <Route path="/outdoor-banners" element={<CategoryPage />} />

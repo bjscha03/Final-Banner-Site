@@ -70,7 +70,7 @@ const Footer: React.FC = () => {
   };
 
   const quickLinks = [
-    { name: 'Vinyl Banners', href: '/vinyl-banners' },
+    { name: 'Vinyl Banners', href: '/design?product=banner' },
     { name: 'Yard Signs', href: '/yard-signs' },
     { name: 'Car Magnets', href: '/car-magnets' },
     { name: 'Custom Quote', href: '/custom-quote' },

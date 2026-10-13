@@ -38,12 +38,16 @@ function schemaNodes(html) {
 
 const localEntries = manifest.filter((entry) => /^\/(vinyl-banners|yard-signs|car-magnets)(?:\/[^/]+)?$/.test(entry.route));
 const tradeShowEntries = manifest.filter((entry) => entry.route === '/trade-shows' || /^\/trade-shows\/[^/]+$/.test(entry.route));
-assert(localEntries.length === 3, `Expected 3 product hub routes; found ${localEntries.length}.`);
+assert(localEntries.length === 2, `Expected 2 product hub routes; found ${localEntries.length}.`);
 assert(!manifest.some((entry) => /^\/(vinyl-banners|yard-signs|car-magnets)\/[^/]+/.test(entry.route)), 'Retired city routes must not be prerendered.');
 assert(![...sitemapUrls].some((url) => /^https:\/\/bannersonthefly\.com\/(vinyl-banners|yard-signs|car-magnets)\/[^/]+/.test(url)), 'Retired city URLs must not be in the sitemap.');
+for (const route of ['/vinyl-banners', '/mesh-banners']) {
+  assert(!manifest.some((entry) => entry.route === route), `${route}: retired material page must not be prerendered.`);
+  assert(!sitemapUrls.has(`https://bannersonthefly.com${route}`), `${route}: retired material page must not be in the sitemap.`);
+}
 assert(tradeShowEntries.length === 0, 'Retired trade-show routes must not be prerendered.');
 assert(![...sitemapUrls].some((url) => url.includes('/trade-shows')), 'Retired trade-show URLs must not be in the sitemap.');
-assert(manifest.length === 3, `Expected 3 generated routes; found ${manifest.length}.`);
+assert(manifest.length === 2, `Expected 2 generated routes; found ${manifest.length}.`);
 assert(new Set(manifest.map((entry) => entry.route)).size === manifest.length, 'Generated route manifest contains duplicates.');
 
 for (const entry of manifest) {

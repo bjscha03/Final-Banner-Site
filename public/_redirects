@@ -1,3 +1,7 @@
+# Retired material pages now open the banner designer with a material selected.
+/vinyl-banners   /design?product=banner&material=13oz   301!
+/mesh-banners    /design?product=banner&material=mesh   301!
+
 # Double-sided printing is now an option in the main banner designer.
 /double-sided-banners   /.netlify/functions/redirect-double-sided-banner   200!
 
