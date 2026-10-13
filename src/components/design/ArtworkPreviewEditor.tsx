@@ -430,12 +430,6 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     return { w, h, left: (canvasSize.w - w) / 2, top: (canvasSize.h - h) / 2 };
   })();
 
-  const baseRect = containedRect
-    ? { left: containedRect.left, top: containedRect.top, width: containedRect.w, height: containedRect.h }
-    : canvasSize
-      ? { left: 0, top: 0, width: canvasSize.w, height: canvasSize.h }
-      : null;
-
   // `value.x/y` is retained for compatibility with the parent builder state,
   // but pixels are local to a mounted canvas. Render each inline/modal editor
   // from the shared normalized composition so viewport and product-size
@@ -487,7 +481,6 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     if (!target.closest('[data-artwork-image="true"]')) {
       setSelected(false);
       setCropMode(false);
-      setCropMode(false);
       return;
     }
     event.preventDefault();
@@ -509,10 +502,23 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
+    // On a very thin image, 44px touch targets overlap. Route that shared area
+    // to the nearest visible handle instead of whichever button painted last.
+    let nearestHandle = handle;
+    let nearestDistance = Infinity;
+    internalRef.current?.querySelectorAll<HTMLButtonElement>('[data-handle]').forEach(button => {
+      const rect = button.getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
+      const distance = Math.hypot(event.clientX - rect.left - rect.width / 2, event.clientY - rect.top - rect.height / 2);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestHandle = button.dataset.handle as ArtworkHandle;
+      }
+    });
     beginHistory();
     try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* canceled pointer */ }
-    resizeRef.current = { active: true, pointerId: event.pointerId, handle, startX: event.clientX, startY: event.clientY, original: { ...localValueRef.current }, threshold: event.pointerType === 'touch' ? 10 : 6 };
-    setActiveHandle(handle);
+    resizeRef.current = { active: true, pointerId: event.pointerId, handle: nearestHandle, startX: event.clientX, startY: event.clientY, original: { ...localValueRef.current }, threshold: event.pointerType === 'touch' ? 10 : 6 };
+    setActiveHandle(nearestHandle);
     setSelected(true);
   }, [beginHistory]);
 
@@ -598,6 +604,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       const target = event.target as HTMLElement | null;
       if (!node || !target || node.contains(target) || target.closest('[data-artwork-toolbar="true"]')) return;
       setSelected(false);
+      setCropMode(false);
     };
     // Deselect only after the browser has dispatched the destination click.
     // Collapsing the portaled toolbar during pointerdown can move controls in
@@ -615,6 +622,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     setSizeReviewNeeded(false);
     if (!naturalSize || !canvasSizeRef.current) {
       commitTransform({ x: 0, y: 0, scaleX: 1.5, scaleY: 1.5 });
+      finishHistory();
       return;
     }
     const canvasAspect = canvasSizeRef.current.w / canvasSizeRef.current.h;

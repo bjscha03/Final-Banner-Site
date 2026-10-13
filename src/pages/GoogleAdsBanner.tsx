@@ -1696,6 +1696,7 @@ const GoogleAdsBanner: React.FC = () => {
     let snapshot: ReturnType<ArtworkPreviewEditorHandle['getCompositionSnapshot']> | undefined;
     try { snapshot = (showPreview ? modalEditorRef.current : inlineEditorRef.current)?.getCompositionSnapshot(); } catch { /* upload can still be in progress */ }
     const originalFile = activeUploadFileRef.current;
+    const savedFitUndo = fitUndo;
     const savedAiSession = aiDesignSession;
     const savedAiPrompt = aiPrompt;
     const savedAiEditPrompt = aiEditPrompt;
@@ -1710,12 +1711,26 @@ const GoogleAdsBanner: React.FC = () => {
         setRestoredNormalizedTransform(snapshot?.transform || null);
         setRestoredCompositionRevision((snapshot?.revision || 0) + 1);
       } else if (originalFile) { void handleFileUpload(originalFile); }
+      setFitUndo(savedFitUndo);
       setAiDesignSession(savedAiSession);
       setAiPrompt(savedAiPrompt);
       setAiEditPrompt(savedAiEditPrompt);
       setUndoDeletedArtwork(null);
     });
-  }, [showPreview, aiDesignSession, aiPrompt, aiEditPrompt, removeArtwork, handleFileUpload]);
+  }, [showPreview, aiDesignSession, aiPrompt, aiEditPrompt, fitUndo, removeArtwork, handleFileUpload]);
+
+  useEffect(() => {
+    if (uploadedFile || !undoDeletedArtwork) return;
+    const undoDeleteKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+        event.preventDefault(); undoDeletedArtwork();
+      }
+    };
+    window.addEventListener('keydown', undoDeleteKey);
+    return () => window.removeEventListener('keydown', undoDeleteKey);
+  }, [uploadedFile, undoDeletedArtwork]);
 
   const resetPreview = useCallback(() => {
     removeArtwork();

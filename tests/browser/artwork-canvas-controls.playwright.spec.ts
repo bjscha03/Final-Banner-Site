@@ -101,6 +101,12 @@ test('all eight handles, crop, snap, undo and deletion work in the actual banner
   await page.getByRole('button',{name:'Undo delete',exact:true}).click();
   await expect(image).toBeVisible();
   close((await box(selection)).width,centered.width);
+  if ((page.viewportSize()?.width || 1440) >= 1024) {
+    await page.keyboard.press('Delete');
+    await expect(image).toHaveCount(0);
+    await page.keyboard.press('ControlOrMeta+z');
+    await expect(image).toBeVisible();
+  }
   await page.getByRole('button',{name:'Fit my banner with AI',exact:true}).click();
   await expect(page.getByRole('dialog',{name:/Fit your design to/})).toBeVisible();
   await page.keyboard.press('Escape');
@@ -141,11 +147,14 @@ for (const kind of ['photo','logo','transparent','wide']) {
     const image=await upload(page,scenario,input,`${kind}.png`);
     const canvas=page.getByTestId('artwork-canvas');
     const before=await box(image);
-    await drag(page,canvas.locator('[data-handle=br]'),-10,-5);
-    const after=await box(image);
-    close(after.width/after.height,before.width/before.height,0.005);
-    await page.getByRole('button',{name:'Undo artwork change',exact:true}).click();
-    close((await box(image)).width,before.width);
+    for (const handle of kind === 'wide' ? ['tl','tr','bl','br'] : ['br']) {
+      await drag(page,canvas.locator(`[data-handle=${handle}]`),handle.includes('r')?-10:10,handle.includes('b')?-5:5);
+      const after=await box(image);
+      close(after.width/after.height,before.width/before.height,0.005);
+      expect(after.width).toBeLessThan(before.width);
+      await page.getByRole('button',{name:'Undo artwork change',exact:true}).click();
+      close((await box(image)).width,before.width);
+    }
     await page.screenshot({path:info.outputPath(`${kind}-artwork.png`)});
   });
 }
