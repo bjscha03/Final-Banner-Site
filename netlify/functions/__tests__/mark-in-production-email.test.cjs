@@ -1,3 +1,5 @@
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -43,4 +45,13 @@ test('Resend API errors are preserved and transient errors are retryable', () =>
   assert.equal(isRetryableEmailError({ statusCode: 429, message: 'Rate limit exceeded' }), true);
   assert.equal(isRetryableEmailError({ statusCode: 500, message: 'Provider error' }), true);
   assert.equal(isRetryableEmailError({ statusCode: 422, message: 'Invalid recipient' }), false);
+});
+
+test('admin in-production requests never run schema DDL', () => {
+  const source = fs.readFileSync(
+    path.join(__dirname, '../_shared/legacy/mark-in-production.cjs'),
+    'utf8',
+  );
+
+  assert.doesNotMatch(source, /ALTER\s+TABLE\s+orders/i);
 });
