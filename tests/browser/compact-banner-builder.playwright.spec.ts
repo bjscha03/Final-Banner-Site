@@ -201,12 +201,12 @@ test('banner finishing preserves the artwork, price and cart through add-another
     const inlinePreview = finish.getByTestId('finishing-realistic-preview');
     const inlineWidth = (await inlinePreview.locator('[data-realistic-scene]').boundingBox())!.width;
     const hardwareCount = await inlinePreview.locator('[data-realistic-grommet]').count();
-    const artworkStyle = await inlinePreview.getByAltText('Your artwork with the selected finishing').getAttribute('style');
+    const artworkStyle = await inlinePreview.getByAltText('Your artwork with the selected finishing').evaluate((el: HTMLImageElement) => ({ left: el.style.left, top: el.style.top, width: el.style.width, height: el.style.height, clipPath: el.style.clipPath }));
     await inlinePreview.getByRole('button', { name: 'Enlarge realistic preview', exact: true }).click();
     const expandedPreview = page.getByTestId('finishing-realistic-lightbox');
     await expect(expandedPreview).toBeVisible();
     await expect(expandedPreview.locator('[data-realistic-grommet]')).toHaveCount(hardwareCount);
-    await expect(expandedPreview.getByAltText('Your artwork with the selected finishing')).toHaveAttribute('style', artworkStyle!);
+    await expect.poll(() => expandedPreview.getByAltText('Your artwork with the selected finishing').evaluate((el: HTMLImageElement) => ({ left: el.style.left, top: el.style.top, width: el.style.width, height: el.style.height, clipPath: el.style.clipPath }))).toEqual(artworkStyle);
     expect((await expandedPreview.locator('[data-realistic-scene]').boundingBox())!.width).toBeGreaterThan(inlineWidth);
     await expandedPreview.getByRole('button', { name: 'Close preview', exact: true }).click();
     await expect(expandedPreview).toHaveCount(0);

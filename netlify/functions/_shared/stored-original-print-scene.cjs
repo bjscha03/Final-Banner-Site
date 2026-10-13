@@ -21,6 +21,7 @@ function toStoredOriginalPrintScene(state, widthIn, heightIn) {
   const containScale = Math.min(width / sourceWidth, height / sourceHeight);
   const placedWidth = sourceWidth * containScale * scaleX;
   const placedHeight = sourceHeight * containScale * scaleY;
+  const crop = state.canonicalComposition?.transform?.crop || state.crop;
   return {
     sceneVersion: 2, widthIn: width, heightIn: height,
     backgroundColor: state.bgColor || '#ffffff',
@@ -29,6 +30,7 @@ function toStoredOriginalPrintScene(state, widthIn, heightIn) {
       xIn: (width - placedWidth) / 2 + xPct * width / 100,
       yIn: (height - placedHeight) / 2 + yPct * height / 100,
       widthIn: placedWidth, heightIn: placedHeight, rotation: 0,
+      ...(crop ? { crop } : {}),
       source: {
         originalUrl: state.originalImageUrl,
         resourceType: 'original', format: state.originalFormat,

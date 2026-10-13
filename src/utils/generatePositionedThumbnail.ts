@@ -7,6 +7,7 @@
  */
 import { uploadCanvasImageToCloudinary } from './uploadCanvasImage';
 import { PreviewLifecycleError } from '@/lib/previewLifecycle';
+import type { ArtworkCrop } from '@/types/artwork';
 
 export interface PositionedThumbnailInput {
   imageUrl: string;
@@ -15,6 +16,7 @@ export interface PositionedThumbnailInput {
   imgPosPercent: { x: number; y: number };
   imgScale: number;
   imgScaleY?: number;
+  crop?: ArtworkCrop;
   backgroundColor?: string;
   maxOutputPx?: number;
   maxOutputPixels?: number;
@@ -224,6 +226,7 @@ export async function renderPositionedThumbnailBlob(
     imgPosPercent,
     imgScale,
     imgScaleY,
+    crop,
     backgroundColor = '#ffffff',
   } = input;
   if (!imageUrl) {
@@ -286,6 +289,11 @@ export async function renderPositionedThumbnailBlob(
     context.beginPath();
     context.rect(0, 0, widthPx, heightPx);
     context.clip();
+    if (crop) {
+      context.beginPath();
+      context.rect(drawX + drawWidth * crop.x, drawY + drawHeight * crop.y, drawWidth * crop.width, drawHeight * crop.height);
+      context.clip();
+    }
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = 'high';
     context.drawImage(image, drawX, drawY, drawWidth, drawHeight);

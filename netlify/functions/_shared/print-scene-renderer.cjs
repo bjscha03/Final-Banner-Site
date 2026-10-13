@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const { v2: cloudinary } = require('cloudinary');
-const { PDFDocument, rgb, degrees, StandardFonts } = require('pdf-lib');
+const { PDFDocument, rgb, degrees, StandardFonts, pushGraphicsState, popGraphicsState, rectangle, clip, endPath } = require('pdf-lib');
 
 const RENDERER_VERSION = 'production-pdf-v3-signed-source';
 
@@ -166,6 +166,13 @@ async function renderPrintSceneToPdfBuffer(sceneInput) {
     const drawOrigin = rotatedLowerLeftForCenter(x, y, w, h, rotationDegrees);
 
     if (obj.type === 'image') {
+      const crop = obj.crop;
+      if (crop) {
+        if (rotationDegrees !== 0 || ![crop.x, crop.y, crop.width, crop.height].every(Number.isFinite)
+          || crop.x < 0 || crop.y < 0 || crop.width <= 0 || crop.height <= 0
+          || crop.x + crop.width > 1.000001 || crop.y + crop.height > 1.000001) throw new Error('Invalid production artwork crop');
+        page.pushOperators(pushGraphicsState(), rectangle(x + crop.x * w, y + (1 - crop.y - crop.height) * h, crop.width * w, crop.height * h), clip(), endPath());
+      }
       const url = assertProductionUrl(obj);
       const source = obj.source || {};
       const buffer = await fetchBuffer(url, source);
@@ -188,6 +195,7 @@ async function renderPrintSceneToPdfBuffer(sceneInput) {
         const image = fmt.includes('png') ? await pdfDoc.embedPng(buffer) : await pdfDoc.embedJpg(new Uint8Array(buffer));
         page.drawImage(image, { x: drawOrigin.x, y: drawOrigin.y, width: w, height: h, rotate, opacity });
       }
+      if (crop) page.pushOperators(popGraphicsState());
     } else if (obj.type === 'text' && obj.text?.content) {
       page.drawText(String(obj.text.content), {
         x: drawOrigin.x,

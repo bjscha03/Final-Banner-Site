@@ -91,7 +91,7 @@ test('inline and modal editors project one normalized composition into local can
   assert.match(editor, /normalizedComposition\.xPct \* canvasSize\.w/);
   assert.match(editor, /normalizedComposition\.yPct \* canvasSize\.h/);
   assert.match(editor, /normalizedTransformFromPixels\(localValueRef\.current/);
-  assert.match(editor, /original: localValueRef\.current/);
+  assert.match(editor, /original: (?:\{ \.\.\.)?localValueRef\.current/);
 });
 
 test('cart reload never reconstructs an original thumbnail after canonical validation fails', () => {
