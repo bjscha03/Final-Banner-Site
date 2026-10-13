@@ -334,7 +334,7 @@ test('single and double sided pricing, artwork and cart editing share one design
   const finalPrice = mobile ? finish.locator('footer') : price;
   await expect(finalPrice).toContainText('$99.60');
   if (mobile) await finish.screenshot({ path: info.outputPath('double-sided-finishing.png') });
-  await page.getByRole('button', { name: 'Continue to checkout', exact: true }).filter({ visible: true }).click();
+  await page.getByRole('button', { name: mobile ? 'Checkout' : 'Continue to checkout', exact: true }).filter({ visible: true }).click();
   await expect(page).toHaveURL(/\/checkout/, { timeout: 60000 });
   const readCart = () => page.evaluate(() => JSON.parse(localStorage.getItem('cart-storage') || '{}').state.items);
   const cart = await readCart();
@@ -357,7 +357,7 @@ test('single and double sided pricing, artwork and cart editing share one design
   await single.check();
   await expect(price).toContainText('$81.60');
   if (mobile) await page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Review & finish', exact: true }).click();
-  await page.getByRole('button', { name: mobile ? 'Continue to checkout' : 'Save & checkout', exact: true }).filter({ visible: true }).click();
+  await page.getByRole('button', { name: mobile ? 'Checkout' : 'Save & checkout', exact: true }).filter({ visible: true }).click();
   await expect(page).toHaveURL(/\/checkout/, { timeout: 60000 });
   const edited = await readCart();
   expect(edited).toHaveLength(1);
