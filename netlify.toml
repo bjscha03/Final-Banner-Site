@@ -261,8 +261,8 @@
   to = "/design?ai=1"
   status = 302
 
-# Generated product/city pages are physical files and therefore shadow these
-# non-forced rules. Unknown child paths receive a true HTTP 404.
+# Product hubs are physical files and shadow these non-forced rules.
+# Retired city pages and unknown child paths receive a true HTTP 404.
 [[redirects]]
   from = "/vinyl-banners/*"
   to = "/404.html"
