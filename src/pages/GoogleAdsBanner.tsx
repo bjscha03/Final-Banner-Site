@@ -3062,11 +3062,22 @@ const GoogleAdsBanner: React.FC = () => {
                     ) : bannerFinishingOptions}
                   </div>
                 </ConfigCard>);
-  const artworkFitControls = !isYardSign && ENABLE_AI && uploadedFile ? (
-    <ArtworkFitButton onClick={() => setFitModalOpen(true)}
-      disabled={!hasCommittedBannerSize || isUploading || isProcessingUpsell || !hasPermanentArtwork(uploadedFile)}
-      onRestore={fitUndo?.appliedIdentity === uploadedFile.editorIdentity ? restoreArtworkBeforeFit : undefined} />
+  const artworkFitDisabled = !hasCommittedBannerSize || isUploading || isProcessingUpsell || !hasPermanentArtwork(uploadedFile);
+  const primaryArtworkFitControl = !isYardSign && !isCarMagnet && ENABLE_AI && uploadedFile ? (
+    <button type="button" onClick={() => setFitModalOpen(true)} disabled={artworkFitDisabled}
+      className="flex min-h-14 items-center justify-center gap-1.5 rounded-lg bg-orange-600 px-2 py-2 text-xs font-bold leading-snug text-white hover:bg-orange-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600 disabled:cursor-not-allowed disabled:opacity-50">
+      <Sparkles aria-hidden="true" className="h-4 w-4 shrink-0" />
+      <span>Fit my banner with AI</span>
+    </button>
   ) : null;
+  const artworkFitControls = !isYardSign && ENABLE_AI && uploadedFile ? (isCarMagnet ? (
+    <ArtworkFitButton onClick={() => setFitModalOpen(true)}
+      disabled={artworkFitDisabled}
+      onRestore={fitUndo?.appliedIdentity === uploadedFile.editorIdentity ? restoreArtworkBeforeFit : undefined} />
+  ) : fitUndo?.appliedIdentity === uploadedFile.editorIdentity ? (
+    <button type="button" onClick={restoreArtworkBeforeFit} disabled={artworkFitDisabled}
+      className="mt-2 min-h-11 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-800 disabled:opacity-50">Restore original</button>
+  ) : null) : null;
 
   const uploadCard = (<ConfigCard className={mobilePaidLayout ? '!border-0 !p-0 !shadow-none !scroll-mt-20' : undefined} step={mobilePaidLayout ? undefined : isCarMagnet ? 4 : 2} title="Upload your artwork" id="upload-section">
                   {/* Helper banner: shown when the user reaches the upload card before
@@ -3171,6 +3182,7 @@ const GoogleAdsBanner: React.FC = () => {
                             paddingPct={previewPaddingPct}
                             containerRef={previewContainerRef}
                             mobileToolbarContainer={inlineMobileToolbarEl}
+                            primaryFitControl={primaryArtworkFitControl}
                             fitControls={artworkFitControls}
                             value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                             onChange={(v) => {
@@ -3675,6 +3687,7 @@ const GoogleAdsBanner: React.FC = () => {
                     paddingPct={previewPaddingPct}
                     containerRef={previewContainerRef}
                     mobileToolbarContainer={modalMobileToolbarEl}
+                    primaryFitControl={primaryArtworkFitControl}
                     fitControls={artworkFitControls}
                     value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                     onChange={(v) => {

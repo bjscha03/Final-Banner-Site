@@ -118,6 +118,18 @@ test('banner finishing preserves the artwork, price and cart through add-another
   };
   await upload();
   await expect(page.locator('#upload-section .grommet-overlay')).toHaveCount(0);
+  const artworkToolbar = page.locator('#upload-section [data-artwork-toolbar=true]');
+  const fitWithAI = artworkToolbar.getByRole('button', { name: 'Fit my banner with AI', exact: true });
+  await expect(fitWithAI).toBeEnabled();
+  await expect(artworkToolbar.getByRole('button', { name: /Fill banner/ })).toHaveCount(0);
+  await expect(page.getByText('Need a better fit for this size?', { exact: true })).toHaveCount(0);
+  const showEntireBox = (await artworkToolbar.getByRole('button', { name: /Show entire design/ }).boundingBox())!;
+  const aiFitBox = (await fitWithAI.boundingBox())!;
+  expect(aiFitBox.y).toBe(showEntireBox.y);
+  await fitWithAI.click();
+  await expect(page.getByRole('dialog', { name: /Fit your design to/ })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: /Fit your design to/ })).toHaveCount(0);
   // A size upgrade must preserve uploaded artwork and remain selected across units.
   await expect(size).toBeVisible();
   await size.getByRole('button', { name: mobile ? "8' × 4' — $111.20" : "8' × 4' — Bigger presence", exact: true }).click();
