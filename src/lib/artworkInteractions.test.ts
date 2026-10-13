@@ -8,6 +8,13 @@ const natural = { w: 1200, h: 600 };
 const value = { x: 10, y: -10, scaleX: 0.8, scaleY: 0.8 };
 const frame = (v = value) => artworkCropBox(artworkImageBox(v, canvas, natural), v['crop']);
 describe('artwork interactions', () => {
+  it('lets an already centered image resize immediately instead of snapping back to its starting size', () => {
+    const centered = { x: 0, y: 0, scaleX: 1, scaleY: 1 };
+    const smaller = resizeArtwork(centered, canvas, natural, 'br', -10, -5, 6);
+    expect(smaller.scaleX).toBeLessThan(1);
+    const cropped = resizeArtwork(centered, canvas, natural, 'r', -8, 0, 6);
+    expect(cropped.crop?.width).toBeLessThan(1);
+  });
   it.each(['tl', 'tr', 'bl', 'br'] as ArtworkHandle[])('%s scales proportionally from the opposite corner', handle => {
     const before = frame();
     const next = resizeArtwork(value, canvas, natural, handle, handle.includes('r') ? 40 : -40, handle.includes('b') ? 20 : -20);

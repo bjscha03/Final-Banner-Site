@@ -740,7 +740,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
                 </button>
               ))}
             </div>
-            <div data-artwork-toolbar="true" role="toolbar" aria-label="Selected artwork" className="absolute z-40 flex w-[244px] max-w-full items-center justify-center rounded-xl border border-slate-200 bg-white p-1 shadow-md" style={{ top: Math.max(-54, Math.min(selectionFrame.top - 56, canvasSize.h - 54)), left: clamp(selectionFrame.left + selectionFrame.width/2 - 122, 0, Math.max(0, canvasSize.w - 244)) }} onPointerDown={e => e.stopPropagation()}>
+            <div data-artwork-toolbar="true" role="toolbar" aria-label="Selected artwork" className="absolute z-40 flex w-[244px] max-w-full items-center justify-center rounded-xl border border-slate-200 bg-white p-1 shadow-md" style={{ top: Math.max(-80, Math.min(selectionFrame.top - 80, canvasSize.h - 80)), left: clamp(selectionFrame.left + selectionFrame.width/2 - 122, 0, Math.max(0, canvasSize.w - 244)) }} onPointerDown={e => e.stopPropagation()}>
               <button type="button" aria-label="Undo artwork change" title="Undo" disabled={!history.past.length} onClick={() => travelHistory()} className={contextButton}><Undo2 size={18} /></button>
               <button type="button" aria-label="Redo artwork change" title="Redo" disabled={!history.future.length} onClick={() => travelHistory(true)} className={contextButton}><Redo2 size={18} /></button>
               <span className="mx-1 h-5 border-l border-slate-200" />

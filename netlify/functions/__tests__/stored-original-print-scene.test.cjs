@@ -29,6 +29,14 @@ test('preserves saved crop, scale and position in physical units', () => {
   assert.equal(result.objects[0].yIn, -6.6);
 });
 
+test('retains the source-relative crop without changing original dimensions or URL', () => {
+  const crop = { x: 0.1, y: 0.2, width: 0.6, height: 0.7 };
+  const result = toStoredOriginalPrintScene({ ...state, canonicalComposition: { transform: { crop } } }, 21, 33);
+  assert.deepEqual(result.objects[0].crop, crop);
+  assert.equal(result.objects[0].source.originalWidth, 6300);
+  assert.equal(result.objects[0].source.originalUrl, state.originalImageUrl);
+});
+
 test('does not invent placement for incomplete or unrelated design formats', () => {
   assert.throws(() => toStoredOriginalPrintScene({ ...state, originalWidth: null }, 21, 33), /incomplete/);
   const editor = { ...state, source: 'banner-editor' };

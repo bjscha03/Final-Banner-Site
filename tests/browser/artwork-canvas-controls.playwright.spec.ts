@@ -7,10 +7,19 @@ const close = (a: number, b: number, tolerance = 1) => expect(Math.abs(a-b)).toB
 async function box(el: Locator) { return (await el.boundingBox())!; }
 async function drag(page: Page, target: Locator, dx: number, dy: number) {
   const b = await box(target);
-  await page.mouse.move(b.x+b.width/2,b.y+b.height/2);
-  await page.mouse.down();
-  await page.mouse.move(b.x+b.width/2+dx,b.y+b.height/2+dy,{steps:12});
-  await page.mouse.up();
+  if ((page.viewportSize()?.width || 1440) < 600 && page.context().browser()?.browserType().name() === 'chromium') {
+    const cdp = await page.context().newCDPSession(page);
+    const x = b.x+b.width/2, y = b.y+b.height/2;
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y,id:1}]});
+    for (let i=1;i<=12;i++) await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+dx*i/12,y:y+dy*i/12,id:1}]});
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await cdp.detach();
+  } else {
+    await page.mouse.move(b.x+b.width/2,b.y+b.height/2);
+    await page.mouse.down();
+    await page.mouse.move(b.x+b.width/2+dx,b.y+b.height/2+dy,{steps:12});
+    await page.mouse.up();
+  }
 }
 async function upload(page: Page, scenario: string, artwork: Buffer, name = 'artwork.png') {
   await page.context().addCookies([{name:'compact_browser_scenario',value:scenario,url:'http://127.0.0.1:4175'}]);
@@ -40,6 +49,9 @@ test('all eight handles, crop, snap, undo and deletion work in the actual banner
   await expect(canvas.locator('[data-handle]')).toHaveCount(8);
   await expect(canvas).toHaveCSS('touch-action','none');
   await expect(page.locator('#upload-section .grommet-overlay')).toHaveCount(0);
+  const toolbarBox = await box(page.getByRole('toolbar',{name:'Selected artwork',exact:true}));
+  const topHandle = await box(canvas.locator('[data-handle=t]'));
+  expect(toolbarBox.y+toolbarBox.height).toBeLessThanOrEqual(topHandle.y);
   const c = await box(canvas);
   await drag(page,canvas.locator('[data-handle=br]'),-c.width*0.25,-c.height*0.25);
   for (const handle of ['tl','tr','bl','br']) {

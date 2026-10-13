@@ -3186,7 +3186,7 @@ const GoogleAdsBanner: React.FC = () => {
                         <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
                       </div>
                       {/* Banner preview with depth background */}
-                      <div className="rounded-xl p-4 pt-[76px] md:p-6 md:pt-20 max-w-full overflow-hidden bg-slate-300 border border-slate-400/70 shadow-inner">
+                      <div className="rounded-xl p-4 pt-[104px] md:p-6 md:pt-[108px] max-w-full overflow-hidden bg-slate-300 border border-slate-400/70 shadow-inner">
                         {/* Width wrapper — constrains max-width so padding-bottom produces correct height */}
                         <PreviewRulerFrame
                           widthIn={widthIn}
@@ -3700,7 +3700,7 @@ const GoogleAdsBanner: React.FC = () => {
             <div className="p-4 flex-1 overflow-auto">
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Drag corners to resize</p>
               {/* Banner surface */}
-              <div className="rounded-lg p-3 pt-16 border border-slate-300" style={{ background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)' }}>
+              <div className="rounded-lg p-3 pt-24 border border-slate-300" style={{ background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)' }}>
                 <PreviewRulerFrame
                   widthIn={widthIn}
                   heightIn={heightIn}

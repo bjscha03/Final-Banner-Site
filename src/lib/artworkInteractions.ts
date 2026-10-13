@@ -74,7 +74,7 @@ export function resizeArtwork(value: PixelArtworkTransform, canvas: ArtworkCanva
     const candidates = [
       { distance: Math.abs(ax + sx * frame.width * factor / 2 - canvas.w / 2), factor: (canvas.w / 2 - ax) * 2 / (sx * frame.width) },
       { distance: Math.abs(ay + sy * frame.height * factor / 2 - canvas.h / 2), factor: (canvas.h / 2 - ay) * 2 / (sy * frame.height) },
-    ].filter(c => c.distance <= threshold && c.factor >= min && c.factor <= max).sort((a, b) => a.distance - b.distance);
+    ].filter(c => c.distance <= threshold && Math.abs(c.factor - 1) > 0.0001 && c.factor >= min && c.factor <= max).sort((a, b) => a.distance - b.distance);
     if (candidates.length) factor = candidates[0].factor;
     return transformForBox({ left: ax + (image.left - ax) * factor, top: ay + (image.top - ay) * factor, width: image.width * factor, height: image.height * factor }, canvas, natural, value.crop);
   }
@@ -82,14 +82,14 @@ export function resizeArtwork(value: PixelArtworkTransform, canvas: ArtworkCanva
   if (handle === 'l' || handle === 'r') {
     const opposite = handle === 'l' ? frame.left + frame.width : frame.left;
     let edge = (handle === 'l' ? frame.left : frame.left + frame.width) + dx;
-    if (Math.abs((edge + opposite) / 2 - canvas.w / 2) <= threshold) edge = canvas.w - opposite;
+    if (Math.abs(frame.left + frame.width / 2 - canvas.w / 2) > 0.1 && Math.abs((edge + opposite) / 2 - canvas.w / 2) <= threshold) edge = canvas.w - opposite;
     edge = handle === 'l' ? Math.min(edge, opposite - 12) : Math.max(edge, opposite + 12);
     next.left = Math.min(edge, opposite);
     next.width = Math.abs(edge - opposite);
   } else {
     const opposite = handle === 't' ? frame.top + frame.height : frame.top;
     let edge = (handle === 't' ? frame.top : frame.top + frame.height) + dy;
-    if (Math.abs((edge + opposite) / 2 - canvas.h / 2) <= threshold) edge = canvas.h - opposite;
+    if (Math.abs(frame.top + frame.height / 2 - canvas.h / 2) > 0.1 && Math.abs((edge + opposite) / 2 - canvas.h / 2) <= threshold) edge = canvas.h - opposite;
     edge = handle === 't' ? Math.min(edge, opposite - 12) : Math.max(edge, opposite + 12);
     next.top = Math.min(edge, opposite);
     next.height = Math.abs(edge - opposite);

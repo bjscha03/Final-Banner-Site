@@ -8,7 +8,7 @@ Signed into the owner's existing Canva account and used a separate copy of a 48 
 
 | Interaction | Evidence and behavior |
 | --- | --- |
-| Four corner handles | Canva's current help describes corner scaling. Live bottom-right drag reduced a 1243 × 621.5 CSS-pixel image to approximately 983.8 × 491.9 while its top-left stayed fixed. The opposite corner anchors the resize. Other corner directions were documented by Canva but not individually dragged in the reference session. |
+| Four corner handles | Canva's current help describes corner scaling. Live bottom-right drag reduced a 1243 × 621.5 CSS-pixel image to approximately 983.8 × 491.9 while its top-left stayed fixed. The opposite corner anchors the resize. Subsequent top-left, top-right and bottom-left drags also preserved the selected ratio and their respective opposite corners. |
 | Top / bottom side pills | Each was dragged inward in the live editor. Only the corresponding crop boundary moved; lettering and image scale stayed unchanged. |
 | Left / right side pills | Each was dragged inward. Content disappeared behind the boundary without distortion. Expanding the right edge recovered hidden content. Behavior after expansion beyond the complete source was not measured precisely. |
 | Selection | Thin purple outline, circular white corners, narrow rounded white side pills. Active side turns purple. The DOM exposes separate corner and edge controls, with larger interactive areas than the visible handles. |
@@ -32,9 +32,9 @@ Sources: [Canva resize and crop](https://www.canva.com/help/resize-and-crop/), [
 
 ## Verification
 
-- Initial focused geometry, editor, upload-removal and preview lifecycle suite: 48 passed.
+- Initial focused geometry, editor, upload-removal and preview lifecycle suite: 49 passed.
 - Production build: passed.
 - Full-project TypeScript check is blocked by existing syntax errors in the unrelated legacy `BannerEditor.tsx`; the shipping Vite build succeeds.
-- Browser interaction matrix and desktop/mobile recordings: pending.
-- Actual customer-upload manual check: pending; customer artwork is not committed to this repository.
+- First browser matrix exposed top-handle toolbar overlap and an initial-center snapping dead zone. Both are corrected; rerun and recordings pending.
+- Actual customer-upload manual check: blocked by the existing preview password. The secure password prompt was canceled and automatic approval review rejected subsequent protected-origin access. Customer artwork is not committed to this repository.
 - Final preview URL, tested commit, browser results and demonstrations will be recorded before approval.
