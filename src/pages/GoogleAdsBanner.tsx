@@ -872,6 +872,7 @@ const GoogleAdsBanner: React.FC = () => {
       yPct: designerRecovery.normalized_placement.y_pct,
       scaleX: designerRecovery.normalized_placement.scale_x,
       scaleY: designerRecovery.normalized_placement.scale_y,
+      ...(item.placement_preview?.crop ? { crop: item.placement_preview.crop } : {}),
     };
     const recoveredRevision = Number(item.composition_revision || item.placement_preview?.compositionRevision || 0);
     setImgPos({ x: 0, y: 0 });
@@ -1687,6 +1688,35 @@ const GoogleAdsBanner: React.FC = () => {
     setAiDesignSession(null);
   }, []);
 
+  const [undoDeletedArtwork, setUndoDeletedArtwork] = useState<(() => void) | null>(null);
+  useEffect(() => { if (uploadedFile) setUndoDeletedArtwork(null); }, [uploadedFile]);
+  const deleteArtworkWithUndo = useCallback(() => {
+    const artwork = uploadedFileRef.current;
+    if (!artwork) return;
+    let snapshot: ReturnType<ArtworkPreviewEditorHandle['getCompositionSnapshot']> | undefined;
+    try { snapshot = (showPreview ? modalEditorRef.current : inlineEditorRef.current)?.getCompositionSnapshot(); } catch { /* upload can still be in progress */ }
+    const originalFile = activeUploadFileRef.current;
+    const savedAiSession = aiDesignSession;
+    const savedAiPrompt = aiPrompt;
+    const savedAiEditPrompt = aiEditPrompt;
+    removeArtwork();
+    setShowPreview(false);
+    setUndoDeletedArtwork(() => () => {
+      const permanent = getPermanentArtworkPreviewUrl(artwork);
+      if (/^https?:\/\//i.test(permanent)) {
+        const restored = { ...artwork, previewUrl: permanent, thumbnailUrl: permanent };
+        uploadedFileRef.current = restored;
+        setUploadedFile(restored);
+        setRestoredNormalizedTransform(snapshot?.transform || null);
+        setRestoredCompositionRevision((snapshot?.revision || 0) + 1);
+      } else if (originalFile) { void handleFileUpload(originalFile); }
+      setAiDesignSession(savedAiSession);
+      setAiPrompt(savedAiPrompt);
+      setAiEditPrompt(savedAiEditPrompt);
+      setUndoDeletedArtwork(null);
+    });
+  }, [showPreview, aiDesignSession, aiPrompt, aiEditPrompt, removeArtwork, handleFileUpload]);
+
   const resetPreview = useCallback(() => {
     removeArtwork();
     setPolePocketSize('2');
@@ -2020,6 +2050,7 @@ const GoogleAdsBanner: React.FC = () => {
         bgColor: '#fafafa',
         productType: 'car_magnet',
         roundedCorners: carMagnetRoundedCorners,
+        crop: preparedPlacement.spec.transform.crop,
         canonicalComposition: preparedPlacement.spec,
         placementPreview: preparedPlacement.artifact,
         ...(aiPrompt ? { aiPrompt } : {}),
@@ -2149,6 +2180,7 @@ const GoogleAdsBanner: React.FC = () => {
       bgColor: '#fafafa',
       productType: 'banner',
       ...(isDoubleSidedBanner ? { productName: 'Double-Sided Banner', material: '18oz', printSides: 2, sameArtworkBothSides: true } : {}),
+      crop: preparedPlacement.spec.transform.crop,
       canonicalComposition: preparedPlacement.spec,
       placementPreview: preparedPlacement.artifact,
       ...(aiPrompt ? { aiPrompt } : {}),
@@ -3154,7 +3186,7 @@ const GoogleAdsBanner: React.FC = () => {
                         <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
                       </div>
                       {/* Banner preview with depth background */}
-                      <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden bg-slate-300 border border-slate-400/70 shadow-inner">
+                      <div className="rounded-xl p-4 pt-[76px] md:p-6 md:pt-20 max-w-full overflow-hidden bg-slate-300 border border-slate-400/70 shadow-inner">
                         {/* Width wrapper — constrains max-width so padding-bottom produces correct height */}
                         <PreviewRulerFrame
                           widthIn={widthIn}
@@ -3167,6 +3199,7 @@ const GoogleAdsBanner: React.FC = () => {
                           {/* PR3: Modern Canva-style artwork editor (drag,
                               resize handles, fit/fill/reset/constrain). */}
                           <ArtworkPreviewEditor
+                    onDelete={deleteArtworkWithUndo}
                     key={uploadedFile.editorIdentity || uploadedFile.fileKey}
                             ref={inlineEditorRef}
                             compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
@@ -3226,7 +3259,7 @@ const GoogleAdsBanner: React.FC = () => {
                           Replace
                           <input type="file" aria-label="Replace uploaded artwork" className="sr-only" disabled={isUploading || isProcessingUpsell} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleFileUpload(file); event.target.value = ''; }} />
                         </label>
-                        <button type="button" aria-label="Remove uploaded artwork" onClick={removeArtwork} className="ml-2 flex-shrink-0 p-2.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
+                        <button type="button" aria-label="Remove uploaded artwork" onClick={deleteArtworkWithUndo} className="ml-2 flex-shrink-0 p-2.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
                       </div>
                       {aiPrompt && !isYardSign && !isCarMagnet && showCreateWithAI && (
                         <div className="mt-2 flex justify-center">
@@ -3644,6 +3677,10 @@ const GoogleAdsBanner: React.FC = () => {
           }
         />
 
+      {!uploadedFile && undoDeletedArtwork && <div role="status" className="fixed bottom-24 left-1/2 z-[11030] flex -translate-x-1/2 items-center gap-3 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm shadow-lg">
+        Artwork deleted<button type="button" onClick={undoDeletedArtwork} className="min-h-11 px-3 font-semibold text-violet-700">Undo delete</button>
+      </div>}
+
       <AIArtworkFitDialog open={fitModalOpen && !isYardSign} productType={isCarMagnet ? 'car_magnet' : 'banner'} onOpenChange={setFitModalOpen}
         artwork={uploadedFile} widthIn={widthIn} heightIn={heightIn} onApply={applyFittedArtwork} />
 
@@ -3663,7 +3700,7 @@ const GoogleAdsBanner: React.FC = () => {
             <div className="p-4 flex-1 overflow-auto">
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Drag corners to resize</p>
               {/* Banner surface */}
-              <div className="rounded-lg p-3 border border-slate-300" style={{ background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)' }}>
+              <div className="rounded-lg p-3 pt-16 border border-slate-300" style={{ background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)' }}>
                 <PreviewRulerFrame
                   widthIn={widthIn}
                   heightIn={heightIn}
@@ -3672,6 +3709,7 @@ const GoogleAdsBanner: React.FC = () => {
                   style={previewWrapperStyle}
                 >
                   <ArtworkPreviewEditor
+                    onDelete={deleteArtworkWithUndo}
                     key={uploadedFile.editorIdentity || uploadedFile.fileKey}
                     ref={modalEditorRef}
                     compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}

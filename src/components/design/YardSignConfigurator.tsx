@@ -798,10 +798,11 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1">
                 <Move className="w-4 h-4" /> Drag to reposition · Drag corners to resize · Pinch to scale
               </p>
-              <div className="rounded-lg p-4" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
+              <div className="rounded-lg p-4 pt-16" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
                 {/* Width wrapper — constrains max-width so padding-bottom produces correct height (cross-browser safe, fixes Safari aspect-ratio bug) */}
                 <div className="mx-auto" style={{ width: '100%', maxWidth: `${Math.round(400 * (24 / 18))}px` }}>
                   <ArtworkPreviewEditor
+                    enableCropping={false}
                     key={`${previewDesign.id}|${previewDesign.fileKey}`}
                     ref={previewEditorRef}
                     initialNormalizedTransform={restoredFitTransform}
