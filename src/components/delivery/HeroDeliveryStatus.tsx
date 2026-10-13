@@ -32,13 +32,15 @@ const LiveHeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className, 
       weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC',
     }).format(new Date(Date.UTC(parts.year, parts.month - 1, parts.day)));
     return (
-      <div data-hero-delivery-status data-state={estimate.state} data-variant="arrival" className={`rounded-xl border border-[#e5dfd6] bg-[#f8f6f1] px-3 py-2 text-[#061A31] ${className || ''}`} aria-label="Estimated delivery and shipping dates">
-        <div className="flex items-start gap-2.5">
+      <div data-hero-delivery-status data-state={estimate.state} data-variant="arrival" className={`rounded-xl border border-[#e5dfd6] bg-[#f8f6f1] px-3 ${condensed ? 'py-1.5' : 'py-2'} text-[#061A31] ${className || ''}`} aria-label="Estimated delivery and shipping dates">
+        <div className={`flex ${condensed ? 'items-center' : 'items-start'} gap-2.5`}>
           <Truck className={condensed ? 'mt-1 h-5 w-5 shrink-0' : 'mt-1 h-6 w-6 shrink-0'} aria-hidden="true" />
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-600">Estimated delivery</p>
-            <p className={`${condensed ? 'text-base' : 'mt-0.5 text-[clamp(1.125rem,5vw,1.25rem)]'} font-extrabold leading-tight`}>{condensed ? formatHeroDate(estimate.deliveryDate) : dateLabel(estimate.deliveryDate)}</p>
-            {condensed ? <p className="mt-0.5 text-[10px] text-slate-600">Ships {formatHeroDate(estimate.shipDate)} · Free next-day air</p> : <>
+            <div className={condensed ? 'flex flex-wrap items-baseline gap-x-2' : undefined}>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-600">Estimated delivery</p>
+              <p className={`${condensed ? 'whitespace-nowrap text-base' : 'mt-0.5 text-[clamp(1.125rem,5vw,1.25rem)]'} font-extrabold leading-tight`}>{condensed ? formatHeroDate(estimate.deliveryDate) : dateLabel(estimate.deliveryDate)}</p>
+            </div>
+            {condensed ? <p className="mt-0.5 text-[10px] text-slate-600">Ships {formatHeroDate(estimate.shipDate)} · Free next-business-day air</p> : <>
               <p className="mt-0.5 text-[11px]">Expected to ship {dateLabel(estimate.shipDate)}</p>
               <p className="mt-0.5 text-[10px] text-slate-600">Free next-business-day air after production.</p>
             </>}
