@@ -24,9 +24,6 @@ const HeroSection: React.FC = () => {
             <Link to={campaign.primaryCta.href} className="homepage-hero-primary">
               {campaign.primaryCta.label}<ArrowRight aria-hidden="true" />
             </Link>
-            <Link to={campaign.secondaryCta.href} className="homepage-hero-secondary">
-              {campaign.secondaryCta.label}
-            </Link>
           </div>
         </div>
         {artwork && (

@@ -40,14 +40,24 @@ for (const route of ROUTES) {
     if (isMobile) {
       await expect(mobileFooter).toBeVisible();
       await expect(mobileFooter).toContainText("6' × 3'");
-      await expect(mobileFooter.getByRole('button', { name: 'Add artwork', exact: true })).toBeVisible();
+      await expect(mobileFooter.getByRole('button', { name: 'Upload artwork', exact: true })).toBeVisible();
       await expect(page.locator('[data-mobile-guided-action]')).toHaveCount(0);
-      await mobileFooter.getByRole('button', { name: 'Add artwork', exact: true }).click();
-      await expect(page.getByRole('heading', { name: 'Make it yours.' })).toBeVisible();
+      await expect(page.locator('#size-section')).toBeVisible();
+      await expect(page.locator('#upload-section')).toBeVisible();
+      await expect(page.locator('#material-section')).toBeVisible();
+      await expect(page.getByLabel('Quantity', { exact: true })).toBeVisible();
+      await expect(mobileFooter.getByTestId('free-next-day-air-badge')).toContainText('Free Next Day Air Shipping');
       await expect(page.getByRole('radio', { name: /Double-sided/ })).toBeVisible();
       await expect(page.getByTestId('fading-google-reviews')).toBeVisible();
       await expect(mobileFooter.getByRole('button', { name: /^Upload artwork$/i })).toBeVisible();
     } else {
+      const reviews = page.getByTestId('google-reviews');
+      await expect(reviews).toBeVisible();
+      expect((await reviews.boundingBox())!.height).toBeLessThanOrEqual(44);
+      await expect(reviews.locator('.google-review-marquee-track')).toHaveCSS('animation-name', 'google-review-marquee');
+      await reviews.getByRole('button', { name: 'Pause Google reviews', exact: true }).click();
+      await expect(reviews.locator('.google-review-marquee-track')).toHaveCSS('animation-play-state', 'paused');
+      await expect(reviews.getByRole('button', { name: 'Play Google reviews', exact: true })).toHaveAttribute('aria-pressed', 'true');
       await expect(mobileTimer).toBeHidden();
       await expect(mobileFooter).toBeHidden();
     }

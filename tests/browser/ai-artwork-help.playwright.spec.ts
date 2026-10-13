@@ -128,7 +128,6 @@ test('AI artwork help stays optional, updates prompts, copies, and preserves the
 test('Google Ads banner page removes the artwork-help dialog', async ({ page }, testInfo) => {
   await installDesignerHarness(page, `ai-help-landing-${testInfo.project.name}`);
   await page.goto('/google-ads-banner?product=banner', { waitUntil: 'domcontentloaded' });
-  if ((page.viewportSize()?.width ?? 1024) < 1024) await page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Add artwork', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Open AI artwork help' })).toHaveCount(0);
   await expect(page.locator('#upload-section')).toBeVisible();
 });

@@ -48,12 +48,19 @@ test('banner finishing preserves the artwork, price and cart through add-another
   const footer = page.getByTestId('mobile-subtotal-bar');
   const size = page.locator('#size-section');
   if (mobile) {
-    await expect(footer.getByRole('button', { name: 'Add artwork', exact: true })).toBeVisible();
+    await expect(footer.getByRole('button', { name: 'Upload artwork', exact: true })).toBeVisible();
     await expect(footer).toContainText("6' × 3'");
     await expect(footer).toContainText('$72.00');
     await expect(footer.locator('del')).toHaveText('$90.00');
     await expect(footer).toContainText('20% off applied');
-    expect((await footer.boundingBox())!.height).toBeLessThan(100);
+    expect((await footer.boundingBox())!.height).toBeLessThan(125);
+    await expect(footer.getByTestId('free-next-day-air-badge')).toContainText('Free Next Day Air Shipping');
+    await expect(page.getByRole('radio', { name: /Double-sided/ })).toBeVisible();
+    await expect(page.locator('#material-section')).toBeVisible();
+    await expect(page.getByLabel('Quantity', { exact: true })).toBeVisible();
+    await expect(page.locator('#upload-section').getByRole('button', { name: /I have artwork/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /I need a design/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Back to banner', exact: true })).toHaveCount(0);
     await expect(page.locator('#options-section')).toHaveCount(0);
     await expect(page.getByTestId('mobile-banner-hero')).toContainText('Estimated delivery');
     await expect(page.getByTestId('google-reviews')).toHaveCount(0);
@@ -70,6 +77,7 @@ test('banner finishing preserves the artwork, price and cart through add-another
     await expect(footer.locator('[data-banner-current-price]')).toHaveText('$48.00');
     await expect(footer.locator('del')).toHaveText('$60.00');
     await size.screenshot({ path: testInfo.outputPath('mobile-size-prices.png') });
+    await page.locator('[data-compact-banner-builder]').screenshot({ path: testInfo.outputPath('single-page-mobile-builder.png') });
     await size.getByRole('button', { name: "6' × 3' — $72.00", exact: true }).click();
     await expect(footer.locator('[data-banner-current-price]')).toHaveText('$72.00');
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
@@ -84,7 +92,6 @@ test('banner finishing preserves the artwork, price and cart through add-another
     const chooserPromise = page.waitForEvent('filechooser');
     if (mobile) {
       await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-      if (await footer.getByRole('button', { name: 'Add artwork', exact: true }).isVisible()) await footer.getByRole('button', { name: 'Add artwork', exact: true }).click();
       await expect(page.getByTestId('fading-google-reviews').locator('figure')).toHaveCount(7);
       await expect(page.getByTestId('fading-google-reviews').locator('figure[aria-hidden=false]')).toHaveCount(1);
       await footer.getByRole('button', { name: 'Upload artwork', exact: true }).click();
@@ -106,7 +113,7 @@ test('banner finishing preserves the artwork, price and cart through add-another
   };
   await upload();
   // A size upgrade must preserve uploaded artwork and remain selected across units.
-  if (mobile) await page.getByRole('button', { name: 'Back to banner', exact: true }).click();
+  await expect(size).toBeVisible();
   await size.getByRole('button', { name: mobile ? "8' × 4' — $111.20" : "8' × 4' — Bigger presence", exact: true }).click();
   await expect(size.getByRole('button', { name: mobile ? "8' × 4' — $111.20" : "8' × 4' — Bigger presence", exact: true })).toHaveAttribute('aria-pressed', 'true');
   if (mobile) {
@@ -119,13 +126,17 @@ test('banner finishing preserves the artwork, price and cart through add-another
   await size.getByRole('button', { name: 'Feet', exact: true }).click();
   await size.getByRole('button', { name: mobile ? "6' × 3' — $72.00" : "6' × 3' — Everyday displays", exact: true }).click();
   if (mobile) await expect(footer.locator('[data-banner-current-price]')).toHaveText('$72.00');
-  if (mobile) await footer.getByRole('button', { name: 'Add artwork', exact: true }).click();
   await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible();
   const finish = page.getByTestId('mobile-finishing-step');
   const openFinishing = async () => {
     if (mobile) {
       await footer.getByRole('button', { name: 'Review & finish', exact: true }).click();
       await expect(finish).toBeVisible();
+      await expect(finish.locator('footer').getByTestId('free-next-day-air-badge')).toContainText('Free Next Day Air Shipping');
+      await finish.getByRole('button', { name: 'Back to design', exact: true }).click();
+      await expect(size).toBeVisible();
+      await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible();
+      await footer.getByRole('button', { name: 'Review & finish', exact: true }).click();
       await finish.getByTestId('review-finishing-options').locator(':scope > summary').click();
       await expect(finish.getByRole('heading', { name: 'Realistic preview', exact: true })).toBeVisible();
       await expect(finish.getByAltText('Your artwork with the selected finishing')).toBeVisible();
@@ -248,13 +259,12 @@ test('every banner designer route uses the shared mobile ordering controls', asy
   await installUploadAndFunctionHarness(page, 'banner-route-coverage');
   for (const route of ['/design', '/design?product=banner', '/halloween-banner', '/large-banners-fast', '/double-sided-banners', '/fall-festival-banners']) {
     await page.goto(route, { waitUntil: 'domcontentloaded' });
-    if (!['/large-banners-fast', '/fall-festival-banners'].includes(route)) {
-      await page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Add artwork', exact: true }).click();
-    }
     const uploadButton = page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Upload artwork', exact: true });
     await expect(uploadButton).toBeVisible();
     await expect(uploadButton).toHaveCSS('color', 'rgb(255, 255, 255)');
-    await expect(page.locator('#upload-section')).toHaveCount(1);
+    await expect(page.locator('#upload-section')).toBeVisible();
+    await expect(page.locator('#size-section')).toBeVisible();
+    await expect(page.getByRole('radio', { name: /Double-sided/ })).toBeVisible();
     await expect(page.locator('#options-section')).toHaveCount(0);
   }
 });
@@ -273,7 +283,6 @@ test('single and double sided pricing, artwork and cart editing share one design
   const single = page.getByRole('radio', { name: /Single-sided/ });
   const double = page.getByRole('radio', { name: /Double-sided/ });
   const price = mobile ? page.getByTestId('mobile-subtotal-bar') : page.getByTestId('price-breakdown').filter({ visible: true }).first();
-  if (mobile) await price.getByRole('button', { name: 'Add artwork', exact: true }).click();
   await expect(single).toBeChecked();
   await expect(price).toContainText('$32.00');
   await page.locator('#material-section').getByRole('button').click();
@@ -285,10 +294,9 @@ test('single and double sided pricing, artwork and cart editing share one design
   await expect(page.locator('#material-section')).toContainText(/15.*oz/i);
   await page.locator('#material-section').getByRole('button').click();
   await page.getByRole('option', { name: /13.*oz/i }).click();
-  if (mobile) await page.getByRole('button', { name: 'Back to banner', exact: true }).click();
+  await expect(size).toBeVisible();
   await size.getByRole('button', { name: mobile ? "6' × 3' — $72.00" : "6' × 3' — Everyday displays", exact: true }).click();
   await expect(price).toContainText('$72.00');
-  if (mobile) await price.getByRole('button', { name: 'Add artwork', exact: true }).click();
   const chooser = page.waitForEvent('filechooser');
   await (mobile ? page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Upload artwork', exact: true })
     : page.locator('#upload-section').getByRole('button', { name: /Upload your artwork/ })).click();
@@ -297,6 +305,19 @@ test('single and double sided pricing, artwork and cart editing share one design
   await expect(preview).toBeVisible();
   await expect.poll(() => preview.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
   const originalSrc = await preview.getAttribute('src');
+  // Dimensions stay editable next to the artwork, including after upload.
+  await expect(size).toBeVisible();
+  await size.getByRole('button', { name: 'Custom size', exact: true }).click();
+  await size.getByRole('button', { name: 'Inches', exact: true }).click();
+  await page.getByLabel('Banner width in inches').fill('80');
+  await page.getByLabel('Banner width in inches').blur();
+  await expect(preview).toBeVisible();
+  await expect(preview).toHaveAttribute('src', originalSrc!);
+  await expect(price).toContainText('$80.00');
+  await size.getByRole('button', { name: 'Feet', exact: true }).click();
+  await size.getByRole('button', { name: /6' × 3' —/ }).click();
+  await expect(preview).toHaveAttribute('src', originalSrc!);
+  await expect(price).toContainText('$72.00');
   const placementStyle = () => preview.evaluate(el => (el.parentElement as HTMLElement).style.cssText);
   await expect.poll(placementStyle).toContain('width:');
   const originalStyle = await placementStyle();
