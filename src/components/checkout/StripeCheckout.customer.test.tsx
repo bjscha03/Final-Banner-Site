@@ -30,6 +30,8 @@ vi.mock('@paypal/react-paypal-js', () => ({
 vi.mock('./checkoutEnvironment', () => ({ shouldUseDeployPreviewTestCheckout: () => true }));
 vi.mock('@/components/ui/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock('@/lib/auth', () => ({ useAuth: () => ({ user: null }) }));
+// Responsive wallet sizing is exercised with real media queries in browser QA.
+vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }));
 vi.mock('@/store/cart', () => ({ useCartStore: () => mocks.cart }));
 vi.mock('@/hooks/useAbandonedCartCapture', () => ({ useAbandonedCartCapture: (input: any) => {
   mocks.capture(input);
