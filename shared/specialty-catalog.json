@@ -16,7 +16,7 @@
     "variants": [
       {
         "label": "23 × 66 in",
-        "priceCents": 0,
+        "priceCents": 15900,
         "widthIn": 23,
         "heightIn": 66,
         "id": "standard-retractable-banner-1",
@@ -38,11 +38,47 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "hardware": {
+            "p": -7000
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 0
+          },
+          "led": {
+            "1": 6500,
+            "2": 12000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 3500
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        }
       },
       {
         "label": "24 × 81 in",
-        "priceCents": 0,
+        "priceCents": 16900,
         "widthIn": 24,
         "heightIn": 81,
         "id": "standard-retractable-banner-2",
@@ -64,7 +100,43 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "hardware": {
+            "p": -7000
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 0
+          },
+          "led": {
+            "1": 6500,
+            "2": 12000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 3500
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        }
       },
       {
         "label": "33 × 81 in",
@@ -90,18 +162,41 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {},
+        "optionPrices": {
+          "hardware": {
+            "p": -7000
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 0
+          },
+          "led": {
+            "1": 6500,
+            "2": 12000
+          }
+        },
         "priceMatch": {
           "sourceUrl": "https://www.lexingtonsign.com/banner-stands.html",
           "checkedAt": "2026-10-12",
           "shippingPolicy": "free_overnight_after_production",
           "status": "owner_retail_mapping",
           "note": "Owner-directed Lexington retail pricing for the corresponding standard single-sided retractable kit. Lexington advertises 33.5 × 80 in; supplied product and artwork remain B2Sign 33 × 81 in."
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
         }
       },
       {
         "label": "47 × 81 in",
-        "priceCents": 0,
+        "priceCents": 24900,
         "widthIn": 47,
         "heightIn": 81,
         "id": "standard-retractable-banner-4",
@@ -123,7 +218,43 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "hardware": {
+            "p": -9000
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 0
+          },
+          "led": {
+            "1": 6500,
+            "2": 12000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 3500
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        }
       },
       {
         "id": "standard-retractable-black",
@@ -148,8 +279,44 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {},
-        "priceCents": 0
+        "optionPrices": {
+          "hardware": {
+            "p": -9000
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 0
+          },
+          "led": {
+            "1": 6500,
+            "2": 12000
+          }
+        },
+        "priceCents": 20900,
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 3500
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        }
       }
     ],
     "image": "/images/products/standard-retractable-banner.webp",
@@ -176,7 +343,7 @@
     "variants": [
       {
         "label": "33 × 81 in · single sided",
-        "priceCents": 0,
+        "priceCents": 24900,
         "widthIn": 33,
         "heightIn": 81,
         "id": "deluxe-retractable-banner-1",
@@ -198,11 +365,47 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "hardware": {
+            "p": -13000
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 0
+          },
+          "led": {
+            "1": 6500,
+            "2": 12000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 4500
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        }
       },
       {
         "label": "33 × 81 in · double sided",
-        "priceCents": 0,
+        "priceCents": 39900,
         "widthIn": 33,
         "heightIn": 81,
         "id": "deluxe-retractable-banner-2",
@@ -229,7 +432,43 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "hardware": {
+            "p": -18000
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 0
+          },
+          "led": {
+            "1": 6500,
+            "2": 12000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 4500
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        }
       }
     ],
     "image": "/images/products/deluxe-retractable-banner.webp",
@@ -256,7 +495,7 @@
     "variants": [
       {
         "label": "36 × 92 in",
-        "priceCents": 0,
+        "priceCents": 32900,
         "widthIn": 36,
         "heightIn": 92,
         "id": "premium-retractable-banner-1",
@@ -278,11 +517,47 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "hardware": {
+            "p": -15000
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 0
+          },
+          "led": {
+            "1": 6500,
+            "2": 12000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 6000
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        }
       },
       {
         "label": "48 × 92 in",
-        "priceCents": 0,
+        "priceCents": 39900,
         "widthIn": 48,
         "heightIn": 92,
         "id": "premium-retractable-banner-2",
@@ -304,11 +579,47 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "hardware": {
+            "p": -16000
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 0
+          },
+          "led": {
+            "1": 6500,
+            "2": 12000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 6000
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        }
       },
       {
         "label": "60 × 92 in",
-        "priceCents": 0,
+        "priceCents": 49900,
         "widthIn": 60,
         "heightIn": 92,
         "id": "premium-retractable-banner-3",
@@ -330,7 +641,43 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "hardware": {
+            "p": -20000
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 0
+          },
+          "led": {
+            "1": 6500,
+            "2": 12000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 6000
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        }
       },
       {
         "id": "premium-retractable-36x69",
@@ -355,8 +702,44 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {},
-        "priceCents": 0
+        "optionPrices": {
+          "hardware": {
+            "p": -14000
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 0
+          },
+          "led": {
+            "1": 6500,
+            "2": 12000
+          }
+        },
+        "priceCents": 28900,
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 6000
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        }
       },
       {
         "id": "premium-retractable-36x80",
@@ -381,8 +764,44 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {},
-        "priceCents": 0
+        "optionPrices": {
+          "hardware": {
+            "p": -15000
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 0
+          },
+          "led": {
+            "1": 6500,
+            "2": 12000
+          }
+        },
+        "priceCents": 30900,
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 6000
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        }
       },
       {
         "id": "premium-retractable-48x69",
@@ -407,8 +826,44 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {},
-        "priceCents": 0
+        "optionPrices": {
+          "hardware": {
+            "p": -15000
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 0
+          },
+          "led": {
+            "1": 6500,
+            "2": 12000
+          }
+        },
+        "priceCents": 34900,
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 6000
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        }
       },
       {
         "id": "premium-retractable-48x80",
@@ -433,8 +888,44 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {},
-        "priceCents": 0
+        "optionPrices": {
+          "hardware": {
+            "p": -16000
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 0
+          },
+          "led": {
+            "1": 6500,
+            "2": 12000
+          }
+        },
+        "priceCents": 37900,
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 6000
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        }
       },
       {
         "id": "premium-retractable-60x69",
@@ -459,8 +950,44 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {},
-        "priceCents": 0
+        "optionPrices": {
+          "hardware": {
+            "p": -20000
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 0
+          },
+          "led": {
+            "1": 6500,
+            "2": 12000
+          }
+        },
+        "priceCents": 44900,
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 6000
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        }
       },
       {
         "id": "premium-retractable-60x80",
@@ -485,8 +1012,44 @@
           "material": "9oz_premium_fabric",
           "led": "0"
         },
-        "optionPrices": {},
-        "priceCents": 0
+        "optionPrices": {
+          "hardware": {
+            "p": -21000
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 0
+          },
+          "led": {
+            "1": 6500,
+            "2": 12000
+          }
+        },
+        "priceCents": 47900,
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 6000
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        }
       }
     ],
     "image": "/images/products/premium-retractable-banner.webp",
@@ -513,7 +1076,7 @@
     "variants": [
       {
         "label": "24 × 63 in",
-        "priceCents": 0,
+        "priceCents": 9900,
         "widthIn": 24,
         "heightIn": 63,
         "id": "x-banner-stand-1",
@@ -534,11 +1097,39 @@
           "size": "24x63",
           "material": "13oz_matte_vinyl_banner"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "hardware": {
+            "p": -3000
+          },
+          "material": {
+            "double_white_popup": 2000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 2500
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "double_white_popup"
+          ]
+        }
       },
       {
         "label": "32 × 71 in",
-        "priceCents": 0,
+        "priceCents": 12900,
         "widthIn": 32,
         "heightIn": 71,
         "id": "x-banner-stand-2",
@@ -559,7 +1150,35 @@
           "size": "32x71",
           "material": "13oz_matte_vinyl_banner"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "hardware": {
+            "p": -4000
+          },
+          "material": {
+            "double_white_popup": 3000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 2500
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "double_white_popup"
+          ]
+        }
       }
     ],
     "image": "/images/products/x-banner-stand.webp",
@@ -586,7 +1205,7 @@
     "variants": [
       {
         "label": "11.5 × 17.5 in",
-        "priceCents": 0,
+        "priceCents": 6900,
         "widthIn": 11.5,
         "heightIn": 17.5,
         "id": "tabletop-banner-stand-1",
@@ -607,7 +1226,20 @@
           "material": "double_white_popup",
           "lamination": "UV"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 1500
+        }
       }
     ],
     "image": "/images/products/tabletop-banner-stand.webp",
@@ -633,7 +1265,7 @@
     "variants": [
       {
         "label": "36 × 90 in",
-        "priceCents": 0,
+        "priceCents": 34900,
         "widthIn": 36,
         "heightIn": 90,
         "id": "tension-fabric-stand-1",
@@ -668,11 +1300,45 @@
           "sides": "1",
           "tradeshow_led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "hardware": {
+            "p": -19000
+          },
+          "sides": {
+            "2": 6000
+          },
+          "tradeshow_led": {
+            "2": 15000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 7500
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "sides": [
+            "2"
+          ],
+          "tradeshow_led": [
+            "2"
+          ]
+        }
       },
       {
         "label": "48 × 90 in",
-        "priceCents": 0,
+        "priceCents": 39900,
         "widthIn": 48,
         "heightIn": 90,
         "id": "tension-fabric-stand-2",
@@ -707,7 +1373,41 @@
           "sides": "1",
           "tradeshow_led": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "hardware": {
+            "p": -20000
+          },
+          "sides": {
+            "2": 8000
+          },
+          "tradeshow_led": {
+            "2": 15000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/banner-stands.html",
+            "https://www.bestofsigns.com/silverstep-retractable-banner-stands.html",
+            "https://inline.graphics/banner-stands/deluxe-retractable",
+            "https://www.signs.com/x-banners/",
+            "https://www.optamark.com/indoor-outdoor-displays/banner-stands/tension-fabric-stand-36-x90-/"
+          ],
+          "shippingAllowanceCents": 7500
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "sides": [
+            "2"
+          ],
+          "tradeshow_led": [
+            "2"
+          ]
+        }
       }
     ],
     "image": "/images/products/tension-fabric-stand.webp",
@@ -761,7 +1461,16 @@
           "size": "96x96",
           "material": "9oz_wrinklefree_fabric"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "hardware": {
+            "p": -13600
+          }
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ]
+        }
       },
       {
         "label": "10 × 8 ft",
@@ -792,7 +1501,16 @@
           "size": "120x96",
           "material": "9oz_wrinklefree_fabric"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "hardware": {
+            "p": -13600
+          }
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ]
+        }
       }
     ],
     "image": "/images/products/step-and-repeat-backdrop.webp",
@@ -872,19 +1590,35 @@
         "optionPrices": {
           "sides": {
             "1": 0,
-            "2": 7000
+            "2": 7000,
+            "-1": 0
           },
           "flaghardware": {
             "PG": 0,
             "PB": 3000,
             "PBG": 4000,
             "PBW": 3500,
-            "PBS": 8000
+            "PBS": 8000,
+            "0": 0
           },
           "carrybag": {
             "0": 0,
             "1": 2000
+          },
+          "flag_pole_tab": {
+            "0": -7600
           }
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1"
+          ],
+          "flaghardware": [
+            "0"
+          ]
         }
       },
       {
@@ -944,19 +1678,35 @@
         "optionPrices": {
           "sides": {
             "1": 0,
-            "2": 7000
+            "2": 7000,
+            "-1": 0
           },
           "flaghardware": {
             "PG": 0,
             "PB": 3000,
             "PBG": 4000,
             "PBW": 3500,
-            "PBS": 8000
+            "PBS": 8000,
+            "0": 0
           },
           "carrybag": {
             "0": 0,
             "1": 2000
+          },
+          "flag_pole_tab": {
+            "0": -8600
           }
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1"
+          ],
+          "flaghardware": [
+            "0"
+          ]
         }
       },
       {
@@ -1016,19 +1766,35 @@
         "optionPrices": {
           "sides": {
             "1": 0,
-            "2": 8000
+            "2": 8000,
+            "-1": 0
           },
           "flaghardware": {
             "PG": 0,
             "PB": 3000,
             "PBG": 4000,
             "PBW": 3500,
-            "PBS": 8000
+            "PBS": 8000,
+            "0": 0
           },
           "carrybag": {
             "0": 0,
             "1": 2000
+          },
+          "flag_pole_tab": {
+            "0": -7600
           }
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1"
+          ],
+          "flaghardware": [
+            "0"
+          ]
         }
       },
       {
@@ -1088,24 +1854,40 @@
         "optionPrices": {
           "sides": {
             "1": 0,
-            "2": 8000
+            "2": 8000,
+            "-1": 0
           },
           "flaghardware": {
             "PG": 0,
             "PB": 3000,
             "PBG": 4000,
             "PBW": 3500,
-            "PBS": 8000
+            "PBS": 8000,
+            "0": 0
           },
           "carrybag": {
             "0": 0,
             "1": 2000
+          },
+          "flag_pole_tab": {
+            "0": -9600
           }
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1"
+          ],
+          "flaghardware": [
+            "0"
+          ]
         }
       },
       {
         "label": "Convex · 9 ft",
-        "priceCents": 0,
+        "priceCents": 17500,
         "id": "feather-flags-5",
         "panels": [
           {
@@ -1151,11 +1933,59 @@
           "flaghardware": "PG",
           "carrybag": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -7600
+          },
+          "sides": {
+            "-1": 0,
+            "2": 7000
+          },
+          "flaghardware": {
+            "PB": 3000,
+            "PBG": 4000,
+            "PBW": 3500,
+            "PBS": 8000,
+            "0": 0
+          },
+          "carrybag": {
+            "1": 2000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/feather-flags.html",
+            "https://inline.graphics/custom-flags/teardrop-flag",
+            "https://www.exponetusa.com/rectangle-flag-8-5ft-small/"
+          ],
+          "shippingAllowanceCents": 3000
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ],
+          "carrybag": [
+            "1"
+          ]
+        }
       },
       {
         "label": "Convex · 10.5 ft",
-        "priceCents": 0,
+        "priceCents": 19500,
         "id": "feather-flags-6",
         "panels": [
           {
@@ -1201,11 +2031,59 @@
           "flaghardware": "PG",
           "carrybag": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -8600
+          },
+          "sides": {
+            "-1": 0,
+            "2": 7000
+          },
+          "flaghardware": {
+            "PB": 3000,
+            "PBG": 4000,
+            "PBW": 3500,
+            "PBS": 8000,
+            "0": 0
+          },
+          "carrybag": {
+            "1": 2000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/feather-flags.html",
+            "https://inline.graphics/custom-flags/teardrop-flag",
+            "https://www.exponetusa.com/rectangle-flag-8-5ft-small/"
+          ],
+          "shippingAllowanceCents": 3000
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ],
+          "carrybag": [
+            "1"
+          ]
+        }
       },
       {
         "label": "Convex · 14 ft",
-        "priceCents": 0,
+        "priceCents": 20500,
         "id": "feather-flags-7",
         "panels": [
           {
@@ -1251,11 +2129,59 @@
           "flaghardware": "PG",
           "carrybag": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -7600
+          },
+          "sides": {
+            "-1": 0,
+            "2": 8000
+          },
+          "flaghardware": {
+            "PB": 3000,
+            "PBG": 4000,
+            "PBW": 3500,
+            "PBS": 8000,
+            "0": 0
+          },
+          "carrybag": {
+            "1": 2000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/feather-flags.html",
+            "https://inline.graphics/custom-flags/teardrop-flag",
+            "https://www.exponetusa.com/rectangle-flag-8-5ft-small/"
+          ],
+          "shippingAllowanceCents": 3000
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ],
+          "carrybag": [
+            "1"
+          ]
+        }
       },
       {
         "label": "Convex · 18 ft",
-        "priceCents": 0,
+        "priceCents": 24500,
         "id": "feather-flags-8",
         "panels": [
           {
@@ -1301,7 +2227,55 @@
           "flaghardware": "PG",
           "carrybag": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -9600
+          },
+          "sides": {
+            "-1": 0,
+            "2": 8000
+          },
+          "flaghardware": {
+            "PB": 3000,
+            "PBG": 4000,
+            "PBW": 3500,
+            "PBS": 8000,
+            "0": 0
+          },
+          "carrybag": {
+            "1": 2000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/feather-flags.html",
+            "https://inline.graphics/custom-flags/teardrop-flag",
+            "https://www.exponetusa.com/rectangle-flag-8-5ft-small/"
+          ],
+          "shippingAllowanceCents": 3000
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ],
+          "carrybag": [
+            "1"
+          ]
+        }
       }
     ],
     "image": "/images/products/feather-flags.webp",
@@ -1326,7 +2300,7 @@
     "variants": [
       {
         "label": "7 ft",
-        "priceCents": 0,
+        "priceCents": 17500,
         "id": "teardrop-flags-1",
         "panels": [
           {
@@ -1372,11 +2346,59 @@
           "flaghardware": "PG",
           "carrybag": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -7600
+          },
+          "sides": {
+            "-1": 0,
+            "2": 7000
+          },
+          "flaghardware": {
+            "PB": 3000,
+            "PBG": 4000,
+            "PBW": 3500,
+            "PBS": 8000,
+            "0": 0
+          },
+          "carrybag": {
+            "1": 2000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/feather-flags.html",
+            "https://inline.graphics/custom-flags/teardrop-flag",
+            "https://www.exponetusa.com/rectangle-flag-8-5ft-small/"
+          ],
+          "shippingAllowanceCents": 3000
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ],
+          "carrybag": [
+            "1"
+          ]
+        }
       },
       {
         "label": "9 ft",
-        "priceCents": 0,
+        "priceCents": 19500,
         "id": "teardrop-flags-2",
         "panels": [
           {
@@ -1422,11 +2444,59 @@
           "flaghardware": "PG",
           "carrybag": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -8600
+          },
+          "sides": {
+            "-1": 0,
+            "2": 7000
+          },
+          "flaghardware": {
+            "PB": 3000,
+            "PBG": 4000,
+            "PBW": 3500,
+            "PBS": 8000,
+            "0": 0
+          },
+          "carrybag": {
+            "1": 2000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/feather-flags.html",
+            "https://inline.graphics/custom-flags/teardrop-flag",
+            "https://www.exponetusa.com/rectangle-flag-8-5ft-small/"
+          ],
+          "shippingAllowanceCents": 3000
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ],
+          "carrybag": [
+            "1"
+          ]
+        }
       },
       {
         "label": "11.2 ft",
-        "priceCents": 0,
+        "priceCents": 21500,
         "id": "teardrop-flags-3",
         "panels": [
           {
@@ -1472,11 +2542,59 @@
           "flaghardware": "PG",
           "carrybag": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -7600
+          },
+          "sides": {
+            "-1": 0,
+            "2": 8000
+          },
+          "flaghardware": {
+            "PB": 3000,
+            "PBG": 4000,
+            "PBW": 3500,
+            "PBS": 8000,
+            "0": 0
+          },
+          "carrybag": {
+            "1": 2000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/feather-flags.html",
+            "https://inline.graphics/custom-flags/teardrop-flag",
+            "https://www.exponetusa.com/rectangle-flag-8-5ft-small/"
+          ],
+          "shippingAllowanceCents": 3000
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ],
+          "carrybag": [
+            "1"
+          ]
+        }
       },
       {
         "label": "13.5 ft",
-        "priceCents": 0,
+        "priceCents": 25500,
         "id": "teardrop-flags-4",
         "panels": [
           {
@@ -1522,7 +2640,55 @@
           "flaghardware": "PG",
           "carrybag": "0"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -9600
+          },
+          "sides": {
+            "-1": 0,
+            "2": 8000
+          },
+          "flaghardware": {
+            "PB": 3000,
+            "PBG": 4000,
+            "PBW": 3500,
+            "PBS": 8000,
+            "0": 0
+          },
+          "carrybag": {
+            "1": 2000
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/feather-flags.html",
+            "https://inline.graphics/custom-flags/teardrop-flag",
+            "https://www.exponetusa.com/rectangle-flag-8-5ft-small/"
+          ],
+          "shippingAllowanceCents": 3000
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ],
+          "carrybag": [
+            "1"
+          ]
+        }
       }
     ],
     "image": "/images/products/teardrop-flags.webp",
@@ -1547,7 +2713,7 @@
     "variants": [
       {
         "label": "8.5 ft",
-        "priceCents": 0,
+        "priceCents": 19500,
         "id": "rectangle-flags-1",
         "panels": [
           {
@@ -1593,11 +2759,53 @@
           "flaghardware": "PG",
           "pole": "1"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -7600
+          },
+          "sides": {
+            "-1": 0,
+            "2": 7000
+          },
+          "flaghardware": {
+            "PB": 3000,
+            "PBG": 4000,
+            "PBW": 3500,
+            "PBS": 8000,
+            "0": 0
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/feather-flags.html",
+            "https://inline.graphics/custom-flags/teardrop-flag",
+            "https://www.exponetusa.com/rectangle-flag-8-5ft-small/"
+          ],
+          "shippingAllowanceCents": 4000
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ]
+        }
       },
       {
         "label": "11.8 ft",
-        "priceCents": 0,
+        "priceCents": 23500,
         "id": "rectangle-flags-2",
         "panels": [
           {
@@ -1643,11 +2851,53 @@
           "flaghardware": "PG",
           "pole": "1"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -8600
+          },
+          "sides": {
+            "-1": 0,
+            "2": 8000
+          },
+          "flaghardware": {
+            "PB": 3000,
+            "PBG": 4000,
+            "PBW": 3500,
+            "PBS": 8000,
+            "0": 0
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/feather-flags.html",
+            "https://inline.graphics/custom-flags/teardrop-flag",
+            "https://www.exponetusa.com/rectangle-flag-8-5ft-small/"
+          ],
+          "shippingAllowanceCents": 4000
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ]
+        }
       },
       {
         "label": "15 ft",
-        "priceCents": 0,
+        "priceCents": 27500,
         "id": "rectangle-flags-3",
         "panels": [
           {
@@ -1693,7 +2943,49 @@
           "flaghardware": "PG",
           "pole": "1"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -9600
+          },
+          "sides": {
+            "-1": 0,
+            "2": 9000
+          },
+          "flaghardware": {
+            "PB": 3000,
+            "PBG": 4000,
+            "PBW": 3500,
+            "PBS": 8000,
+            "0": 0
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/feather-flags.html",
+            "https://inline.graphics/custom-flags/teardrop-flag",
+            "https://www.exponetusa.com/rectangle-flag-8-5ft-small/"
+          ],
+          "shippingAllowanceCents": 4000
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ]
+        }
       }
     ],
     "image": "/images/products/rectangle-flags.webp",
@@ -1718,7 +3010,7 @@
     "variants": [
       {
         "label": "16 ft",
-        "priceCents": 0,
+        "priceCents": 16900,
         "id": "economy-feather-flag-1",
         "panels": [
           {
@@ -1749,7 +3041,33 @@
           "base": "PG",
           "material": "flag_polyster"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "flag_pole": {
+            "fo": -7000
+          },
+          "graphic": {
+            "-1": 0
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/feather-flags.html",
+            "https://inline.graphics/custom-flags/teardrop-flag",
+            "https://www.exponetusa.com/rectangle-flag-8-5ft-small/"
+          ],
+          "shippingAllowanceCents": 3000
+        },
+        "proposedOptionPrices": {
+          "flag_pole": [
+            "fo"
+          ],
+          "graphic": [
+            "-1"
+          ]
+        }
       }
     ],
     "image": "/images/products/economy-feather-flag.webp",
@@ -1775,7 +3093,7 @@
     "variants": [
       {
         "label": "4 ft · open back",
-        "priceCents": 0,
+        "priceCents": 16500,
         "widthIn": 48,
         "id": "standard-table-throws-1",
         "panels": [
@@ -1793,11 +3111,23 @@
         "baselineOptions": {
           "sides": "3sided"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/table-throws.html",
+            "https://signfrog.com/products/fitted-table-cover-6ft",
+            "https://usatablecovers.com/product/6-spandex-stretch-table-cover/",
+            "https://thecanopytents.com/shop/10x10-canopy-top-printed"
+          ],
+          "shippingAllowanceCents": 2500
+        }
       },
       {
         "label": "4 ft · closed back",
-        "priceCents": 0,
+        "priceCents": 19500,
         "widthIn": 48,
         "id": "standard-table-throws-2",
         "panels": [
@@ -1815,7 +3145,19 @@
         "baselineOptions": {
           "sides": "4sided"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/table-throws.html",
+            "https://signfrog.com/products/fitted-table-cover-6ft",
+            "https://usatablecovers.com/product/6-spandex-stretch-table-cover/",
+            "https://thecanopytents.com/shop/10x10-canopy-top-printed"
+          ],
+          "shippingAllowanceCents": 2500
+        }
       },
       {
         "label": "6 ft · open back",
@@ -1953,7 +3295,7 @@
     "variants": [
       {
         "label": "6 ft · open back",
-        "priceCents": 0,
+        "priceCents": 20500,
         "widthIn": 72,
         "id": "fitted-table-throws-1",
         "panels": [
@@ -1973,11 +3315,23 @@
           "size": "6ft",
           "backside": "3sided"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/table-throws.html",
+            "https://signfrog.com/products/fitted-table-cover-6ft",
+            "https://usatablecovers.com/product/6-spandex-stretch-table-cover/",
+            "https://thecanopytents.com/shop/10x10-canopy-top-printed"
+          ],
+          "shippingAllowanceCents": 2500
+        }
       },
       {
         "label": "6 ft · closed back",
-        "priceCents": 0,
+        "priceCents": 24000,
         "widthIn": 72,
         "id": "fitted-table-throws-2",
         "panels": [
@@ -1997,11 +3351,23 @@
           "size": "6ft",
           "backside": "4sided"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/table-throws.html",
+            "https://signfrog.com/products/fitted-table-cover-6ft",
+            "https://usatablecovers.com/product/6-spandex-stretch-table-cover/",
+            "https://thecanopytents.com/shop/10x10-canopy-top-printed"
+          ],
+          "shippingAllowanceCents": 2500
+        }
       },
       {
         "label": "8 ft · open back",
-        "priceCents": 0,
+        "priceCents": 23000,
         "widthIn": 96,
         "id": "fitted-table-throws-3",
         "panels": [
@@ -2021,11 +3387,23 @@
           "size": "8ft",
           "backside": "3sided"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/table-throws.html",
+            "https://signfrog.com/products/fitted-table-cover-6ft",
+            "https://usatablecovers.com/product/6-spandex-stretch-table-cover/",
+            "https://thecanopytents.com/shop/10x10-canopy-top-printed"
+          ],
+          "shippingAllowanceCents": 2500
+        }
       },
       {
         "label": "8 ft · closed back",
-        "priceCents": 0,
+        "priceCents": 27000,
         "widthIn": 96,
         "id": "fitted-table-throws-4",
         "panels": [
@@ -2045,7 +3423,19 @@
           "size": "8ft",
           "backside": "4sided"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/table-throws.html",
+            "https://signfrog.com/products/fitted-table-cover-6ft",
+            "https://usatablecovers.com/product/6-spandex-stretch-table-cover/",
+            "https://thecanopytents.com/shop/10x10-canopy-top-printed"
+          ],
+          "shippingAllowanceCents": 2500
+        }
       }
     ],
     "image": "/images/products/fitted-table-throws.webp",
@@ -2071,7 +3461,7 @@
     "variants": [
       {
         "label": "6 ft",
-        "priceCents": 0,
+        "priceCents": 25500,
         "widthIn": 72,
         "id": "stretch-table-throws-1",
         "panels": [
@@ -2089,11 +3479,23 @@
         "baselineOptions": {
           "size": "6ft"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/table-throws.html",
+            "https://signfrog.com/products/fitted-table-cover-6ft",
+            "https://usatablecovers.com/product/6-spandex-stretch-table-cover/",
+            "https://thecanopytents.com/shop/10x10-canopy-top-printed"
+          ],
+          "shippingAllowanceCents": 2500
+        }
       },
       {
         "label": "8 ft",
-        "priceCents": 0,
+        "priceCents": 28500,
         "widthIn": 96,
         "id": "stretch-table-throws-2",
         "panels": [
@@ -2111,7 +3513,19 @@
         "baselineOptions": {
           "size": "8ft"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://www.lexingtonsign.com/table-throws.html",
+            "https://signfrog.com/products/fitted-table-cover-6ft",
+            "https://usatablecovers.com/product/6-spandex-stretch-table-cover/",
+            "https://thecanopytents.com/shop/10x10-canopy-top-printed"
+          ],
+          "shippingAllowanceCents": 2500
+        }
       }
     ],
     "image": "/images/products/stretch-table-throws.webp",
@@ -2475,7 +3889,59 @@
           "tent_sandbag": {
             "0": 0,
             "1": 6000
+          },
+          "tent_hardware": {
+            "0": -30600
+          },
+          "tent_carrybag": {
+            "w": 9500
+          },
+          "mesh_sidewall": {
+            "1": 14900
+          },
+          "tent_full_wall": {
+            "A": 24900,
+            "AB": 49800,
+            "ABC": 74700,
+            "ABCD": 99600
+          },
+          "tent_half_wall": {
+            "1x1": 22900,
+            "1x2": 32900,
+            "2x1": 45800,
+            "2x2": 65800,
+            "3x1": 68700,
+            "3x2": 98700,
+            "4x1": 91600,
+            "4x2": 131600
           }
+        },
+        "proposedOptionPrices": {
+          "tent_hardware": [
+            "0"
+          ],
+          "tent_carrybag": [
+            "w"
+          ],
+          "mesh_sidewall": [
+            "1"
+          ],
+          "tent_full_wall": [
+            "A",
+            "AB",
+            "ABC",
+            "ABCD"
+          ],
+          "tent_half_wall": [
+            "1x1",
+            "1x2",
+            "2x1",
+            "2x2",
+            "3x1",
+            "3x2",
+            "4x1",
+            "4x2"
+          ]
         }
       },
       {
@@ -2664,7 +4130,49 @@
           "tent_sandbag": {
             "0": 0,
             "1": 6000
+          },
+          "tent_hardware": {
+            "0": -51100
+          },
+          "tent_carrybag": {
+            "w": 11500
+          },
+          "tent_full_wall": {
+            "S1": 24900,
+            "S2": 49800
+          },
+          "tent_full_wall_long": {
+            "L1": 34900,
+            "L2": 69800
+          },
+          "tent_half_wall": {
+            "1x1": 22900,
+            "1x2": 32900,
+            "2x1": 45800,
+            "2x2": 65800
           }
+        },
+        "proposedOptionPrices": {
+          "tent_hardware": [
+            "0"
+          ],
+          "tent_carrybag": [
+            "w"
+          ],
+          "tent_full_wall": [
+            "S1",
+            "S2"
+          ],
+          "tent_full_wall_long": [
+            "L1",
+            "L2"
+          ],
+          "tent_half_wall": [
+            "1x1",
+            "1x2",
+            "2x1",
+            "2x2"
+          ]
         }
       },
       {
@@ -2853,7 +4361,49 @@
           "tent_sandbag": {
             "1": 8000,
             "2": 0
+          },
+          "tent_hardware": {
+            "0": -57100
+          },
+          "tent_carrybag": {
+            "w": 13500
+          },
+          "tent_full_wall": {
+            "S1": 24900,
+            "S2": 49800
+          },
+          "tent_full_wall_long": {
+            "L1": 44900,
+            "L2": 89800
+          },
+          "tent_half_wall": {
+            "1x1": 22900,
+            "1x2": 32900,
+            "2x1": 45800,
+            "2x2": 65800
           }
+        },
+        "proposedOptionPrices": {
+          "tent_hardware": [
+            "0"
+          ],
+          "tent_carrybag": [
+            "w"
+          ],
+          "tent_full_wall": [
+            "S1",
+            "S2"
+          ],
+          "tent_full_wall_long": [
+            "L1",
+            "L2"
+          ],
+          "tent_half_wall": [
+            "1x1",
+            "1x2",
+            "2x1",
+            "2x2"
+          ]
         }
       }
     ],
@@ -2882,7 +4432,7 @@
     "variants": [
       {
         "label": "Back print with white underbase",
-        "priceCents": 0,
+        "priceCents": 3200,
         "id": "acrylic-signs-1",
         "panels": [
           {
@@ -2897,7 +4447,29 @@
         "baselineOptions": {
           "hardware": "acrylic+standoff"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "hardware": {
+            "acrylic": -2500
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://brand9signs.com/shop/acrylic-signs/",
+            "https://brand9signs.com/shop/aluminum-signs/",
+            "https://www.lexingtonsign.com/realtor-signs.html",
+            "https://inkagoldproductions.com/products/digital-poster"
+          ],
+          "shippingAllowanceCents": 2000
+        },
+        "baseAddCents": 2500,
+        "proposedOptionPrices": {
+          "hardware": [
+            "acrylic"
+          ]
+        }
       }
     ],
     "image": "/images/products/gallery/acrylic-signs-1.webp",
@@ -2910,7 +4482,8 @@
       "maxLong": 48
     },
     "shippingPolicy": "free_overnight_after_production",
-    "fulfillmentSupplier": "Signs365"
+    "fulfillmentSupplier": "Signs365",
+    "minOrderCents": 6500
   },
   {
     "slug": "aluminum-signs",
@@ -2928,7 +4501,7 @@
     "variants": [
       {
         "label": "Single-sided print · square corners",
-        "priceCents": 0,
+        "priceCents": 2000,
         "id": "aluminum-signs-1",
         "panels": [
           {
@@ -2960,7 +4533,73 @@
           "holespunch": "0",
           "lamination": "UV"
         },
-        "optionPrices": {}
+        "optionPrices": {
+          "holespunch": {
+            "TL;TR;BL;BR": 800,
+            "TL;TR": 600,
+            "TC;BC": 600,
+            "custom": 3000
+          },
+          "cornerstyle": {
+            "1_4": 1000,
+            "1_2": 1000,
+            "R": 1000,
+            "1": 1000
+          },
+          "size": {
+            "12x18": 0,
+            "18x24": 0,
+            "24x36": 0,
+            "18x12": 0,
+            "24x18": 0,
+            "36x24": 0
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://brand9signs.com/shop/acrylic-signs/",
+            "https://brand9signs.com/shop/aluminum-signs/",
+            "https://www.lexingtonsign.com/realtor-signs.html",
+            "https://inkagoldproductions.com/products/digital-poster"
+          ],
+          "shippingAllowanceCents": 3000
+        },
+        "proposedOptionPrices": {
+          "holespunch": [
+            "TL;TR;BL;BR",
+            "TL;TR",
+            "TC;BC",
+            "custom"
+          ],
+          "cornerstyle": [
+            "1_4",
+            "1_2",
+            "R",
+            "1"
+          ],
+          "size": [
+            "12x18",
+            "18x24",
+            "24x36",
+            "18x12",
+            "24x18",
+            "36x24"
+          ],
+          "sides": [
+            "2"
+          ]
+        },
+        "areaOptionPrices": {
+          "sides": {
+            "2": {
+              "perSqFtCents": 600,
+              "minimumCents": 1000
+            }
+          }
+        }
       }
     ],
     "image": "/images/products/aluminum-signs.webp",
@@ -2973,7 +4612,8 @@
       "maxLong": 48
     },
     "shippingPolicy": "free_overnight_after_production",
-    "fulfillmentSupplier": "B2Sign"
+    "fulfillmentSupplier": "B2Sign",
+    "minOrderCents": 4500
   },
   {
     "slug": "aluminum-composite-signs",
@@ -2991,7 +4631,7 @@
     "variants": [
       {
         "label": "Single-sided print · square corners",
-        "priceCents": 0,
+        "priceCents": 1500,
         "id": "aluminum-composite-signs-1",
         "panels": [
           {
@@ -3023,7 +4663,21 @@
           "material": "1/8in_aluminum",
           "lamination": "UV"
         },
-        "optionPrices": {},
+        "optionPrices": {
+          "holespunch": {
+            "TL;TR;BL;BR": 800,
+            "TL;TR": 600,
+            "TC;BC": 600,
+            "custom1": 3000,
+            "custom2": 4000
+          },
+          "cornerstyle": {
+            "R": 1000,
+            "1_2": 1000,
+            "3_4": 1000,
+            "1": 1000
+          }
+        },
         "dimensionOptionPrices": [
           {
             "when": {
@@ -3057,7 +4711,45 @@
             "heightIn": 36,
             "addCents": 600
           }
-        ]
+        ],
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://brand9signs.com/shop/acrylic-signs/",
+            "https://brand9signs.com/shop/aluminum-signs/",
+            "https://www.lexingtonsign.com/realtor-signs.html",
+            "https://inkagoldproductions.com/products/digital-poster"
+          ],
+          "shippingAllowanceCents": 2000
+        },
+        "proposedOptionPrices": {
+          "holespunch": [
+            "TL;TR;BL;BR",
+            "TL;TR",
+            "TC;BC",
+            "custom1",
+            "custom2"
+          ],
+          "cornerstyle": [
+            "R",
+            "1_2",
+            "3_4",
+            "1"
+          ],
+          "sides": [
+            "2"
+          ]
+        },
+        "areaOptionPrices": {
+          "sides": {
+            "2": {
+              "perSqFtCents": 350,
+              "minimumCents": 400
+            }
+          }
+        }
       }
     ],
     "image": "/images/products/aluminum-composite-signs.webp",
@@ -3108,7 +4800,8 @@
       }
     ],
     "shippingPolicy": "free_overnight_after_production",
-    "fulfillmentSupplier": "Signs365"
+    "fulfillmentSupplier": "Signs365",
+    "minOrderCents": 2600
   },
   {
     "slug": "display-posters",
@@ -3128,7 +4821,7 @@
     "variants": [
       {
         "label": "Single-sided print · square corners",
-        "priceCents": 0,
+        "priceCents": 850,
         "id": "display-posters-1",
         "panels": [
           {
@@ -3145,7 +4838,19 @@
           "lamination": "UV",
           "lam": "no"
         },
-        "optionPrices": {}
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "proposedAt": "2026-10-13",
+          "basis": "Retail estimate using existing BOF prices, public comparables and included next-day air. Supplier costs and shipping allowances are not confirmed quotes.",
+          "sourceUrls": [
+            "https://brand9signs.com/shop/acrylic-signs/",
+            "https://brand9signs.com/shop/aluminum-signs/",
+            "https://www.lexingtonsign.com/realtor-signs.html",
+            "https://inkagoldproductions.com/products/digital-poster"
+          ],
+          "shippingAllowanceCents": 2500
+        }
       }
     ],
     "image": "/images/products/display-posters.webp",
@@ -3158,6 +4863,7 @@
       "maxLong": 1908
     },
     "shippingPolicy": "free_overnight_after_production",
-    "fulfillmentSupplier": "B2Sign"
+    "fulfillmentSupplier": "B2Sign",
+    "minOrderCents": 3900
   }
 ]

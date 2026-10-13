@@ -18,6 +18,8 @@ export interface SpecialtyVariant {
   panels: SpecialtyPanel[];
   label: string;
   priceCents?: number;
+  baseAddCents?: number;
+  priceProposal?: {status:'pending_john_approval';proposedAt:string;basis:string;sourceUrls:string[];shippingAllowanceCents:number};
   widthIn?: number;
   heightIn?: number;
   priceMatch?: SpecialtyPriceMatch;
@@ -73,9 +75,12 @@ export function formatSpecialtyPrice(cents: number): string {
 }
 
 export function specialtyStartingPrice(product: SpecialtyProduct): number | undefined {
-  if(product.priceMatches?.length)return Math.min(...product.priceMatches.map(p=>p.priceCents!));
-  const confirmed=product.variants.filter(v=>v.priceMatch);
-  const prices = confirmed.map((variant) => variant.priceMatch?.priceCents ?? variant.priceCents).filter((price): price is number => typeof price === 'number');
+  const prices = (product.priceMatches||[]).map(p=>p.priceCents!).filter(Number.isFinite);
+  for(const variant of product.variants){
+    const size=product.sizeLimits?.min||variant.widthIn||24;
+    const quote=specialtyConfigurationPrice(product,variant,size,product.sizeLimits?.min||variant.heightIn||18);
+    if(quote.baseVerified)prices.push(quote.unitCents);
+  }
   return prices.length ? Math.min(...prices) : undefined;
 }
 
@@ -128,7 +133,7 @@ export const specialtyAllPanels = optionsEngine.allPanelDefinitions as (variant:
 export const specialtyOptionMatches=optionsEngine.matches as (conditions:unknown,values:SpecialtyOptions)=>boolean;
 export const specialtyProfile=optionsEngine.profileFor as (variant:SpecialtyVariant)=>{supplierItemId:number;groups:SpecialtyOptionGroup[];sourceUrl:string}|undefined;
 export const specialtyOptionSummary=optionsEngine.optionSummary as (variant:SpecialtyVariant,options?:SpecialtyOptions)=>Array<{key:string;label:string;value:string}>;
-export const specialtyConfigurationPrice=optionsEngine.priceConfiguration as (product:SpecialtyProduct,variant:SpecialtyVariant,width:number,height:number,options?:SpecialtyOptions)=>{unitCents:number;baseCents:number;baseVerified:boolean;adjustments:Array<{key:string;label:string;cents:number}>;verified:boolean;missing:string[];options:SpecialtyOptions;sourceUrl?:string;shippingPolicy?:string};
+export const specialtyConfigurationPrice=optionsEngine.priceConfiguration as (product:SpecialtyProduct,variant:SpecialtyVariant,width:number,height:number,options?:SpecialtyOptions)=>{unitCents:number;baseCents:number;baseVerified:boolean;adjustments:Array<{key:string;label:string;cents:number}>;verified:boolean;proposed:boolean;missing:string[];options:SpecialtyOptions;sourceUrl?:string;shippingPolicy?:string};
 export const specialtyOptionPriceCents=optionsEngine.optionPriceCents as (variant:SpecialtyVariant,width:number,height:number,options:SpecialtyOptions,key:string)=>number|undefined;
 
 export const specialtyMaterialLabel=optionsEngine.materialLabel as (product:SpecialtyProduct,variant:SpecialtyVariant,options?:SpecialtyOptions)=>string;

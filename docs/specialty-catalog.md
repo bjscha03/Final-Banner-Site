@@ -1,6 +1,6 @@
 # Specialty product implementation and release status
 
-Updated October 12, 2026. Draft PR #601 and its protected Netlify preview are the review target.
+Updated October 13, 2026. Draft PR #601 and its protected Netlify preview are the review target.
 
 ## Current scope
 
@@ -8,7 +8,7 @@ Updated October 12, 2026. Draft PR #601 and its protected Netlify preview are th
 
 All 19 families have FREE Next Day Air after production under the owner's confirmed retail policy. This includes unpriced products and accessories. Shipping transit is separate from production turnaround; no rush/Saturday service or guaranteed arrival date was added.
 
-The catalog retains 18 Lexington base-price mappings and the verified option adjustments in [the price comparison](specialty-price-comparison.md). Unknown draft estimates are removed. An incomplete price remains clearly labeled and blocked from payment, while known base/option amounts stay visible. [John's remaining pricing list](specialty-pricing-needed.md) identifies each missing family, size and option.
+The catalog retains 18 Lexington base-price mappings and the verified option adjustments in [the price comparison](specialty-price-comparison.md). The owner authorized best-judgment prices for the remaining items on October 13. All 58 variants and all offered options now have complete prices. New proposals have separate provenance from verified public matches and display an approval note in the preview. [John’s approval schedule](specialty-pricing-proposal.md) records the prices, discount exposure and assumptions. Unknown future options still remain incomplete and blocked from payment.
 
 ## Suppliers and release controls
 
@@ -32,13 +32,17 @@ A flag's installed height differs from its print artboard. Tent canopies require
 
 ## Review before production launch
 
-John still needs to provide the missing retail prices, confirm Signs365 finishing availability/mounting specifications, confirm production turnarounds and choose the first release categories. Supplier account SKUs, physical production preflight and live upload/AI/order/admin/email testing remain separate release checks. The specialty migration must be present in the intended test/production database before order rollout. No real payment or customer order is created by this update.
+John still needs to approve the proposed retail prices and confirm supplier costs, air-freight feasibility, Signs365 finishing availability/mounting specifications, confirm production turnarounds and choose the first release categories. Supplier account SKUs, physical production preflight and live upload/AI/order/admin/email testing remain separate release checks. The specialty migration must be present in the intended test/production database before order rollout. No real payment or customer order is created by this update.
 
 The local Chromium suite uses the actual application with mocked upload and AI transports and the existing no-payment preview mode. It tests navigation, prices, options, artwork/cart persistence, checkout availability, templates and mobile layout. It does not establish live provider or production-payment readiness. Full-repository TypeScript and unrelated Admin commerce CI have known baseline failures; targeted specialty tests and a successful deployment do not imply that every repository check passes.
 
-## Validation for this update
+## Previous catalog validation (October 12)
 
 - 22 server/catalog/quote tests and 15 focused frontend/artwork/cart tests passed.
 - All 13 Chromium checks passed across focused runs, with zero page errors on the final runs. This includes all 19 pages/58 variants, local gallery asset decoding, price/option/quantity totals, saved-cart repricing, checkout eligibility, PDF upload/vector preservation, the actual guide download and mobile controls. A file refresh interrupted one initial cart-read check; its isolated rerun passed. A new guide test initially used a rounded wall height; it was corrected to the canonical 80.02778-inch dimension and passed.
 - All 103 registered guide definitions generated with the expected dimensions; representative flag, table, tent and acrylic PDFs were rendered and inspected. Embedded fonts resolved a PDF reader substitution issue. The maximum 1,908-inch poster's physical PDF dimensions were verified separately.
 - Final production build passed prerendering and verification for 233 routes plus the 404 page. Gallery contact sheets, catalog pricing cards and mobile artwork controls were visually reviewed.
+
+## October 13 pricing update
+
+The catalog now prices all 3,196 selectable option combinations. Exact ACM size overrides are preserved; custom-size rates and minima apply outside those overrides. Replacement-only configurations remove hardware once, wall quantities multiply per panel, and fixed aluminum size selections update the dimensions and artwork together. Proposed prices remain on draft PR #601; no production merge is authorized or performed.

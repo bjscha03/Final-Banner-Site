@@ -46,13 +46,14 @@ describe('matched customer pricing',()=>{
     const item={product_type:'specialty',width_in:24,height_in:18,specialty_config:{productSlug:p.slug,variantId:v.id}};
     expect(specialtyItemHasIncludedShipping(item)).toBe(true);
     expect(specialtyItemHasIncludedShipping({...item,width_in:20})).toBe(true);
-    expect(specialtyItemHasVerifiedPrice({...item,width_in:20})).toBe(false);
+    expect(specialtyItemHasVerifiedPrice({...item,width_in:20})).toBe(true);
+    expect(specialtyUnitPrice(p,v,20,18)).toBe(3750);
   });
-  it('keeps included shipping when an accessory price is unavailable and rejects invalid configurations',()=>{
+  it('prices proposed accessories with included shipping and rejects invalid configurations',()=>{
     const product=getSpecialtyProduct('custom-event-tents')!,variant=product.variants[0];
     const item={product_type:'specialty',width_in:119,height_in:84.275,specialty_config:{productSlug:product.slug,variantId:variant.id,options:{tent_full_wall:'A'}}};
     expect(specialtyItemHasIncludedShipping(item)).toBe(true);
-    expect(specialtyItemHasVerifiedPrice(item)).toBe(false);
+    expect(specialtyItemHasVerifiedPrice(item)).toBe(true);
     const invalid={...item,specialty_config:{...item.specialty_config,options:{madeUp:'yes'}}};
     expect(specialtyItemHasVerifiedPrice(invalid)).toBe(false);
     expect(specialtyItemHasIncludedShipping(invalid)).toBe(false);

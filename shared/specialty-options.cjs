@@ -66,25 +66,39 @@ function validateDimensions(product,variant,width,height) {
 function optionPriceCents(variant,width,height,options,key) {
   if(String(options[key])===String(variant.baselineOptions?.[key])) return 0;
   const dimensional=(variant.dimensionOptionPrices||[]).find(r=>r.when[key]!==undefined&&Object.entries(r.when).every(([k,v])=>options[k]===v)&&((r.widthIn===width&&r.heightIn===height)||(r.widthIn===height&&r.heightIn===width)));
-  return dimensional?.addCents??variant.optionPrices?.[key]?.[options[key]];
+  if (dimensional) return dimensional.addCents;
+  const area=variant.areaOptionPrices?.[key]?.[options[key]];
+  if(area) return Math.max(area.minimumCents||0,Math.ceil(width*height/144*area.perSqFtCents));
+  return variant.optionPrices?.[key]?.[options[key]];
 }
 function priceConfiguration(product,variant,width,height,input={}) {
   validateDimensions(product,variant,width,height);
   const options=optionsFor(variant,input,true), match=priceMatch(product,variant,width,height);
+  const selectedSize=product.priceUnit==='sqft'&&options.size?.match(/^(\d+)x(\d+)$/);
+  if(selectedSize&&!((width===Number(selectedSize[1])&&height===Number(selectedSize[2]))||(height===Number(selectedSize[1])&&width===Number(selectedSize[2]))))throw new Error('The dimensions must match the selected sign size. Choose Custom Size to enter different dimensions.');
   let base=match?.priceCents??variant.priceCents??0;
   if(product.priceUnit==='sqft'&&!match?.priceCents) base=Math.max(product.minOrderCents||0,Math.ceil(width*height/144*base));
-  const missing=match?[]:['Product price']; const adjustments=[];
+  base+=variant.baseAddCents||0;
+  // A complete preview proposal is priced, but is not a verified competitor
+  // match or John's approval. Keep that provenance separate from completeness.
+  const baseVerified=!!(match||variant.priceProposal)&&Number.isInteger(base)&&base>0;
+  let proposed=!match&&!!variant.priceProposal;
+  const missing=baseVerified?[]:['Product price']; const adjustments=[];
   if(release.categories[product.category]===false || release.products[product.slug]===false) missing.push('Product unavailable');
   for(const group of profileFor(variant)?.groups||[]) {
     if(!matches(group.visible,options)||String(options[group.key])===String(variant.baselineOptions?.[group.key])) continue;
     const selected=group.options.find(o=>String(o.key)===String(options[group.key]));
     const cents=optionPriceCents(variant,width,height,options,group.key);
     const label=`${group.label}: ${selected?.label||options[group.key]}`;
-    if(!Number.isInteger(cents)) missing.push(label); else adjustments.push({key:group.key,label,cents});
+    if(!Number.isInteger(cents)) missing.push(label); else {
+      adjustments.push({key:group.key,label,cents});
+      const matchedDimension=(variant.dimensionOptionPrices||[]).some(r=>r.when[group.key]!==undefined&&Object.entries(r.when).every(([k,v])=>options[k]===v)&&((r.widthIn===width&&r.heightIn===height)||(r.widthIn===height&&r.heightIn===width)));
+      if(!matchedDimension&&variant.proposedOptionPrices?.[group.key]?.includes(options[group.key])) proposed=true;
+    }
   }
   // The owner's retail shipping policy belongs to the product family and is
   // independent of whether every size/accessory has been priced yet.
-  return {unitCents:base+adjustments.reduce((n,a)=>n+a.cents,0),baseCents:base,baseVerified:!!match,adjustments,verified:missing.length===0,missing,options,sourceUrl:match?.sourceUrl,shippingPolicy:product.shippingPolicy||match?.shippingPolicy};
+  return {unitCents:base+adjustments.reduce((n,a)=>n+a.cents,0),baseCents:base,baseVerified,adjustments,verified:missing.length===0,proposed,missing,options,sourceUrl:match?.sourceUrl,shippingPolicy:product.shippingPolicy||match?.shippingPolicy};
 }
 function materialLabel(product,variant,options={}) {
   const values=optionsFor(variant,options),group=profileFor(variant)?.groups.find(g=>g.key==='material');

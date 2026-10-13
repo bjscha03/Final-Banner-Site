@@ -49,7 +49,7 @@ export default function SpecialtyCatalog() {
           })}
         </div>
       </section>)}
-      <div className="brand-shell mt-14"><div className="border-l-4 border-[#ff6a00] bg-white p-6 text-sm leading-7 text-slate-600 shadow-sm sm:p-8"><strong className="block text-base text-[#0B1F3A]">About production and delivery</strong>Every product includes free Next Day Air shipping after production. Production times vary by product. For products marked “Price coming soon,” you can customize your artwork and save it to your cart while pricing is added.</div></div>
+      <div className="brand-shell mt-14"><div className="border-l-4 border-[#ff6a00] bg-white p-6 text-sm leading-7 text-slate-600 shadow-sm sm:p-8"><strong className="block text-base text-[#0B1F3A]">About production and delivery</strong>Every product includes free Next Day Air shipping after production. Production times vary by product. New prices in this preview are proposals awaiting approval.</div></div>
     </div>
   </Layout>;
 }
