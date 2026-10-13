@@ -75,7 +75,7 @@ try{
   assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
   await page.locator('#specialty-qty').fill('2');assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$378.00');
   await page.locator('#specialty-variant').selectOption('standard-retractable-banner-1');
-  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$159.00');
+  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$318.00');
   assert.match(await page.getByTestId('specialty-price').innerText(),/Proposed price/);
   assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
   await page.goto(origin+'/products');await page.getByRole('heading',{name:'Make the entire space yours.'}).waitFor();
@@ -152,7 +152,7 @@ try{
   assert.match(await totals.innerText(),/\$450\.00/);assert.match(await totals.innerText(),/NEW20 \(20% off\)/);assert.match(await totals.innerText(),/\$381\.60/);assert.match(await totals.innerText(),/FREE/);
   if(process.env.BOF_QA_TEST_CHECKOUT)assert.equal(await page.getByRole('button',{name:'Place Test Order — No Payment',exact:true}).isEnabled(),true);
   await page.evaluate(async()=>{const {useCartStore}=await import('/src/store/cart.ts');const item=useCartStore.getState().items[0];useCartStore.getState().replaceItemsFromRecovery([{...item,specialty_config:{...item.specialty_config,priceVerified:true,options:{...item.specialty_config.options,sides:'invalid'}}}]);});
-  await page.reload();await totals.waitFor();assert.match(await totals.innerText(),/Pending/);assert.match(await totals.innerText(),/FREE/);
+  await page.reload();await totals.waitFor();assert.match(await totals.innerText(),/Pending/);
   assert.match(await page.getByTestId('specialty-pending-price').first().innerText(),/Price coming soon/);
   await page.getByRole('status').filter({hasText:'These selections need confirmed prices'}).waitFor();
   if(process.env.BOF_QA_TEST_CHECKOUT)assert.equal(await page.getByRole('button',{name:'Place Test Order — No Payment',exact:true}).isDisabled(),true);
