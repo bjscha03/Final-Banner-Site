@@ -24,7 +24,7 @@ describe('CheckoutOrderTotals', () => {
     expect(html).toContain('FREE');
     expect(html).toContain('Tax (6%)');
     expect(html).toContain('$6.91');
-    expect(html).toContain('Final total');
+    expect(html).toContain('Total');
     expect(html).toContain('$122.11');
   });
 

@@ -2,11 +2,9 @@ import React from 'react';
 import type { CartItem } from '@/store/cart';
 import BannerPreview from '@/components/cart/StableBannerPreview';
 import ThumbnailPreviewWrapper from '@/components/preview/StableThumbnailPreviewWrapper';
-import RealisticBannerPreview from '@/components/preview/RealisticBannerPreview';
-import BannerDimensions from '@/components/preview/BannerDimensions';
 import { formatBannerDimensions } from '@/lib/preview/realisticBanner';
 import { getSmallPreviewSelection, getExpandedPreviewSelection } from '@/lib/previewSelection';
-import { getGrommetModeForPreview } from '@/lib/cartGrommet';
+import { getGrommetModeForPreview, getGrommetLabelForDisplay } from '@/lib/cartGrommet';
 import { getItemDisplayName, normalizeOrderItemDisplay } from '@/lib/product-display';
 import { usd } from '@/lib/pricing';
 
@@ -18,11 +16,11 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction, 
   showTotal?: boolean;
 }) {
   return (
-    <section aria-label="Your artwork and order" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" data-testid="checkout-artwork-summary">
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <section aria-label="Your artwork and order" className="checkout-artwork" data-testid="checkout-artwork-summary">
+      <div className="checkout-artwork-heading">
         <div>
           <h2 className="text-lg font-bold text-[#0B1F3A]">Your order</h2>
-          <p className="text-sm text-slate-600">Tap your artwork to enlarge.</p>
+          <span className="checkout-item-count"> · {items.length} {items.length === 1 ? 'item' : 'items'}</span>
         </div>
         {editAction}
       </div>
@@ -50,8 +48,8 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction, 
             compositionSignature: item.placement_preview?.compositionSignature || item.composition_signature,
           };
           return (
-            <div key={item.id} className="py-4 first:pt-0 last:pb-0" data-checkout-artwork-item={item.id}>
-              <div className="flex items-center justify-center rounded-lg bg-slate-50 px-2 py-3">
+            <div key={item.id} className="checkout-artwork-item" data-checkout-artwork-item={item.id}>
+              <div className="checkout-artwork-image" style={{ "--checkout-artwork-ratio": item.width_in / item.height_in } as React.CSSProperties}>
                 <ThumbnailPreviewWrapper
                   title={title}
                   widthIn={item.width_in}
@@ -70,11 +68,10 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction, 
                   <BannerPreview {...previewProps} imageUrl={small.url} isFinalizedSnapshot={small.isExactComposition} maxSize={600} />
                 </ThumbnailPreviewWrapper>
               </div>
-              <div className="mt-4 flex justify-center"><RealisticBannerPreview item={item} className="!w-full max-w-[600px]" previewSize={600} /></div>
-              <h3 className="mt-3 text-sm font-semibold text-[#0B1F3A]">{title}</h3>
-              <div className="mt-1 text-sm text-slate-600">
-                {isBanner ? <BannerDimensions widthIn={item.width_in} heightIn={item.height_in}/> : details.sizeDisplay}
-                <p className="mt-1">Qty {details.qtyDisplay} · {details.materialDisplay}</p>
+              <div className="checkout-artwork-copy">
+                <h3>{isBanner ? (item.material === '18oz_double' ? 'Double-sided vinyl banner' : 'Custom vinyl banner') : getItemDisplayName(item)}</h3>
+                <p>{isBanner ? bannerSize.feet : details.sizeDisplay} · {details.materialDisplay} · Qty {details.qtyDisplay}</p>
+                {isBanner && <p className="checkout-artwork-finishing">{item.material === '18oz_double' ? 'Double-sided' : 'Single-sided'} · Grommets: {getGrommetLabelForDisplay(item, details.grommetsDisplay)}</p>}
               </div>
             </div>
           );

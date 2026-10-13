@@ -10,7 +10,7 @@ import {
   useStripe,
 } from '@stripe/react-stripe-js';
 import { loadStripe, type StripeElementsOptions } from '@stripe/stripe-js';
-import { CircleAlert, Clock3, CreditCard, Loader2, RefreshCw } from 'lucide-react';
+import { CircleAlert, Clock3, CreditCard, Lock, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth';
@@ -60,6 +60,7 @@ import { stripeCardPaymentElementOptions } from './stripePaymentElementOptions';
 
 interface StripeCheckoutProps {
   orderSummary?: React.ReactNode;
+  alternativePayment?: React.ReactNode;
   publishableKey: string;
   total: number;
   onSuccess: (orderId: string, orderData?: any) => void;
@@ -301,6 +302,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   onCanonicalQuote,
   signature,
   orderSummary,
+  alternativePayment,
 }) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -1189,19 +1191,21 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   };
 
   return (
-    <div className="relative space-y-5">
+    <div className="checkout-stripe relative space-y-5">
+      {!verificationMessage && <p className="checkout-express-label">Express checkout</p>}
+      <div className={`checkout-express-options ${expressCheckoutVisible ? 'has-wallet' : ''}`}>
       <section
         aria-labelledby="express-checkout-heading"
         aria-hidden={walletsReady && !expressCheckoutVisible}
-        className={!walletsReady ? "relative min-h-36" : expressCheckoutVisible
+        className={!walletsReady ? "relative min-h-12" : expressCheckoutVisible
           ? 'block animate-in fade-in duration-200'
           : 'pointer-events-none absolute inset-x-0 top-0 invisible -z-10'}
       >
         {!walletsReady && <p role="status" className="absolute inset-x-0 top-0 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Checking available express payment options…</p>}
         <div className={!walletsReady ? 'invisible' : undefined}>
-          <div className="mb-3">
+          <div className="sr-only">
             <h3 id="express-checkout-heading" className="text-base font-bold text-[#0B1F3A]">
-              Fast checkout
+              Express checkout
             </h3>
             <p className="mt-0.5 text-xs text-slate-600">Pay instantly with an available wallet.</p>
           </div>
@@ -1343,11 +1347,13 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           </div>
         </div>
       </section>
+      {!verificationMessage && alternativePayment}
+      </div>
 
-      {!verificationMessage && walletsAvailable ? (
+      {!verificationMessage && (walletsAvailable || alternativePayment) ? (
         <div className="flex items-center gap-3" aria-hidden="true">
           <span className="h-px flex-1 bg-slate-200" />
-          <span className="text-xs font-medium text-slate-500">or pay another way</span>
+          <span className="text-xs font-medium text-slate-500">or pay by card</span>
           <span className="h-px flex-1 bg-slate-200" />
         </div>
       ) : null}
@@ -1405,17 +1411,13 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
 
       {!verificationMessage ? (
         <section aria-labelledby="card-payment-heading" className="space-y-4">
-          <div className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4 text-[#18448D]" aria-hidden="true" />
-            <h3 id="card-payment-heading" className="text-base font-bold text-[#0B1F3A]">Pay securely by card</h3>
-          </div>
+          <h3 id="card-payment-heading" className="sr-only">Pay securely by card</h3>
 
-          <div ref={customerDetailsRef} className="rounded-lg bg-slate-50/80 p-3 sm:p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#18448D] text-xs font-bold text-white" aria-hidden="true">1</span>
-              <h4 className="text-sm font-bold text-[#0B1F3A]">Contact &amp; address</h4>
+          <div ref={customerDetailsRef} className="checkout-contact">
+            <div className="checkout-section-title">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#071C35] text-xs font-bold text-white" aria-hidden="true">1</span>
+              <h4 className="text-sm font-bold text-[#0B1F3A]">Contact &amp; delivery</h4>
             </div>
-            <p className="mb-3 text-xs text-slate-600">Enter your address once for billing and delivery.</p>
             <div className="grid grid-cols-2 gap-3">
               {customerFields
                 .filter(({ field }) => field !== 'phone' || !walletPhoneRequired)
@@ -1428,6 +1430,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                     <Input
                       id={`stripe-${field}`}
                       name={`billing-${field}`}
+                      placeholder={field === 'email' ? 'you@example.com' : field === 'phone' ? '(555) 555-5555' : field === 'street' ? 'Street address' : label}
                       data-stripe-field={field}
                       className="mt-1 h-11 bg-white text-base sm:text-sm"
                       type={type}
@@ -1452,16 +1455,16 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                 ) : fieldInput;
               })}
 
-              <p className="col-span-2 text-xs text-slate-500">Delivery within the United States.</p>
+              <div className="col-span-2 checkout-country"><span>Country</span><p>United States</p></div>
 
               <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium text-slate-800 col-span-2">
                 <input
                   type="checkbox"
-                  className="h-5 w-5 flex-none accent-[#18448D]"
+                  className="h-5 w-5 flex-none accent-[#ec5700]"
                   checked={customer.shippingSame}
                   onChange={(event) => updateCustomer('shippingSame', event.target.checked)}
                 />
-                Use this address for delivery
+                Billing address is the same as shipping
               </label>
 
               {!customer.shippingSame ? <>
@@ -1497,10 +1500,10 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
             </div>
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-white p-3 sm:p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#18448D] text-xs font-bold text-white" aria-hidden="true">2</span>
-              <h4 className="text-sm font-bold text-[#0B1F3A]">Card details</h4>
+          <div className="checkout-card-fields">
+            <div className="checkout-section-title">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#071C35] text-xs font-bold text-white" aria-hidden="true">2</span>
+              <h4 className="text-sm font-bold text-[#0B1F3A]">Payment</h4>
             </div>
             <PaymentElement
               options={stripeCardPaymentElementOptions}
@@ -1517,13 +1520,13 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           <Button
             type="button"
             size="lg"
-            className="h-12 w-full bg-[#FF6A00] text-base font-bold text-white shadow-sm hover:bg-[#E85F00] focus-visible:ring-[#18448D]"
+            className="checkout-pay-button h-12 w-full bg-[#ec5700] text-base font-bold text-white hover:bg-[#c94e00] focus-visible:ring-[#18448D]"
             disabled={disabled || busy || !stripe || !elements}
             onClick={() => void submitCard()}
           >
             {isProcessing
               ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Completing secure payment…</>
-              : `Pay $${(total / 100).toFixed(2)}`}
+              : <><Lock className="mr-2 h-4 w-4" aria-hidden="true" />{`Pay $${(total / 100).toFixed(2)}`}</>}
           </Button>
         </section>
       ) : null}
@@ -1550,12 +1553,12 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({ publishableKey, total, 
     appearance: {
       theme: 'stripe',
       variables: {
-        colorPrimary: '#18448D',
+        colorPrimary: '#071C35',
         colorBackground: '#ffffff',
         colorText: '#0B1F3A',
         colorDanger: '#B42318',
         fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
-        borderRadius: '8px',
+        borderRadius: '6px',
         spacingUnit: '4px',
       },
       rules: {
