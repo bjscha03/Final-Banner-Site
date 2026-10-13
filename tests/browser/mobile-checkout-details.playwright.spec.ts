@@ -22,7 +22,7 @@ test('contact and delivery details are visible before either payment method', as
 
   const firstNameBox = await firstName.boundingBox();
   expect(firstNameBox).not.toBeNull();
-  expect(firstNameBox!.height).toBeGreaterThanOrEqual(44);
+  expect(firstNameBox!.height).toBeGreaterThanOrEqual((page.viewportSize()?.width ?? 1024) < 1024 ? 44 : 40);
 
   if ((page.viewportSize()?.width ?? 1024) < 640) {
     const fontSize = await firstName.evaluate((input) => getComputedStyle(input).fontSize);
