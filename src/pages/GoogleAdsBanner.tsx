@@ -3318,7 +3318,7 @@ const GoogleAdsBanner: React.FC = () => {
           <Header compactMobile={compactMobileLanding} cartCount={cartItemCount} onCartClick={() => setIsCartOpen(true)} />
         )}
 
-        {!isYardSign && !isCarMagnet && !mobilePaidLayout && <GoogleReviewSpotlight compactMobile={compactMobileLanding} />}
+        {!isYardSign && !isCarMagnet && !mobilePaidLayout && <GoogleReviewSpotlight />}
 
         {/* HERO */}
         {!isYardSign && !isCarMagnet ? (

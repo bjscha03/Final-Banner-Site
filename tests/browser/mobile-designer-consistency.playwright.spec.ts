@@ -51,6 +51,13 @@ for (const route of ROUTES) {
       await expect(page.getByTestId('fading-google-reviews')).toBeVisible();
       await expect(mobileFooter.getByRole('button', { name: /^Upload artwork$/i })).toBeVisible();
     } else {
+      const reviews = page.getByTestId('google-reviews');
+      await expect(reviews).toBeVisible();
+      expect((await reviews.boundingBox())!.height).toBeLessThanOrEqual(44);
+      await expect(reviews.locator('.google-review-marquee-track')).toHaveCSS('animation-name', 'google-review-marquee');
+      await reviews.getByRole('button', { name: 'Pause Google reviews', exact: true }).click();
+      await expect(reviews.locator('.google-review-marquee-track')).toHaveCSS('animation-play-state', 'paused');
+      await expect(reviews.getByRole('button', { name: 'Play Google reviews', exact: true })).toHaveAttribute('aria-pressed', 'true');
       await expect(mobileTimer).toBeHidden();
       await expect(mobileFooter).toBeHidden();
     }
