@@ -26,14 +26,14 @@ export default function MobileBannerReviewStep({ open, onBack, children, preview
             <MobileBannerSteps current={2} onDesign={busy ? undefined : onBack} />
             <Dialog.Title className="mb-2 text-[clamp(1.4rem,6vw,1.9rem)] font-extrabold leading-tight tracking-tight">Choose your finishing</Dialog.Title>
             <Dialog.Description className="mb-3 text-xs text-slate-600">{description}</Dialog.Description>
-            <section aria-label="Finishing options" className="mb-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm" data-testid="review-finishing-options">
-              {children}
-            </section>
             {preview}
             <div className="my-1 flex items-center justify-around gap-2 text-sm text-[#18448D]">
               <button type="button" disabled={busy} onClick={onBack} className="inline-flex min-h-11 items-center gap-2 underline"><Pencil className="h-4 w-4" />Edit design</button>
               {onReplaceArtwork && <label className={`inline-flex min-h-11 items-center gap-2 underline ${busy ? 'opacity-50' : 'cursor-pointer'}`}><RefreshCw className="h-4 w-4" />Replace artwork<input type="file" aria-label="Replace artwork from review" accept="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf" disabled={busy} className="sr-only" onChange={event => { const file = event.target.files?.[0]; if (file) onReplaceArtwork(file); event.target.value = ''; }} /></label>}
             </div>
+            <section aria-label="Finishing options" className="mb-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm" data-testid="review-finishing-options">
+              {children}
+            </section>
             {summary}
             <button type="button" onClick={onAddAnother} disabled={!ready || busy} className="mt-2 min-h-11 w-full text-sm font-semibold text-[#18448D] underline disabled:text-slate-400">{editing ? 'Save & design another' : 'Add & design another'}</button>
           </div>

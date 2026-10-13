@@ -215,7 +215,7 @@ test('banner finishing preserves the artwork, price and cart through add-another
     if (page.viewportSize()!.height > 600) {
       const previewBox = (await finish.getByTestId('finishing-realistic-preview').boundingBox())!;
       const optionsBox = (await finish.getByTestId('review-finishing-options').boundingBox())!;
-      expect(previewBox.y).toBeGreaterThanOrEqual(optionsBox.y + optionsBox.height);
+      expect(optionsBox.y).toBeGreaterThanOrEqual(previewBox.y + previewBox.height);
       expect(optionsBox.height).toBeGreaterThan(88);
     }
     await finish.getByTestId('finishing-realistic-preview').screenshot({ path: testInfo.outputPath('finishing-realistic-preview.png') });
