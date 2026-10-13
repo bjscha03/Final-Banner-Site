@@ -34,10 +34,10 @@ const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false }) => {
       <ScrollToTop />
       {!location.pathname.startsWith('/admin') && <PromoBanner showStandardPromo={isHomepage} />}
       {isCheckout ? (
-        <header data-checkout-header className="sticky top-0 z-40 border-b border-[#dce1e8] bg-white px-4 py-3 text-[#071C35]">
+        <header data-checkout-header className="sticky top-0 z-40 border-b border-[#dce1e8] bg-white px-4 py-2 text-[#071C35]">
           <div className="mx-auto flex max-w-[1240px] items-center justify-between gap-4">
             <img src="/images/header-logo.png" alt="Banners On The Fly" width="248" height="80" className="h-auto w-36 sm:w-44" />
-            <span className="flex items-center gap-2 text-xs font-semibold sm:text-sm"><LockKeyhole className="h-4 w-4 text-[#071C35]" aria-hidden="true" />Secure checkout</span>
+            <span className="flex items-center gap-2 text-xs font-semibold sm:text-sm"><LockKeyhole className="h-4 w-4 text-[#071C35]" aria-hidden="true" /><span className="hidden sm:inline">Secure checkout</span></span>
           </div>
         </header>
       ) : (

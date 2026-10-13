@@ -10,7 +10,7 @@ export const useElements = () => elements;
 export function ExpressCheckoutElement({ onReady }: any) {
   const ready = useRef(onReady);
   useEffect(() => { ready.current?.({ availablePaymentMethods: { applePay: true } }); }, []);
-  return <button type="button" aria-label="Apple Pay test fixture" style={{ background: '#000', color: '#fff', borderRadius: 6, height: 48, width: '100%', fontSize: 21 }}> Pay</button>;
+  return <button type="button" aria-label="Apple Pay test fixture" style={{ background: '#000', color: '#fff', borderRadius: 6, height: 48, width: '100%', fontSize: 21 }}>Apple Pay</button>;
 }
 export function PaymentElement({ onReady }: any) {
   const ready = useRef(onReady);

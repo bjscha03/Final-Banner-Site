@@ -1209,8 +1209,8 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
                     setCheckoutError(null);
                   }}
                 />
-                {field === 'phone' && <span className="mt-1 block text-xs font-normal text-slate-500">For delivery or artwork questions.</span>}
-                {field === 'email' && <span className="mt-1 block text-xs font-normal text-slate-500">For your receipt and order updates.</span>}
+                {field === 'phone' && <span className="sr-only">For delivery or artwork questions.</span>}
+                {field === 'email' && <span className="sr-only">For your receipt and order updates.</span>}
               </label>
             );
             return field === 'street2' ? (
