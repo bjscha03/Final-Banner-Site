@@ -248,6 +248,9 @@ test('every banner designer route uses the shared mobile ordering controls', asy
   await installUploadAndFunctionHarness(page, 'banner-route-coverage');
   for (const route of ['/design', '/design?product=banner', '/halloween-banner', '/large-banners-fast', '/double-sided-banners', '/fall-festival-banners']) {
     await page.goto(route, { waitUntil: 'domcontentloaded' });
+    if (!['/large-banners-fast', '/fall-festival-banners'].includes(route)) {
+      await page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Add artwork', exact: true }).click();
+    }
     const uploadButton = page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Upload artwork', exact: true });
     await expect(uploadButton).toBeVisible();
     await expect(uploadButton).toHaveCSS('color', 'rgb(255, 255, 255)');
@@ -267,9 +270,10 @@ test('single and double sided pricing, artwork and cart editing share one design
   const mobile = page.viewportSize()!.width < 1024;
   await page.goto('/design?width=48&height=24&utm_source=print-sides-test');
   const size = page.locator('#size-section');
-  const single = size.getByRole('radio', { name: /Single-sided/ });
-  const double = size.getByRole('radio', { name: /Double-sided/ });
+  const single = page.getByRole('radio', { name: /Single-sided/ });
+  const double = page.getByRole('radio', { name: /Double-sided/ });
   const price = mobile ? page.getByTestId('mobile-subtotal-bar') : page.getByTestId('price-breakdown').filter({ visible: true }).first();
+  if (mobile) await price.getByRole('button', { name: 'Add artwork', exact: true }).click();
   await expect(single).toBeChecked();
   await expect(price).toContainText('$32.00');
   await page.locator('#material-section').getByRole('button').click();
@@ -281,8 +285,10 @@ test('single and double sided pricing, artwork and cart editing share one design
   await expect(page.locator('#material-section')).toContainText(/15.*oz/i);
   await page.locator('#material-section').getByRole('button').click();
   await page.getByRole('option', { name: /13.*oz/i }).click();
-  await size.getByRole('button', { name: "6' × 3' — Everyday displays", exact: true }).click();
+  if (mobile) await page.getByRole('button', { name: 'Back to banner', exact: true }).click();
+  await size.getByRole('button', { name: mobile ? "6' × 3' — $72.00" : "6' × 3' — Everyday displays", exact: true }).click();
   await expect(price).toContainText('$72.00');
+  if (mobile) await price.getByRole('button', { name: 'Add artwork', exact: true }).click();
   const chooser = page.waitForEvent('filechooser');
   await (mobile ? page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Upload artwork', exact: true })
     : page.locator('#upload-section').getByRole('button', { name: /Upload your artwork/ })).click();
@@ -299,7 +305,7 @@ test('single and double sided pricing, artwork and cart editing share one design
   await expect(page).toHaveURL(/sides=double/);
   expect(new URL(page.url()).searchParams.get('utm_source')).toBe('print-sides-test');
   // URL size params must not reset the size the customer selected in the editor.
-  await expect(size.getByRole('button', { name: "6' × 3' — Everyday displays", exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(size.getByRole('button', { name: /6' × 3' —/, includeHidden: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(price).toContainText('$90.00');
   await expect(preview).toHaveAttribute('src', originalSrc!);
   await expect.poll(placementStyle).toBe(originalStyle);
@@ -312,13 +318,16 @@ test('single and double sided pricing, artwork and cart editing share one design
   await expect(price).toContainText('$90.00');
   await expect(preview).toHaveAttribute('src', originalSrc!);
   await expect.poll(placementStyle).toBe(originalStyle);
-  const sides = size.getByRole('group', { name: 'Print sides' });
+  const sides = page.getByRole('group', { name: 'Print sides' });
   await sides.scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
   await sides.screenshot({ path: info.outputPath('double-sided-selector.png') });
   await page.screenshot({ path: info.outputPath('double-sided-designer.png') });
   const finish = page.getByTestId('mobile-finishing-step');
-  if (mobile) await page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Next: Finishing', exact: true }).click();
+  if (mobile) {
+    await page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Review & finish', exact: true }).click();
+    await finish.getByTestId('review-finishing-options').locator(':scope > summary').click();
+  }
   const choices = mobile ? finish : page.locator('#options-section');
   await choices.getByRole('button', { name: /Rope in Welded Hem/ }).click();
   await choices.getByLabel('Rope placement').selectOption('top');
@@ -347,7 +356,7 @@ test('single and double sided pricing, artwork and cart editing share one design
   await expect(preview).toBeVisible();
   await single.check();
   await expect(price).toContainText('$81.60');
-  if (mobile) await page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Next: Finishing', exact: true }).click();
+  if (mobile) await page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Review & finish', exact: true }).click();
   await page.getByRole('button', { name: mobile ? 'Continue to checkout' : 'Save & checkout', exact: true }).filter({ visible: true }).click();
   await expect(page).toHaveURL(/\/checkout/, { timeout: 60000 });
   const edited = await readCart();
