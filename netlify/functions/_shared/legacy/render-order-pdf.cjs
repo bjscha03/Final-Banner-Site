@@ -1052,6 +1052,9 @@ exports.handler = async (event) => {
       } catch (parseErr) {
         console.warn('[PRINT_SCENE_V2] Failed to parse canvasStateJson:', parseErr.message);
       }
+      parsedScene = require('../stored-original-print-scene.cjs').toStoredOriginalPrintScene(
+        parsedScene, req.bannerWidthIn, req.bannerHeightIn,
+      );
       if (parsedScene && parsedScene.sceneVersion === 2) {
         const hash = sceneHash(parsedScene);
         if (req.itemId && !req.forceRegenerate) {

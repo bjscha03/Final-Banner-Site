@@ -7,7 +7,7 @@ const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const idPattern = /^[a-f0-9-]{36}$/;
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 
-export function createLargeArtworkHandler(getStore, { cloudName, now = Date.now } = {}) {
+export function createLargeArtworkHandler(getStore, { cloudName, createRasterPreview, now = Date.now } = {}) {
   return async function handler(request) {
     if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
     const url = new URL(request.url);
@@ -52,12 +52,16 @@ export function createLargeArtworkHandler(getStore, { cloudName, now = Date.now 
 
     if (action !== 'complete') return json({ error: 'Invalid action' }, 400);
     const input = await request.json();
+    const renderOnServer = session.format !== 'pdf' && typeof createRasterPreview === 'function';
     let preview;
-    try { preview = new URL(input.previewUrl); } catch { return json({ error: 'Missing permanent preview' }, 400); }
-    if (preview.protocol !== 'https:' || preview.hostname !== 'res.cloudinary.com' || !preview.pathname.startsWith(`/${cloudName}/image/upload/`)) {
-      return json({ error: 'Invalid artwork preview' }, 400);
+    if (!renderOnServer) {
+      try { preview = new URL(input.previewUrl); } catch { return json({ error: 'Missing permanent preview' }, 400); }
+      if (preview.protocol !== 'https:' || preview.hostname !== 'res.cloudinary.com' || !preview.pathname.startsWith(`/${cloudName}/image/upload/`)) {
+        return json({ error: 'Invalid artwork preview' }, 400);
+      }
     }
     const hash = createHash('sha256');
+    const originalChunks = [];
     const count = Math.ceil(session.size / CHUNK_BYTES);
     for (let index = 0; index < count; index++) {
       const data = await store.get(`${id}/chunk-${index}`, { type: 'arrayBuffer' });
@@ -70,13 +74,28 @@ export function createLargeArtworkHandler(getStore, { cloudName, now = Date.now 
         if (!valid) return json({ error: 'Artwork contents do not match the file type' }, 415);
       }
       hash.update(bytes);
+      if (renderOnServer) originalChunks.push(bytes);
+    }
+    let sourceWidth = Number(input.width) > 0 ? Number(input.width) : null;
+    let sourceHeight = Number(input.height) > 0 ? Number(input.height) : null;
+    if (renderOnServer) {
+      // Mobile canvas drawImage can silently emit transparent pixels for large
+      // originals. Derive the display image from the verified original bytes,
+      // never trust a successfully uploaded browser thumbnail as proof of art.
+      const rendered = await createRasterPreview(Buffer.concat(originalChunks), session);
+      preview = new URL(rendered.previewUrl);
+      if (preview.protocol !== 'https:' || preview.hostname !== 'res.cloudinary.com' || !preview.pathname.startsWith(`/${cloudName}/image/upload/`)) {
+        throw new Error('Server artwork preview did not return a trusted URL');
+      }
+      sourceWidth = rendered.width;
+      sourceHeight = rendered.height;
     }
     const originalUrl = `${url.origin}/artwork-original/${id}/original.${session.format}`;
     const result = {
       secureUrl: originalUrl, productionUrl: originalUrl, previewUrl: preview.href,
       publicId: originalUrl, fileKey: originalUrl, bytes: session.size,
-      width: Number(input.width) > 0 ? Number(input.width) : null,
-      height: Number(input.height) > 0 ? Number(input.height) : null,
+      width: sourceWidth,
+      height: sourceHeight,
       format: session.format, resourceType: 'original',
       mimeType: session.format === 'pdf' ? 'application/pdf' : session.format === 'png' ? 'image/png' : 'image/jpeg',
       originalFilename: session.fileName, sha256: hash.digest('hex'),
