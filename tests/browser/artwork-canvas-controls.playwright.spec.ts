@@ -52,6 +52,11 @@ test('all eight handles, crop, snap, undo and deletion work in the actual banner
   const toolbarBox = await box(page.getByRole('toolbar',{name:'Selected artwork',exact:true}));
   const topHandle = await box(canvas.locator('[data-handle=t]'));
   expect(toolbarBox.y+toolbarBox.height).toBeLessThanOrEqual(topHandle.y);
+  for (const action of await page.getByRole('toolbar',{name:'Selected artwork',exact:true}).getByRole('button').all()) {
+    const target = await box(action);
+    expect(target.x).toBeGreaterThanOrEqual(toolbarBox.x);
+    expect(target.x+target.width).toBeLessThanOrEqual(toolbarBox.x+toolbarBox.width);
+  }
   if (info.project.name === 'webkit-iphone15pro-landscape') {
     const footer = await box(page.getByTestId('mobile-subtotal-bar'));
     const header = await box(page.locator('[data-site-header]'));
@@ -159,7 +164,8 @@ for (const kind of ['photo','logo','transparent','wide']) {
     for (const handle of kind === 'wide' ? ['tl','tr','bl','br'] : ['br']) {
       await drag(page,canvas.locator(`[data-handle=${handle}]`),handle.includes('r')?-10:10,handle.includes('b')?-5:5);
       const after=await box(image);
-      close(after.width/after.height,before.width/before.height,0.005);
+      // Browser layout quantizes tiny rendered heights to fractional CSS pixels.
+      close(after.height,after.width*before.height/before.width,0.05);
       expect(after.width).toBeLessThan(before.width);
       await page.getByRole('button',{name:'Undo artwork change',exact:true}).click();
       close((await box(image)).width,before.width);

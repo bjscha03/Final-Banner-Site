@@ -249,6 +249,23 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     if (!node && containerRef && containerRef.current === previousNode) containerRef.current = null;
   }, [containerRef]);
 
+  useEffect(() => {
+    if (loading || typeof window.matchMedia !== 'function') return;
+    const landscape = window.matchMedia('(max-width: 1023px) and (max-height: 500px) and (orientation: landscape)');
+    let frame = 0;
+    const revealWorkspace = () => {
+      if (!landscape.matches) return;
+      frame = window.requestAnimationFrame(() => {
+        // A fixed header/footer do not count as occlusion to scrollIntoViewIfNeeded.
+        // Center the complete editing area once after upload/orientation change.
+        internalRef.current?.closest('[data-testid="artwork-workspace"]')?.scrollIntoView({ block: 'center', behavior: 'instant' });
+      });
+    };
+    revealWorkspace();
+    landscape.addEventListener('change', revealWorkspace);
+    return () => { window.cancelAnimationFrame(frame); landscape.removeEventListener('change', revealWorkspace); };
+  }, [loading, imageSrc]);
+
   // Restore the forwarded ref to the visible editor after the modal closes.
   useEffect(() => {
     const node = internalRef.current;
@@ -748,7 +765,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
                 </button>
               ))}
             </div>
-            <div data-artwork-toolbar="true" role="toolbar" aria-label="Selected artwork" className="absolute z-40 flex w-[244px] max-w-full items-center justify-center rounded-xl border border-slate-200 bg-white p-1 shadow-md" style={{ top: Math.max(-80, Math.min(selectionFrame.top - 80, canvasSize.h - 80)), left: clamp(selectionFrame.left + selectionFrame.width/2 - 122, 0, Math.max(0, canvasSize.w - 244)) }} onPointerDown={e => e.stopPropagation()}>
+            <div data-artwork-toolbar="true" role="toolbar" aria-label="Selected artwork" className="absolute z-40 flex w-[244px] items-center justify-center rounded-xl border border-slate-200 bg-white p-1 shadow-md" style={{ top: Math.max(-80, Math.min(selectionFrame.top - 80, canvasSize.h - 80)), left: canvasSize.w < 244 ? (canvasSize.w - 244) / 2 : clamp(selectionFrame.left + selectionFrame.width/2 - 122, 0, canvasSize.w - 244) }} onPointerDown={e => e.stopPropagation()}>
               <button type="button" aria-label="Undo artwork change" title="Undo" disabled={!history.past.length} onClick={() => travelHistory()} className={contextButton}><Undo2 size={18} /></button>
               <button type="button" aria-label="Redo artwork change" title="Redo" disabled={!history.future.length} onClick={() => travelHistory(true)} className={contextButton}><Redo2 size={18} /></button>
               <span className="mx-1 h-5 border-l border-slate-200" />
