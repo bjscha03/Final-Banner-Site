@@ -52,7 +52,7 @@ test('checkout collects authoritative customer details beside PayPal-hosted card
   assert.match(source, /PayPalCardFieldsForm/);
   assert.match(source, /renderPayPalButton\(\)/);
   assert.match(source, /First Name \*/);
-  assert.match(source, /Use this address for delivery/);
+  assert.match(source, /Billing address is the same as shipping/);
   assert.doesNotMatch(source, /guestName|Order contact/);
   assert.doesNotMatch(source, /PayPalHostedFields|fundingSource="card"/);
   assert.match(config, /components:\s*'buttons,card-fields'/);
