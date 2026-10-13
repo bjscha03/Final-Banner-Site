@@ -2747,12 +2747,12 @@ const GoogleAdsBanner: React.FC = () => {
         ? `${Math.round(quantityDiscountRate * 100)}% bulk discount`
         : `${usd(bannerPromoResolution.appliedDiscountAmountCents / 100)} off applied`
     : null;
-  const compactBannerPrice = <div data-testid="mobile-banner-price">
+  const compactBannerPrice = (sticky = false) => <div data-testid="mobile-banner-price">
     <div className="flex flex-wrap items-baseline gap-x-1.5">
-      <span data-banner-current-price className="text-2xl font-extrabold tracking-tight text-emerald-700">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</span>
-      {bannerPromoResolution.appliedDiscountAmountCents > 0 && <del className="text-xs text-slate-500">{usd((bannerPricing.subtotalBeforeDiscountCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</del>}
+      <span data-banner-current-price className={`text-2xl font-extrabold tracking-tight ${sticky ? 'text-white' : 'text-emerald-700'}`}>{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</span>
+      {bannerPromoResolution.appliedDiscountAmountCents > 0 && <del className={`text-xs ${sticky ? 'text-[#B8C8DC]' : 'text-slate-500'}`}>{usd((bannerPricing.subtotalBeforeDiscountCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</del>}
     </div>
-    {mobileDiscountLabel && <p className="text-[10px] font-semibold leading-3 text-emerald-700">{mobileDiscountLabel}</p>}
+    {!sticky && mobileDiscountLabel && <p className="text-[10px] font-semibold leading-3 text-emerald-700">{mobileDiscountLabel}</p>}
   </div>;
   const paidMobileAction = hasPermanentArtwork(uploadedFile) && hasCommittedBannerSize && !isUploading && !isProcessingUpsell
       ? { ...mobileBannerAction, label: 'Review & finish' }
@@ -2845,7 +2845,7 @@ const GoogleAdsBanner: React.FC = () => {
   const mobileReviewSummary = <section data-testid="mobile-review-summary" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
     <h2 className="text-base font-bold">Your banner</h2>
     <p className="mt-1 text-xs text-slate-600">{widthDisplay} × {heightDisplay} · {materialLabel} · Qty {quantity}</p>
-    <div className="mt-3">{compactBannerPrice}</div>
+    <div className="mt-3">{compactBannerPrice()}</div>
     <dl className="mt-3 space-y-2 border-y border-slate-200 py-3 text-xs"><div className="flex justify-between gap-3"><dt>Shipping</dt><dd className="font-bold text-emerald-700">FREE</dd></div><div className="flex justify-between gap-3"><dt>Tax</dt><dd className="text-slate-500">Calculated at checkout</dd></div></dl>
     <div className="mt-3"><PriceDeliveryEstimate /></div>
     {activeCartPromo?.code === 'NEW20' && firstOrderOffer.message && <p className="mt-2 text-[11px] leading-4 text-slate-500">{firstOrderOffer.message}</p>}
@@ -3636,7 +3636,7 @@ const GoogleAdsBanner: React.FC = () => {
           open={mobileFinishingOpen && !isLgScreen && !isYardSign && !isCarMagnet}
           onBack={() => setMobileFinishingOpen(false)}
           description={`${widthDisplay} × ${heightDisplay} · ${materialLabel} · Qty ${quantity}`}
-          price={mobilePaidLayout ? compactBannerPrice : bannerPrice}
+          price={mobilePaidLayout ? compactBannerPrice() : bannerPrice}
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
           ready={finishingChoiceConfirmed && Boolean(uploadedFile) && hasCommittedBannerSize}
           busy={isUploading || isProcessingUpsell}
@@ -3667,6 +3667,7 @@ const GoogleAdsBanner: React.FC = () => {
         </MobileFinishingStep>
         <MobileSubtotalBar
           compact={mobilePaidLayout}
+          compactDiscountLabel={mobileDiscountLabel}
           selectionLabel={`${widthDisplay} × ${heightDisplay} · ${quantity > 1 ? `Qty ${quantity}` : isDoubleSidedBanner ? '18oz · 2 sides' : material}`}
           uploadRecovery={!isYardSign && !isCarMagnet && isUploading ? { onCancel: cancelArtworkUpload } : undefined}
           primaryAction={!isYardSign && !isCarMagnet ? mobilePaidLayout ? paidMobileAction : mobileBannerAction : undefined}
@@ -3676,7 +3677,7 @@ const GoogleAdsBanner: React.FC = () => {
           priceNote={!hasCommittedBannerSize ? undefined : isLargeBannerLanding && widthIn === 120 && heightIn === 48 ? "10′ × 4′ large banner selected" : showPopularBannerPriceNote ? POPULAR_BANNER_PRESET.mobilePriceNote : undefined}
           subtotal={
             !isYardSign && !isCarMagnet ? (
-              mobilePaidLayout ? compactBannerPrice : bannerPrice
+              mobilePaidLayout ? compactBannerPrice(true) : bannerPrice
             ) : isYardSign && yardSignPricing ? (
               <p className="text-xl font-bold text-gray-900">
                 {yardSignTotalQty > 0 ? usd(yardSignPricing.totalCents / 100) : '—'}
