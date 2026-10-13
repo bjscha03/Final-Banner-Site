@@ -7,7 +7,7 @@ import type { MobileFinishingStepProps } from './MobileFinishingStep';
 /** The live editor remains mounted under this step and owns the checkout render. */
 export default function MobileBannerReviewStep({ open, onBack, children, preview, summary, price,
   description, ready, busy, editing, cartItemCount, onViewCart, onCheckout, onAddAnother,
-  finishingSummary, onReplaceArtwork }: MobileFinishingStepProps) {
+  onReplaceArtwork }: MobileFinishingStepProps) {
   return <Dialog.Root open={open} onOpenChange={next => { if (!next && !busy) onBack(); }}>
     <Dialog.Portal>
       <Dialog.Overlay className="fixed inset-0 z-[60] bg-slate-950/40" />
@@ -24,17 +24,16 @@ export default function MobileBannerReviewStep({ open, onBack, children, preview
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-5">
           <div className="mx-auto max-w-xl">
             <MobileBannerSteps current={2} onDesign={busy ? undefined : onBack} />
-            <Dialog.Title className="mb-2 text-[clamp(1.4rem,6vw,1.9rem)] font-extrabold leading-tight tracking-tight">Looks good? Make it real.</Dialog.Title>
+            <Dialog.Title className="mb-2 text-[clamp(1.4rem,6vw,1.9rem)] font-extrabold leading-tight tracking-tight">Choose your finishing</Dialog.Title>
             <Dialog.Description className="mb-3 text-xs text-slate-600">{description}</Dialog.Description>
+            <section aria-label="Finishing options" className="mb-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm" data-testid="review-finishing-options">
+              {children}
+            </section>
             {preview}
             <div className="my-1 flex items-center justify-around gap-2 text-sm text-[#18448D]">
               <button type="button" disabled={busy} onClick={onBack} className="inline-flex min-h-11 items-center gap-2 underline"><Pencil className="h-4 w-4" />Edit design</button>
               {onReplaceArtwork && <label className={`inline-flex min-h-11 items-center gap-2 underline ${busy ? 'opacity-50' : 'cursor-pointer'}`}><RefreshCw className="h-4 w-4" />Replace artwork<input type="file" aria-label="Replace artwork from review" accept="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf" disabled={busy} className="sr-only" onChange={event => { const file = event.target.files?.[0]; if (file) onReplaceArtwork(file); event.target.value = ''; }} /></label>}
             </div>
-            <details className="mb-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm" data-testid="review-finishing-options">
-              <summary className="cursor-pointer list-none"><span className="block text-base font-bold">Finishing</span><span className="mt-1 block text-xs leading-5 text-slate-600">{finishingSummary}</span><span className="mt-1 block text-right text-xs font-semibold text-[#18448D] underline">Change finishing</span></summary>
-              <div className="mt-4">{children}</div>
-            </details>
             {summary}
             <button type="button" onClick={onAddAnother} disabled={!ready || busy} className="mt-2 min-h-11 w-full text-sm font-semibold text-[#18448D] underline disabled:text-slate-400">{editing ? 'Save & design another' : 'Add & design another'}</button>
           </div>

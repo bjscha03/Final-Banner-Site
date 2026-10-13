@@ -63,7 +63,12 @@ test('banner finishing preserves the artwork, price and cart through add-another
     await expect(page.getByRole('button', { name: 'Back to banner', exact: true })).toHaveCount(0);
     await expect(page.locator('#options-section')).toHaveCount(0);
     await expect(page.getByTestId('mobile-banner-hero')).toContainText('Estimated delivery');
-    await expect(page.getByTestId('google-reviews')).toHaveCount(0);
+    await expect(page.getByTestId('mobile-banner-hero').getByTestId('google-reviews')).toBeVisible();
+    const arrivalBox = (await page.getByTestId('mobile-banner-hero').locator('[data-hero-delivery-status]').boundingBox())!;
+    const reviewBox = (await page.getByTestId('mobile-banner-hero').getByTestId('google-reviews').boundingBox())!;
+    expect(arrivalBox.height).toBeLessThan(76);
+    expect(reviewBox.height).toBeLessThanOrEqual(44);
+    expect(reviewBox.y).toBeGreaterThanOrEqual(arrivalBox.y + arrivalBox.height);
     await expect(page.locator('[data-real-orders-strip]')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Open AI artwork help' })).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('landing-first-screen.png') });
@@ -112,6 +117,7 @@ test('banner finishing preserves the artwork, price and cart through add-another
     await expect(page.getByText(/Want your banner to match/)).toHaveCount(0);
   };
   await upload();
+  await expect(page.locator('#upload-section .grommet-overlay')).toHaveCount(0);
   // A size upgrade must preserve uploaded artwork and remain selected across units.
   await expect(size).toBeVisible();
   await size.getByRole('button', { name: mobile ? "8' × 4' — $111.20" : "8' × 4' — Bigger presence", exact: true }).click();
@@ -137,7 +143,6 @@ test('banner finishing preserves the artwork, price and cart through add-another
       await expect(size).toBeVisible();
       await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible();
       await footer.getByRole('button', { name: 'Review & finish', exact: true }).click();
-      await finish.getByTestId('review-finishing-options').locator(':scope > summary').click();
       await expect(finish.getByRole('heading', { name: 'Realistic preview', exact: true })).toBeVisible();
       await expect(finish.getByAltText('Your artwork with the selected finishing')).toBeVisible();
       await expect.poll(() => finish.getByAltText('Your artwork with the selected finishing').evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
@@ -145,11 +150,20 @@ test('banner finishing preserves the artwork, price and cart through add-another
   };
   await openFinishing();
   const choices = mobile ? finish : page.locator('#options-section');
-  await expect(choices.getByRole('button', { name: /Grommets/ })).toHaveAttribute('aria-pressed', 'true');
-  await expect(choices.getByLabel('Grommet placement')).toHaveValue('every-2-3ft');
+  if (!mobile) {
+    await page.getByRole('button', { name: 'Choose finishing', exact: true }).click();
+    await expect(page).not.toHaveURL(/\/checkout/);
+    await expect(choices).toBeInViewport();
+  }
+  await expect(choices.locator('button[aria-pressed=true]')).toHaveCount(0);
+  await expect(choices.getByLabel('Grommet placement')).toHaveCount(0);
+  for (const name of [/Grommets/, /Pole Pockets/, /Rope in Welded Hem/, /No hanging hardware/]) {
+    await expect(choices.getByRole('button', { name })).toBeVisible();
+  }
   if (mobile) {
-    await expect(finish.getByRole('button', { name: mobile ? 'Checkout' : 'Continue to checkout', exact: true })).toBeEnabled();
-    await expect(finish.getByRole('button', { name: 'Add & design another', exact: true })).toBeEnabled();
+    await expect(finish.locator('[data-realistic-grommet]')).toHaveCount(0);
+    await expect(finish.getByRole('button', { name: 'Choose finishing', exact: true })).toBeDisabled();
+    await expect(finish.getByRole('button', { name: 'Add & design another', exact: true })).toBeDisabled();
     await expect(finish.locator('[data-testid=mobile-review-summary] [data-price-delivery-estimate]').first()).toContainText('Estimated delivery:');
   }
   await choices.getByRole('button', { name: /Rope in Welded Hem/ }).click();
@@ -189,7 +203,7 @@ test('banner finishing preserves the artwork, price and cart through add-another
     if (page.viewportSize()!.height > 600) {
       const previewBox = (await finish.getByTestId('finishing-realistic-preview').boundingBox())!;
       const optionsBox = (await finish.getByTestId('review-finishing-options').boundingBox())!;
-      expect(optionsBox.y).toBeGreaterThanOrEqual(previewBox.y + previewBox.height);
+      expect(previewBox.y).toBeGreaterThanOrEqual(optionsBox.y + optionsBox.height);
       expect(optionsBox.height).toBeGreaterThan(88);
     }
     await finish.getByTestId('finishing-realistic-preview').screenshot({ path: testInfo.outputPath('finishing-realistic-preview.png') });
@@ -197,6 +211,7 @@ test('banner finishing preserves the artwork, price and cart through add-another
   if (mobile) {
     await finish.getByRole('button', { name: 'Edit design', exact: true }).click();
     await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible();
+    await expect(page.locator('#upload-section .grommet-overlay')).toHaveCount(0);
     await openFinishing();
     await expect(choices.getByRole('button', { name: /Grommets/ })).toHaveAttribute('aria-pressed', 'true');
   }
@@ -216,13 +231,12 @@ test('banner finishing preserves the artwork, price and cart through add-another
   expect(dimensions.width! / dimensions.height!).toBeCloseTo(2, 2);
   await upload();
   await openFinishing();
-  await expect(choices.getByRole('button', { name: /Grommets/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(choices.locator('button[aria-pressed=true]')).toHaveCount(0);
+  await expect(page.locator('#upload-section .grommet-overlay')).toHaveCount(0);
+  if (mobile) await expect(finish.getByRole('button', { name: 'Choose finishing', exact: true })).toBeDisabled();
+  await choices.getByRole('button', { name: /No hanging hardware/ }).click();
   if (mobile) {
-    await expect(finish.getByRole('button', { name: mobile ? 'Checkout' : 'Continue to checkout', exact: true })).toBeEnabled();
-    await choices.getByRole('button', { name: /No hanging hardware/ }).click();
     await expect(finish.locator('[data-realistic-grommet], [data-realistic-pocket], [data-realistic-rope]')).toHaveCount(0);
-  } else {
-    await choices.getByRole('button', { name: /Grommets/ }).click();
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
   await page.screenshot({ path: testInfo.outputPath('finishing-step.png') });
@@ -347,7 +361,6 @@ test('single and double sided pricing, artwork and cart editing share one design
   const finish = page.getByTestId('mobile-finishing-step');
   if (mobile) {
     await page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Review & finish', exact: true }).click();
-    await finish.getByTestId('review-finishing-options').locator(':scope > summary').click();
   }
   const choices = mobile ? finish : page.locator('#options-section');
   await choices.getByRole('button', { name: /Rope in Welded Hem/ }).click();

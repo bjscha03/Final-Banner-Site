@@ -18,9 +18,10 @@ function formatHeroDate(parts: ETParts): string {
 interface HeroDeliveryStatusProps {
   className?: string;
   variant?: 'compact' | 'editorial' | 'light' | 'arrival';
+  condensed?: boolean;
 }
 
-const LiveHeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className, variant = 'compact' }) => {
+const LiveHeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className, variant = 'compact', condensed = false }) => {
   const { estimate, remainingMs } = useDeliveryCountdown({ isHitSelected: false });
   const countdownLabel = estimate.state === 'hit_available'
       ? 'Fast-service cutoff'
@@ -33,12 +34,14 @@ const LiveHeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className, 
     return (
       <div data-hero-delivery-status data-state={estimate.state} data-variant="arrival" className={`rounded-xl border border-[#e5dfd6] bg-[#f8f6f1] px-3 py-2 text-[#061A31] ${className || ''}`} aria-label="Estimated delivery and shipping dates">
         <div className="flex items-start gap-2.5">
-          <Truck className="mt-1 h-6 w-6 shrink-0" aria-hidden="true" />
+          <Truck className={condensed ? 'mt-1 h-5 w-5 shrink-0' : 'mt-1 h-6 w-6 shrink-0'} aria-hidden="true" />
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-600">Estimated delivery</p>
-            <p className="mt-0.5 text-[clamp(1.125rem,5vw,1.25rem)] font-extrabold leading-tight">{dateLabel(estimate.deliveryDate)}</p>
-            <p className="mt-0.5 text-[11px]">Expected to ship {dateLabel(estimate.shipDate)}</p>
-            <p className="mt-0.5 text-[10px] text-slate-600">Free next-business-day air after production.</p>
+            <p className={`${condensed ? 'text-base' : 'mt-0.5 text-[clamp(1.125rem,5vw,1.25rem)]'} font-extrabold leading-tight`}>{condensed ? formatHeroDate(estimate.deliveryDate) : dateLabel(estimate.deliveryDate)}</p>
+            {condensed ? <p className="mt-0.5 text-[10px] text-slate-600">Ships {formatHeroDate(estimate.shipDate)} · Free next-day air</p> : <>
+              <p className="mt-0.5 text-[11px]">Expected to ship {dateLabel(estimate.shipDate)}</p>
+              <p className="mt-0.5 text-[10px] text-slate-600">Free next-business-day air after production.</p>
+            </>}
           </div>
         </div>
       </div>
@@ -193,7 +196,7 @@ const HeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = (props) => {
   const light = props.variant === 'light' || props.variant === 'arrival';
   return (
     <div data-hero-delivery-status data-state="pending" data-variant={props.variant || 'compact'}
-      className={`min-h-[94px] rounded-md border px-3 py-4 ${light ? 'border-[#e5dfd6] bg-white text-[#061A31]' : 'border-white/20 bg-[#061A31] text-white'} ${props.className || ''}`}
+      className={`${props.condensed ? 'min-h-[68px] py-2' : 'min-h-[94px] py-4'} rounded-md border px-3 ${light ? 'border-[#e5dfd6] bg-white text-[#061A31]' : 'border-white/20 bg-[#061A31] text-white'} ${props.className || ''}`}
       aria-label="Production and shipping">
       <p className="text-sm font-bold">24-hour standard production</p>
       <p className="mt-1 text-xs">Free next-day air after production</p>
