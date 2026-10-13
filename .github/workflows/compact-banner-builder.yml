@@ -6,6 +6,7 @@ on:
       - 'src/components/design/**'
       - 'src/components/pricing/**'
       - 'tests/browser/compact-banner-builder.playwright.spec.ts'
+      - 'tests/browser/mobile-designer-consistency.playwright.spec.ts'
       - '.github/workflows/compact-banner-builder.yml'
 permissions:
   contents: read
@@ -25,6 +26,7 @@ jobs:
         run: >-
           npx playwright test --config=playwright.preview.config.ts
           compact-banner-builder.playwright.spec.ts
+          mobile-designer-consistency.playwright.spec.ts
           --project=chromium-1440x900
           --project=firefox-1280x800
           --project=webkit-1280x800

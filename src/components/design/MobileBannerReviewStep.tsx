@@ -1,6 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { ArrowRight, Loader2, Pencil, ShoppingCart, RefreshCw } from 'lucide-react';
 import MobileBannerSteps from './MobileBannerSteps';
+import ShippingBenefitBadge from '@/components/pricing/ShippingBenefitBadge';
 import type { MobileFinishingStepProps } from './MobileFinishingStep';
 
 /** The live editor remains mounted under this step and owns the checkout render. */
@@ -22,7 +23,7 @@ export default function MobileBannerReviewStep({ open, onBack, children, preview
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-5">
           <div className="mx-auto max-w-xl">
-            <MobileBannerSteps current={3} onArtwork={busy ? undefined : onBack} />
+            <MobileBannerSteps current={2} onDesign={busy ? undefined : onBack} />
             <Dialog.Title className="mb-2 text-[clamp(1.4rem,6vw,1.9rem)] font-extrabold leading-tight tracking-tight">Looks good? Make it real.</Dialog.Title>
             <Dialog.Description className="mb-3 text-xs text-slate-600">{description}</Dialog.Description>
             {preview}
@@ -45,6 +46,7 @@ export default function MobileBannerReviewStep({ open, onBack, children, preview
               {busy ? <><Loader2 className="h-4 w-4 animate-spin" />Saving…</> : ready ? <>Checkout <ArrowRight className="h-4 w-4" /></> : 'Choose finishing'}
             </button>
           </div>
+          <ShippingBenefitBadge variant="price" className="mx-auto mt-1.5 max-w-xl" />
         </footer>
       </Dialog.Content>
     </Dialog.Portal>

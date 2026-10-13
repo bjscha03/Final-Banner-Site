@@ -36,7 +36,7 @@ for (const width of [320, 390, 1440]) {
       await expect(bar).toContainText('20% off applied');
       await expect(page.getByTestId('mobile-banner-hero')).toContainText('Free next-business-day air');
       await expect(page.getByRole('button', { name: 'Shopping cart', exact: true })).toBeVisible();
-      await expect(bar.getByRole('button', { name: 'Add artwork', exact: true })).toBeVisible();
+      await expect(bar.getByRole('button', { name: 'Upload artwork', exact: true })).toBeVisible();
       expect(await bar.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
       await bar.screenshot({ path: info.outputPath(`welcome-sticky-${width}.png`) });
       return;

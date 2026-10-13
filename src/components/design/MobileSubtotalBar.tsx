@@ -91,7 +91,8 @@ export default function MobileSubtotalBar({
         className={`fixed inset-x-0 bottom-0 z-40 overflow-x-clip border-t border-gray-200 bg-white px-4 shadow-lg ${primaryAction ? 'pt-2 lg:hidden' : 'pt-3 md:hidden'}`}
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}
       >
-        {compact && primaryAction ? <div className="mx-auto flex max-w-xl items-center justify-between gap-3">
+        {compact && primaryAction ? <div className="mx-auto max-w-xl">
+          <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-slate-600">{selectionLabel}</p>
             {displayedSubtotal}
@@ -101,6 +102,8 @@ export default function MobileSubtotalBar({
             className="inline-flex min-h-12 max-w-[58%] items-center justify-center gap-2 rounded-xl bg-[#F56600] px-5 py-3 text-sm font-bold text-white focus-visible:ring-2 focus-visible:ring-[#061A31] disabled:bg-slate-300 disabled:text-slate-600">
             {primaryAction.label}<span aria-hidden="true">→</span>
           </button>
+          </div>
+          <ShippingBenefitBadge variant="price" className="mt-1.5" />
         </div> : <><div className="flex min-h-[44px] items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5">
             <div className="min-w-0 max-w-full [overflow-wrap:anywhere]">
