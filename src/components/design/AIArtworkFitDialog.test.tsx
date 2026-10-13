@@ -37,6 +37,8 @@ afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi
 it('compares first, requires customer review, and saves before applying', async () => {
   await render(); await click('Create fitted version');
   expect(props.onApply).not.toHaveBeenCalled();
+  expect(document.querySelector('input[type="checkbox"]')?.closest('label')?.textContent).toBe('Approve design');
+  expect(document.body.textContent).not.toContain('Automated wording and design checks passed');
   expect(button('Use this version').disabled).toBe(true);
   await checkReview(); await click('Use this version');
   expect(saveFittedArtwork).toHaveBeenCalledExactlyOnceWith(success);
@@ -47,7 +49,8 @@ it('compares first, requires customer review, and saves before applying', async 
 it('prevents using a result with changed wording or design elements', async () => {
   vi.mocked(runBackgroundJob).mockResolvedValue({ fit: { ...success, verification: { ...success.verification, passed: false, issues: ['The logo changed'] } } });
   await render(); await click('Create fitted version');
-  expect(document.body.textContent).toContain('The logo changed');
+  expect(document.body.textContent).not.toContain('The logo changed');
+  expect(document.body.textContent).toContain('Please retry this design.');
   expect(button('Use this version').disabled).toBe(true);
   expect(document.querySelector('input[type="checkbox"]')).toBeNull();
   await click('Use this version');
@@ -87,7 +90,7 @@ it('keeps one request running when the dialog closes and reopens', async () => {
 
 it('offers a working retry after readiness temporarily fails', async () => {
   vi.mocked(fetchAIJson).mockResolvedValueOnce({ response: new Response('{}'), body: { ready: false } });
-  await render(); await click('Try opening AI fit again');
+  await render(); await click('Retry');
   expect(button('Create fitted version').disabled).toBe(false);
 });
 
@@ -95,9 +98,11 @@ it('lets the customer review and apply the cosmetic differences from the petting
   const reviewable = { ...success, verification: { ...success.verification, passed: false, canApply: true, blockingIssues: [], confidence: .8, issues: ['The lettering appears wider.', 'The divider has two additional decorative dots.', 'The wood grain and knot pattern differ.'] } };
   vi.mocked(runBackgroundJob).mockResolvedValue({ fit: reviewable });
   await render(); await click('Create fitted version');
-  expect(document.body.textContent).toContain('Review the visual changes');
+  expect(document.body.textContent).not.toContain('Review the visual changes');
+  expect(document.querySelector('input[type="checkbox"]')?.closest('label')?.textContent).toBe('Approve design');
+  expect(button('Retry')).toBeTruthy();
   expect(document.body.textContent).not.toContain('This version needs another attempt');
-  expect(document.body.textContent).toContain('The wood grain and knot pattern differ.');
+  expect(document.body.textContent).not.toContain('The wood grain and knot pattern differ.');
   expect(button('Use this version').disabled).toBe(true);
   await checkReview();
   expect(button('Use this version').disabled).toBe(false);
@@ -111,17 +116,19 @@ it('keeps a changed admission price blocked even when cosmetic review would be a
   await render(); await click('Create fitted version');
   expect(button('Use this version').disabled).toBe(true);
   expect(document.querySelector('input[type="checkbox"]')).toBeNull();
-  expect(document.body.textContent).toContain('The admission price changed');
+  expect(document.body.textContent).not.toContain('The admission price changed');
+  expect(document.body.textContent).toContain('Please retry this design.');
+  expect(button('Retry')).toBeTruthy();
   expect(saveFittedArtwork).not.toHaveBeenCalled();
 });
 
 it('keeps the last preview and retries the same attempt after a failed replacement', async () => {
   await render(); await click('Create fitted version');
   vi.mocked(runBackgroundJob).mockRejectedValueOnce(new Error('Temporary connection failure'));
-  await click('Try another layout');
+  await click('Retry');
   expect(document.querySelector('img[alt="AI layout at your selected product dimensions"]')).not.toBeNull();
-  expect(button('Retry same request')).toBeTruthy();
-  await click('Retry same request');
+  expect(button('Retry')).toBeTruthy();
+  await click('Retry');
   expect(vi.mocked(runBackgroundJob).mock.calls.slice(1).map(call => call[1].attempt)).toEqual([1, 1]);
 });
 
@@ -130,13 +137,13 @@ it('shows the server cooldown and prevents repeated retry clicks until it expire
   try {
     await render(); await click('Create fitted version');
     vi.mocked(runBackgroundJob).mockRejectedValueOnce(new AIRequestRateLimitError('Limit reached', '65'));
-    await click('Try another layout');
+    await click('Retry');
     expect(document.body.textContent).toContain('Please wait 1:05');
-    expect(button('Retry same request').disabled).toBe(true);
-    await click('Retry same request'); expect(runBackgroundJob).toHaveBeenCalledTimes(2);
+    expect(button('Retry').disabled).toBe(true);
+    await click('Retry'); expect(runBackgroundJob).toHaveBeenCalledTimes(2);
     await act(async () => vi.advanceTimersByTime(65_000));
-    expect(button('Retry same request').disabled).toBe(false);
-    await click('Retry same request');
+    expect(button('Retry').disabled).toBe(false);
+    await click('Retry');
     expect(runBackgroundJob).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ attempt: 1 }), expect.anything(), expect.anything(), expect.anything(), undefined, undefined, 'original-1|120|48');
   } finally { vi.useRealTimers(); }
 });
