@@ -52,7 +52,7 @@ export const EVERGREEN_HERO: HomepageHeroCampaign = {
   description:
     'Choose your product, upload artwork, and review a live print preview before checkout. Most standard orders are produced within 24 hours, followed by free next-day air.',
   primaryCta: { label: 'Start your order', href: '/design' },
-  secondaryCta: { label: 'Compare products & pricing', href: '/vinyl-banners' },
+  secondaryCta: { label: 'Design your banner', href: '/design?product=banner' },
   valueProps: ['Live print preview', 'Current pricing shown', 'Ships nationwide'],
 };
 
@@ -75,7 +75,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
     description:
       'Welcome students, promote open houses, and get fall events ready with custom banners. Most standard orders are produced within 24 hours, followed by free next-day air.',
     primaryCta: { label: 'Create a school banner', href: '/design' },
-    secondaryCta: { label: 'Explore vinyl banners', href: '/vinyl-banners' },
+    secondaryCta: { label: 'Design your banner', href: '/design?product=banner' },
     valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
     artwork: {
       desktopSrc: '/images/homepage/school-hero-desktop.webp',
@@ -101,7 +101,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
         title: 'Fall sports & senior night',
         description: 'Create team, sponsor, schedule, and athlete-recognition banners before game day.',
         label: 'Shop vinyl banners',
-        href: '/vinyl-banners',
+        href: '/design?product=banner',
       },
       {
         icon: 'store',
@@ -124,7 +124,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
     description:
       'Beautiful custom banners, printed in 24 hours. Free Next-Day Air shipping on orders $20+.',
     primaryCta: { label: 'Design your banner', href: '/design' },
-    secondaryCta: { label: 'Explore vinyl banners', href: '/vinyl-banners' },
+    secondaryCta: { label: 'Design your banner', href: '/design?product=banner' },
     valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
     artwork: {
       desktopSrc: '/images/homepage/freshfield-fall-desktop.webp',
@@ -156,8 +156,8 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
         icon: 'store',
         title: 'October business promotions',
         description: 'Make seasonal sales, attractions, and special hours visible from the street.',
-        label: 'Explore vinyl banners',
-        href: '/vinyl-banners',
+        label: 'Design your banner',
+        href: '/design?product=banner',
       },
     ],
   },
@@ -173,7 +173,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
     description:
       'Honor those who served at schools, ceremonies, parades, and community gatherings with clear, respectful custom signage.',
     primaryCta: { label: 'Create a recognition banner', href: '/design' },
-    secondaryCta: { label: 'Explore vinyl banners', href: '/vinyl-banners' },
+    secondaryCta: { label: 'Design your banner', href: '/design?product=banner' },
     valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
     artwork: {
       desktopSrc: '/images/seasonal-veterans-day-2026-desktop.webp',
@@ -197,7 +197,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
         title: 'School & community tributes',
         description: 'Recognize service with readable welcome, appreciation, and event banners.',
         label: 'Shop vinyl banners',
-        href: '/vinyl-banners',
+        href: '/design?product=banner',
       },
       {
         icon: 'map',
@@ -250,8 +250,8 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
         icon: 'store',
         title: 'Seasonal business messages',
         description: 'Promote holiday hours, pickup areas, catering, and fall offers before Thanksgiving week.',
-        label: 'Explore vinyl banners',
-        href: '/vinyl-banners',
+        label: 'Design your banner',
+        href: '/design?product=banner',
       },
     ],
   },
@@ -267,7 +267,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
     description:
       'Bring Black Friday and holiday-weekend offers to the street with clear custom banners and directional signs.',
     primaryCta: { label: 'Create a holiday sale banner', href: '/design' },
-    secondaryCta: { label: 'Explore vinyl banners', href: '/vinyl-banners' },
+    secondaryCta: { label: 'Design your banner', href: '/design?product=banner' },
     valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
     artwork: {
       desktopSrc: '/images/seasonal-holiday-sales-2026-desktop.webp',

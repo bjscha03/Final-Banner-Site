@@ -34,61 +34,6 @@ export interface CategorySEO {
 }
 
 export const categoryData: Record<string, CategorySEO> = {
-  'vinyl-banners': {
-    slug: 'vinyl-banners',
-    title: 'Vinyl Banners',
-    metaTitle: 'Custom Vinyl Banners | Free Next-Day Air | 24-Hour Production',
-    metaDescription: 'Professional vinyl banners with free next-day air shipping. 13oz, 15oz, 18oz materials. Custom sizes up to 10ft x 50ft. Design online with live preview. Order today!',
-    h1: 'Custom Vinyl Banners',
-    description: 'Our premium vinyl banners are perfect for indoor and outdoor advertising. Choose from 13oz, 15oz, or 18oz vinyl materials for durability that matches your needs.',
-    keywords: ['vinyl banners', 'custom vinyl banners', 'outdoor banners'],
-    canonicalUrl: 'https://bannersonthefly.com/vinyl-banners',
-    ogImage: '/images/logo-social.svg',
-    breadcrumbs: [
-      { name: 'Home', url: '/' },
-      { name: 'Vinyl Banners', url: '/vinyl-banners' }
-    ],
-    schema: {
-      type: 'Product',
-      name: 'Custom Vinyl Banners',
-      description: 'Professional vinyl banners with free next-day air shipping',
-      image: '/images/logo-social.svg',
-      offers: { price: '29.99', priceCurrency: 'USD', availability: 'https://schema.org/InStock' }
-    },
-    content: {
-      features: ['Free next-day air shipping', '24-hour production time', 'Weather-resistant materials', 'Vibrant full-color printing', 'Reinforced grommets', 'UV-resistant inks'],
-      uses: ['Outdoor advertising', 'Event promotion', 'Grand openings', 'Trade shows', 'Retail displays', 'Construction sites'],
-      sizes: ['2ft x 4ft', '3ft x 6ft', '4ft x 8ft', '5ft x 10ft', 'Custom sizes up to 10ft x 50ft'],
-      materials: ['13oz Vinyl', '15oz Vinyl', '18oz Vinyl']
-    },
-    relatedCategories: ['mesh-banners', 'outdoor-banners', 'trade-show-banners']
-  },
-  'mesh-banners': {
-    slug: 'mesh-banners',
-    title: 'Mesh Banners',
-    metaTitle: 'Mesh Banners | Wind-Resistant | Free Next-Day Air Shipping',
-    metaDescription: 'Wind-resistant mesh banners perfect for fencing and outdoor use. 70% airflow reduces wind load. Custom sizes. 24-hour production.',
-    h1: 'Wind-Resistant Mesh Banners',
-    description: 'Mesh banners are the ideal solution for windy locations and fence installations. With 70% airflow, our mesh vinyl banners reduce wind load while maintaining vibrant graphics.',
-    keywords: ['mesh banners', 'wind resistant banners', 'fence banners'],
-    canonicalUrl: 'https://bannersonthefly.com/mesh-banners',
-    ogImage: '/images/logo-social.svg',
-    breadcrumbs: [{ name: 'Home', url: '/' }, { name: 'Mesh Banners', url: '/mesh-banners' }],
-    schema: {
-      type: 'Product',
-      name: 'Wind-Resistant Mesh Banners',
-      description: 'Mesh banners with 70% airflow for windy locations',
-      image: '/images/logo-social.svg',
-      offers: { price: '34.99', priceCurrency: 'USD', availability: 'https://schema.org/InStock' }
-    },
-    content: {
-      features: ['70% airflow reduces wind load', 'Perfect for fence installations', 'Weather-resistant material', 'Reinforced grommets', 'Full-color printing', 'Free next-day air shipping'],
-      uses: ['Construction site fencing', 'Sporting events', 'Outdoor advertising in windy areas', 'Building wraps', 'Scaffolding banners', 'Highway advertising'],
-      sizes: ['3ft x 6ft', '4ft x 8ft', '5ft x 10ft', '6ft x 12ft', 'Custom sizes available'],
-      materials: ['Mesh Vinyl']
-    },
-    relatedCategories: ['vinyl-banners', 'outdoor-banners', 'construction-banners']
-  },
   'trade-show-banners': {
     slug: 'trade-show-banners',
     title: 'Trade Show Banners',
@@ -113,7 +58,7 @@ export const categoryData: Record<string, CategorySEO> = {
       sizes: ['2ft x 5ft', '3ft x 6ft', '4ft x 8ft', '5ft x 8ft', 'Custom sizes available'],
       materials: ['13oz Vinyl', '15oz Vinyl']
     },
-    relatedCategories: ['vinyl-banners', 'event-banners', 'indoor-banners']
+    relatedCategories: ['event-banners', 'indoor-banners']
   },
   'food-truck-banners': {
     slug: 'food-truck-banners',
@@ -139,7 +84,7 @@ export const categoryData: Record<string, CategorySEO> = {
       sizes: ['2ft x 3ft', '3ft x 5ft', '4ft x 6ft', '4ft x 8ft', 'Custom sizes available'],
       materials: ['15oz Vinyl', '18oz Vinyl']
     },
-    relatedCategories: ['vinyl-banners', 'outdoor-banners', 'event-banners']
+    relatedCategories: ['outdoor-banners', 'event-banners']
   },
   'outdoor-banners': {
     slug: 'outdoor-banners',
@@ -165,7 +110,7 @@ export const categoryData: Record<string, CategorySEO> = {
       sizes: ['3ft x 6ft', '4ft x 8ft', '5ft x 10ft', '6ft x 12ft', 'Custom sizes up to 10ft x 50ft'],
       materials: ['15oz Vinyl', '18oz Vinyl', 'Mesh Vinyl']
     },
-    relatedCategories: ['vinyl-banners', 'mesh-banners', 'construction-banners']
+    relatedCategories: ['construction-banners']
   },
   'indoor-banners': {
     slug: 'indoor-banners',
@@ -191,7 +136,7 @@ export const categoryData: Record<string, CategorySEO> = {
       sizes: ['2ft x 4ft', '3ft x 6ft', '4ft x 6ft', '4ft x 8ft', 'Custom sizes available'],
       materials: ['13oz Vinyl']
     },
-    relatedCategories: ['vinyl-banners', 'trade-show-banners', 'event-banners']
+    relatedCategories: ['trade-show-banners', 'event-banners']
   },
   'event-banners': {
     slug: 'event-banners',
@@ -217,7 +162,7 @@ export const categoryData: Record<string, CategorySEO> = {
       sizes: ['3ft x 5ft', '4ft x 6ft', '4ft x 8ft', '5ft x 10ft', 'Custom sizes available'],
       materials: ['13oz Vinyl', '15oz Vinyl']
     },
-    relatedCategories: ['vinyl-banners', 'indoor-banners', 'outdoor-banners']
+    relatedCategories: ['indoor-banners', 'outdoor-banners']
   },
   'custom-banners': {
     slug: 'custom-banners',
@@ -243,7 +188,7 @@ export const categoryData: Record<string, CategorySEO> = {
       sizes: ['Any size from 1ft x 1ft', 'Up to 10ft x 50ft', 'Custom dimensions', 'Standard sizes available', 'Consult for larger sizes'],
       materials: ['13oz Vinyl', '15oz Vinyl', '18oz Vinyl', 'Mesh Vinyl']
     },
-    relatedCategories: ['vinyl-banners', 'outdoor-banners', 'indoor-banners']
+    relatedCategories: ['outdoor-banners', 'indoor-banners']
   },
   'construction-banners': {
     slug: 'construction-banners',
@@ -269,7 +214,7 @@ export const categoryData: Record<string, CategorySEO> = {
       sizes: ['3ft x 6ft', '4ft x 8ft', '5ft x 10ft', '6ft x 12ft', 'Custom fence sizes'],
       materials: ['18oz Vinyl', 'Mesh Vinyl']
     },
-    relatedCategories: ['mesh-banners', 'outdoor-banners', 'vinyl-banners']
+    relatedCategories: ['outdoor-banners']
   }
 };
 

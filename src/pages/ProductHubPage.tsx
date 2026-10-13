@@ -61,7 +61,7 @@ const ProductHubPage: React.FC<ProductHubPageProps> = ({ productSlug }) => {
       <nav className="border-b border-slate-200 bg-[#F7F7F7]" aria-label="Product guides">
         <div className="brand-shell flex gap-7 overflow-x-auto py-4 text-sm font-bold">
           {productLinks.map((item) => (
-            <Link key={item.slug} to={`/${item.slug}`} className={`whitespace-nowrap border-b-2 py-1 ${item.slug === productSlug ? 'border-[#FF6A00] text-[#0B1F3A]' : 'border-transparent text-slate-500 hover:text-[#0B1F3A]'}`}>
+            <Link key={item.slug} to={item.slug === 'vinyl-banners' ? '/design?product=banner' : `/${item.slug}`} className={`whitespace-nowrap border-b-2 py-1 ${item.slug === productSlug ? 'border-[#FF6A00] text-[#0B1F3A]' : 'border-transparent text-slate-500 hover:text-[#0B1F3A]'}`}>
               {item.label}
             </Link>
           ))}

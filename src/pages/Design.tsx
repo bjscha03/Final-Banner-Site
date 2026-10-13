@@ -491,7 +491,11 @@ const Design: React.FC = () => {
   const widthInR = parseInt(widthInRStr, 10) || 0;
   const heightFt = parseInt(heightFtStr, 10) || 0;
   const heightInR = parseInt(heightInRStr, 10) || 0;
-  const [material, setMaterial] = useState<MaterialKey>('13oz');
+  const [material, setMaterial] = useState<MaterialKey>(() =>
+    initialProductType === 'banner' && !editItemId
+      ? MATERIALS.find((option) => option.mapped === searchParams.get('material'))?.mapped ?? '13oz'
+      : '13oz'
+  );
   const [materialDropdownOpen, setMaterialDropdownOpen] = useState(false);
   const materialDropdownRef = useRef<HTMLDivElement>(null);
   const [grommets, setGrommets] = useState('none');
@@ -565,6 +569,16 @@ const Design: React.FC = () => {
     setHasConfirmedSize(true);
   }, [editItemId, productType, searchParams]);
   const [hasConfirmedMaterial, setHasConfirmedMaterial] = useState(false);
+
+  // Homepage material cards and retired material URLs open the same designer.
+  // Only accept supported banner materials; cart edits keep their saved choice.
+  useEffect(() => {
+    if (productType !== 'banner' || editItemId) return;
+    const requestedMaterial = MATERIALS.find((option) => option.mapped === searchParams.get('material'));
+    if (!requestedMaterial) return;
+    setMaterial(requestedMaterial.mapped);
+    setHasConfirmedMaterial(true);
+  }, [editItemId, productType, searchParams]);
   const [hasConfirmedQuantity, setHasConfirmedQuantity] = useState(false);
   const [hasReviewedOptions, setHasReviewedOptions] = useState(false);
 
