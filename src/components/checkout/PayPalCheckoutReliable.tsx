@@ -9,7 +9,8 @@ import {
   PayPalScriptProvider,
   usePayPalCardFields,
 } from '@paypal/react-paypal-js';
-import { Clock3, Loader2, RefreshCw } from 'lucide-react';
+import { Clock3, Loader2, Lock, RefreshCw } from 'lucide-react';
+import { PreviewCardPayment, PreviewExpressCheckout } from './CheckoutPreviewPayment';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
@@ -108,7 +109,7 @@ const InlineCardSubmit: React.FC<{
   return (
     <Button
       type="button"
-      className="mt-3 w-full"
+      className="checkout-pay-button mt-3 w-full"
       size="lg"
       disabled={disabled || !cardFieldsForm}
       onClick={() => {
@@ -1171,15 +1172,14 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       <section
         ref={customerDetailsRef}
         aria-labelledby="checkout-customer-heading"
-        className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 sm:p-4"
+        className="checkout-contact"
       >
-        <div className="mb-4">
+        <div className="checkout-section-title">
+          <span className="flex items-center justify-center rounded-full bg-[#071C35] font-bold text-white" aria-hidden="true">1</span>
           <h3 id="checkout-customer-heading" className="text-base font-bold text-[#0B1F3A]">
-            Contact &amp; address
+            Contact &amp; delivery
           </h3>
-          <p className="mt-1 text-xs leading-5 text-slate-600">
-            Enter your address once for billing and delivery. Your details stay saved while you edit your artwork.
-          </p>
+
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -1196,6 +1196,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
                 <Input
                   id={`checkout-${field}`}
                   name={`billing-${field}`}
+                  placeholder={field === 'email' ? 'you@example.com' : field === 'phone' ? '(555) 555-5555' : field === 'street' ? 'Street address' : label.replace(' *', '')}
                   data-checkout-field={field}
                   className="mt-1 h-11 text-base sm:text-sm"
                   type={type}
@@ -1211,8 +1212,8 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
                     setCheckoutError(null);
                   }}
                 />
-                {field === 'phone' && <span className="mt-1 block text-xs font-normal text-slate-500">For delivery or artwork questions.</span>}
-                {field === 'email' && <span className="mt-1 block text-xs font-normal text-slate-500">For your receipt and order updates.</span>}
+                {field === 'phone' && <span className="sr-only">For delivery or artwork questions.</span>}
+                {field === 'email' && <span className="sr-only">For your receipt and order updates.</span>}
               </label>
             );
             return field === 'street2' ? (
@@ -1223,19 +1224,19 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
             ) : fieldInput;
           })}
 
-          <p className="col-span-2 text-xs text-slate-500">Delivery within the United States.</p>
+          <div className="col-span-2 checkout-country"><span>Country</span><p>United States</p></div>
 
           <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium text-slate-800 col-span-2">
             <input
               type="checkbox"
-              className="h-5 w-5 flex-none accent-[#18448D]"
+              className="h-5 w-5 flex-none accent-[#ec5700]"
               checked={customer.shippingSame}
               onChange={(event) => {
                 updateCustomer('shippingSame', event.target.checked);
                 setCheckoutError(null);
               }}
             />
-            Use this address for delivery
+            Billing address is the same as shipping
           </label>
 
           {!customer.shippingSame
@@ -1327,22 +1328,22 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   if (isDeployPreview) {
     return (
       <div className="space-y-4">
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
-          <strong>Deploy Preview Test Checkout:</strong> Create an order without processing a real payment.
-        </div>
+        <PreviewExpressCheckout />
         {renderCustomerDetails()}
+        <PreviewCardPayment />
         {orderSummary}
         <Button
+          type="button"
           onClick={handleTestPayment}
-          disabled={disabled || isPreparing}
-          variant="outline"
-          className="w-full"
+          disabled={disabled || providerLocked || isPreparing}
+          className="checkout-pay-button w-full"
           size="lg"
         >
           {isPreparing
             ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing Test Order...</>
-            : 'Place Test Order — No Payment'}
+            : <><Lock className="mr-2 h-4 w-4" aria-hidden="true" />Place test order · ${(total / 100).toFixed(2)}</>}
         </Button>
+        <p className="checkout-preview-note text-center">Test order only. No payment will be taken.</p>
         {checkoutError ? <p className="text-sm text-red-700">{checkoutError}</p> : null}
       </div>
     );
@@ -1441,9 +1442,9 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
             <div className="space-y-2.5">
               {renderInlineCardFields()}
               <div className="flex items-center gap-2">
-                <span className="h-px flex-1 bg-[#E7D9C7]" />
-                <span className="text-[11px] text-[#8B7355]">or</span>
-                <span className="h-px flex-1 bg-[#E7D9C7]" />
+                <span className="h-px flex-1 bg-slate-200" />
+                <span className="text-[11px] text-slate-500">or</span>
+                <span className="h-px flex-1 bg-slate-200" />
               </div>
               {renderPayPalButton()}
             </div>

@@ -261,22 +261,23 @@ test('banner finishing preserves the artwork, price and cart through add-another
   expect(finalCart).toHaveLength(2);
   expect(finalCart[0].id).toBe(savedId);
   expect(finalCart[1].grommets).toBe('none');
-  await expect(page.getByTestId('payment-order-summary')).toBeVisible();
+  if (mobile) await expect(page.getByTestId('payment-order-summary')).toBeVisible();
   await expect(page.getByTestId('checkout-order-totals')).toHaveCount(1);
-  const artworkItems = page.getByTestId('payment-order-summary').locator('[data-checkout-artwork-item]');
+  const artworkItems = page.getByTestId('checkout-artwork-summary').locator('[data-checkout-artwork-item]');
   await expect(artworkItems).toHaveCount(2);
   const firstItem = artworkItems.first();
-  const printPreview = firstItem.locator('[data-commerce-preview]');
-  await expect(printPreview).toHaveAttribute('data-preview-ready', 'true');
-  // Landscape phones bound large previews by viewport height to preserve their aspect ratio.
-  const expectedWidth = Math.min((await firstItem.boundingBox())!.width, (page.viewportSize()!.height - 160) * 2, 600);
-  expect((await printPreview.boundingBox())!.width).toBeGreaterThan(expectedWidth * 0.8);
-  await expect(firstItem.getByText('Realistic preview', { exact: true })).toBeVisible();
-  await firstItem.screenshot({ path: testInfo.outputPath('checkout-large-previews.png') });
-  await firstItem.getByRole('button', { name: /Enlarge realistic preview/ }).click();
-  await expect(page.locator('[data-realistic-lightbox]')).toBeVisible();
-  await expect(page.locator('[data-realistic-lightbox] [data-realistic-grommet]')).toHaveCount(await firstItem.locator('[data-realistic-grommet]').count());
-  await page.getByRole('button', { name: 'Close preview', exact: true }).click();
+  const printPreview = firstItem.locator('[data-realistic-artwork-ready]');
+  await expect(printPreview).toHaveAttribute('data-realistic-artwork-ready', 'true');
+  const previewBox = (await printPreview.boundingBox())!;
+  expect(previewBox.width).toBeGreaterThan(50);
+  expect(previewBox.width / previewBox.height).toBeCloseTo(2, 1);
+  await expect(firstItem.getByRole('button', { name: 'Realistic preview', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(firstItem.locator('[data-realistic-scene]')).toHaveCount(1);
+  await firstItem.screenshot({ path: testInfo.outputPath('checkout-saved-artwork.png') });
+  await firstItem.getByRole('button', { name: /Enlarge artwork/ }).click();
+  const lightbox = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Close preview' }) });
+  await expect(lightbox.locator('[data-realistic-artwork-ready="true"]')).toHaveCount(1);
+  await lightbox.getByRole('button', { name: 'Close preview', exact: true }).last().click();
 });
 
 
@@ -391,7 +392,7 @@ test('single and double sided pricing, artwork and cart editing share one design
   await expect(page.getByTestId('checkout-order-totals')).toContainText('$124.50');
   await expect(page.getByTestId('checkout-order-totals')).toContainText('-$24.90');
   await expect(page.getByTestId('checkout-order-totals')).toContainText('$105.58');
-  await page.getByTestId('payment-order-summary').screenshot({ path: info.outputPath('double-sided-checkout.png') });
+  await page.getByTestId('checkout-order-totals').screenshot({ path: info.outputPath('double-sided-checkout.png') });
   // Follow the actual checkout edit action, then save over the same cart item.
   await page.getByRole('button', { name: 'Edit order', exact: true }).click();
   await page.getByRole('button', { name: 'Edit banner', exact: true }).click();

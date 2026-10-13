@@ -27,7 +27,7 @@ test('checkout preserves the reliable inline PayPal implementation', () => {
     'City *',
     'State *',
     'ZIP *',
-    'Use this address for delivery',
+    'Billing address is the same as shipping',
     'Shipping Address *',
     'Pay Now',
   ]) {

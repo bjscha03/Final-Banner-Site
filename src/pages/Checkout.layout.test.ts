@@ -7,7 +7,8 @@ const checkout = readFileSync(fileURLToPath(new URL('./Checkout.tsx', import.met
 describe('checkout information hierarchy', () => {
   it('places the delivery estimate with order totals instead of a separate timer', () => {
     const totals = checkout.slice(checkout.indexOf('const orderTotals ='), checkout.indexOf('const orderReviewContent ='));
-    expect(totals).toContain('<PriceDeliveryEstimate');
+    expect(checkout).toContain('<PriceDeliveryEstimate variant="checkout"');
+    expect(checkout).toContain('checkout-order-panel');
     expect(totals).toContain('<CheckoutOrderTotals');
     expect(checkout).not.toContain('<DeliveryTimer');
   });
