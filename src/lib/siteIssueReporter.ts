@@ -104,6 +104,15 @@ export function reportPageIssue(kind: 'page_error' | 'page_crash', error: unknow
     reportSiteIssue(kind, { errorMessage: err?.message || (typeof error === 'string' ? error : 'Non-Error rejection'), stack: err?.stack, componentStack, errorName, source: sourcePath, line: line || Number(frame?.[2] || 0), column: column || Number(frame?.[3] || 0) });
   } catch { /* Error reporting itself must remain safe. */ }
 }
+export function isFirstPartyScriptSource(source: string, pageOrigin: string, assetBase = import.meta.env.BASE_URL): boolean {
+  if (!source) return true; // Opaque reports must stay visible for investigation.
+  try {
+    const url = new URL(source, pageOrigin);
+    if (url.origin === pageOrigin) return true;
+    const assets = new URL(assetBase || '/', pageOrigin);
+    return url.origin === assets.origin && /^\/assets\/[A-Za-z0-9_.-]+\.js$/.test(url.pathname);
+  } catch { return false; }
+}
 export function installSiteIssueMonitoring() {
   if (!enabled() || installed) return;
   installed = true;
@@ -119,9 +128,10 @@ export function installSiteIssueMonitoring() {
   window.addEventListener('popstate', () => recordIssueAction('navigation'));
 
   window.addEventListener('error', event => {
-    // Ignore image loading failures, extensions, and opaque third-party errors.
+    // Ignore resource events and known third-party sources. Include our public
+    // deploy-pinned JS as first-party; opaque browser errors remain unresolved.
     if (!(event instanceof ErrorEvent) || (!event.error && !event.message)) return;
-    if (event.filename && !event.filename.startsWith(window.location.origin + '/')) return;
+    if (!isFirstPartyScriptSource(event.filename, window.location.origin)) return;
     reportPageIssue('page_error', event.error || event.message, event.filename, event.lineno, event.colno);
   });
   window.addEventListener('unhandledrejection', event => {

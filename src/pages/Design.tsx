@@ -9,6 +9,7 @@ import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
 import GoogleAdsBanner from './GoogleAdsBanner';
+import PromoBanner from '@/components/PromoBanner';
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
@@ -3842,6 +3843,6 @@ const Design: React.FC = () => {
 const DesignerRoute: React.FC = () => {
   const [params] = useSearchParams();
   const product = params.get('tab') || params.get('product') || 'banner';
-  return /^(yard[-_]?signs?|car[-_]?magnets?)$/.test(product) ? <Design /> : <GoogleAdsBanner />;
+  return /^(yard[-_]?signs?|car[-_]?magnets?)$/.test(product) ? <Design /> : <><PromoBanner /><GoogleAdsBanner /></>;
 };
 export default DesignerRoute;

@@ -310,6 +310,13 @@
 
 # JavaScript and CSS bundles - long cache with immutable (cache-busted filenames)
 [[headers]]
+  for = "/assets/*"
+  [headers.values]
+  # Public build assets load from the document's immutable deploy permalink.
+  # This does not apply to functions, admin data, or customer artwork.
+  Access-Control-Allow-Origin = "*"
+
+[[headers]]
   for = "/assets/*.js"
   [headers.values]
   Cache-Control = "public, max-age=31536000, immutable"

@@ -6,6 +6,16 @@ beforeEach(() => { vi.resetModules(); vi.useFakeTimers(); localStorage.clear(); 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('operational issue reporter', () => {
+  it('includes our deploy-pinned JavaScript without accepting unrelated remote scripts', async () => {
+    const { isFirstPartyScriptSource } = await import('./siteIssueReporter');
+    const page = 'https://bannersonthefly.com';
+    const deploy = 'https://6acd5524dc72013d7b6fa4de--bannersonthefly.netlify.app/';
+    expect(isFirstPartyScriptSource(page + '/assets/index.js', page, deploy)).toBe(true);
+    expect(isFirstPartyScriptSource(deploy + 'assets/index.js', page, deploy)).toBe(true);
+    expect(isFirstPartyScriptSource('https://example.com/assets/index.js', page, deploy)).toBe(false);
+    expect(isFirstPartyScriptSource(deploy + 'unrelated.js', page, deploy)).toBe(false);
+    expect(isFirstPartyScriptSource('', page, deploy)).toBe(true);
+  });
   it('sends a sanitized error without waiting in the customer flow and deduplicates repeats', async () => {
     const { reportSiteIssue } = await import('./siteIssueReporter');
     reportSiteIssue('upload_error', { phase: 'direct_upload', mimeType: 'png', message: 'secret', file: 'private.png' });

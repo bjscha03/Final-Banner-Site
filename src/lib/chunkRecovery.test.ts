@@ -30,6 +30,8 @@ describe('chunk recovery', () => {
     expect(isChunkLoadFailure(new TypeError('Failed to fetch dynamically imported module: /assets/Checkout-old.js'))).toBe(true);
     expect(isChunkLoadFailure(new Error('Importing a module script failed.'))).toBe(true);
     expect(isChunkLoadFailure(new Error('Loading chunk Checkout-123 failed'))).toBe(true);
+    expect(isChunkLoadFailure(new Error('Unable to preload CSS for /assets/GoogleAdsBanner-BcFuyzJd.css'))).toBe(true);
+    expect(isChunkLoadFailure(new Error('Unable to preload CSS for /assets/RealisticBannerPreview-DExepVu7.css'))).toBe(true);
   });
 
   it('does not reload for unrelated application failures', () => {
@@ -40,7 +42,8 @@ describe('chunk recovery', () => {
   it('allows one recovery per guard window', () => {
     expect(canAttemptChunkRecovery(null, 50_000)).toBe(true);
     expect(canAttemptChunkRecovery('40000', 50_000)).toBe(false);
-    expect(canAttemptChunkRecovery('20000', 50_000)).toBe(true);
+    expect(canAttemptChunkRecovery('20000', 50_000)).toBe(false);
+    expect(canAttemptChunkRecovery('20000', 320_000)).toBe(true);
     expect(canAttemptChunkRecovery('not-a-number', 50_000)).toBe(true);
   });
 
@@ -71,7 +74,7 @@ describe('chunk recovery', () => {
     expect(event.preventDefault).not.toHaveBeenCalled();
   });
 
-  it('declines automatic recovery when the sessionStorage guard cannot be read', () => {
+  it('recovers with a URL loop guard when sessionStorage cannot be read', () => {
     vi.spyOn(Date, 'now').mockReturnValue(50_000);
     const { target, listeners, reload } = createRecoveryTarget();
     target.sessionStorage.getItem.mockImplementation(() => {
@@ -82,12 +85,12 @@ describe('chunk recovery', () => {
     const event = { preventDefault: vi.fn() } as unknown as Event;
     listeners.get('vite:preloadError')!(event);
 
-    expect(reload).not.toHaveBeenCalled();
+    expect(reload).toHaveBeenCalledExactlyOnceWith('https://bannersonthefly.com/terms?source=footer&_botf_refresh=50000#details');
     expect(target.sessionStorage.setItem).not.toHaveBeenCalled();
     expect(event.preventDefault).not.toHaveBeenCalled();
   });
 
-  it('declines automatic recovery when the loop-prevention timestamp cannot be written', () => {
+  it('recovers with a URL loop guard when sessionStorage cannot be written', () => {
     vi.spyOn(Date, 'now').mockReturnValue(50_000);
     const { target, listeners, reload } = createRecoveryTarget();
     target.sessionStorage.setItem.mockImplementation(() => {
@@ -98,8 +101,28 @@ describe('chunk recovery', () => {
     const event = { preventDefault: vi.fn() } as unknown as Event;
     listeners.get('vite:preloadError')!(event);
 
-    expect(reload).not.toHaveBeenCalled();
+    expect(reload).toHaveBeenCalledExactlyOnceWith('https://bannersonthefly.com/terms?source=footer&_botf_refresh=50000#details');
     expect(event.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('never automatically reloads a recovery document, even after a slow load with blocked storage', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(600_000);
+    const { target, reload } = createRecoveryTarget();
+    target.location.href = 'https://bannersonthefly.com/design?_botf_refresh=100';
+    target.sessionStorage.getItem.mockImplementation(() => { throw new Error('blocked'); });
+    expect(attemptChunkRecovery(target as unknown as Window)).toBe(false);
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('registers recovery once when both preload and application entries install it', () => {
+    const { target, listeners } = createRecoveryTarget();
+    const cleanup = installChunkRecovery(target as unknown as Window);
+    expect(installChunkRecovery(target as unknown as Window)).toBe(cleanup);
+    expect(target.addEventListener).toHaveBeenCalledTimes(2);
+    cleanup();
+    expect(listeners.size).toBe(0);
+    installChunkRecovery(target as unknown as Window);
+    expect(target.addEventListener).toHaveBeenCalledTimes(4);
   });
 
   it('forces a cache-busted navigation and clears the automatic recovery guard', () => {
