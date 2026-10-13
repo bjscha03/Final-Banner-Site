@@ -93,7 +93,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
       data-site-header
       {...(isHomepage ? { 'data-homepage-header': '' } : {})}
       className={isHomepage
-        ? 'relative z-50 -mb-[72px] border-b border-white/10 bg-[#061A31]/90 text-white shadow-[0_10px_35px_rgba(0,0,0,0.16)] backdrop-blur-sm lg:-mb-[92px]'
+        ? 'relative z-50 border-b border-[#e5dfd6] bg-white text-[#061A31]'
         : 'sticky top-0 z-50 border-b border-white/10 bg-[#061A31]/95 text-white shadow-[0_8px_28px_rgba(6,26,49,0.18)] backdrop-blur'}
     >
       {!isHomepage && <div className="h-1 bg-[#F45B08]" />}
@@ -251,7 +251,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
           <div className="flex-shrink-0">
             <ScrollToTopLink to="/" className="flex items-center">
               <img
-                src="/images/homepage/header-logo-reverse.png"
+                src={isHomepage ? "/images/header-logo.png" : "/images/homepage/header-logo-reverse.png"}
                 alt="Banners On The Fly"
                 width="248"
                 height="70"

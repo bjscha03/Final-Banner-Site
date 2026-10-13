@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package } from 'lucide-react';
+import { Package, Truck } from 'lucide-react';
 
 interface PromoBannerProps {
   showStandardPromo?: boolean;
@@ -33,8 +33,9 @@ const PromoBanner: React.FC<PromoBannerProps> = ({ showStandardPromo = false }) 
   if (!showStandardPromo) return null;
 
   return (
-    <div className="relative z-[60] border-b border-[#ff8a37] bg-[#C94008] text-white">
-      <p className="px-4 py-2.5 text-center text-xs font-extrabold uppercase tracking-[0.02em] sm:text-sm lg:text-base">
+    <div className="relative z-[60] border-b border-[#e7e1d8] bg-[#f3f0eb] text-[#061A31]">
+      <p className="flex items-center justify-center gap-2 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-[0.02em] sm:text-sm">
+        <Truck className="h-5 w-5 shrink-0 text-[#c94e00]" aria-hidden="true" />
         Free next-day air shipping on orders $20+
       </p>
     </div>
