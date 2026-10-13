@@ -79,13 +79,16 @@ test('all eight handles, crop, snap, undo and deletion work in the actual banner
     await undo.click();
     close((await box(selection)).width,before.width);
   }
+  // Keep this isolated crop check away from the center snap zone even when the
+  // landscape canvas is small; magnetic alignment is exercised below.
+  const cropStep = Math.min(12,c.height/20);
   for (const handle of ['t','r','b','l']) {
     const before = await box(selection), source = await box(image);
-    await drag(page,canvas.locator(`[data-handle=${handle}]`),handle==='l'?12:-12,handle==='t'?12:-12);
+    await drag(page,canvas.locator(`[data-handle=${handle}]`),handle==='l'?cropStep:-cropStep,handle==='t'?cropStep:-cropStep);
     const after = await box(selection), sourceAfter = await box(image);
     close(sourceAfter.width,source.width);close(sourceAfter.height,source.height);close(sourceAfter.x,source.x);close(sourceAfter.y,source.y);
-    close(after.width,before.width-(['l','r'].includes(handle)?12:0));
-    close(after.height,before.height-(['t','b'].includes(handle)?12:0));
+    close(after.width,before.width-(['l','r'].includes(handle)?cropStep:0));
+    close(after.height,before.height-(['t','b'].includes(handle)?cropStep:0));
     await expect(image).toHaveCSS('clip-path',/inset/);
     await undo.click();
   }
