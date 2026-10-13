@@ -1,5 +1,8 @@
 name: Specialty pricing preview
 on:
+  push:
+    branches:
+      - 'feat/specialty-products-catalog'
   pull_request:
     paths:
       - 'shared/specialty-*'
