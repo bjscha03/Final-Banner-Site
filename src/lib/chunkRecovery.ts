@@ -1,5 +1,5 @@
 const CHUNK_RECOVERY_STORAGE_KEY = 'botf_chunk_recovery_at';
-const CHUNK_RECOVERY_GUARD_MS = 30_000;
+const CHUNK_RECOVERY_GUARD_MS = 5 * 60_000;
 
 type RecoveryWindow = Pick<Window, 'addEventListener' | 'removeEventListener' | 'location' | 'sessionStorage'>;
 type ManualRecoveryWindow = Pick<Window, 'location' | 'sessionStorage'>;
@@ -16,7 +16,7 @@ const getErrorMessage = (reason: unknown): string => {
 /** Errors produced when an open tab asks a newer deploy for an obsolete Vite chunk. */
 export const isChunkLoadFailure = (reason: unknown): boolean => {
   const message = getErrorMessage(reason);
-  return /(?:Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk \S+ failed|ChunkLoadError|CSS_CHUNK_LOAD_FAILED)/i.test(message);
+  return /(?:Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk \S+ failed|ChunkLoadError|CSS_CHUNK_LOAD_FAILED|Unable to preload CSS for)/i.test(message);
 };
 
 export const canAttemptChunkRecovery = (lastAttemptAt: string | null, now: number): boolean => {
@@ -51,21 +51,27 @@ const recoveringWindows = new WeakSet<object>();
 export const attemptChunkRecovery = (target: ManualRecoveryWindow = window): boolean => {
   if (recoveringWindows.has(target)) return true;
   const now = Date.now();
+  const destination = new URL(target.location.href);
+  // The URL is also a loop guard when Safari/private browsing blocks storage.
+  // Never automatically refresh a document that is itself a recovery attempt.
+  if (destination.searchParams.has('_botf_refresh')) return false;
   try {
     if (!canAttemptChunkRecovery(target.sessionStorage.getItem(CHUNK_RECOVERY_STORAGE_KEY), now)) return false;
-    // A persisted guard is mandatory: blocked storage must never cause a loop.
     target.sessionStorage.setItem(CHUNK_RECOVERY_STORAGE_KEY, String(now));
   } catch {
-    return false;
+    // The cache-busting URL below survives navigation even without storage.
   }
-  const destination = new URL(target.location.href);
   destination.searchParams.set('_botf_refresh', String(now));
   recoveringWindows.add(target);
   target.location.replace(destination.toString());
   return true;
 };
 
+const installedWindows = new WeakMap<object, () => void>();
+
 export const installChunkRecovery = (target: RecoveryWindow = window): (() => void) => {
+  const installed = installedWindows.get(target);
+  if (installed) return installed;
   const handlePreloadError = (_event: Event): void => {
     attemptChunkRecovery(target);
     // Do NOT preventDefault here. Vite 5 otherwise resolves a failed import
@@ -81,8 +87,11 @@ export const installChunkRecovery = (target: RecoveryWindow = window): (() => vo
   target.addEventListener('vite:preloadError', handlePreloadError);
   target.addEventListener('unhandledrejection', handleUnhandledRejection);
 
-  return () => {
+  const cleanup = () => {
     target.removeEventListener('vite:preloadError', handlePreloadError);
     target.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    installedWindows.delete(target);
   };
+  installedWindows.set(target, cleanup);
+  return cleanup;
 };
