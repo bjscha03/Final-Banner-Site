@@ -71,8 +71,8 @@ const Footer: React.FC = () => {
 
   const quickLinks = [
     { name: 'Vinyl Banners', href: '/design?product=banner' },
-    { name: 'Yard Signs', href: '/yard-signs' },
-    { name: 'Car Magnets', href: '/car-magnets' },
+    { name: 'Yard Signs', href: '/design?product=yard-signs' },
+    { name: 'Car Magnets', href: '/design?product=car-magnets' },
     { name: 'Custom Quote', href: '/custom-quote' },
     { name: 'Design Tool', href: '/design' },
   ];

@@ -6,15 +6,9 @@ import type { HelmetServerState } from 'react-helmet-async';
 import { RoutedApplication } from '@/App';
 import AppProviders from '@/components/AppProviders';
 
-const productHubPaths = ['/yard-signs', '/car-magnets'] as const;
-
-export const prerenderRoutes = [
-  ...productHubPaths,
-];
-
-export const indexablePrerenderRoutes = [
-  ...productHubPaths,
-];
+// Product details now route directly into the configurator.
+export const prerenderRoutes: string[] = [];
+export const indexablePrerenderRoutes: string[] = [];
 
 export interface RenderedRoute {
   appHtml: string;

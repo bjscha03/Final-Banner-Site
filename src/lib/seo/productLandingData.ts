@@ -268,7 +268,7 @@ export function formatMoney(cents: number): string {
 }
 
 export function getProductHubPath(slug: CityProductSlug): string {
-  return `/${slug}`;
+  return getConfiguratorUrl(slug);
 }
 
 export function getProductHubCta(slug: CityProductSlug): string {

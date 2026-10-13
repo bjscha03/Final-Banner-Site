@@ -279,12 +279,12 @@ const Design: React.FC = () => {
   const latestDesignRef = useRef<DesignSnapshot>({ uploadedFile: null, imgPos: { x: 0, y: 0 }, imgScale: 1, imgScaleY: 1, constrainProps: true });
 
   // Handle product type switch — reset state
-  const handleProductTypeChange = useCallback((newType: ProductTypeSlug) => {
+  const handleProductTypeChange = useCallback((newType: ProductTypeSlug, updateUrl = true) => {
     if (newType === productType) return;
     // Stash current product's design before switching.
     productDesignStashRef.current[productType] = { ...latestDesignRef.current };
     setProductType(newType);
-    navigate(`${location.pathname}?product=${getProductQuerySlug(newType)}`, { replace: true });
+    if (updateUrl) navigate(`${location.pathname}?product=${getProductQuerySlug(newType)}`, { replace: true });
     // Restore destination's stashed design (or clean defaults). This is
     // what isolates artwork between product tabs.
     const restored: DesignSnapshot = productDesignStashRef.current[newType] ?? {
@@ -333,6 +333,13 @@ const Design: React.FC = () => {
       setFinishingType('none');
     }
   }, [productType, getProductQuerySlug, location.pathname, navigate]);
+
+  // Product navigation can change only the query while this designer stays mounted.
+  // Reuse the tab-switch behavior so each product keeps its own artwork.
+  useEffect(() => {
+    if (searchParams.get('editItem') || (location.state as { aiHandoffId?: string } | null)?.aiHandoffId) return;
+    handleProductTypeChange(initialProductType, false);
+  }, [initialProductType, searchParams, location.state, handleProductTypeChange]);
 
   // Restore cart item state when editing from cart (editItem query param)
   const editItemId = searchParams.get('editItem');

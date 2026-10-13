@@ -167,19 +167,19 @@
 # removed checkout and proof flows while preserving a useful customer landing.
 [[redirects]]
   from = "/graduation-signs/*"
-  to = "/custom-banners"
+  to = "/design?product=banner"
   status = 301
   force = true
 
 [[redirects]]
   from = "/graduation-signs"
-  to = "/custom-banners"
+  to = "/design?product=banner"
   status = 301
   force = true
 
 [[redirects]]
   from = "/proof/*"
-  to = "/custom-banners"
+  to = "/design?product=banner"
   status = 301
   force = true
 
@@ -261,6 +261,61 @@
   to = "/design?ai=1"
   status = 302
 
+# Retired product details go directly to their designer.
+[[redirects]]
+  from = "/yard-signs"
+  to = "/design?product=yard-signs"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/car-magnets"
+  to = "/design?product=car-magnets"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/trade-show-banners"
+  to = "/design?product=banner"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/food-truck-banners"
+  to = "/design?product=banner"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/outdoor-banners"
+  to = "/design?product=banner"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/indoor-banners"
+  to = "/design?product=banner"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/event-banners"
+  to = "/design?product=banner"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/custom-banners"
+  to = "/design?product=banner"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/construction-banners"
+  to = "/design?product=banner"
+  status = 301
+  force = true
+
 # Retired material pages go directly to the banner designer.
 [[redirects]]
   from = "/vinyl-banners"
@@ -274,7 +329,6 @@
   status = 301
   force = true
 
-# Remaining product hubs are physical files and shadow these non-forced rules.
 # Retired city pages and unknown child paths receive a true HTTP 404.
 [[redirects]]
   from = "/vinyl-banners/*"
