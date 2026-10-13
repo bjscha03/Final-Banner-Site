@@ -64,8 +64,6 @@ const BlogPostPage = lazy(() => import("./pages/BlogPostPage"));
 const BlogTagPage = lazy(() => import("./pages/BlogTagPage"));
 
 // Category/SEO pages - lazy load
-const CategoryPage = lazy(() => import("./pages/CategoryPage"));
-const ProductHubPage = lazy(() => import("./pages/ProductHubPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Google Ads landing page - lazy load
@@ -254,18 +252,18 @@ export const RoutedApplication = () => (
             <Route path="/logo-showcase" element={<LogoShowcase />} />
             <Route path="/pdf-diagnostic" element={<Layout><PdfDiagnostic /></Layout>} />
             
-            {/* SEO Category Pages */}
+            {/* Retired product-detail URLs open the matching designer. */}
             <Route path="/vinyl-banners" element={<Navigate to="/design?product=banner&material=13oz" replace />} />
-            <Route path="/yard-signs" element={<ProductHubPage productSlug="yard-signs" />} />
-            <Route path="/car-magnets" element={<ProductHubPage productSlug="car-magnets" />} />
+            <Route path="/yard-signs" element={<Navigate to="/design?product=yard-signs" replace />} />
+            <Route path="/car-magnets" element={<Navigate to="/design?product=car-magnets" replace />} />
             <Route path="/mesh-banners" element={<Navigate to="/design?product=banner&material=mesh" replace />} />
-            <Route path="/trade-show-banners" element={<CategoryPage />} />
-            <Route path="/food-truck-banners" element={<CategoryPage />} />
-            <Route path="/outdoor-banners" element={<CategoryPage />} />
-            <Route path="/indoor-banners" element={<CategoryPage />} />
-            <Route path="/event-banners" element={<CategoryPage />} />
-            <Route path="/custom-banners" element={<CategoryPage />} />
-            <Route path="/construction-banners" element={<CategoryPage />} />
+            <Route path="/trade-show-banners" element={<Navigate to="/design?product=banner" replace />} />
+            <Route path="/food-truck-banners" element={<Navigate to="/design?product=banner" replace />} />
+            <Route path="/outdoor-banners" element={<Navigate to="/design?product=banner" replace />} />
+            <Route path="/indoor-banners" element={<Navigate to="/design?product=banner" replace />} />
+            <Route path="/event-banners" element={<Navigate to="/design?product=banner" replace />} />
+            <Route path="/custom-banners" element={<Navigate to="/design?product=banner" replace />} />
+            <Route path="/construction-banners" element={<Navigate to="/design?product=banner" replace />} />
 
             {/* Google Ads landing page intentionally bypasses Layout, so mount the shared notice here. */}
             <Route

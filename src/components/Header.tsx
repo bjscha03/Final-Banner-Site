@@ -43,13 +43,13 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
   useEffect(() => {
     setIsMenuOpen(false);
     setIsAccountMenuOpen(false);
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   const navItems = [
     { name: 'Home', href: '/' },
     { name: 'Vinyl Banners', href: '/design?product=banner' },
-    { name: 'Yard Signs', href: '/yard-signs' },
-    { name: 'Car Magnets', href: '/car-magnets' },
+    { name: 'Yard Signs', href: '/design?product=yard-signs' },
+    { name: 'Car Magnets', href: '/design?product=car-magnets' },
     { name: 'Shipping', href: '/shipping' },
     { name: 'Blog', href: '/blog' },
     { name: 'Design Tool', href: '/design' },
@@ -262,8 +262,8 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
           <nav className="hidden items-center gap-6 lg:flex" aria-label="Primary navigation">
             {[
               { name: 'Vinyl Banners', href: '/design?product=banner' },
-              { name: 'Yard Signs', href: '/yard-signs' },
-              { name: 'Car Magnets', href: '/car-magnets' },
+              { name: 'Yard Signs', href: '/design?product=yard-signs' },
+              { name: 'Car Magnets', href: '/design?product=car-magnets' },
               { name: 'Shipping', href: '/shipping' },
               { name: 'Custom Quote', href: '/custom-quote' },
             ].map((item) => (

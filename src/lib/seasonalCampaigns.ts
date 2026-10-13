@@ -150,7 +150,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
         title: 'Parking & event directions',
         description: 'Use matching yard signs to guide cars, mark entrances, and keep activity areas clear.',
         label: 'Shop yard signs',
-        href: '/yard-signs',
+        href: '/design?product=yard-signs',
       },
       {
         icon: 'store',
@@ -204,7 +204,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
         title: 'Arrival & viewing directions',
         description: 'Mark parking, entrances, ceremony areas, and route changes with matching yard signs.',
         label: 'Shop yard signs',
-        href: '/yard-signs',
+        href: '/design?product=yard-signs',
       },
     ],
   },
@@ -220,7 +220,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
     description:
       'Promote collection dates, welcome guests, and guide volunteers with custom banners and signs made for busy community events.',
     primaryCta: { label: 'Create Thanksgiving signage', href: '/design' },
-    secondaryCta: { label: 'Shop yard signs', href: '/yard-signs' },
+    secondaryCta: { label: 'Shop yard signs', href: '/design?product=yard-signs' },
     valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
     artwork: {
       desktopSrc: '/images/seasonal-thanksgiving-2026-desktop.webp',
@@ -244,7 +244,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
         title: 'Community dinner directions',
         description: 'Guide guests, volunteers, and deliveries with clear entrance and parking signs.',
         label: 'Shop yard signs',
-        href: '/yard-signs',
+        href: '/design?product=yard-signs',
       },
       {
         icon: 'store',
@@ -291,7 +291,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
         title: 'Pickup & entrance directions',
         description: 'Guide online orders and holiday traffic with matching entrance, curbside, and pickup signs.',
         label: 'Shop yard signs',
-        href: '/yard-signs',
+        href: '/design?product=yard-signs',
       },
       {
         icon: 'calendar',
