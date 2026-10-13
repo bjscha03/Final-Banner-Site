@@ -29,7 +29,7 @@ for (const route of routes) {
       await expect(page.getByTestId('mobile-banner-hero')).toContainText('Estimated delivery');
     }
     await page.screenshot({ path: testInfo.outputPath('hero.png') });
-    const start = page.locator('button.product-hero-cta');
+    const start = page.locator('button.product-hero-cta:visible');
     if (await start.count()) {
       await start.click();
       await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
