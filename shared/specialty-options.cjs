@@ -76,7 +76,7 @@ function priceConfiguration(product,variant,width,height,input={}) {
   const options=optionsFor(variant,input,true), match=priceMatch(product,variant,width,height);
   const selectedSize=product.priceUnit==='sqft'&&options.size?.match(/^(\d+)x(\d+)$/);
   if(selectedSize&&!((width===Number(selectedSize[1])&&height===Number(selectedSize[2]))||(height===Number(selectedSize[1])&&width===Number(selectedSize[2]))))throw new Error('The dimensions must match the selected sign size. Choose Custom Size to enter different dimensions.');
-  const revised=variant.priceProposal?.revision==='profit-20-v1';
+  const revised=['profit-20-v1','margin-30-after-20-v1'].includes(variant.priceProposal?.revision);
   const retailMatch=product.retailPriceOverrides?.find(p=>(p.widthIn===width&&p.heightIn===height)||(p.widthIn===height&&p.heightIn===width));
   let base=revised?(retailMatch?.priceCents??variant.priceCents??0):(match?.priceCents??variant.priceCents??0);
   if(product.priceUnit==='sqft'&&!(revised?retailMatch?.priceCents:match?.priceCents)) base=Math.max(product.minOrderCents||0,Math.ceil(width*height/144*base));
@@ -98,6 +98,12 @@ function priceConfiguration(product,variant,width,height,input={}) {
       if(!matchedDimension&&variant.proposedOptionPrices?.[group.key]?.includes(options[group.key])) proposed=true;
     }
   }
+  // Whole-configuration prices capture freight and option interactions. Custom
+  // signs match dimensions in either orientation; fixed products use variant ID.
+  const exact=revised&&(variant.configurationPrices||[]).find(row=>
+    (!row.widthIn || ((row.widthIn===width&&row.heightIn===height)||(row.widthIn===height&&row.heightIn===width))) &&
+    Object.entries(options).every(([key,value])=>(product.priceUnit==='sqft'&&key==='size')||row.options[key]===value));
+  if(exact&&missing.length===0){base=exact.priceCents;adjustments.length=0;}
   // The owner's retail shipping policy belongs to the product family and is
   // independent of whether every size/accessory has been priced yet.
   return {unitCents:base+adjustments.reduce((n,a)=>n+a.cents,0),baseCents:base,baseVerified,adjustments,verified:missing.length===0,proposed,missing,options,sourceUrl:match?.sourceUrl,shippingPolicy:product.shippingPolicy||match?.shippingPolicy};

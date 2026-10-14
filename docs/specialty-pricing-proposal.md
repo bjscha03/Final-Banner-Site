@@ -1,462 +1,258 @@
-# Specialty pricing proposal - October 14, 2026
-
-Preview only. This revision supersedes the October 13 retail proposal. Maximum discount: **20%**. Target: **35% contribution** after supplier cost, included Next Day freight and estimated **3% + $0.30** processing, before advertising, labor, overhead, reprints and taxes. All 175 quoted configurations meet the target against their recorded Louisville quantity-one quotes; this is not a nationwide cost guarantee.
-
-58 variants and all 3,196 selectable option combinations remain priced. 164 of the 175 measured prices increased; 11 already met the target. Historical Lexington price references remain in the source for provenance and do not override this revision.
-
-Acrylic and ACM costs remain unknown: their rates/options receive a provisional 25% uplift, not a proven profit margin. Unquoted configurations and extrapolated custom sizes require supplier approval. Do not launch until John confirms costs/freight/production and Brandon authorizes release.
-
-Order-wide percentage and fixed-value promotions are capped at 20% for any cart containing specialty products, including mixed carts. Existing banner-only scopes remain unchanged and cannot discount specialty lines.
-
-Formula: minimum list cents = (supplier cents + shipping cents + 30) / (0.80 x 0.62). Fixed base prices round upward to dollars ending in 9. Add-ons generally round to $5 and use the maximum observed relevant incremental landed cost, or an explicitly provisional uplift when unquoted.
-
-[Product preview](https://deploy-preview-601--bannersonthefly.netlify.app/products)
-
-## Standard Retractable Banner
-
-| Variant | Proposed base |
-|---|---:|
-| 23 × 66 in | $229.00 |
-| 24 × 81 in | $229.00 |
-| 33 × 81 in | $199.00 |
-| 47 × 81 in | $449.00 |
-| 33 × 81 in · black base | $269.00 |
-
-### 23 × 66 in options
-
-- hardware: p = -$120.00
-- material: 13oz_matte_vinyl_banner = +$30.00
-- led: 1 = +$155.00; 2 = +$230.00
-
-### 24 × 81 in options
-
-- hardware: p = -$100.00
-- material: 13oz_matte_vinyl_banner = +$30.00
-- led: 1 = +$155.00; 2 = +$230.00
-
-### 33 × 81 in options
-
-- hardware: p = -$50.00
-- material: 13oz_matte_vinyl_banner = +$30.00
-- led: 1 = +$155.00; 2 = +$230.00
-
-### 47 × 81 in options
-
-- hardware: p = -$280.00
-- material: 13oz_matte_vinyl_banner = +$0.00
-- led: 1 = +$155.00; 2 = +$230.00
-
-### 33 × 81 in · black base options
-
-- hardware: p = -$120.00
-- material: 13oz_matte_vinyl_banner = +$30.00
-- led: 1 = +$155.00; 2 = +$230.00
-
-## Deluxe Retractable Banner
-
-| Variant | Proposed base |
-|---|---:|
-| 33 × 81 in · single sided | $279.00 |
-| 33 × 81 in · double sided | $529.00 |
-
-### 33 × 81 in · single sided options
-
-- hardware: p = -$130.00
-- material: 13oz_matte_vinyl_banner = +$30.00
-- led: 1 = +$155.00; 2 = +$230.00
-
-### 33 × 81 in · double sided options
-
-- hardware: p = -$310.00
-- material: 13oz_matte_vinyl_banner = +$30.00
-- led: 1 = +$155.00; 2 = +$230.00
-
-## Premium Retractable Banner
-
-| Variant | Proposed base |
-|---|---:|
-| 36 × 92 in | $339.00 |
-| 48 × 92 in | $529.00 |
-| 60 × 92 in | $619.00 |
-| 36 × 69 in | $339.00 |
-| 36 × 80 in | $339.00 |
-| 48 × 69 in | $499.00 |
-| 48 × 80 in | $509.00 |
-| 60 × 69 in | $589.00 |
-| 60 × 80 in | $609.00 |
-
-### 36 × 92 in options
-
-- hardware: p = -$160.00
-- material: 13oz_matte_vinyl_banner = +$30.00
-- led: 1 = +$155.00; 2 = +$230.00
-
-### 48 × 92 in options
-
-- hardware: p = -$290.00
-- material: 13oz_matte_vinyl_banner = +$30.00
-- led: 1 = +$155.00; 2 = +$230.00
-
-### 60 × 92 in options
-
-- hardware: p = -$260.00
-- material: 13oz_matte_vinyl_banner = +$30.00
-- led: 1 = +$155.00; 2 = +$230.00
-
-### 36 × 69 in options
-
-- hardware: p = -$190.00
-- material: 13oz_matte_vinyl_banner = +$30.00
-- led: 1 = +$155.00; 2 = +$230.00
-
-### 36 × 80 in options
-
-- hardware: p = -$180.00
-- material: 13oz_matte_vinyl_banner = +$30.00
-- led: 1 = +$155.00; 2 = +$230.00
-
-### 48 × 69 in options
-
-- hardware: p = -$300.00
-- material: 13oz_matte_vinyl_banner = +$30.00
-- led: 1 = +$155.00; 2 = +$230.00
-
-### 48 × 80 in options
-
-- hardware: p = -$290.00
-- material: 13oz_matte_vinyl_banner = +$30.00
-- led: 1 = +$155.00; 2 = +$230.00
-
-### 60 × 69 in options
-
-- hardware: p = -$270.00
-- material: 13oz_matte_vinyl_banner = +$30.00
-- led: 1 = +$155.00; 2 = +$230.00
-
-### 60 × 80 in options
-
-- hardware: p = -$270.00
-- material: 13oz_matte_vinyl_banner = +$30.00
-- led: 1 = +$155.00; 2 = +$230.00
-
-## X Banner Stand
-
-| Variant | Proposed base |
-|---|---:|
-| 24 × 63 in | $149.00 |
-| 32 × 71 in | $169.00 |
-
-### 24 × 63 in options
-
-- hardware: p = -$50.00
-- material: double_white_popup = +$30.00
-
-### 32 × 71 in options
-
-- hardware: p = -$60.00
-- material: double_white_popup = +$40.00
-
-## Tabletop Banner Stand
-
-| Variant | Proposed base |
-|---|---:|
-| 11.5 × 17.5 in | $119.00 |
-
-## Tension Fabric Stand
-
-| Variant | Proposed base |
-|---|---:|
-| 36 × 90 in | $499.00 |
-| 48 × 90 in | $629.00 |
-
-### 36 × 90 in options
-
-- hardware: p = -$310.00
-- sides: 2 = +$60.00
-- tradeshow_led: 2 = +$345.00
-
-### 48 × 90 in options
-
-- hardware: p = -$420.00
-- sides: 2 = +$80.00
-- tradeshow_led: 2 = +$345.00
-
-## Step & Repeat Backdrop
-
-| Variant | Proposed base |
-|---|---:|
-| 8 × 8 ft | $529.00 |
-| 10 × 8 ft | $559.00 |
-
-### 8 × 8 ft options
-
-- hardware: p = -$200.00
-
-### 10 × 8 ft options
-
-- hardware: p = -$170.00
-
-## Feather Flags
-
-| Variant | Proposed base |
-|---|---:|
-| Angled · 9 ft | $229.00 |
-| Angled · 10.5 ft | $229.00 |
-| Angled · 14 ft | $239.00 |
-| Angled · 18 ft | $269.00 |
-| Convex · 9 ft | $229.00 |
-| Convex · 10.5 ft | $229.00 |
-| Convex · 14 ft | $229.00 |
-| Convex · 18 ft | $269.00 |
-
-### Angled · 9 ft options
-
-- sides: 1 = +$0.00; 2 = +$80.00; -1 = +$0.00
-- flaghardware: 0 = +$0.00; PG = +$0.00; PB = +$30.00; PBG = +$70.00; PBW = +$35.00; PBS = +$150.00
-- carrybag: 0 = +$0.00; 1 = +$45.00
-- flag_pole_tab: 0 = -$80.00
-
-### Angled · 10.5 ft options
-
-- sides: 1 = +$0.00; 2 = +$80.00; -1 = +$0.00
-- flaghardware: 0 = +$0.00; PG = +$0.00; PB = +$35.00; PBG = +$70.00; PBW = +$45.00; PBS = +$170.00
-- carrybag: 0 = +$0.00; 1 = +$45.00
-- flag_pole_tab: 0 = -$80.00
-
-### Angled · 14 ft options
-
-- sides: 1 = +$0.00; 2 = +$80.00; -1 = +$0.00
-- flaghardware: 0 = +$0.00; PG = +$0.00; PB = +$35.00; PBG = +$70.00; PBW = +$45.00; PBS = +$170.00
-- carrybag: 0 = +$0.00; 1 = +$45.00
-- flag_pole_tab: 0 = -$80.00
-
-### Angled · 18 ft options
-
-- sides: 1 = +$0.00; 2 = +$110.00; -1 = +$0.00
-- flaghardware: 0 = +$0.00; PG = +$0.00; PB = +$35.00; PBG = +$70.00; PBW = +$45.00; PBS = +$170.00
-- carrybag: 0 = +$0.00; 1 = +$45.00
-- flag_pole_tab: 0 = -$90.00
-
-### Convex · 9 ft options
-
-- flag_pole_tab: 0 = -$80.00
-- sides: 2 = +$80.00; -1 = +$0.00
-- flaghardware: 0 = +$0.00; PB = +$35.00; PBG = +$70.00; PBW = +$45.00; PBS = +$170.00
-- carrybag: 1 = +$45.00
-
-### Convex · 10.5 ft options
-
-- flag_pole_tab: 0 = -$80.00
-- sides: 2 = +$80.00; -1 = +$0.00
-- flaghardware: 0 = +$0.00; PB = +$35.00; PBG = +$70.00; PBW = +$45.00; PBS = +$170.00
-- carrybag: 1 = +$45.00
-
-### Convex · 14 ft options
-
-- flag_pole_tab: 0 = -$70.00
-- sides: 2 = +$85.00; -1 = +$0.00
-- flaghardware: 0 = +$0.00; PB = +$35.00; PBG = +$70.00; PBW = +$45.00; PBS = +$170.00
-- carrybag: 1 = +$45.00
-
-### Convex · 18 ft options
-
-- flag_pole_tab: 0 = -$90.00
-- sides: 2 = +$110.00; -1 = +$0.00
-- flaghardware: 0 = +$0.00; PB = +$35.00; PBG = +$70.00; PBW = +$45.00; PBS = +$170.00
-- carrybag: 1 = +$45.00
-
-## Teardrop Flags
-
-| Variant | Proposed base |
-|---|---:|
-| 7 ft | $229.00 |
-| 9 ft | $229.00 |
-| 11.2 ft | $239.00 |
-| 13.5 ft | $269.00 |
-
-### 7 ft options
-
-- flag_pole_tab: 0 = -$80.00
-- sides: 2 = +$80.00; -1 = +$0.00
-- flaghardware: 0 = +$0.00; PB = +$35.00; PBG = +$70.00; PBW = +$45.00; PBS = +$170.00
-- carrybag: 1 = +$45.00
-
-### 9 ft options
-
-- flag_pole_tab: 0 = -$80.00
-- sides: 2 = +$80.00; -1 = +$0.00
-- flaghardware: 0 = +$0.00; PB = +$35.00; PBG = +$70.00; PBW = +$45.00; PBS = +$170.00
-- carrybag: 1 = +$45.00
-
-### 11.2 ft options
-
-- flag_pole_tab: 0 = -$80.00
-- sides: 2 = +$80.00; -1 = +$0.00
-- flaghardware: 0 = +$0.00; PB = +$35.00; PBG = +$70.00; PBW = +$45.00; PBS = +$170.00
-- carrybag: 1 = +$45.00
-
-### 13.5 ft options
-
-- flag_pole_tab: 0 = -$90.00
-- sides: 2 = +$110.00; -1 = +$0.00
-- flaghardware: 0 = +$0.00; PB = +$35.00; PBG = +$70.00; PBW = +$45.00; PBS = +$170.00
-- carrybag: 1 = +$45.00
-
-## Rectangle Flags
-
-| Variant | Proposed base |
-|---|---:|
-| 8.5 ft | $439.00 |
-| 11.8 ft | $469.00 |
-| 15 ft | $489.00 |
-
-### 8.5 ft options
-
-- flag_pole_tab: 0 = -$260.00
-- sides: 2 = +$100.00; -1 = +$0.00
-- flaghardware: 0 = +$0.00; PB = +$35.00; PBG = +$70.00; PBW = +$45.00; PBS = +$170.00
-
-### 11.8 ft options
-
-- flag_pole_tab: 0 = -$280.00
-- sides: 2 = +$115.00; -1 = +$0.00
-- flaghardware: 0 = +$0.00; PB = +$35.00; PBG = +$70.00; PBW = +$45.00; PBS = +$170.00
-
-### 15 ft options
-
-- flag_pole_tab: 0 = -$290.00
-- sides: 2 = +$125.00; -1 = +$0.00
-- flaghardware: 0 = +$0.00; PB = +$35.00; PBG = +$70.00; PBW = +$45.00; PBS = +$170.00
-
-## Economy Feather Flag
-
-| Variant | Proposed base |
-|---|---:|
-| 16 ft | $389.00 |
-
-### 16 ft options
-
-- flag_pole: fo = -$240.00
-- graphic: -1 = +$0.00
-
-## Standard Table Throws
-
-| Variant | Proposed base |
-|---|---:|
-| 4 ft · open back | $209.00 |
-| 4 ft · closed back | $249.00 |
-| 6 ft · open back | $239.00 |
-| 6 ft · closed back | $289.00 |
-| 8 ft · open back | $269.00 |
-| 8 ft · closed back | $329.00 |
-
-## Fitted Table Throws
-
-| Variant | Proposed base |
-|---|---:|
-| 6 ft · open back | $239.00 |
-| 6 ft · closed back | $240.00 |
-| 8 ft · open back | $259.00 |
-| 8 ft · closed back | $270.00 |
-
-## Stretch Table Throws
-
-| Variant | Proposed base |
-|---|---:|
-| 6 ft | $359.00 |
-| 8 ft | $419.00 |
-
-## Custom Event Tents
-
-| Variant | Proposed base |
-|---|---:|
-| 10 × 10 ft | $1129.00 |
-| 10 × 15 ft | $1739.00 |
-| 10 × 20 ft | $2059.00 |
-
-### 10 × 10 ft options
-
-- tent_sewing_thread: white = +$0.00; black = +$0.00
-- tent_sandbag: 0 = +$0.00; 1 = +$105.00
-- tent_hardware: 0 = -$480.00
-- tent_carrybag: w = +$120.00
-- mesh_sidewall: 1 = +$295.00
-- tent_full_wall: A = +$375.00; AB = +$750.00; ABC = +$1125.00; ABCD = +$1500.00
-- tent_half_wall: 1x1 = +$490.00; 1x2 = +$665.00; 2x1 = +$980.00; 2x2 = +$1330.00; 3x1 = +$1470.00; 3x2 = +$1995.00; 4x1 = +$1960.00; 4x2 = +$2660.00
-
-### 10 × 15 ft options
-
-- tent_sewing_thread: white = +$0.00; black = +$0.00
-- tent_sandbag: 0 = +$0.00; 1 = +$115.00
-- tent_hardware: 0 = -$1020.00
-- tent_carrybag: w = +$175.00
-- tent_full_wall: S1 = +$380.00; S2 = +$760.00
-- tent_full_wall_long: L1 = +$550.00; L2 = +$1100.00
-- tent_half_wall: 1x1 = +$490.00; 1x2 = +$665.00; 2x1 = +$980.00; 2x2 = +$1330.00
-
-### 10 × 20 ft options
-
-- tent_sewing_thread: white = +$0.00; black = +$0.00
-- tent_sandbag: 1 = +$150.00; 2 = +$0.00
-- tent_hardware: 0 = -$1120.00
-- tent_carrybag: w = +$220.00
-- tent_full_wall: S1 = +$375.00; S2 = +$750.00
-- tent_full_wall_long: L1 = +$730.00; L2 = +$1460.00
-- tent_half_wall: 1x1 = +$490.00; 1x2 = +$665.00; 2x1 = +$980.00; 2x2 = +$1330.00
-
-## Acrylic Signs
-
-| Variant | Proposed base |
-|---|---:|
-| Back print with white underbase | $40.00/sq ft; minimum $85.00; plus $35.00 |
-
-### Back print with white underbase options
-
-- hardware: acrylic = -$35.00
-
-## Solid Aluminum Signs
-
-| Variant | Proposed base |
-|---|---:|
-| Single-sided print · square corners | $14.00/sq ft; minimum $25.00; plus $80.00 |
-
-### Single-sided print · square corners options
-
-- holespunch: TL;TR;BL;BR = +$8.00; TL;TR = +$6.00; TC;BC = +$10.00; custom = +$40.00
-- cornerstyle: 1 = +$15.00; 1_4 = +$15.00; 1_2 = +$15.00; R = +$10.00
-- size: 12x18 = +$0.00; 18x24 = +$0.00; 24x36 = +$0.00; 18x12 = +$0.00; 24x18 = +$0.00; 36x24 = +$0.00
-- sides: 2 = max($10.00, $10.00/sq ft)
-
-## Aluminum Composite Signs
-
-| Variant | Proposed base |
-|---|---:|
-| Single-sided print · square corners | $18.75/sq ft; minimum $35.00 |
-
-### Single-sided print · square corners options
-
-- holespunch: TL;TR;BL;BR = +$10.00; TL;TR = +$10.00; TC;BC = +$10.00; custom1 = +$40.00; custom2 = +$50.00
-- cornerstyle: 1 = +$15.00; R = +$15.00; 1_2 = +$15.00; 3_4 = +$15.00
-- sides: 2 = max($5.00, $4.38/sq ft)
-- 18 x 24 {"sides":"2"}: +$12.50
-- 24 x 36 {"sides":"2"}: +$25.00
-- 6 x 24 {"sides":"2"}: +$2.50
-- 6 x 36 {"sides":"2"}: +$7.50
-
-Exact-size base prices (either orientation):
-- 18 x 24 in: $60.00
-- 24 x 36 in: $115.00
-- 6 x 24 in: $35.00
-- 6 x 36 in: $45.00
-
-## Durable Display Posters
-
-| Variant | Proposed base |
-|---|---:|
-| Single-sided print · square corners | $4.00/sq ft; minimum $17.00; plus $85.00 |
-
-## Reproducing the pricing review
-
-Use the October 13 catalog from the parent of this pricing revision as the baseline, and the private mapped supplier quote JSON from the approval-report working files. Run scripts/reprice-specialty-catalog.cjs with both paths, then scripts/generate-specialty-options.mjs. Supplier-cost inputs stay outside the public repository and browser bundle. Public regression fixtures contain only audited minimum retail prices. The report calculations use the same generated catalog as frontend and server checkout.
-
-Known limits: one delivery destination; incomplete supplier coverage of option combinations; estimated processing fees; no established advertising/overhead costs. Acrylic/ACM profits remain TBD.
+# Specialty pricing proposal — October 14, 2026
+
+Preview only. John’s requested target is **30% contribution after a maximum 20% discount**, supplier cost, included shipping and estimated 3% + $0.30 processing. All 175 recorded configurations round to **30.00%**. Prices use the closest cent after discount and fee rounding, not an upward minimum or prices ending in 9.
+
+All 58 variants / 3,196 selectable combinations are priced. Acrylic and ACM retain provisional prices because supplier/freight costs are missing. Unquoted accessories and custom sizes remain estimates. Actual costs for other destinations and quantities need confirmation. Do not interpret a complete retail quote as a verified profit margin.
+
+The private PDF contains supplier and freight costs; those inputs must never be committed here. The public catalog contains retail configuration overrides. Exact configuration totals override additive estimates. The same engine calculates storefront, saved-cart and server checkout prices.
+
+## Default variant prices
+
+| Product | Variant | List price |
+|---|---|---:|
+| Standard Retractable Banner | 23 × 66 in | $205.70 |
+| Standard Retractable Banner | 24 × 81 in | $210.84 |
+| Standard Retractable Banner | 33 × 81 in | $176.34 |
+| Standard Retractable Banner | 47 × 81 in | $411.75 |
+| Standard Retractable Banner | 33 × 81 in · black base | $248.17 |
+| Deluxe Retractable Banner | 33 × 81 in · single sided | $250.34 |
+| Deluxe Retractable Banner | 33 × 81 in · double sided | $488.21 |
+| Premium Retractable Banner | 36 × 92 in | $313.54 |
+| Premium Retractable Banner | 48 × 92 in | $482.95 |
+| Premium Retractable Banner | 60 × 92 in | $571.39 |
+| Premium Retractable Banner | 36 × 69 in | $309.42 |
+| Premium Retractable Banner | 36 × 80 in | $311.50 |
+| Premium Retractable Banner | 48 × 69 in | $459.34 |
+| Premium Retractable Banner | 48 × 80 in | $470.64 |
+| Premium Retractable Banner | 60 × 69 in | $541.91 |
+| Premium Retractable Banner | 60 × 80 in | $556.00 |
+| X Banner Stand | 24 × 63 in | $135.32 |
+| X Banner Stand | 32 × 71 in | $150.14 |
+| Tabletop Banner Stand | 11.5 × 17.5 in | $108.71 |
+| Tension Fabric Stand | 36 × 90 in | $457.71 |
+| Tension Fabric Stand | 48 × 90 in | $577.55 |
+| Step & Repeat Backdrop | 8 × 8 ft | $488.46 |
+| Step & Repeat Backdrop | 10 × 8 ft | $509.00 |
+| Feather Flags | Angled · 9 ft | $208.49 |
+| Feather Flags | Angled · 10.5 ft | $208.49 |
+| Feather Flags | Angled · 14 ft | $212.24 |
+| Feather Flags | Angled · 18 ft | $248.20 |
+| Feather Flags | Convex · 9 ft | $204.79 |
+| Feather Flags | Convex · 10.5 ft | $208.49 |
+| Feather Flags | Convex · 14 ft | $209.26 |
+| Feather Flags | Convex · 18 ft | $245.70 |
+| Teardrop Flags | 7 ft | $208.49 |
+| Teardrop Flags | 9 ft | $208.49 |
+| Teardrop Flags | 11.2 ft | $212.24 |
+| Teardrop Flags | 13.5 ft | $248.20 |
+| Rectangle Flags | 8.5 ft | $405.76 |
+| Rectangle Flags | 11.8 ft | $427.11 |
+| Rectangle Flags | 15 ft | $448.45 |
+| Economy Feather Flag | 16 ft | $355.30 |
+| Standard Table Throws | 4 ft · open back | $185.70 |
+| Standard Table Throws | 4 ft · closed back | $223.66 |
+| Standard Table Throws | 6 ft · open back | $214.75 |
+| Standard Table Throws | 6 ft · closed back | $262.79 |
+| Standard Table Throws | 8 ft · open back | $242.64 |
+| Standard Table Throws | 8 ft · closed back | $301.91 |
+| Fitted Table Throws | 6 ft · open back | $216.92 |
+| Fitted Table Throws | 6 ft · closed back | $216.92 |
+| Fitted Table Throws | 8 ft · open back | $235.58 |
+| Fitted Table Throws | 8 ft · closed back | $235.58 |
+| Stretch Table Throws | 6 ft | $331.80 |
+| Stretch Table Throws | 8 ft | $385.16 |
+| Custom Event Tents | 10 × 10 ft | $1040.07 |
+| Custom Event Tents | 10 × 15 ft | $1601.62 |
+| Custom Event Tents | 10 × 20 ft | $1901.49 |
+| Acrylic Signs | Back print with white underbase (24 × 18 in) | $155.00 |
+| Solid Aluminum Signs | Single-sided print · square corners (24 × 18 in) | $104.63 |
+| Aluminum Composite Signs | Single-sided print · square corners (24 × 18 in) | $60.00 |
+| Durable Display Posters | Single-sided print · square corners (24 × 18 in) | $82.61 |
+
+## Audited configuration retail totals
+
+These are retail-only regression references. Cost inputs stay private.
+
+| Configuration | List price | After 20% |
+|---|---:|---:|
+| Standard Retractable 23x66 kit | $205.70 | $164.56 |
+| Standard Retractable 24x81 kit | $210.84 | $168.67 |
+| Standard Retractable 24x81 insert | $110.76 | $88.61 |
+| Standard Retractable 23x66 insert | $100.50 | $80.40 |
+| Standard Retractable 33x81 insert | $129.24 | $103.39 |
+| Standard Retractable 33x81 kit | $176.34 | $141.07 |
+| Standard Retractable 33x81 black insert | $129.24 | $103.39 |
+| Standard Retractable 33x81 black kit | $248.17 | $198.54 |
+| Standard Retractable 47x81 insert | $149.75 | $119.80 |
+| Standard Retractable 47x81 kit | $411.75 | $329.40 |
+| Standard Retractable 47x81 kit + 2 LED | $622.50 | $498.00 |
+| Standard Retractable 47x81 matte + 2 LED | $622.50 | $498.00 |
+| Standard Retractable 33x81 matte kit + 1 LED | $341.96 | $273.57 |
+| Standard Retractable 33x81 matte kit | $203.01 | $162.41 |
+| Standard Retractable 33x81 kit + 1 LED | $315.29 | $252.23 |
+| Deluxe Retractable 33x81 single kit | $250.34 | $200.27 |
+| Deluxe Retractable 33x81 single insert | $129.24 | $103.39 |
+| Deluxe Retractable 33x81 double inserts set | $196.24 | $156.99 |
+| Deluxe Retractable 33x81 double kit | $488.21 | $390.57 |
+| Premium Retractable 36x92 kit | $313.54 | $250.83 |
+| Premium Retractable 36x69 kit | $309.42 | $247.54 |
+| Premium Retractable 36x69 insert | $123.08 | $98.46 |
+| Premium Retractable 36x80 insert | $131.92 | $105.54 |
+| Premium Retractable 36x80 kit | $311.50 | $249.20 |
+| Premium Retractable 36x92 insert | $141.55 | $113.24 |
+| Premium Retractable 48x69 insert | $144.63 | $115.70 |
+| Premium Retractable 48x69 kit | $459.34 | $367.47 |
+| Premium Retractable 48x80 insert | $156.91 | $125.53 |
+| Premium Retractable 48x80 kit | $470.64 | $376.51 |
+| Premium Retractable 48x92 insert | $170.29 | $136.23 |
+| Premium Retractable 48x92 kit | $482.95 | $386.36 |
+| Premium Retractable 60x69 insert | $294.95 | $235.96 |
+| Premium Retractable 60x69 kit | $541.91 | $433.53 |
+| Premium Retractable 60x80 insert | $309.66 | $247.73 |
+| Premium Retractable 60x80 kit | $556.00 | $444.80 |
+| Premium Retractable 60x92 insert | $325.74 | $260.59 |
+| Premium Retractable 60x92 kit | $571.39 | $457.11 |
+| X Stand 24x63 kit | $135.32 | $108.26 |
+| X Stand 32x71 kit | $150.14 | $120.11 |
+| X Stand 32x71 graphic | $96.50 | $77.20 |
+| X Stand 24x63 graphic | $88.21 | $70.57 |
+| X Stand 24x63 popup graphic | $110.79 | $88.63 |
+| X Stand 24x63 popup kit | $157.89 | $126.31 |
+| X Stand 32x71 popup kit | $186.12 | $148.90 |
+| X Stand 32x71 popup graphic | $132.46 | $105.97 |
+| Tabletop Stand 11.5x17.5 kit | $108.71 | $86.97 |
+| Tension Fabric Stand 36x90 single kit | $457.71 | $366.17 |
+| Tension Fabric Stand 36x90 double kit | $457.71 | $366.17 |
+| Tension Fabric Stand 36x90 double graphic | $170.29 | $136.23 |
+| Tension Fabric Stand 36x90 single graphic | $170.29 | $136.23 |
+| Tension Fabric Stand 48x90 single graphic | $190.80 | $152.64 |
+| Tension Fabric Stand 48x90 single kit | $577.55 | $462.04 |
+| Tension Fabric Stand 48x90 double kit | $577.55 | $462.04 |
+| Tension Fabric Stand 48x90 double kit + 2 LED | $896.09 | $716.87 |
+| Tension Fabric Stand 48x90 double graphic | $190.80 | $152.64 |
+| Step and Repeat 10x8 kit | $509.00 | $407.20 |
+| Step and Repeat 10x8 graphic | $317.68 | $254.14 |
+| Step and Repeat 8x8 graphic | $264.70 | $211.76 |
+| Step and Repeat 8x8 kit | $488.46 | $390.77 |
+| Standard Table Throw 4ft open | $185.70 | $148.56 |
+| Standard Table Throw 4ft closed | $223.66 | $178.93 |
+| Standard Table Throw 6ft open | $214.75 | $171.80 |
+| Standard Table Throw 6ft closed | $262.79 | $210.23 |
+| Standard Table Throw 8ft open | $242.64 | $194.11 |
+| Standard Table Throw 8ft closed | $301.91 | $241.53 |
+| Fitted Table Throw 6ft closed | $216.92 | $173.54 |
+| Fitted Table Throw 6ft open | $216.92 | $173.54 |
+| Fitted Table Throw 8ft open | $235.58 | $188.46 |
+| Fitted Table Throw 8ft closed | $235.58 | $188.46 |
+| Stretch Table Throw 6ft | $331.80 | $265.44 |
+| Stretch Table Throw 8ft | $385.16 | $308.13 |
+| Angled Flag 9ft single kit | $208.49 | $166.79 |
+| Angled Flag 9ft double kit | $276.21 | $220.97 |
+| Angled Flag 9ft double graphic | $203.12 | $162.50 |
+| Angled Flag 9ft single graphic | $135.39 | $108.31 |
+| Angled Flag 10.5ft single graphic | $135.39 | $108.31 |
+| Angled Flag 10.5ft single kit | $208.49 | $166.79 |
+| Angled Flag 10.5ft double kit | $279.49 | $223.59 |
+| Angled Flag 10.5ft double graphic | $203.12 | $162.50 |
+| Angled Flag 14ft single graphic | $139.50 | $111.60 |
+| Angled Flag 14ft single kit | $212.24 | $169.79 |
+| Angled Flag 14ft double kit | $284.07 | $227.26 |
+| Angled Flag 14ft double graphic | $211.32 | $169.06 |
+| Angled Flag 18ft single graphic | $164.12 | $131.30 |
+| Angled Flag 18ft single kit | $248.20 | $198.56 |
+| Angled Flag 18ft double kit | $345.49 | $276.39 |
+| Angled Flag 18ft double graphic | $260.58 | $208.46 |
+| Convex Flag 9ft single graphic | $135.39 | $108.31 |
+| Convex Flag 9ft single kit | $204.79 | $163.83 |
+| Convex Flag 9ft double kit | $276.21 | $220.97 |
+| Convex Flag 9ft double graphic | $203.12 | $162.50 |
+| Convex Flag 10.5ft single graphic | $135.39 | $108.31 |
+| Convex Flag 10.5ft single kit | $208.49 | $166.79 |
+| Convex Flag 10.5ft double kit | $276.21 | $220.97 |
+| Convex Flag 10.5ft double graphic | $203.12 | $162.50 |
+| Convex Flag 14ft single graphic | $139.50 | $111.60 |
+| Convex Flag 14ft single kit | $209.26 | $167.41 |
+| Convex Flag 14ft double kit | $284.07 | $227.26 |
+| Convex Flag 14ft double graphic | $211.32 | $169.06 |
+| Convex Flag 18ft single graphic | $164.12 | $131.30 |
+| Convex Flag 18ft single kit | $245.70 | $196.56 |
+| Convex Flag 18ft double kit | $344.64 | $275.71 |
+| Convex Flag 18ft double graphic | $260.58 | $208.46 |
+| Teardrop Flag 7ft single graphic | $135.39 | $108.31 |
+| Teardrop Flag 7ft single kit | $208.49 | $166.79 |
+| Teardrop Flag 7ft double kit | $276.21 | $220.97 |
+| Teardrop Flag 7ft double graphic | $203.12 | $162.50 |
+| Teardrop Flag 9ft single graphic | $135.39 | $108.31 |
+| Teardrop Flag 9ft single kit | $208.49 | $166.79 |
+| Teardrop Flag 9ft double kit | $279.49 | $223.59 |
+| Teardrop Flag 9ft double graphic | $203.12 | $162.50 |
+| Teardrop Flag 11.2ft single graphic | $139.50 | $111.60 |
+| Teardrop Flag 11.2ft single kit | $212.24 | $169.79 |
+| Teardrop Flag 11.2ft double kit | $284.07 | $227.26 |
+| Teardrop Flag 11.2ft double graphic | $211.32 | $169.06 |
+| Teardrop Flag 13.5ft single graphic | $164.12 | $131.30 |
+| Teardrop Flag 13.5ft single kit | $248.20 | $198.56 |
+| Teardrop Flag 13.5ft double kit | $344.64 | $275.71 |
+| Teardrop Flag 13.5ft double graphic | $260.58 | $208.46 |
+| Rectangle Flag 8.5ft single graphic | $160.01 | $128.01 |
+| Rectangle Flag 8.5ft single kit | $405.76 | $324.61 |
+| Rectangle Flag 8.5ft double kit | $498.12 | $398.50 |
+| Rectangle Flag 8.5ft double graphic | $252.37 | $201.90 |
+| Rectangle Flag 11.8ft single graphic | $170.29 | $136.23 |
+| Rectangle Flag 11.8ft single kit | $427.11 | $341.69 |
+| Rectangle Flag 11.8ft double kit | $529.71 | $423.77 |
+| Rectangle Flag 11.8ft double graphic | $272.89 | $218.31 |
+| Rectangle Flag 15ft single graphic | $180.54 | $144.43 |
+| Rectangle Flag 15ft single kit | $448.45 | $358.76 |
+| Rectangle Flag 15ft double kit | $561.32 | $449.06 |
+| Rectangle Flag 15ft double graphic | $293.41 | $234.73 |
+| Rectangle Flag 15ft single kit + cross base | $479.86 | $383.89 |
+| Rectangle Flag 15ft single kit + cross + stake | $513.09 | $410.47 |
+| Rectangle Flag 15ft single kit + cross + water | $489.09 | $391.27 |
+| Rectangle Flag 15ft single kit + square base | $605.05 | $484.04 |
+| Economy Flag 16ft single kit | $355.30 | $284.24 |
+| Economy Flag 16ft single graphic | $129.24 | $103.39 |
+| Economy Flag 16ft reverse graphic | $129.24 | $103.39 |
+| Angled Flag 9ft single kit + cross base | $229.33 | $183.46 |
+| Angled Flag 9ft single kit + cross + stake | $272.45 | $217.96 |
+| Angled Flag 9ft single kit + cross + water | $235.99 | $188.79 |
+| Angled Flag 9ft single kit + square base | $346.79 | $277.43 |
+| Angled Flag 9ft single kit + bag | $247.68 | $198.14 |
+| Angled Flag 9ft reverse kit | $208.49 | $166.79 |
+| Tent 10x10 kit | $1040.07 | $832.06 |
+| Tent 10x10 kit + wheeled bag | $1149.74 | $919.79 |
+| Tent 10x10 kit + 4 sandbags | $1133.05 | $906.44 |
+| Tent 10x10 kit + mesh wall | $1309.34 | $1047.47 |
+| Tent 10x10 kit + 1 full wall | $1382.76 | $1106.21 |
+| Tent 10x10 kit + 1 half wall single | $1491.99 | $1193.59 |
+| Tent 10x10 kit + 1 half wall double | $1654.11 | $1323.29 |
+| Tent 10x10 canopy | $598.82 | $479.06 |
+| Tent 10x15 kit | $1601.62 | $1281.30 |
+| Tent 10x15 kit + 1 long full wall | $2106.75 | $1685.40 |
+| Tent 10x15 kit + 1 short full wall | $1950.04 | $1560.03 |
+| Tent 10x15 kit + 1 half wall single | $2053.51 | $1642.81 |
+| Tent 10x15 kit + 1 half wall double | $2215.66 | $1772.53 |
+| Tent 10x15 kit wheeled bag | $1762.43 | $1409.94 |
+| Tent 10x15 kit + 4 sandbags | $1705.14 | $1364.11 |
+| Tent 10x15 canopy | $662.13 | $529.70 |
+| Tent 10x20 kit | $1901.49 | $1521.19 |
+| Tent 10x20 kit + 1 long full wall | $2576.62 | $2061.30 |
+| Tent 10x20 kit + 1 short full wall | $2245.00 | $1796.00 |
+| Tent 10x20 kit + 1 half wall single | $2353.38 | $1882.70 |
+| Tent 10x20 kit + 1 half wall double | $2515.50 | $2012.40 |
+| Tent 10x20 kit wheeled bag | $2102.71 | $1682.17 |
+| Tent 10x20 kit + 6 sandbags | $2038.86 | $1631.09 |
+| Tent 10x20 canopy | $863.93 | $691.14 |
+| Aluminum 18x24 single | $104.63 | $83.70 |
+| Aluminum 18x24 double | $131.71 | $105.37 |
+| Aluminum 18x24 single 2 holes | $105.66 | $84.53 |
+| Aluminum 18x24 single 4 holes | $105.66 | $84.53 |
+| Aluminum 18x24 single rounded | $104.63 | $83.70 |
+| PVC poster 24x36 | $88.00 | $70.40 |
+| PVC poster 18x24 | $82.61 | $66.09 |
+
+## Repricing workflow
+
+Run `node scripts/reprice-specialty-catalog.cjs <previous-catalog.json> <private-mapped-quotes.json>`. The private input needs the original configuration identity, supplier and shipping cents and total landed cost. The script writes only retail catalog data into the repository and leaves its cost review next to the private input. Regenerate `shared/specialty-options.mjs` after engine changes.
+
+Approval of the 30% target does not approve missing costs or a production launch.

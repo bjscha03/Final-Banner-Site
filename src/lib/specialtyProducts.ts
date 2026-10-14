@@ -19,7 +19,7 @@ export interface SpecialtyVariant {
   label: string;
   priceCents?: number;
   baseAddCents?: number;
-  priceProposal?: {status:'pending_john_approval';proposedAt:string;basis:string;sourceUrls:string[];shippingAllowanceCents:number};
+  priceProposal?: {revision?:string;status:'pending_john_approval';proposedAt:string;basis:string;sourceUrls:string[];shippingAllowanceCents?:number};
   widthIn?: number;
   heightIn?: number;
   priceMatch?: SpecialtyPriceMatch;

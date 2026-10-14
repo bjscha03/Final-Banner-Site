@@ -68,18 +68,18 @@ try{
  await check('premium size selection changes the branded product photograph',async()=>{
   await open('premium-retractable-banner');const hero=page.locator('button[aria-label^="Enlarge"] img').first();const before=await hero.getAttribute('src');await page.locator('#specialty-variant').selectOption('premium-retractable-banner-3');assert.notEqual(await hero.getAttribute('src'),before);
  });
- await check('catalog shows revised cost-led prices and free shipping; retractable defaults to the 199 dollar kit',async()=>{
+ await check('catalog shows revised cost-led prices and free shipping; retractable defaults to the revised 33-inch kit',async()=>{
   await open('standard-retractable-banner');
   assert.equal(await page.locator('#specialty-variant').inputValue(),'standard-retractable-banner-3');
-  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$199.00');
+  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$176.34');
   assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
-  await page.locator('#specialty-qty').fill('2');assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$398.00');
+  await page.locator('#specialty-qty').fill('2');assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$352.68');
   await page.locator('#specialty-variant').selectOption('standard-retractable-banner-1');
-  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$458.00');
+  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$411.40');
   assert.match(await page.getByTestId('specialty-price').innerText(),/Proposed price/);
   assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
   await page.goto(origin+'/products');await page.getByRole('heading',{name:'Make the entire space yours.'}).waitFor();
-  for(const [slug,price] of [['standard-retractable-banner','$199.00'],['feather-flags','$229.00'],['standard-table-throws','$209.00'],['custom-event-tents','$1129.00'],['step-and-repeat-backdrop','$529.00'],['aluminum-composite-signs','$35.00']]){
+  for(const [slug,price] of [['standard-retractable-banner','$176.34'],['feather-flags','$208.49'],['standard-table-throws','$185.70'],['custom-event-tents','$1040.07'],['step-and-repeat-backdrop','$488.46'],['aluminum-composite-signs','$35.00']]){
    const card=page.locator(`a[href="/products/${slug}"]`).filter({has:page.locator('h3')});
    assert.ok((await card.innerText()).includes(price),slug);assert.match(await card.innerText(),/Free Next Day Air shipping/);
   }
@@ -89,23 +89,23 @@ try{
  });
  await check('flag size, options and quantities update the price while shipping remains free',async()=>{
   await open('feather-flags');const subtotal=page.getByTestId('specialty-subtotal');
-  assert.equal(await subtotal.innerText(),'$229.00');
-  assert.match(await page.locator('#option-sides option[value="2"]').innerText(),/\+\$80\.00/);
-  assert.match(await page.locator('#option-flaghardware option[value="PB"]').innerText(),/\+\$30\.00/);
+  assert.equal(await subtotal.innerText(),'$208.49');
+  assert.match(await page.locator('#option-sides option[value="2"]').innerText(),/\$276\.21 total/);
+  assert.match(await page.locator('#option-flaghardware option[value="PB"]').innerText(),/\$229\.33 total/);
   await page.locator('#option-sides').selectOption('2');
   await page.locator('#option-flaghardware').selectOption('PB');
   await page.locator('#option-carrybag').selectOption('1');
-  assert.equal(await subtotal.innerText(),'$384.00');
-  await page.locator('#specialty-qty').fill('3');assert.equal(await subtotal.innerText(),'$1152.00');
+  assert.equal(await subtotal.innerText(),'$336.24');
+  await page.locator('#specialty-qty').fill('3');assert.equal(await subtotal.innerText(),'$1008.72');
   assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
   await page.locator('#specialty-variant').selectOption('feather-flags-2');
-  assert.equal(await subtotal.innerText(),'$687.00');
+  assert.equal(await subtotal.innerText(),'$625.47');
  });
  await check('tent and ACM prices follow their selected accessories and sizes',async()=>{
   await open('custom-event-tents');await page.locator('#option-tent_sandbag').selectOption('1');
-  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$1234.00');
+  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$1133.05');
   await page.locator('#option-tent_full_wall').selectOption('A');
-  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$1609.00');
+  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$1475.74');
   assert.match(await page.getByTestId('specialty-price').innerText(),/Proposed price/);
   assert.doesNotMatch(await page.getByTestId('specialty-price').innerText(),/Price coming soon/);
   assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
@@ -124,17 +124,17 @@ try{
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$255.00');
   await page.setViewportSize({width:390,height:844});
   await open('standard-retractable-banner');await page.locator('#option-hardware').selectOption('p');
-  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$149.00');
+  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$129.24');
   assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
   await page.getByTestId('specialty-price').screenshot({path:out+'/proposed-mobile-price.png'});
   await open('aluminum-signs');await page.locator('#option-size').selectOption('12x18');
   assert.equal(await page.getByLabel('Width (in)',{exact:true}).inputValue(),'12');
-  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$105.00');
+  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$90.82');
   await page.getByLabel('Width (in)',{exact:true}).fill('20');
   assert.equal(await page.locator('#option-size').inputValue(),'custom_size');
-  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$115.00');
+  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$98.47');
   await open('display-posters');await page.getByLabel('Height (in)',{exact:true}).fill('36');
-  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$109.00');
+  assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$88.00');
   await page.setViewportSize({width:1280,height:900});
  });
  await check('flag studio opens with its product and exact print size',async()=>{
@@ -143,13 +143,13 @@ try{
  await check('flag upload, Fit with AI, preview approval and cart preserve exact identity',async()=>{
   await uploadArt();await page.getByRole('button',{name:'Fit my design with AI',exact:true}).click();await page.getByRole('button',{name:'Create fitted version',exact:true}).click();await page.getByLabel('Approve design',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Use this version',exact:true}).isDisabled(),true);assert.equal(aiRequests[0].productType,'specialty:feather-flags:feather-flags-1:front');assert.deepEqual([aiRequests[0].widthIn,aiRequests[0].heightIn],[25,80]);await page.getByLabel('Approve design',{exact:true}).check();await page.getByRole('button',{name:'Use this version',exact:true}).click();await page.getByRole('button',{name:'Restore original',exact:true}).waitFor();await page.getByLabel('I checked the front artwork', {exact:false}).check();await page.getByRole('button',{name:'Add to cart',exact:true}).click();await page.waitForURL('**/checkout',{timeout:60000});await page.locator('[aria-label="Your artwork on Feather Flags"]').first().waitFor();await page.reload();await page.locator('[aria-label="Your artwork on Feather Flags"]').first().waitFor();await page.screenshot({path:out+'/flag-cart.png',fullPage:true});
   const item=await page.evaluate(async()=>{const {useCartStore}=await import('/src/store/cart.ts');return useCartStore.getState().items.find(i=>i.product_type==='specialty')});assert.equal(item.specialty_config.panels[0].composition.widthIn,25);assert.ok(item.specialty_config.panels[0].originalArtwork);assert.ok(item.specialty_config.panels[0].productionUrl.endsWith('.pdf'));
-  const totals=page.getByTestId('checkout-order-totals');assert.match(await totals.innerText(),/\$229\.00/);assert.match(await totals.innerText(),/First-order savings · 20%/);assert.match(await totals.innerText(),/\$194\.19/);assert.match(await totals.innerText(),/FREE/);assert.doesNotMatch(await totals.innerText(),/Pending|Not yet calculated/);
+  const totals=page.getByTestId('checkout-order-totals');assert.match(await totals.innerText(),/\$208\.49/);assert.match(await totals.innerText(),/First-order savings · 20%/);assert.match(await totals.innerText(),/\$176\.80/);assert.match(await totals.innerText(),/FREE/);assert.doesNotMatch(await totals.innerText(),/Pending|Not yet calculated/);
   if(process.env.BOF_QA_TEST_CHECKOUT)assert.equal(await page.getByRole('button',{name:/^Place test order · \$/}).isEnabled(),true);
  });
  await check('saved cart reprices options and quantity and blocks only unavailable configurations',async()=>{
   const original=await page.evaluate(async()=>{const {useCartStore}=await import('/src/store/cart.ts');const s=useCartStore.getState(),item=s.items.find(i=>i.specialty_config?.productSlug==='feather-flags');if(!item)throw new Error('Run flag upload before this cart check.');s.replaceItemsFromRecovery([{...item,quantity:2,unit_price_cents:1,line_total_cents:2,specialty_config:{...item.specialty_config,priceVerified:false,options:{...item.specialty_config.options,flaghardware:'PB',carrybag:'1'}}}]);return item;});
   await page.reload();const totals=page.getByTestId('checkout-order-totals');await totals.waitFor();
-  assert.match(await totals.innerText(),/\$608\.00/);assert.match(await totals.innerText(),/First-order savings · 20%/);assert.match(await totals.innerText(),/\$515\.58/);assert.match(await totals.innerText(),/FREE/);
+  assert.match(await totals.innerText(),/\$537\.04/);assert.match(await totals.innerText(),/First-order savings · 20%/);assert.match(await totals.innerText(),/\$455\.41/);assert.match(await totals.innerText(),/FREE/);
   if(process.env.BOF_QA_TEST_CHECKOUT)assert.equal(await page.getByRole('button',{name:/^Place test order · \$/}).isEnabled(),true);
   await page.evaluate(async()=>{const {useCartStore}=await import('/src/store/cart.ts');const item=useCartStore.getState().items[0];useCartStore.getState().replaceItemsFromRecovery([{...item,specialty_config:{...item.specialty_config,priceVerified:true,options:{...item.specialty_config.options,sides:'invalid'}}}]);});
   await page.reload();await totals.waitFor();assert.match(await totals.innerText(),/Pending/);

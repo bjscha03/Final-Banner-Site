@@ -46,13 +46,13 @@ describe('specialty artwork in the existing cart',()=>{
     const stale={...saved,unit_price_cents:1,line_total_cents:2,specialty_config:{...saved.specialty_config!,priceVerified:false,options:{...saved.specialty_config!.options,tent_sandbag:'1'}}};
     useCartStore.setState({items:[{...banner},stale]});
     const migrated=useCartStore.getState().getMigratedItems()[1];
-    expect(migrated.unit_price_cents).toBe(220900);
-    expect(migrated.line_total_cents).toBe(441800);
+    expect(migrated.unit_price_cents).toBe(203886);
+    expect(migrated.line_total_cents).toBe(407772);
     expect(migrated.specialty_config?.priceVerified).toBe(true);
     expect(migrated.specialty_config?.panels).toEqual(saved.specialty_config?.panels);
-    expect(useCartStore.getState().getSubtotalCents()).toBe(453800);
+    expect(useCartStore.getState().getSubtotalCents()).toBe(419772);
     useCartStore.getState().updateQuantity(id,3);
-    expect(useCartStore.getState().items[1].line_total_cents).toBe(662700);
+    expect(useCartStore.getState().items[1].line_total_cents).toBe(611658);
     expect(useCartStore.getState().items[1].specialty_config?.priceVerified).toBe(true);
     expect(useCartStore.getState().items[0]).toEqual(banner);
   });

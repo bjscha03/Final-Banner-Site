@@ -25,19 +25,19 @@ test('every selectable configuration has a positive complete quote and included 
  }
  assert.ok(count>1000);console.log(`Checked ${count} selectable configurations across 58 variants.`);
 });
-test('revised configurations meet the independently audited price floors',()=>{
+test('all 175 quoted configurations use their audited 30 percent target retail price',()=>{
  const quotes=require('./fixtures/specialty-price-floors-2026-10-14.json');
  assert.equal(quotes.length,175);
  for(const row of quotes){
   const p=catalog.find(p=>p.slug===row.slug),v=p.variants.find(v=>v.id===row.variantId);
   const q=engine.priceConfiguration(p,v,row.width,row.height,row.options);
-  assert.ok(q.unitCents>=row.minimumListCents,row.label);
+  assert.equal(q.unitCents,row.expectedListCents,row.label);
   assert.equal(q.proposed,true);
  }
- assert.equal(quote('rectangle-flags',25,80).unitCents,43900);
+ assert.equal(quote('rectangle-flags',25,80).unitCents,40576);
  const p=catalog.find(p=>p.slug==='standard-retractable-banner');
- assert.equal(engine.priceConfiguration(p,p.variants[3],47,81).unitCents,44900);
- assert.equal(quote('custom-event-tents',119,84).unitCents,112900);
+ assert.equal(engine.priceConfiguration(p,p.variants[3],47,81).unitCents,41175);
+ assert.equal(quote('custom-event-tents',119,84).unitCents,104007);
 });
 test('custom dimensions and source prices remain separate from the new proposals',()=>{
  for(const s of ['acrylic-signs','aluminum-signs','aluminum-composite-signs','display-posters']){
@@ -47,8 +47,8 @@ test('custom dimensions and source prices remain separate from the new proposals
  assert.throws(()=>quote('aluminum-signs',24,36,{size:'12x18'}));
  assert.equal(quote('acrylic-signs',6,6).unitCents,12000);
  assert.equal(quote('acrylic-signs',6,6,{hardware:'acrylic'}).unitCents,8500);
- assert.equal(quote('display-posters',24,36).unitCents,10900);
- assert.equal(quote('aluminum-signs',18,24,{sides:'2'}).unitCents,15200);
+ assert.equal(quote('display-posters',24,36).unitCents,8800);
+ assert.equal(quote('aluminum-signs',18,24,{sides:'2'}).unitCents,13171);
 });
 test('unpriced or invalid input still cannot become a zero-dollar or client-priced order',()=>{
  const p=catalog[0],v=structuredClone(p.variants[0]);delete v.priceProposal;
@@ -74,4 +74,21 @@ test('20% cap protects specialty and mixed carts from percentage and fixed promo
  assert.equal(mixed.applied_discount_cents,10980);
  const banner=computeTotals([{product_type:'banner',quantity:1,line_total_cents:10000}],0,{freeShipping:true},{code:'SARAH30',discountPercentage:30});
  assert.equal(banner.applied_discount_cents,3000);
+});
+
+test('margin calculator targets margin rather than markup or a minimum floor',()=>{
+ const {priceForMargin}=require('../../../shared/specialty-margin.cjs');
+ const policy=require('../../../shared/specialty-pricing-policy.json');
+ // Synthetic landed cost: 80% of $150 = $120; $80.10 cost + $3.90 fees leaves $36 (30%).
+ const q=priceForMargin(8010,policy);
+ assert.equal(q.listCents,15000);assert.equal(q.paidCents,12000);assert.equal(q.profitCents,3600);
+ assert.throws(()=>priceForMargin(-1,policy));
+});
+test('quoted prices respect option interactions, hidden options and sign orientation',()=>{
+ const p=catalog.find(p=>p.slug==='feather-flags'),v=p.variants[1];
+ assert.equal(engine.priceConfiguration(p,v,25,80,{sides:'2',flag_pole_tab:'0'}).unitCents,20312);
+ assert.equal(engine.priceConfiguration(p,v,25,80,{sides:'2',flag_pole_tab:'0',flaghardware:'PBS'}).unitCents,20312);
+ assert.equal(quote('aluminum-signs',24,18,{size:'24x18',sides:'2'}).unitCents,13171);
+ assert.equal(quote('aluminum-signs',18,24,{holespunch:'TL;TR;BL;BR'}).unitCents,10566);
+ assert.notEqual(quote('aluminum-signs',36,24,{sides:'2'}).unitCents,13171);
 });

@@ -16,7 +16,7 @@
     "variants": [
       {
         "label": "23 × 66 in",
-        "priceCents": 22900,
+        "priceCents": 20570,
         "widthIn": 23,
         "heightIn": 66,
         "id": "standard-retractable-banner-1",
@@ -40,25 +40,24 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -12000
+            "p": -10520
           },
           "material": {
-            "13oz_matte_vinyl_banner": 3000
+            "13oz_matte_vinyl_banner": 2668
           },
           "led": {
-            "1": 15500,
-            "2": 23000
+            "1": 13894,
+            "2": 21075
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/standard-retractable"
-          ],
-          "shippingAllowanceCents": 4121
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -71,11 +70,31 @@
             "1",
             "2"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "23x66",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 20570
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "23x66",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 10050
+          }
+        ]
       },
       {
         "label": "24 × 81 in",
-        "priceCents": 22900,
+        "priceCents": 21084,
         "widthIn": 24,
         "heightIn": 81,
         "id": "standard-retractable-banner-2",
@@ -99,25 +118,24 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -10000
+            "p": -10008
           },
           "material": {
-            "13oz_matte_vinyl_banner": 3000
+            "13oz_matte_vinyl_banner": 2668
           },
           "led": {
-            "1": 15500,
-            "2": 23000
+            "1": 13894,
+            "2": 21075
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/standard-retractable"
-          ],
-          "shippingAllowanceCents": 4121
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -130,11 +148,31 @@
             "1",
             "2"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "24x81",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 21084
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "24x81",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 11076
+          }
+        ]
       },
       {
         "label": "33 × 81 in",
-        "priceCents": 19900,
+        "priceCents": 17634,
         "widthIn": 33,
         "heightIn": 81,
         "id": "standard-retractable-banner-3",
@@ -158,14 +196,14 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -5000
+            "p": -4710
           },
           "material": {
-            "13oz_matte_vinyl_banner": 3000
+            "13oz_matte_vinyl_banner": 2667
           },
           "led": {
-            "1": 15500,
-            "2": 23000
+            "1": 13895,
+            "2": 21075
           }
         },
         "priceMatch": {
@@ -189,18 +227,64 @@
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/standard-retractable"
-          ],
-          "shippingAllowanceCents": 3923
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "33x81",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 12924
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "33x81",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 17634
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "33x81",
+              "material": "13oz_matte_vinyl_banner",
+              "led": "1"
+            },
+            "priceCents": 34196
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "33x81",
+              "material": "13oz_matte_vinyl_banner",
+              "led": "0"
+            },
+            "priceCents": 20301
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "33x81",
+              "material": "9oz_premium_fabric",
+              "led": "1"
+            },
+            "priceCents": 31529
+          }
+        ]
       },
       {
         "label": "47 × 81 in",
-        "priceCents": 44900,
+        "priceCents": 41175,
         "widthIn": 47,
         "heightIn": 81,
         "id": "standard-retractable-banner-4",
@@ -224,25 +308,24 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -28000
+            "p": -26200
           },
           "material": {
             "13oz_matte_vinyl_banner": 0
           },
           "led": {
-            "1": 15500,
-            "2": 23000
+            "1": 13894,
+            "2": 21075
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/standard-retractable"
-          ],
-          "shippingAllowanceCents": 10830
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -255,7 +338,45 @@
             "1",
             "2"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "47x81",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 14975
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "47x81",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 41175
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "47x81",
+              "material": "9oz_premium_fabric",
+              "led": "2"
+            },
+            "priceCents": 62250
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "47x81",
+              "material": "13oz_matte_vinyl_banner",
+              "led": "2"
+            },
+            "priceCents": 62250
+          }
+        ]
       },
       {
         "id": "standard-retractable-black",
@@ -282,26 +403,25 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -12000
+            "p": -11893
           },
           "material": {
-            "13oz_matte_vinyl_banner": 3000
+            "13oz_matte_vinyl_banner": 2668
           },
           "led": {
-            "1": 15500,
-            "2": 23000
+            "1": 13894,
+            "2": 21075
           }
         },
-        "priceCents": 26900,
+        "priceCents": 24817,
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/standard-retractable"
-          ],
-          "shippingAllowanceCents": 3923
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -314,7 +434,27 @@
             "1",
             "2"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "33x81b",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 12924
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "33x81b",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 24817
+          }
+        ]
       }
     ],
     "image": "/images/products/standard-retractable-banner.webp",
@@ -341,7 +481,7 @@
     "variants": [
       {
         "label": "33 × 81 in · single sided",
-        "priceCents": 27900,
+        "priceCents": 25034,
         "widthIn": 33,
         "heightIn": 81,
         "id": "deluxe-retractable-banner-1",
@@ -365,25 +505,24 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -13000
+            "p": -12110
           },
           "material": {
-            "13oz_matte_vinyl_banner": 3000
+            "13oz_matte_vinyl_banner": 2668
           },
           "led": {
-            "1": 15500,
-            "2": 23000
+            "1": 13894,
+            "2": 21075
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/deluxe-retractable"
-          ],
-          "shippingAllowanceCents": 5139
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -396,11 +535,31 @@
             "1",
             "2"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "33x81",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 25034
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "33x81",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 12924
+          }
+        ]
       },
       {
         "label": "33 × 81 in · double sided",
-        "priceCents": 52900,
+        "priceCents": 48821,
         "widthIn": 33,
         "heightIn": 81,
         "id": "deluxe-retractable-banner-2",
@@ -429,25 +588,24 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -31000
+            "p": -29197
           },
           "material": {
-            "13oz_matte_vinyl_banner": 3000
+            "13oz_matte_vinyl_banner": 2668
           },
           "led": {
-            "1": 15500,
-            "2": 23000
+            "1": 13894,
+            "2": 21075
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/deluxe-retractable"
-          ],
-          "shippingAllowanceCents": 5782
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -460,7 +618,27 @@
             "1",
             "2"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "33x81d",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 19624
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "33x81d",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 48821
+          }
+        ]
       }
     ],
     "image": "/images/products/deluxe-retractable-banner.webp",
@@ -487,7 +665,7 @@
     "variants": [
       {
         "label": "36 × 92 in",
-        "priceCents": 33900,
+        "priceCents": 31354,
         "widthIn": 36,
         "heightIn": 92,
         "id": "premium-retractable-banner-1",
@@ -511,25 +689,24 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -16000
+            "p": -17199
           },
           "material": {
-            "13oz_matte_vinyl_banner": 3000
+            "13oz_matte_vinyl_banner": 2668
           },
           "led": {
-            "1": 15500,
-            "2": 23000
+            "1": 13894,
+            "2": 21075
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/sd-retractable"
-          ],
-          "shippingAllowanceCents": 5777
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -542,11 +719,31 @@
             "1",
             "2"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "36x92",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 31354
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "36x92",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 14155
+          }
+        ]
       },
       {
         "label": "48 × 92 in",
-        "priceCents": 52900,
+        "priceCents": 48295,
         "widthIn": 48,
         "heightIn": 92,
         "id": "premium-retractable-banner-2",
@@ -570,25 +767,24 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -29000
+            "p": -31266
           },
           "material": {
-            "13oz_matte_vinyl_banner": 3000
+            "13oz_matte_vinyl_banner": 2668
           },
           "led": {
-            "1": 15500,
-            "2": 23000
+            "1": 13894,
+            "2": 21075
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/sd-retractable"
-          ],
-          "shippingAllowanceCents": 10830
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -601,11 +797,31 @@
             "1",
             "2"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "48x92",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 17029
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "48x92",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 48295
+          }
+        ]
       },
       {
         "label": "60 × 92 in",
-        "priceCents": 61900,
+        "priceCents": 57139,
         "widthIn": 60,
         "heightIn": 92,
         "id": "premium-retractable-banner-3",
@@ -629,25 +845,24 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -26000
+            "p": -24565
           },
           "material": {
-            "13oz_matte_vinyl_banner": 3000
+            "13oz_matte_vinyl_banner": 2668
           },
           "led": {
-            "1": 15500,
-            "2": 23000
+            "1": 13894,
+            "2": 21075
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/sd-retractable"
-          ],
-          "shippingAllowanceCents": 10830
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -660,7 +875,27 @@
             "1",
             "2"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "60x92",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 32574
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "60x92",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 57139
+          }
+        ]
       },
       {
         "id": "premium-retractable-36x69",
@@ -687,26 +922,25 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -19000
+            "p": -18634
           },
           "material": {
-            "13oz_matte_vinyl_banner": 3000
+            "13oz_matte_vinyl_banner": 2668
           },
           "led": {
-            "1": 15500,
-            "2": 23000
+            "1": 13894,
+            "2": 21075
           }
         },
-        "priceCents": 33900,
+        "priceCents": 30942,
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/sd-retractable"
-          ],
-          "shippingAllowanceCents": 5777
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -719,7 +953,27 @@
             "1",
             "2"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "36x69",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 30942
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "36x69",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 12308
+          }
+        ]
       },
       {
         "id": "premium-retractable-36x80",
@@ -746,26 +1000,25 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -18000
+            "p": -17958
           },
           "material": {
-            "13oz_matte_vinyl_banner": 3000
+            "13oz_matte_vinyl_banner": 2668
           },
           "led": {
-            "1": 15500,
-            "2": 23000
+            "1": 13894,
+            "2": 21075
           }
         },
-        "priceCents": 33900,
+        "priceCents": 31150,
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/sd-retractable"
-          ],
-          "shippingAllowanceCents": 5777
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -778,7 +1031,27 @@
             "1",
             "2"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "36x80",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 13192
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "36x80",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 31150
+          }
+        ]
       },
       {
         "id": "premium-retractable-48x69",
@@ -805,26 +1078,25 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -30000
+            "p": -31471
           },
           "material": {
-            "13oz_matte_vinyl_banner": 3000
+            "13oz_matte_vinyl_banner": 2668
           },
           "led": {
-            "1": 15500,
-            "2": 23000
+            "1": 13894,
+            "2": 21075
           }
         },
-        "priceCents": 49900,
+        "priceCents": 45934,
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/sd-retractable"
-          ],
-          "shippingAllowanceCents": 10830
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -837,7 +1109,27 @@
             "1",
             "2"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "48x69",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 14463
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "48x69",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 45934
+          }
+        ]
       },
       {
         "id": "premium-retractable-48x80",
@@ -864,26 +1156,25 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -29000
+            "p": -31373
           },
           "material": {
-            "13oz_matte_vinyl_banner": 3000
+            "13oz_matte_vinyl_banner": 2668
           },
           "led": {
-            "1": 15500,
-            "2": 23000
+            "1": 13894,
+            "2": 21075
           }
         },
-        "priceCents": 50900,
+        "priceCents": 47064,
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/sd-retractable"
-          ],
-          "shippingAllowanceCents": 10830
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -896,7 +1187,27 @@
             "1",
             "2"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "48x80",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 15691
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "48x80",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 47064
+          }
+        ]
       },
       {
         "id": "premium-retractable-60x69",
@@ -923,26 +1234,25 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -27000
+            "p": -24696
           },
           "material": {
-            "13oz_matte_vinyl_banner": 3000
+            "13oz_matte_vinyl_banner": 2668
           },
           "led": {
-            "1": 15500,
-            "2": 23000
+            "1": 13894,
+            "2": 21075
           }
         },
-        "priceCents": 58900,
+        "priceCents": 54191,
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/sd-retractable"
-          ],
-          "shippingAllowanceCents": 10830
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -955,7 +1265,27 @@
             "1",
             "2"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "60x69",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 29495
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "60x69",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 54191
+          }
+        ]
       },
       {
         "id": "premium-retractable-60x80",
@@ -982,26 +1312,25 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -27000
+            "p": -24634
           },
           "material": {
-            "13oz_matte_vinyl_banner": 3000
+            "13oz_matte_vinyl_banner": 2668
           },
           "led": {
-            "1": 15500,
-            "2": 23000
+            "1": 13894,
+            "2": 21075
           }
         },
-        "priceCents": 60900,
+        "priceCents": 55600,
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/sd-retractable"
-          ],
-          "shippingAllowanceCents": 10830
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -1014,7 +1343,27 @@
             "1",
             "2"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "60x80",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 30966
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "60x80",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 55600
+          }
+        ]
       }
     ],
     "image": "/images/products/premium-retractable-banner.webp",
@@ -1041,7 +1390,7 @@
     "variants": [
       {
         "label": "24 × 63 in",
-        "priceCents": 14900,
+        "priceCents": 13532,
         "widthIn": 24,
         "heightIn": 63,
         "id": "x-banner-stand-1",
@@ -1064,21 +1413,20 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -5000
+            "p": -4711
           },
           "material": {
-            "double_white_popup": 3000
+            "double_white_popup": 2257
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/x-stand"
-          ],
-          "shippingAllowanceCents": 4199
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -1087,11 +1435,45 @@
           "material": [
             "double_white_popup"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "24x63",
+              "material": "13oz_matte_vinyl_banner"
+            },
+            "priceCents": 13532
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "24x63",
+              "material": "13oz_matte_vinyl_banner"
+            },
+            "priceCents": 8821
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "24x63",
+              "material": "double_white_popup"
+            },
+            "priceCents": 11079
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "24x63",
+              "material": "double_white_popup"
+            },
+            "priceCents": 15789
+          }
+        ]
       },
       {
         "label": "32 × 71 in",
-        "priceCents": 16900,
+        "priceCents": 15014,
         "widthIn": 32,
         "heightIn": 71,
         "id": "x-banner-stand-2",
@@ -1114,21 +1496,20 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -6000
+            "p": -5364
           },
           "material": {
-            "double_white_popup": 4000
+            "double_white_popup": 3598
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/x-stand"
-          ],
-          "shippingAllowanceCents": 3889
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -1137,7 +1518,41 @@
           "material": [
             "double_white_popup"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "32x71",
+              "material": "13oz_matte_vinyl_banner"
+            },
+            "priceCents": 15014
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "32x71",
+              "material": "13oz_matte_vinyl_banner"
+            },
+            "priceCents": 9650
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "32x71",
+              "material": "double_white_popup"
+            },
+            "priceCents": 18612
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "32x71",
+              "material": "double_white_popup"
+            },
+            "priceCents": 13246
+          }
+        ]
       }
     ],
     "image": "/images/products/x-banner-stand.webp",
@@ -1164,7 +1579,7 @@
     "variants": [
       {
         "label": "11.5 × 17.5 in",
-        "priceCents": 11900,
+        "priceCents": 10871,
         "widthIn": 11.5,
         "heightIn": 17.5,
         "id": "tabletop-banner-stand-1",
@@ -1188,14 +1603,23 @@
         "optionPrices": {},
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/table-top-banner-stand"
-          ],
-          "shippingAllowanceCents": 3598
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "size": "11.5x17.5",
+              "material": "double_white_popup",
+              "lamination": "UV"
+            },
+            "priceCents": 10871
+          }
+        ]
       }
     ],
     "image": "/images/products/tabletop-banner-stand.webp",
@@ -1221,7 +1645,7 @@
     "variants": [
       {
         "label": "36 × 90 in",
-        "priceCents": 49900,
+        "priceCents": 45771,
         "widthIn": 36,
         "heightIn": 90,
         "id": "tension-fabric-stand-1",
@@ -1258,24 +1682,23 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -31000
+            "p": -28742
           },
           "sides": {
-            "2": 6000
+            "2": 0
           },
           "tradeshow_led": {
-            "2": 34500
+            "2": 31853
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/tension-fabric-stand"
-          ],
-          "shippingAllowanceCents": 10204
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -1287,11 +1710,49 @@
           "tradeshow_led": [
             "2"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "36x90",
+              "sides": "1",
+              "tradeshow_led": "0"
+            },
+            "priceCents": 45771
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "36x90",
+              "sides": "2",
+              "tradeshow_led": "0"
+            },
+            "priceCents": 45771
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "36x90",
+              "sides": "2",
+              "tradeshow_led": "0"
+            },
+            "priceCents": 17029
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "36x90",
+              "sides": "1",
+              "tradeshow_led": "0"
+            },
+            "priceCents": 17029
+          }
+        ]
       },
       {
         "label": "48 × 90 in",
-        "priceCents": 62900,
+        "priceCents": 57755,
         "widthIn": 48,
         "heightIn": 90,
         "id": "tension-fabric-stand-2",
@@ -1328,24 +1789,23 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -42000
+            "p": -38675
           },
           "sides": {
-            "2": 8000
+            "2": 0
           },
           "tradeshow_led": {
-            "2": 34500
+            "2": 31853
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/tension-fabric-stand"
-          ],
-          "shippingAllowanceCents": 14428
+          ]
         },
         "proposedOptionPrices": {
           "hardware": [
@@ -1357,7 +1817,54 @@
           "tradeshow_led": [
             "2"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "48x90",
+              "sides": "1",
+              "tradeshow_led": "0"
+            },
+            "priceCents": 19080
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "48x90",
+              "sides": "1",
+              "tradeshow_led": "0"
+            },
+            "priceCents": 57755
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "48x90",
+              "sides": "2",
+              "tradeshow_led": "0"
+            },
+            "priceCents": 57755
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "48x90",
+              "sides": "2",
+              "tradeshow_led": "2"
+            },
+            "priceCents": 89609
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "48x90",
+              "sides": "2",
+              "tradeshow_led": "0"
+            },
+            "priceCents": 19080
+          }
+        ]
       }
     ],
     "image": "/images/products/tension-fabric-stand.webp",
@@ -1384,7 +1891,7 @@
     "variants": [
       {
         "label": "8 × 8 ft",
-        "priceCents": 52900,
+        "priceCents": 48846,
         "widthIn": 96,
         "heightIn": 96,
         "id": "step-and-repeat-backdrop-8x8",
@@ -1413,7 +1920,7 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -20000
+            "p": -22376
           }
         },
         "proposedOptionPrices": {
@@ -1423,18 +1930,35 @@
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/step-repeat-backdrop"
-          ],
-          "shippingAllowanceCents": 7562
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "96x96",
+              "material": "9oz_wrinklefree_fabric"
+            },
+            "priceCents": 26470
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "96x96",
+              "material": "9oz_wrinklefree_fabric"
+            },
+            "priceCents": 48846
+          }
+        ]
       },
       {
         "label": "10 × 8 ft",
-        "priceCents": 55900,
+        "priceCents": 50900,
         "widthIn": 120,
         "heightIn": 96,
         "id": "step-and-repeat-backdrop-1",
@@ -1463,7 +1987,7 @@
         },
         "optionPrices": {
           "hardware": {
-            "p": -17000
+            "p": -19132
           }
         },
         "proposedOptionPrices": {
@@ -1473,14 +1997,31 @@
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/step-repeat-backdrop"
-          ],
-          "shippingAllowanceCents": 7562
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "120x96",
+              "material": "9oz_wrinklefree_fabric"
+            },
+            "priceCents": 50900
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "120x96",
+              "material": "9oz_wrinklefree_fabric"
+            },
+            "priceCents": 31768
+          }
+        ]
       }
     ],
     "image": "/images/products/step-and-repeat-backdrop.webp",
@@ -1505,7 +2046,7 @@
     "variants": [
       {
         "label": "Angled · 9 ft",
-        "priceCents": 22900,
+        "priceCents": 20849,
         "id": "feather-flags-1",
         "panels": [
           {
@@ -1560,23 +2101,23 @@
         "optionPrices": {
           "sides": {
             "1": 0,
-            "2": 8000,
+            "2": 6772,
             "-1": 0
           },
           "flaghardware": {
             "0": 0,
             "PG": 0,
-            "PB": 3000,
-            "PBG": 7000,
-            "PBW": 3500,
-            "PBS": 15000
+            "PB": 2084,
+            "PBG": 6396,
+            "PBW": 2750,
+            "PBS": 13830
           },
           "carrybag": {
             "0": 0,
-            "1": 4500
+            "1": 3919
           },
           "flag_pole_tab": {
-            "0": -8000
+            "0": -7310
           }
         },
         "proposedOptionPrices": {
@@ -1592,18 +2133,119 @@
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/feather-angled-flag"
-          ],
-          "shippingAllowanceCents": 4584
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20849
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 27621
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "small",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20312
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13539
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PB",
+              "carrybag": "0"
+            },
+            "priceCents": 22933
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PBG",
+              "carrybag": "0"
+            },
+            "priceCents": 27245
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PBW",
+              "carrybag": "0"
+            },
+            "priceCents": 23599
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PBS",
+              "carrybag": "0"
+            },
+            "priceCents": 34679
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "1"
+            },
+            "priceCents": 24768
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "-1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20849
+          }
+        ]
       },
       {
         "label": "Angled · 10.5 ft",
-        "priceCents": 22900,
+        "priceCents": 20849,
         "id": "feather-flags-2",
         "panels": [
           {
@@ -1658,23 +2300,23 @@
         "optionPrices": {
           "sides": {
             "1": 0,
-            "2": 8000,
+            "2": 7100,
             "-1": 0
           },
           "flaghardware": {
             "0": 0,
             "PG": 0,
-            "PB": 3500,
-            "PBG": 7000,
-            "PBW": 4500,
-            "PBS": 17000
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
           },
           "carrybag": {
             "0": 0,
-            "1": 4500
+            "1": 3920
           },
           "flag_pole_tab": {
-            "0": -8000
+            "0": -7310
           }
         },
         "proposedOptionPrices": {
@@ -1690,18 +2332,59 @@
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/feather-angled-flag"
-          ],
-          "shippingAllowanceCents": 4584
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "medium",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13539
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "medium",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20849
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "medium",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 27949
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "medium",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20312
+          }
+        ]
       },
       {
         "label": "Angled · 14 ft",
-        "priceCents": 23900,
+        "priceCents": 21224,
         "id": "feather-flags-3",
         "panels": [
           {
@@ -1756,23 +2439,23 @@
         "optionPrices": {
           "sides": {
             "1": 0,
-            "2": 8000,
+            "2": 7183,
             "-1": 0
           },
           "flaghardware": {
             "0": 0,
             "PG": 0,
-            "PB": 3500,
-            "PBG": 7000,
-            "PBW": 4500,
-            "PBS": 17000
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
           },
           "carrybag": {
             "0": 0,
-            "1": 4500
+            "1": 3920
           },
           "flag_pole_tab": {
-            "0": -8000
+            "0": -7274
           }
         },
         "proposedOptionPrices": {
@@ -1788,18 +2471,59 @@
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/feather-angled-flag"
-          ],
-          "shippingAllowanceCents": 4351
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13950
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 21224
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 28407
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "large",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 21132
+          }
+        ]
       },
       {
         "label": "Angled · 18 ft",
-        "priceCents": 26900,
+        "priceCents": 24820,
         "id": "feather-flags-4",
         "panels": [
           {
@@ -1854,23 +2578,23 @@
         "optionPrices": {
           "sides": {
             "1": 0,
-            "2": 11000,
+            "2": 9729,
             "-1": 0
           },
           "flaghardware": {
             "0": 0,
             "PG": 0,
-            "PB": 3500,
-            "PBG": 7000,
-            "PBW": 4500,
-            "PBS": 17000
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
           },
           "carrybag": {
             "0": 0,
-            "1": 4500
+            "1": 3920
           },
           "flag_pole_tab": {
-            "0": -9000
+            "0": -8408
           }
         },
         "proposedOptionPrices": {
@@ -1886,18 +2610,59 @@
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/feather-angled-flag"
-          ],
-          "shippingAllowanceCents": 4485
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "xlarge",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 16412
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "xlarge",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 24820
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "xlarge",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 34549
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "xlarge",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 26058
+          }
+        ]
       },
       {
         "label": "Convex · 9 ft",
-        "priceCents": 22900,
+        "priceCents": 20479,
         "id": "feather-flags-5",
         "panels": [
           {
@@ -1945,32 +2710,31 @@
         },
         "optionPrices": {
           "flag_pole_tab": {
-            "0": -8000
+            "0": -6940
           },
           "sides": {
-            "2": 8000,
+            "2": 7142,
             "-1": 0
           },
           "flaghardware": {
             "0": 0,
-            "PB": 3500,
-            "PBG": 7000,
-            "PBW": 4500,
-            "PBS": 17000
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
           },
           "carrybag": {
-            "1": 4500
+            "1": 3920
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/convex-flag"
-          ],
-          "shippingAllowanceCents": 4386
+          ]
         },
         "proposedOptionPrices": {
           "flag_pole_tab": [
@@ -1990,11 +2754,53 @@
           "carrybag": [
             "1"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "Size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13539
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "Size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20479
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "Size": "small",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 27621
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "Size": "small",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20312
+          }
+        ]
       },
       {
         "label": "Convex · 10.5 ft",
-        "priceCents": 22900,
+        "priceCents": 20849,
         "id": "feather-flags-6",
         "panels": [
           {
@@ -2042,32 +2848,31 @@
         },
         "optionPrices": {
           "flag_pole_tab": {
-            "0": -8000
+            "0": -7310
           },
           "sides": {
-            "2": 8000,
+            "2": 6772,
             "-1": 0
           },
           "flaghardware": {
             "0": 0,
-            "PB": 3500,
-            "PBG": 7000,
-            "PBW": 4500,
-            "PBS": 17000
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
           },
           "carrybag": {
-            "1": 4500
+            "1": 3920
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/convex-flag"
-          ],
-          "shippingAllowanceCents": 4584
+          ]
         },
         "proposedOptionPrices": {
           "flag_pole_tab": [
@@ -2087,11 +2892,53 @@
           "carrybag": [
             "1"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "Size": "medium",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13539
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "Size": "medium",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20849
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "Size": "medium",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 27621
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "Size": "medium",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20312
+          }
+        ]
       },
       {
         "label": "Convex · 14 ft",
-        "priceCents": 22900,
+        "priceCents": 20926,
         "id": "feather-flags-7",
         "panels": [
           {
@@ -2139,32 +2986,31 @@
         },
         "optionPrices": {
           "flag_pole_tab": {
-            "0": -7000
+            "0": -6976
           },
           "sides": {
-            "2": 8500,
+            "2": 7481,
             "-1": 0
           },
           "flaghardware": {
             "0": 0,
-            "PB": 3500,
-            "PBG": 7000,
-            "PBW": 4500,
-            "PBS": 17000
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
           },
           "carrybag": {
-            "1": 4500
+            "1": 3920
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/convex-flag"
-          ],
-          "shippingAllowanceCents": 4192
+          ]
         },
         "proposedOptionPrices": {
           "flag_pole_tab": [
@@ -2184,11 +3030,53 @@
           "carrybag": [
             "1"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "Size": "large",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13950
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "Size": "large",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20926
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "Size": "large",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 28407
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "Size": "large",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 21132
+          }
+        ]
       },
       {
         "label": "Convex · 18 ft",
-        "priceCents": 26900,
+        "priceCents": 24570,
         "id": "feather-flags-8",
         "panels": [
           {
@@ -2236,32 +3124,31 @@
         },
         "optionPrices": {
           "flag_pole_tab": {
-            "0": -9000
+            "0": -8158
           },
           "sides": {
-            "2": 11000,
+            "2": 9894,
             "-1": 0
           },
           "flaghardware": {
             "0": 0,
-            "PB": 3500,
-            "PBG": 7000,
-            "PBW": 4500,
-            "PBS": 17000
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
           },
           "carrybag": {
-            "1": 4500
+            "1": 3920
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/convex-flag"
-          ],
-          "shippingAllowanceCents": 4351
+          ]
         },
         "proposedOptionPrices": {
           "flag_pole_tab": [
@@ -2281,7 +3168,49 @@
           "carrybag": [
             "1"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "Size": "xlarge",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 16412
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "Size": "xlarge",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 24570
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "Size": "xlarge",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 34464
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "Size": "xlarge",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 26058
+          }
+        ]
       }
     ],
     "image": "/images/products/feather-flags.webp",
@@ -2306,7 +3235,7 @@
     "variants": [
       {
         "label": "7 ft",
-        "priceCents": 22900,
+        "priceCents": 20849,
         "id": "teardrop-flags-1",
         "panels": [
           {
@@ -2354,32 +3283,31 @@
         },
         "optionPrices": {
           "flag_pole_tab": {
-            "0": -8000
+            "0": -7310
           },
           "sides": {
-            "2": 8000,
+            "2": 6772,
             "-1": 0
           },
           "flaghardware": {
             "0": 0,
-            "PB": 3500,
-            "PBG": 7000,
-            "PBW": 4500,
-            "PBS": 17000
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
           },
           "carrybag": {
-            "1": 4500
+            "1": 3920
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/teardrop-flag"
-          ],
-          "shippingAllowanceCents": 4584
+          ]
         },
         "proposedOptionPrices": {
           "flag_pole_tab": [
@@ -2399,11 +3327,53 @@
           "carrybag": [
             "1"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13539
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20849
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 27621
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "small",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20312
+          }
+        ]
       },
       {
         "label": "9 ft",
-        "priceCents": 22900,
+        "priceCents": 20849,
         "id": "teardrop-flags-2",
         "panels": [
           {
@@ -2451,32 +3421,31 @@
         },
         "optionPrices": {
           "flag_pole_tab": {
-            "0": -8000
+            "0": -7310
           },
           "sides": {
-            "2": 8000,
+            "2": 7100,
             "-1": 0
           },
           "flaghardware": {
             "0": 0,
-            "PB": 3500,
-            "PBG": 7000,
-            "PBW": 4500,
-            "PBS": 17000
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
           },
           "carrybag": {
-            "1": 4500
+            "1": 3920
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/teardrop-flag"
-          ],
-          "shippingAllowanceCents": 4584
+          ]
         },
         "proposedOptionPrices": {
           "flag_pole_tab": [
@@ -2496,11 +3465,53 @@
           "carrybag": [
             "1"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "medium",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13539
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "medium",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20849
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "medium",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 27949
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "medium",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20312
+          }
+        ]
       },
       {
         "label": "11.2 ft",
-        "priceCents": 23900,
+        "priceCents": 21224,
         "id": "teardrop-flags-3",
         "panels": [
           {
@@ -2548,32 +3559,31 @@
         },
         "optionPrices": {
           "flag_pole_tab": {
-            "0": -8000
+            "0": -7274
           },
           "sides": {
-            "2": 8000,
+            "2": 7183,
             "-1": 0
           },
           "flaghardware": {
             "0": 0,
-            "PB": 3500,
-            "PBG": 7000,
-            "PBW": 4500,
-            "PBS": 17000
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
           },
           "carrybag": {
-            "1": 4500
+            "1": 3920
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/teardrop-flag"
-          ],
-          "shippingAllowanceCents": 4351
+          ]
         },
         "proposedOptionPrices": {
           "flag_pole_tab": [
@@ -2593,11 +3603,53 @@
           "carrybag": [
             "1"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13950
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 21224
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 28407
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "large",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 21132
+          }
+        ]
       },
       {
         "label": "13.5 ft",
-        "priceCents": 26900,
+        "priceCents": 24820,
         "id": "teardrop-flags-4",
         "panels": [
           {
@@ -2645,32 +3697,31 @@
         },
         "optionPrices": {
           "flag_pole_tab": {
-            "0": -9000
+            "0": -8408
           },
           "sides": {
-            "2": 11000,
+            "2": 9644,
             "-1": 0
           },
           "flaghardware": {
             "0": 0,
-            "PB": 3500,
-            "PBG": 7000,
-            "PBW": 4500,
-            "PBS": 17000
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
           },
           "carrybag": {
-            "1": 4500
+            "1": 3920
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/teardrop-flag"
-          ],
-          "shippingAllowanceCents": 4485
+          ]
         },
         "proposedOptionPrices": {
           "flag_pole_tab": [
@@ -2690,7 +3741,49 @@
           "carrybag": [
             "1"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "xlarge",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 16412
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "xlarge",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 24820
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "xlarge",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 34464
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "xlarge",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 26058
+          }
+        ]
       }
     ],
     "image": "/images/products/teardrop-flags.webp",
@@ -2715,7 +3808,7 @@
     "variants": [
       {
         "label": "8.5 ft",
-        "priceCents": 43900,
+        "priceCents": 40576,
         "id": "rectangle-flags-1",
         "panels": [
           {
@@ -2763,29 +3856,28 @@
         },
         "optionPrices": {
           "flag_pole_tab": {
-            "0": -26000
+            "0": -24575
           },
           "sides": {
-            "2": 10000,
+            "2": 9236,
             "-1": 0
           },
           "flaghardware": {
             "0": 0,
-            "PB": 3500,
-            "PBG": 7000,
-            "PBW": 4500,
-            "PBS": 17000
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/rectangle-flag"
-          ],
-          "shippingAllowanceCents": 11424
+          ]
         },
         "proposedOptionPrices": {
           "flag_pole_tab": [
@@ -2802,11 +3894,53 @@
             "PBS",
             "0"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 16001
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 40576
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "2",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 49812
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "small",
+              "sides": "2",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 25237
+          }
+        ]
       },
       {
         "label": "11.8 ft",
-        "priceCents": 46900,
+        "priceCents": 42711,
         "id": "rectangle-flags-2",
         "panels": [
           {
@@ -2854,29 +3988,28 @@
         },
         "optionPrices": {
           "flag_pole_tab": {
-            "0": -28000
+            "0": -25682
           },
           "sides": {
-            "2": 11500,
+            "2": 10260,
             "-1": 0
           },
           "flaghardware": {
             "0": 0,
-            "PB": 3500,
-            "PBG": 7000,
-            "PBW": 4500,
-            "PBS": 17000
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/rectangle-flag"
-          ],
-          "shippingAllowanceCents": 11424
+          ]
         },
         "proposedOptionPrices": {
           "flag_pole_tab": [
@@ -2893,11 +4026,53 @@
             "PBS",
             "0"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "medium",
+              "sides": "1",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 17029
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "medium",
+              "sides": "1",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 42711
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "medium",
+              "sides": "2",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 52971
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "medium",
+              "sides": "2",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 27289
+          }
+        ]
       },
       {
         "label": "15 ft",
-        "priceCents": 48900,
+        "priceCents": 44845,
         "id": "rectangle-flags-3",
         "panels": [
           {
@@ -2945,29 +4120,28 @@
         },
         "optionPrices": {
           "flag_pole_tab": {
-            "0": -29000
+            "0": -26791
           },
           "sides": {
-            "2": 12500,
+            "2": 11287,
             "-1": 0
           },
           "flaghardware": {
             "0": 0,
-            "PB": 3500,
-            "PBG": 7000,
-            "PBW": 4500,
-            "PBS": 17000
+            "PB": 3141,
+            "PBG": 6464,
+            "PBW": 4064,
+            "PBS": 15660
           }
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/rectangle-flag"
-          ],
-          "shippingAllowanceCents": 11424
+          ]
         },
         "proposedOptionPrices": {
           "flag_pole_tab": [
@@ -2984,7 +4158,89 @@
             "PBS",
             "0"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 18054
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 44845
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "2",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 56132
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "large",
+              "sides": "2",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 29341
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PB",
+              "pole": "1"
+            },
+            "priceCents": 47986
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PBG",
+              "pole": "1"
+            },
+            "priceCents": 51309
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PBW",
+              "pole": "1"
+            },
+            "priceCents": 48909
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PBS",
+              "pole": "1"
+            },
+            "priceCents": 60505
+          }
+        ]
       }
     ],
     "image": "/images/products/rectangle-flags.webp",
@@ -3009,7 +4265,7 @@
     "variants": [
       {
         "label": "16 ft",
-        "priceCents": 38900,
+        "priceCents": 35530,
         "id": "economy-feather-flag-1",
         "panels": [
           {
@@ -3042,7 +4298,7 @@
         },
         "optionPrices": {
           "flag_pole": {
-            "fo": -24000
+            "fo": -22606
           },
           "graphic": {
             "-1": 0
@@ -3050,13 +4306,12 @@
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/econo-feather-flag"
-          ],
-          "shippingAllowanceCents": 11424
+          ]
         },
         "proposedOptionPrices": {
           "flag_pole": [
@@ -3065,7 +4320,36 @@
           "graphic": [
             "-1"
           ]
-        }
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole": "flag_pole",
+              "graphic": "1",
+              "base": "PG",
+              "material": "flag_polyster"
+            },
+            "priceCents": 35530
+          },
+          {
+            "options": {
+              "flag_pole": "fo",
+              "graphic": "1",
+              "base": "PG",
+              "material": "flag_polyster"
+            },
+            "priceCents": 12924
+          },
+          {
+            "options": {
+              "flag_pole": "fo",
+              "graphic": "-1",
+              "base": "PG",
+              "material": "flag_polyster"
+            },
+            "priceCents": 12924
+          }
+        ]
       }
     ],
     "image": "/images/products/economy-feather-flag.webp",
@@ -3091,7 +4375,7 @@
     "variants": [
       {
         "label": "4 ft · open back",
-        "priceCents": 20900,
+        "priceCents": 18570,
         "widthIn": 48,
         "id": "standard-table-throws-1",
         "panels": [
@@ -3112,18 +4396,25 @@
         "optionPrices": {},
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/4ft-table-cover"
-          ],
-          "shippingAllowanceCents": 3598
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "sides": "3sided"
+            },
+            "priceCents": 18570
+          }
+        ]
       },
       {
         "label": "4 ft · closed back",
-        "priceCents": 24900,
+        "priceCents": 22366,
         "widthIn": 48,
         "id": "standard-table-throws-2",
         "panels": [
@@ -3144,18 +4435,25 @@
         "optionPrices": {},
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/4ft-table-cover"
-          ],
-          "shippingAllowanceCents": 3598
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "sides": "4sided"
+            },
+            "priceCents": 22366
+          }
+        ]
       },
       {
         "label": "6 ft · open back",
-        "priceCents": 23900,
+        "priceCents": 21475,
         "widthIn": 72,
         "id": "standard-table-throws-3",
         "panels": [
@@ -3182,18 +4480,25 @@
         "optionPrices": {},
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/6ft-table-cover"
-          ],
-          "shippingAllowanceCents": 3598
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "sides": "3sided"
+            },
+            "priceCents": 21475
+          }
+        ]
       },
       {
         "label": "6 ft · closed back",
-        "priceCents": 28900,
+        "priceCents": 26279,
         "widthIn": 72,
         "id": "standard-table-throws-4",
         "panels": [
@@ -3220,18 +4525,25 @@
         "optionPrices": {},
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/6ft-table-cover"
-          ],
-          "shippingAllowanceCents": 3598
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "sides": "4sided"
+            },
+            "priceCents": 26279
+          }
+        ]
       },
       {
         "label": "8 ft · open back",
-        "priceCents": 26900,
+        "priceCents": 24264,
         "widthIn": 96,
         "id": "standard-table-throws-5",
         "panels": [
@@ -3258,18 +4570,25 @@
         "optionPrices": {},
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/8ft-table-cover"
-          ],
-          "shippingAllowanceCents": 3598
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "sides": "3sided"
+            },
+            "priceCents": 24264
+          }
+        ]
       },
       {
         "label": "8 ft · closed back",
-        "priceCents": 32900,
+        "priceCents": 30191,
         "widthIn": 96,
         "id": "standard-table-throws-6",
         "panels": [
@@ -3296,14 +4615,21 @@
         "optionPrices": {},
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/8ft-table-cover"
-          ],
-          "shippingAllowanceCents": 3598
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "sides": "4sided"
+            },
+            "priceCents": 30191
+          }
+        ]
       }
     ],
     "image": "/images/products/standard-table-throws.webp",
@@ -3329,7 +4655,7 @@
     "variants": [
       {
         "label": "6 ft · open back",
-        "priceCents": 23900,
+        "priceCents": 21692,
         "widthIn": 72,
         "id": "fitted-table-throws-1",
         "panels": [
@@ -3352,18 +4678,26 @@
         "optionPrices": {},
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/Fitted-Table-Cover"
-          ],
-          "shippingAllowanceCents": 3598
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "size": "6ft",
+              "backside": "3sided"
+            },
+            "priceCents": 21692
+          }
+        ]
       },
       {
         "label": "6 ft · closed back",
-        "priceCents": 24000,
+        "priceCents": 21692,
         "widthIn": 72,
         "id": "fitted-table-throws-2",
         "panels": [
@@ -3386,18 +4720,26 @@
         "optionPrices": {},
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/Fitted-Table-Cover"
-          ],
-          "shippingAllowanceCents": 3598
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "size": "6ft",
+              "backside": "4sided"
+            },
+            "priceCents": 21692
+          }
+        ]
       },
       {
         "label": "8 ft · open back",
-        "priceCents": 25900,
+        "priceCents": 23558,
         "widthIn": 96,
         "id": "fitted-table-throws-3",
         "panels": [
@@ -3420,18 +4762,26 @@
         "optionPrices": {},
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/Fitted-Table-Cover"
-          ],
-          "shippingAllowanceCents": 3598
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "size": "8ft",
+              "backside": "3sided"
+            },
+            "priceCents": 23558
+          }
+        ]
       },
       {
         "label": "8 ft · closed back",
-        "priceCents": 27000,
+        "priceCents": 23558,
         "widthIn": 96,
         "id": "fitted-table-throws-4",
         "panels": [
@@ -3454,14 +4804,22 @@
         "optionPrices": {},
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/Fitted-Table-Cover"
-          ],
-          "shippingAllowanceCents": 3598
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "size": "8ft",
+              "backside": "4sided"
+            },
+            "priceCents": 23558
+          }
+        ]
       }
     ],
     "image": "/images/products/fitted-table-throws.webp",
@@ -3487,7 +4845,7 @@
     "variants": [
       {
         "label": "6 ft",
-        "priceCents": 35900,
+        "priceCents": 33180,
         "widthIn": 72,
         "id": "stretch-table-throws-1",
         "panels": [
@@ -3508,18 +4866,25 @@
         "optionPrices": {},
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/stretch-table-cover"
-          ],
-          "shippingAllowanceCents": 3598
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "size": "6ft"
+            },
+            "priceCents": 33180
+          }
+        ]
       },
       {
         "label": "8 ft",
-        "priceCents": 41900,
+        "priceCents": 38516,
         "widthIn": 96,
         "id": "stretch-table-throws-2",
         "panels": [
@@ -3540,14 +4905,21 @@
         "optionPrices": {},
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/stretch-table-cover"
-          ],
-          "shippingAllowanceCents": 3598
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "size": "8ft"
+            },
+            "priceCents": 38516
+          }
+        ]
       }
     ],
     "image": "/images/products/stretch-table-throws.webp",
@@ -3574,7 +4946,7 @@
     "variants": [
       {
         "label": "10 × 10 ft",
-        "priceCents": 112900,
+        "priceCents": 104007,
         "widthIn": 120,
         "heightIn": 120,
         "id": "custom-event-tents-1",
@@ -3910,32 +5282,32 @@
           },
           "tent_sandbag": {
             "0": 0,
-            "1": 10500
+            "1": 9298
           },
           "tent_hardware": {
-            "0": -48000
+            "0": -44125
           },
           "tent_carrybag": {
-            "w": 12000
+            "w": 10967
           },
           "mesh_sidewall": {
-            "1": 29500
+            "1": 26927
           },
           "tent_full_wall": {
-            "A": 37500,
-            "AB": 75000,
-            "ABC": 112500,
-            "ABCD": 150000
+            "A": 34269,
+            "AB": 68538,
+            "ABC": 102807,
+            "ABCD": 137076
           },
           "tent_half_wall": {
-            "1x1": 49000,
-            "1x2": 66500,
-            "2x1": 98000,
-            "2x2": 133000,
-            "3x1": 147000,
-            "3x2": 199500,
-            "4x1": 196000,
-            "4x2": 266000
+            "1x1": 45192,
+            "1x2": 61404,
+            "2x1": 90384,
+            "2x2": 122808,
+            "3x1": 135576,
+            "3x2": 184212,
+            "4x1": 180768,
+            "4x2": 245616
           }
         },
         "proposedOptionPrices": {
@@ -3967,18 +5339,115 @@
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/event-tent-canopy-graphic"
-          ],
-          "shippingAllowanceCents": 15818
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "mesh_sidewall": "0",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 104007
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "w",
+              "mesh_sidewall": "0",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 114974
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "mesh_sidewall": "0",
+              "tent_sandbag": "1",
+              "tent_full_wall": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 113305
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "mesh_sidewall": "1",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 130934
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "mesh_sidewall": "0",
+              "tent_sandbag": "0",
+              "tent_full_wall": "A",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 138276
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "mesh_sidewall": "0",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_half_wall": "1x1"
+            },
+            "priceCents": 149199
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "mesh_sidewall": "0",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_half_wall": "1x2"
+            },
+            "priceCents": 165411
+          },
+          {
+            "options": {
+              "tent_hardware": "0",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "mesh_sidewall": "0",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 59882
+          }
+        ]
       },
       {
         "label": "10 × 15 ft",
-        "priceCents": 173900,
+        "priceCents": 160162,
         "widthIn": 180,
         "heightIn": 120,
         "id": "custom-event-tents-2",
@@ -4161,27 +5630,27 @@
           },
           "tent_sandbag": {
             "0": 0,
-            "1": 11500
+            "1": 10352
           },
           "tent_hardware": {
-            "0": -102000
+            "0": -93949
           },
           "tent_carrybag": {
-            "w": 17500
+            "w": 16081
           },
           "tent_full_wall": {
-            "S1": 38000,
-            "S2": 76000
+            "S1": 34842,
+            "S2": 69684
           },
           "tent_full_wall_long": {
-            "L1": 55000,
-            "L2": 110000
+            "L1": 50513,
+            "L2": 101026
           },
           "tent_half_wall": {
-            "1x1": 49000,
-            "1x2": 66500,
-            "2x1": 98000,
-            "2x2": 133000
+            "1x1": 45189,
+            "1x2": 61404,
+            "2x1": 90378,
+            "2x2": 122808
           }
         },
         "proposedOptionPrices": {
@@ -4208,18 +5677,115 @@
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/10x15-event-tent"
-          ],
-          "shippingAllowanceCents": 19917
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 160162
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "L1",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 210675
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "0",
+              "tent_full_wall": "S1",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 195004
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "1x1"
+            },
+            "priceCents": 205351
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "1x2"
+            },
+            "priceCents": 221566
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "w",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 176243
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "1",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 170514
+          },
+          {
+            "options": {
+              "tent_hardware": "0",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 66213
+          }
+        ]
       },
       {
         "label": "10 × 20 ft",
-        "priceCents": 205900,
+        "priceCents": 190149,
         "widthIn": 240,
         "heightIn": 120,
         "id": "custom-event-tents-3",
@@ -4401,28 +5967,28 @@
             "black": 0
           },
           "tent_sandbag": {
-            "1": 15000,
+            "1": 13737,
             "2": 0
           },
           "tent_hardware": {
-            "0": -112000
+            "0": -103756
           },
           "tent_carrybag": {
-            "w": 22000
+            "w": 20122
           },
           "tent_full_wall": {
-            "S1": 37500,
-            "S2": 75000
+            "S1": 34351,
+            "S2": 68702
           },
           "tent_full_wall_long": {
-            "L1": 73000,
-            "L2": 146000
+            "L1": 67513,
+            "L2": 135026
           },
           "tent_half_wall": {
-            "1x1": 49000,
-            "1x2": 66500,
-            "2x1": 98000,
-            "2x2": 133000
+            "1x1": 45189,
+            "1x2": 61401,
+            "2x1": 90378,
+            "2x2": 122802
           }
         },
         "proposedOptionPrices": {
@@ -4449,14 +6015,111 @@
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Cost-led proposal: 20% maximum discount, 35% contribution target after estimated 3% + $0.30 processing. Quote destination and unquoted options require approval.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
           "sourceUrls": [
             "https://www.b2sign.com/10x20-event-tent"
-          ],
-          "shippingAllowanceCents": 23989
-        }
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "2",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 190149
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "2",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "L1",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 257662
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "2",
+              "tent_full_wall": "S1",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 224500
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "2",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "1x1"
+            },
+            "priceCents": 235338
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "2",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "1x2"
+            },
+            "priceCents": 251550
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "w",
+              "tent_sandbag": "2",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 210271
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "1",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 203886
+          },
+          {
+            "options": {
+              "tent_hardware": "0",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "2",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 86393
+          }
+        ]
       }
     ],
     "image": "/images/products/custom-event-tents.webp",
@@ -4506,13 +6169,12 @@
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Provisional retail uplift of 25%; supplier costs and profit remain TBD until John confirms. No profit guarantee.",
+          "basis": "Supplier cost and shipping TBD. Existing provisional retail retained; 30% margin cannot be verified.",
           "sourceUrls": [
             "https://www.signs365.com/portal/static/managed/catalog/SignageCatalog9-23-HQ.pdf"
-          ],
-          "shippingAllowanceCents": 2000
+          ]
         },
         "baseAddCents": 3500,
         "proposedOptionPrices": {
@@ -4551,7 +6213,7 @@
     "variants": [
       {
         "label": "Single-sided print · square corners",
-        "priceCents": 1400,
+        "priceCents": 1231,
         "id": "aluminum-signs-1",
         "panels": [
           {
@@ -4585,16 +6247,16 @@
         },
         "optionPrices": {
           "holespunch": {
-            "TL;TR;BL;BR": 800,
-            "TL;TR": 600,
-            "TC;BC": 1000,
-            "custom": 4000
+            "TL;TR;BL;BR": 103,
+            "TL;TR": 103,
+            "TC;BC": 925,
+            "custom": 3701
           },
           "cornerstyle": {
-            "1": 1500,
-            "1_4": 1500,
-            "1_2": 1500,
-            "R": 1000
+            "1": 1388,
+            "1_4": 1388,
+            "1_2": 1388,
+            "R": 0
           },
           "size": {
             "12x18": 0,
@@ -4607,13 +6269,12 @@
         },
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Area extrapolation from 18x24 B2Sign quote: $14/sq ft (minimum $25) + $75 included freight allowance; second side $10/sq ft (minimum $10). Other sizes/freight unconfirmed.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation. Custom dimensions use extrapolated area rates and require a fresh supplier/freight quote.",
           "sourceUrls": [
             "https://www.b2sign.com/aluminum-sign"
-          ],
-          "shippingAllowanceCents": 3598
+          ]
         },
         "proposedOptionPrices": {
           "holespunch": [
@@ -4643,12 +6304,74 @@
         "areaOptionPrices": {
           "sides": {
             "2": {
-              "perSqFtCents": 1000,
-              "minimumCents": 1000
+              "perSqFtCents": 903,
+              "minimumCents": 925
             }
           }
         },
-        "baseAddCents": 8000
+        "baseAddCents": 6769,
+        "configurationPrices": [
+          {
+            "widthIn": 18,
+            "heightIn": 24,
+            "options": {
+              "size": "custom_size",
+              "sides": "1",
+              "cornerstyle": "S",
+              "holespunch": "0",
+              "lamination": "UV"
+            },
+            "priceCents": 10463
+          },
+          {
+            "widthIn": 18,
+            "heightIn": 24,
+            "options": {
+              "size": "custom_size",
+              "sides": "2",
+              "cornerstyle": "S",
+              "holespunch": "0",
+              "lamination": "UV"
+            },
+            "priceCents": 13171
+          },
+          {
+            "widthIn": 18,
+            "heightIn": 24,
+            "options": {
+              "size": "custom_size",
+              "sides": "1",
+              "cornerstyle": "S",
+              "holespunch": "TL;TR",
+              "lamination": "UV"
+            },
+            "priceCents": 10566
+          },
+          {
+            "widthIn": 18,
+            "heightIn": 24,
+            "options": {
+              "size": "custom_size",
+              "sides": "1",
+              "cornerstyle": "S",
+              "holespunch": "TL;TR;BL;BR",
+              "lamination": "UV"
+            },
+            "priceCents": 10566
+          },
+          {
+            "widthIn": 18,
+            "heightIn": 24,
+            "options": {
+              "size": "custom_size",
+              "sides": "1",
+              "cornerstyle": "R",
+              "holespunch": "0",
+              "lamination": "UV"
+            },
+            "priceCents": 10463
+          }
+        ]
       }
     ],
     "image": "/images/products/aluminum-signs.webp",
@@ -4662,7 +6385,7 @@
     },
     "shippingPolicy": "free_overnight_after_production",
     "fulfillmentSupplier": "B2Sign",
-    "minOrderCents": 2500
+    "minOrderCents": 2313
   },
   {
     "slug": "aluminum-composite-signs",
@@ -4763,13 +6486,12 @@
         ],
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Provisional retail uplift of 25%; supplier costs and profit remain TBD until John confirms. No profit guarantee.",
+          "basis": "Supplier cost and shipping TBD. Existing provisional retail retained; 30% margin cannot be verified.",
           "sourceUrls": [
             "https://www.signs365.com/portal/static/managed/catalog/SignageCatalog9-23-HQ.pdf"
-          ],
-          "shippingAllowanceCents": 2000
+          ]
         },
         "proposedOptionPrices": {
           "holespunch": [
@@ -4890,7 +6612,7 @@
     "variants": [
       {
         "label": "Single-sided print · square corners",
-        "priceCents": 400,
+        "priceCents": 339,
         "id": "display-posters-1",
         "panels": [
           {
@@ -4910,15 +6632,36 @@
         "optionPrices": {},
         "priceProposal": {
           "status": "pending_john_approval",
-          "revision": "profit-20-v1",
+          "revision": "margin-30-after-20-v1",
           "proposedAt": "2026-10-14",
-          "basis": "Area extrapolation from two B2Sign quotes: $4/sq ft (minimum $17) + $75 included freight allowance. Unquoted sizes and oversize freight unconfirmed.",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation. Custom dimensions use extrapolated area rates and require a fresh supplier/freight quote.",
           "sourceUrls": [
             "https://www.b2sign.com/posters"
-          ],
-          "shippingAllowanceCents": 3598
+          ]
         },
-        "baseAddCents": 8500
+        "baseAddCents": 6769,
+        "configurationPrices": [
+          {
+            "widthIn": 24,
+            "heightIn": 36,
+            "options": {
+              "material": "double_white_popup",
+              "lamination": "UV",
+              "lam": "no"
+            },
+            "priceCents": 8800
+          },
+          {
+            "widthIn": 18,
+            "heightIn": 24,
+            "options": {
+              "material": "double_white_popup",
+              "lamination": "UV",
+              "lam": "no"
+            },
+            "priceCents": 8261
+          }
+        ]
       }
     ],
     "image": "/images/products/display-posters.webp",
@@ -4932,6 +6675,6 @@
     },
     "shippingPolicy": "free_overnight_after_production",
     "fulfillmentSupplier": "B2Sign",
-    "minOrderCents": 1700
+    "minOrderCents": 1493
   }
 ]

@@ -54,3 +54,7 @@ The owner authorized repricing all new specialty products for a 20% maximum disc
 The previous 18 retail references remain historical source records; the canonical price engine now selects the revised proposals. Catalog cards, size selectors, designer, saved cart and server payment repricing use the new values. Order-wide coupons in specialty or mixed carts are capped at 20%, including fixed-value promotions; banner-only scoped offers do not reduce specialty items.
 
 Validation before preview deployment: 28 specialty server/quote tests (all 3,196 combinations and 175 quote-margin assertions), 16 specialty frontend/artwork/cart/discount tests, 25 existing payment/promotion tests, and the production build pass. Local browser launch is unavailable under the runtime socket restrictions; the existing GitHub Actions browser job will supply desktop/mobile screenshots. This note does not claim those browser checks passed before their run completes. Remaining real-provider and approval gates still apply.
+
+## John’s 30% target revision
+
+The later October 14 instruction supersedes the earlier 35% proposal above. All 175 measured configurations now use prices targeting 30% after 20% off, recorded supplier/freight costs and estimated 3% + $0.30 processing. Each rounds to 30.00%; no upward-ending-9 floor remains. Configuration overrides capture accessory/freight interactions. Unquoted combinations remain estimates; acrylic/ACM costs are still TBD. Retail stays in preview pending launch authorization.

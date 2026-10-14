@@ -11,7 +11,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 20570
   },
   {
     "label": "Standard Retractable 24x81 kit",
@@ -25,7 +25,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 21084
   },
   {
     "label": "Standard Retractable 24x81 insert",
@@ -39,7 +39,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 12900
+    "expectedListCents": 11076
   },
   {
     "label": "Standard Retractable 23x66 insert",
@@ -53,7 +53,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 10900
+    "expectedListCents": 10050
   },
   {
     "label": "Standard Retractable 33x81 insert",
@@ -67,7 +67,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 14900
+    "expectedListCents": 12924
   },
   {
     "label": "Standard Retractable 33x81 kit",
@@ -81,7 +81,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 19900
+    "expectedListCents": 17634
   },
   {
     "label": "Standard Retractable 33x81 black insert",
@@ -95,7 +95,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 14900
+    "expectedListCents": 12924
   },
   {
     "label": "Standard Retractable 33x81 black kit",
@@ -109,7 +109,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 26900
+    "expectedListCents": 24817
   },
   {
     "label": "Standard Retractable 47x81 insert",
@@ -123,7 +123,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 16900
+    "expectedListCents": 14975
   },
   {
     "label": "Standard Retractable 47x81 kit",
@@ -137,7 +137,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 44900
+    "expectedListCents": 41175
   },
   {
     "label": "Standard Retractable 47x81 kit + 2 LED",
@@ -151,7 +151,7 @@
       "material": "9oz_premium_fabric",
       "led": "2"
     },
-    "minimumListCents": 67900
+    "expectedListCents": 62250
   },
   {
     "label": "Standard Retractable 47x81 matte + 2 LED",
@@ -165,7 +165,7 @@
       "material": "13oz_matte_vinyl_banner",
       "led": "2"
     },
-    "minimumListCents": 67900
+    "expectedListCents": 62250
   },
   {
     "label": "Standard Retractable 33x81 matte kit + 1 LED",
@@ -179,7 +179,7 @@
       "material": "13oz_matte_vinyl_banner",
       "led": "1"
     },
-    "minimumListCents": 37900
+    "expectedListCents": 34196
   },
   {
     "label": "Standard Retractable 33x81 matte kit",
@@ -193,7 +193,7 @@
       "material": "13oz_matte_vinyl_banner",
       "led": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 20301
   },
   {
     "label": "Standard Retractable 33x81 kit + 1 LED",
@@ -207,7 +207,7 @@
       "material": "9oz_premium_fabric",
       "led": "1"
     },
-    "minimumListCents": 34900
+    "expectedListCents": 31529
   },
   {
     "label": "Deluxe Retractable 33x81 single kit",
@@ -221,7 +221,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 27900
+    "expectedListCents": 25034
   },
   {
     "label": "Deluxe Retractable 33x81 single insert",
@@ -235,7 +235,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 14900
+    "expectedListCents": 12924
   },
   {
     "label": "Deluxe Retractable 33x81 double inserts set",
@@ -249,7 +249,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 21900
+    "expectedListCents": 19624
   },
   {
     "label": "Deluxe Retractable 33x81 double kit",
@@ -263,7 +263,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 52900
+    "expectedListCents": 48821
   },
   {
     "label": "Premium Retractable 36x92 kit",
@@ -277,7 +277,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 33900
+    "expectedListCents": 31354
   },
   {
     "label": "Premium Retractable 36x69 kit",
@@ -291,7 +291,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 33900
+    "expectedListCents": 30942
   },
   {
     "label": "Premium Retractable 36x69 insert",
@@ -305,7 +305,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 13900
+    "expectedListCents": 12308
   },
   {
     "label": "Premium Retractable 36x80 insert",
@@ -319,7 +319,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 14900
+    "expectedListCents": 13192
   },
   {
     "label": "Premium Retractable 36x80 kit",
@@ -333,7 +333,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 33900
+    "expectedListCents": 31150
   },
   {
     "label": "Premium Retractable 36x92 insert",
@@ -347,7 +347,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 15900
+    "expectedListCents": 14155
   },
   {
     "label": "Premium Retractable 48x69 insert",
@@ -361,7 +361,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 15900
+    "expectedListCents": 14463
   },
   {
     "label": "Premium Retractable 48x69 kit",
@@ -375,7 +375,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 49900
+    "expectedListCents": 45934
   },
   {
     "label": "Premium Retractable 48x80 insert",
@@ -389,7 +389,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 17900
+    "expectedListCents": 15691
   },
   {
     "label": "Premium Retractable 48x80 kit",
@@ -403,7 +403,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 50900
+    "expectedListCents": 47064
   },
   {
     "label": "Premium Retractable 48x92 insert",
@@ -417,7 +417,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 18900
+    "expectedListCents": 17029
   },
   {
     "label": "Premium Retractable 48x92 kit",
@@ -431,7 +431,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 52900
+    "expectedListCents": 48295
   },
   {
     "label": "Premium Retractable 60x69 insert",
@@ -445,7 +445,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 31900
+    "expectedListCents": 29495
   },
   {
     "label": "Premium Retractable 60x69 kit",
@@ -459,7 +459,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 58900
+    "expectedListCents": 54191
   },
   {
     "label": "Premium Retractable 60x80 insert",
@@ -473,7 +473,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 33900
+    "expectedListCents": 30966
   },
   {
     "label": "Premium Retractable 60x80 kit",
@@ -487,7 +487,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 60900
+    "expectedListCents": 55600
   },
   {
     "label": "Premium Retractable 60x92 insert",
@@ -501,7 +501,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 35900
+    "expectedListCents": 32574
   },
   {
     "label": "Premium Retractable 60x92 kit",
@@ -515,7 +515,7 @@
       "material": "9oz_premium_fabric",
       "led": "0"
     },
-    "minimumListCents": 61900
+    "expectedListCents": 57139
   },
   {
     "label": "X Stand 24x63 kit",
@@ -528,7 +528,7 @@
       "size": "24x63",
       "material": "13oz_matte_vinyl_banner"
     },
-    "minimumListCents": 14900
+    "expectedListCents": 13532
   },
   {
     "label": "X Stand 32x71 kit",
@@ -541,7 +541,7 @@
       "size": "32x71",
       "material": "13oz_matte_vinyl_banner"
     },
-    "minimumListCents": 16900
+    "expectedListCents": 15014
   },
   {
     "label": "X Stand 32x71 graphic",
@@ -554,7 +554,7 @@
       "size": "32x71",
       "material": "13oz_matte_vinyl_banner"
     },
-    "minimumListCents": 10900
+    "expectedListCents": 9650
   },
   {
     "label": "X Stand 24x63 graphic",
@@ -567,7 +567,7 @@
       "size": "24x63",
       "material": "13oz_matte_vinyl_banner"
     },
-    "minimumListCents": 9900
+    "expectedListCents": 8821
   },
   {
     "label": "X Stand 24x63 popup graphic",
@@ -580,7 +580,7 @@
       "size": "24x63",
       "material": "double_white_popup"
     },
-    "minimumListCents": 12900
+    "expectedListCents": 11079
   },
   {
     "label": "X Stand 24x63 popup kit",
@@ -593,7 +593,7 @@
       "size": "24x63",
       "material": "double_white_popup"
     },
-    "minimumListCents": 17900
+    "expectedListCents": 15789
   },
   {
     "label": "X Stand 32x71 popup kit",
@@ -606,7 +606,7 @@
       "size": "32x71",
       "material": "double_white_popup"
     },
-    "minimumListCents": 20900
+    "expectedListCents": 18612
   },
   {
     "label": "X Stand 32x71 popup graphic",
@@ -619,7 +619,7 @@
       "size": "32x71",
       "material": "double_white_popup"
     },
-    "minimumListCents": 14900
+    "expectedListCents": 13246
   },
   {
     "label": "Tabletop Stand 11.5x17.5 kit",
@@ -632,7 +632,7 @@
       "material": "double_white_popup",
       "lamination": "UV"
     },
-    "minimumListCents": 11900
+    "expectedListCents": 10871
   },
   {
     "label": "Tension Fabric Stand 36x90 single kit",
@@ -646,7 +646,7 @@
       "sides": "1",
       "tradeshow_led": "0"
     },
-    "minimumListCents": 49900
+    "expectedListCents": 45771
   },
   {
     "label": "Tension Fabric Stand 36x90 double kit",
@@ -660,7 +660,7 @@
       "sides": "2",
       "tradeshow_led": "0"
     },
-    "minimumListCents": 49900
+    "expectedListCents": 45771
   },
   {
     "label": "Tension Fabric Stand 36x90 double graphic",
@@ -674,7 +674,7 @@
       "sides": "2",
       "tradeshow_led": "0"
     },
-    "minimumListCents": 18900
+    "expectedListCents": 17029
   },
   {
     "label": "Tension Fabric Stand 36x90 single graphic",
@@ -688,7 +688,7 @@
       "sides": "1",
       "tradeshow_led": "0"
     },
-    "minimumListCents": 18900
+    "expectedListCents": 17029
   },
   {
     "label": "Tension Fabric Stand 48x90 single graphic",
@@ -702,7 +702,7 @@
       "sides": "1",
       "tradeshow_led": "0"
     },
-    "minimumListCents": 20900
+    "expectedListCents": 19080
   },
   {
     "label": "Tension Fabric Stand 48x90 single kit",
@@ -716,7 +716,7 @@
       "sides": "1",
       "tradeshow_led": "0"
     },
-    "minimumListCents": 62900
+    "expectedListCents": 57755
   },
   {
     "label": "Tension Fabric Stand 48x90 double kit",
@@ -730,7 +730,7 @@
       "sides": "2",
       "tradeshow_led": "0"
     },
-    "minimumListCents": 62900
+    "expectedListCents": 57755
   },
   {
     "label": "Tension Fabric Stand 48x90 double kit + 2 LED",
@@ -744,7 +744,7 @@
       "sides": "2",
       "tradeshow_led": "2"
     },
-    "minimumListCents": 96900
+    "expectedListCents": 89609
   },
   {
     "label": "Tension Fabric Stand 48x90 double graphic",
@@ -758,7 +758,7 @@
       "sides": "2",
       "tradeshow_led": "0"
     },
-    "minimumListCents": 20900
+    "expectedListCents": 19080
   },
   {
     "label": "Step and Repeat 10x8 kit",
@@ -771,7 +771,7 @@
       "size": "120x96",
       "material": "9oz_wrinklefree_fabric"
     },
-    "minimumListCents": 55900
+    "expectedListCents": 50900
   },
   {
     "label": "Step and Repeat 10x8 graphic",
@@ -784,7 +784,7 @@
       "size": "120x96",
       "material": "9oz_wrinklefree_fabric"
     },
-    "minimumListCents": 34900
+    "expectedListCents": 31768
   },
   {
     "label": "Step and Repeat 8x8 graphic",
@@ -797,7 +797,7 @@
       "size": "96x96",
       "material": "9oz_wrinklefree_fabric"
     },
-    "minimumListCents": 28900
+    "expectedListCents": 26470
   },
   {
     "label": "Step and Repeat 8x8 kit",
@@ -810,7 +810,7 @@
       "size": "96x96",
       "material": "9oz_wrinklefree_fabric"
     },
-    "minimumListCents": 52900
+    "expectedListCents": 48846
   },
   {
     "label": "Standard Table Throw 4ft open",
@@ -821,7 +821,7 @@
     "options": {
       "sides": "3sided"
     },
-    "minimumListCents": 20900
+    "expectedListCents": 18570
   },
   {
     "label": "Standard Table Throw 4ft closed",
@@ -832,7 +832,7 @@
     "options": {
       "sides": "4sided"
     },
-    "minimumListCents": 24900
+    "expectedListCents": 22366
   },
   {
     "label": "Standard Table Throw 6ft open",
@@ -843,7 +843,7 @@
     "options": {
       "sides": "3sided"
     },
-    "minimumListCents": 23900
+    "expectedListCents": 21475
   },
   {
     "label": "Standard Table Throw 6ft closed",
@@ -854,7 +854,7 @@
     "options": {
       "sides": "4sided"
     },
-    "minimumListCents": 28900
+    "expectedListCents": 26279
   },
   {
     "label": "Standard Table Throw 8ft open",
@@ -865,7 +865,7 @@
     "options": {
       "sides": "3sided"
     },
-    "minimumListCents": 26900
+    "expectedListCents": 24264
   },
   {
     "label": "Standard Table Throw 8ft closed",
@@ -876,7 +876,7 @@
     "options": {
       "sides": "4sided"
     },
-    "minimumListCents": 32900
+    "expectedListCents": 30191
   },
   {
     "label": "Fitted Table Throw 6ft closed",
@@ -888,7 +888,7 @@
       "size": "6ft",
       "backside": "4sided"
     },
-    "minimumListCents": 23900
+    "expectedListCents": 21692
   },
   {
     "label": "Fitted Table Throw 6ft open",
@@ -900,7 +900,7 @@
       "size": "6ft",
       "backside": "3sided"
     },
-    "minimumListCents": 23900
+    "expectedListCents": 21692
   },
   {
     "label": "Fitted Table Throw 8ft open",
@@ -912,7 +912,7 @@
       "size": "8ft",
       "backside": "3sided"
     },
-    "minimumListCents": 25900
+    "expectedListCents": 23558
   },
   {
     "label": "Fitted Table Throw 8ft closed",
@@ -924,7 +924,7 @@
       "size": "8ft",
       "backside": "4sided"
     },
-    "minimumListCents": 25900
+    "expectedListCents": 23558
   },
   {
     "label": "Stretch Table Throw 6ft",
@@ -935,7 +935,7 @@
     "options": {
       "size": "6ft"
     },
-    "minimumListCents": 35900
+    "expectedListCents": 33180
   },
   {
     "label": "Stretch Table Throw 8ft",
@@ -946,7 +946,7 @@
     "options": {
       "size": "8ft"
     },
-    "minimumListCents": 41900
+    "expectedListCents": 38516
   },
   {
     "label": "Angled Flag 9ft single kit",
@@ -961,7 +961,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 20849
   },
   {
     "label": "Angled Flag 9ft double kit",
@@ -976,7 +976,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 29900
+    "expectedListCents": 27621
   },
   {
     "label": "Angled Flag 9ft double graphic",
@@ -991,7 +991,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 20312
   },
   {
     "label": "Angled Flag 9ft single graphic",
@@ -1006,7 +1006,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 14900
+    "expectedListCents": 13539
   },
   {
     "label": "Angled Flag 10.5ft single graphic",
@@ -1021,7 +1021,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 14900
+    "expectedListCents": 13539
   },
   {
     "label": "Angled Flag 10.5ft single kit",
@@ -1036,7 +1036,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 20849
   },
   {
     "label": "Angled Flag 10.5ft double kit",
@@ -1051,7 +1051,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 30900
+    "expectedListCents": 27949
   },
   {
     "label": "Angled Flag 10.5ft double graphic",
@@ -1066,7 +1066,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 20312
   },
   {
     "label": "Angled Flag 14ft single graphic",
@@ -1081,7 +1081,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 15900
+    "expectedListCents": 13950
   },
   {
     "label": "Angled Flag 14ft single kit",
@@ -1096,7 +1096,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 23900
+    "expectedListCents": 21224
   },
   {
     "label": "Angled Flag 14ft double kit",
@@ -1111,7 +1111,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 30900
+    "expectedListCents": 28407
   },
   {
     "label": "Angled Flag 14ft double graphic",
@@ -1126,7 +1126,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 21132
   },
   {
     "label": "Angled Flag 18ft single graphic",
@@ -1141,7 +1141,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 17900
+    "expectedListCents": 16412
   },
   {
     "label": "Angled Flag 18ft single kit",
@@ -1156,7 +1156,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 26900
+    "expectedListCents": 24820
   },
   {
     "label": "Angled Flag 18ft double kit",
@@ -1171,7 +1171,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 37900
+    "expectedListCents": 34549
   },
   {
     "label": "Angled Flag 18ft double graphic",
@@ -1186,7 +1186,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 28900
+    "expectedListCents": 26058
   },
   {
     "label": "Convex Flag 9ft single graphic",
@@ -1201,7 +1201,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 14900
+    "expectedListCents": 13539
   },
   {
     "label": "Convex Flag 9ft single kit",
@@ -1216,7 +1216,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 20479
   },
   {
     "label": "Convex Flag 9ft double kit",
@@ -1231,7 +1231,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 29900
+    "expectedListCents": 27621
   },
   {
     "label": "Convex Flag 9ft double graphic",
@@ -1246,7 +1246,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 20312
   },
   {
     "label": "Convex Flag 10.5ft single graphic",
@@ -1261,7 +1261,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 14900
+    "expectedListCents": 13539
   },
   {
     "label": "Convex Flag 10.5ft single kit",
@@ -1276,7 +1276,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 20849
   },
   {
     "label": "Convex Flag 10.5ft double kit",
@@ -1291,7 +1291,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 29900
+    "expectedListCents": 27621
   },
   {
     "label": "Convex Flag 10.5ft double graphic",
@@ -1306,7 +1306,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 20312
   },
   {
     "label": "Convex Flag 14ft single graphic",
@@ -1321,7 +1321,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 15900
+    "expectedListCents": 13950
   },
   {
     "label": "Convex Flag 14ft single kit",
@@ -1336,7 +1336,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 20926
   },
   {
     "label": "Convex Flag 14ft double kit",
@@ -1351,7 +1351,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 30900
+    "expectedListCents": 28407
   },
   {
     "label": "Convex Flag 14ft double graphic",
@@ -1366,7 +1366,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 21132
   },
   {
     "label": "Convex Flag 18ft single graphic",
@@ -1381,7 +1381,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 17900
+    "expectedListCents": 16412
   },
   {
     "label": "Convex Flag 18ft single kit",
@@ -1396,7 +1396,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 26900
+    "expectedListCents": 24570
   },
   {
     "label": "Convex Flag 18ft double kit",
@@ -1411,7 +1411,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 37900
+    "expectedListCents": 34464
   },
   {
     "label": "Convex Flag 18ft double graphic",
@@ -1426,7 +1426,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 28900
+    "expectedListCents": 26058
   },
   {
     "label": "Teardrop Flag 7ft single graphic",
@@ -1441,7 +1441,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 14900
+    "expectedListCents": 13539
   },
   {
     "label": "Teardrop Flag 7ft single kit",
@@ -1456,7 +1456,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 20849
   },
   {
     "label": "Teardrop Flag 7ft double kit",
@@ -1471,7 +1471,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 29900
+    "expectedListCents": 27621
   },
   {
     "label": "Teardrop Flag 7ft double graphic",
@@ -1486,7 +1486,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 20312
   },
   {
     "label": "Teardrop Flag 9ft single graphic",
@@ -1501,7 +1501,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 14900
+    "expectedListCents": 13539
   },
   {
     "label": "Teardrop Flag 9ft single kit",
@@ -1516,7 +1516,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 20849
   },
   {
     "label": "Teardrop Flag 9ft double kit",
@@ -1531,7 +1531,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 30900
+    "expectedListCents": 27949
   },
   {
     "label": "Teardrop Flag 9ft double graphic",
@@ -1546,7 +1546,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 20312
   },
   {
     "label": "Teardrop Flag 11.2ft single graphic",
@@ -1561,7 +1561,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 15900
+    "expectedListCents": 13950
   },
   {
     "label": "Teardrop Flag 11.2ft single kit",
@@ -1576,7 +1576,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 23900
+    "expectedListCents": 21224
   },
   {
     "label": "Teardrop Flag 11.2ft double kit",
@@ -1591,7 +1591,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 30900
+    "expectedListCents": 28407
   },
   {
     "label": "Teardrop Flag 11.2ft double graphic",
@@ -1606,7 +1606,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 21132
   },
   {
     "label": "Teardrop Flag 13.5ft single graphic",
@@ -1621,7 +1621,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 17900
+    "expectedListCents": 16412
   },
   {
     "label": "Teardrop Flag 13.5ft single kit",
@@ -1636,7 +1636,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 26900
+    "expectedListCents": 24820
   },
   {
     "label": "Teardrop Flag 13.5ft double kit",
@@ -1651,7 +1651,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 37900
+    "expectedListCents": 34464
   },
   {
     "label": "Teardrop Flag 13.5ft double graphic",
@@ -1666,7 +1666,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 28900
+    "expectedListCents": 26058
   },
   {
     "label": "Rectangle Flag 8.5ft single graphic",
@@ -1681,7 +1681,7 @@
       "flaghardware": "PG",
       "pole": "1"
     },
-    "minimumListCents": 17900
+    "expectedListCents": 16001
   },
   {
     "label": "Rectangle Flag 8.5ft single kit",
@@ -1696,7 +1696,7 @@
       "flaghardware": "PG",
       "pole": "1"
     },
-    "minimumListCents": 43900
+    "expectedListCents": 40576
   },
   {
     "label": "Rectangle Flag 8.5ft double kit",
@@ -1711,7 +1711,7 @@
       "flaghardware": "PG",
       "pole": "1"
     },
-    "minimumListCents": 53900
+    "expectedListCents": 49812
   },
   {
     "label": "Rectangle Flag 8.5ft double graphic",
@@ -1726,7 +1726,7 @@
       "flaghardware": "PG",
       "pole": "1"
     },
-    "minimumListCents": 27900
+    "expectedListCents": 25237
   },
   {
     "label": "Rectangle Flag 11.8ft single graphic",
@@ -1741,7 +1741,7 @@
       "flaghardware": "PG",
       "pole": "1"
     },
-    "minimumListCents": 18900
+    "expectedListCents": 17029
   },
   {
     "label": "Rectangle Flag 11.8ft single kit",
@@ -1756,7 +1756,7 @@
       "flaghardware": "PG",
       "pole": "1"
     },
-    "minimumListCents": 46900
+    "expectedListCents": 42711
   },
   {
     "label": "Rectangle Flag 11.8ft double kit",
@@ -1771,7 +1771,7 @@
       "flaghardware": "PG",
       "pole": "1"
     },
-    "minimumListCents": 57900
+    "expectedListCents": 52971
   },
   {
     "label": "Rectangle Flag 11.8ft double graphic",
@@ -1786,7 +1786,7 @@
       "flaghardware": "PG",
       "pole": "1"
     },
-    "minimumListCents": 29900
+    "expectedListCents": 27289
   },
   {
     "label": "Rectangle Flag 15ft single graphic",
@@ -1801,7 +1801,7 @@
       "flaghardware": "PG",
       "pole": "1"
     },
-    "minimumListCents": 19900
+    "expectedListCents": 18054
   },
   {
     "label": "Rectangle Flag 15ft single kit",
@@ -1816,7 +1816,7 @@
       "flaghardware": "PG",
       "pole": "1"
     },
-    "minimumListCents": 48900
+    "expectedListCents": 44845
   },
   {
     "label": "Rectangle Flag 15ft double kit",
@@ -1831,7 +1831,7 @@
       "flaghardware": "PG",
       "pole": "1"
     },
-    "minimumListCents": 60900
+    "expectedListCents": 56132
   },
   {
     "label": "Rectangle Flag 15ft double graphic",
@@ -1846,7 +1846,7 @@
       "flaghardware": "PG",
       "pole": "1"
     },
-    "minimumListCents": 31900
+    "expectedListCents": 29341
   },
   {
     "label": "Rectangle Flag 15ft single kit + cross base",
@@ -1861,7 +1861,7 @@
       "flaghardware": "PB",
       "pole": "1"
     },
-    "minimumListCents": 51900
+    "expectedListCents": 47986
   },
   {
     "label": "Rectangle Flag 15ft single kit + cross + stake",
@@ -1876,7 +1876,7 @@
       "flaghardware": "PBG",
       "pole": "1"
     },
-    "minimumListCents": 55900
+    "expectedListCents": 51309
   },
   {
     "label": "Rectangle Flag 15ft single kit + cross + water",
@@ -1891,7 +1891,7 @@
       "flaghardware": "PBW",
       "pole": "1"
     },
-    "minimumListCents": 52900
+    "expectedListCents": 48909
   },
   {
     "label": "Rectangle Flag 15ft single kit + square base",
@@ -1906,7 +1906,7 @@
       "flaghardware": "PBS",
       "pole": "1"
     },
-    "minimumListCents": 65900
+    "expectedListCents": 60505
   },
   {
     "label": "Economy Flag 16ft single kit",
@@ -1920,7 +1920,7 @@
       "base": "PG",
       "material": "flag_polyster"
     },
-    "minimumListCents": 38900
+    "expectedListCents": 35530
   },
   {
     "label": "Economy Flag 16ft single graphic",
@@ -1934,7 +1934,7 @@
       "base": "PG",
       "material": "flag_polyster"
     },
-    "minimumListCents": 14900
+    "expectedListCents": 12924
   },
   {
     "label": "Economy Flag 16ft reverse graphic",
@@ -1948,7 +1948,7 @@
       "base": "PG",
       "material": "flag_polyster"
     },
-    "minimumListCents": 14900
+    "expectedListCents": 12924
   },
   {
     "label": "Angled Flag 9ft single kit + cross base",
@@ -1963,7 +1963,7 @@
       "flaghardware": "PB",
       "carrybag": "0"
     },
-    "minimumListCents": 24900
+    "expectedListCents": 22933
   },
   {
     "label": "Angled Flag 9ft single kit + cross + stake",
@@ -1978,7 +1978,7 @@
       "flaghardware": "PBG",
       "carrybag": "0"
     },
-    "minimumListCents": 29900
+    "expectedListCents": 27245
   },
   {
     "label": "Angled Flag 9ft single kit + cross + water",
@@ -1993,7 +1993,7 @@
       "flaghardware": "PBW",
       "carrybag": "0"
     },
-    "minimumListCents": 25900
+    "expectedListCents": 23599
   },
   {
     "label": "Angled Flag 9ft single kit + square base",
@@ -2008,7 +2008,7 @@
       "flaghardware": "PBS",
       "carrybag": "0"
     },
-    "minimumListCents": 37900
+    "expectedListCents": 34679
   },
   {
     "label": "Angled Flag 9ft single kit + bag",
@@ -2023,7 +2023,7 @@
       "flaghardware": "PG",
       "carrybag": "1"
     },
-    "minimumListCents": 26900
+    "expectedListCents": 24768
   },
   {
     "label": "Angled Flag 9ft reverse kit",
@@ -2038,7 +2038,7 @@
       "flaghardware": "PG",
       "carrybag": "0"
     },
-    "minimumListCents": 22900
+    "expectedListCents": 20849
   },
   {
     "label": "Tent 10x10 kit",
@@ -2055,7 +2055,7 @@
       "tent_full_wall": "0",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 112900
+    "expectedListCents": 104007
   },
   {
     "label": "Tent 10x10 kit + wheeled bag",
@@ -2072,7 +2072,7 @@
       "tent_full_wall": "0",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 124900
+    "expectedListCents": 114974
   },
   {
     "label": "Tent 10x10 kit + 4 sandbags",
@@ -2089,7 +2089,7 @@
       "tent_full_wall": "0",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 122900
+    "expectedListCents": 113305
   },
   {
     "label": "Tent 10x10 kit + mesh wall",
@@ -2106,7 +2106,7 @@
       "tent_full_wall": "0",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 141900
+    "expectedListCents": 130934
   },
   {
     "label": "Tent 10x10 kit + 1 full wall",
@@ -2123,7 +2123,7 @@
       "tent_full_wall": "A",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 149900
+    "expectedListCents": 138276
   },
   {
     "label": "Tent 10x10 kit + 1 half wall single",
@@ -2140,7 +2140,7 @@
       "tent_full_wall": "0",
       "tent_half_wall": "1x1"
     },
-    "minimumListCents": 161900
+    "expectedListCents": 149199
   },
   {
     "label": "Tent 10x10 kit + 1 half wall double",
@@ -2157,7 +2157,7 @@
       "tent_full_wall": "0",
       "tent_half_wall": "1x2"
     },
-    "minimumListCents": 178900
+    "expectedListCents": 165411
   },
   {
     "label": "Tent 10x10 canopy",
@@ -2174,7 +2174,7 @@
       "tent_full_wall": "0",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 64900
+    "expectedListCents": 59882
   },
   {
     "label": "Tent 10x15 kit",
@@ -2191,7 +2191,7 @@
       "tent_full_wall_long": "0",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 173900
+    "expectedListCents": 160162
   },
   {
     "label": "Tent 10x15 kit + 1 long full wall",
@@ -2208,7 +2208,7 @@
       "tent_full_wall_long": "L1",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 227900
+    "expectedListCents": 210675
   },
   {
     "label": "Tent 10x15 kit + 1 short full wall",
@@ -2225,7 +2225,7 @@
       "tent_full_wall_long": "0",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 210900
+    "expectedListCents": 195004
   },
   {
     "label": "Tent 10x15 kit + 1 half wall single",
@@ -2242,7 +2242,7 @@
       "tent_full_wall_long": "0",
       "tent_half_wall": "1x1"
     },
-    "minimumListCents": 222900
+    "expectedListCents": 205351
   },
   {
     "label": "Tent 10x15 kit + 1 half wall double",
@@ -2259,7 +2259,7 @@
       "tent_full_wall_long": "0",
       "tent_half_wall": "1x2"
     },
-    "minimumListCents": 239900
+    "expectedListCents": 221566
   },
   {
     "label": "Tent 10x15 kit wheeled bag",
@@ -2276,7 +2276,7 @@
       "tent_full_wall_long": "0",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 190900
+    "expectedListCents": 176243
   },
   {
     "label": "Tent 10x15 kit + 4 sandbags",
@@ -2293,7 +2293,7 @@
       "tent_full_wall_long": "0",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 184900
+    "expectedListCents": 170514
   },
   {
     "label": "Tent 10x15 canopy",
@@ -2310,7 +2310,7 @@
       "tent_full_wall_long": "0",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 71900
+    "expectedListCents": 66213
   },
   {
     "label": "Tent 10x20 kit",
@@ -2327,7 +2327,7 @@
       "tent_full_wall_long": "0",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 205900
+    "expectedListCents": 190149
   },
   {
     "label": "Tent 10x20 kit + 1 long full wall",
@@ -2344,7 +2344,7 @@
       "tent_full_wall_long": "L1",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 278900
+    "expectedListCents": 257662
   },
   {
     "label": "Tent 10x20 kit + 1 short full wall",
@@ -2361,7 +2361,7 @@
       "tent_full_wall_long": "0",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 242900
+    "expectedListCents": 224500
   },
   {
     "label": "Tent 10x20 kit + 1 half wall single",
@@ -2378,7 +2378,7 @@
       "tent_full_wall_long": "0",
       "tent_half_wall": "1x1"
     },
-    "minimumListCents": 254900
+    "expectedListCents": 235338
   },
   {
     "label": "Tent 10x20 kit + 1 half wall double",
@@ -2395,7 +2395,7 @@
       "tent_full_wall_long": "0",
       "tent_half_wall": "1x2"
     },
-    "minimumListCents": 271900
+    "expectedListCents": 251550
   },
   {
     "label": "Tent 10x20 kit wheeled bag",
@@ -2412,7 +2412,7 @@
       "tent_full_wall_long": "0",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 227900
+    "expectedListCents": 210271
   },
   {
     "label": "Tent 10x20 kit + 6 sandbags",
@@ -2429,7 +2429,7 @@
       "tent_full_wall_long": "0",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 220900
+    "expectedListCents": 203886
   },
   {
     "label": "Tent 10x20 canopy",
@@ -2446,7 +2446,7 @@
       "tent_full_wall_long": "0",
       "tent_half_wall": "0"
     },
-    "minimumListCents": 93900
+    "expectedListCents": 86393
   },
   {
     "label": "Aluminum 18x24 single",
@@ -2461,7 +2461,7 @@
       "holespunch": "0",
       "lamination": "UV"
     },
-    "minimumListCents": 11900
+    "expectedListCents": 10463
   },
   {
     "label": "Aluminum 18x24 double",
@@ -2476,7 +2476,7 @@
       "holespunch": "0",
       "lamination": "UV"
     },
-    "minimumListCents": 14900
+    "expectedListCents": 13171
   },
   {
     "label": "Aluminum 18x24 single 2 holes",
@@ -2491,7 +2491,7 @@
       "holespunch": "TL;TR",
       "lamination": "UV"
     },
-    "minimumListCents": 11900
+    "expectedListCents": 10566
   },
   {
     "label": "Aluminum 18x24 single 4 holes",
@@ -2506,7 +2506,7 @@
       "holespunch": "TL;TR;BL;BR",
       "lamination": "UV"
     },
-    "minimumListCents": 11900
+    "expectedListCents": 10566
   },
   {
     "label": "Aluminum 18x24 single rounded",
@@ -2521,7 +2521,7 @@
       "holespunch": "0",
       "lamination": "UV"
     },
-    "minimumListCents": 11900
+    "expectedListCents": 10463
   },
   {
     "label": "PVC poster 24x36",
@@ -2534,7 +2534,7 @@
       "lamination": "UV",
       "lam": "no"
     },
-    "minimumListCents": 9900
+    "expectedListCents": 8800
   },
   {
     "label": "PVC poster 18x24",
@@ -2547,6 +2547,6 @@
       "lamination": "UV",
       "lam": "no"
     },
-    "minimumListCents": 9900
+    "expectedListCents": 8261
   }
 ]

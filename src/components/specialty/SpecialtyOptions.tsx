@@ -1,5 +1,5 @@
 import media from '../../../shared/specialty-media.json';
-import {specialtyProfile,specialtyOptionMatches,specialtyOptions,specialtyOptionPriceCents,formatSpecialtyPrice,type SpecialtyProduct,type SpecialtyVariant,type SpecialtyOptions as Options} from '@/lib/specialtyProducts';
+import {specialtyProfile,specialtyOptionMatches,specialtyOptions,specialtyOptionPriceCents,specialtyConfigurationPrice,formatSpecialtyPrice,type SpecialtyProduct,type SpecialtyVariant,type SpecialtyOptions as Options} from '@/lib/specialtyProducts';
 
 export default function SpecialtyOptions({product,variant,value,onChange,disabled,width,height,basePriced}:{product:SpecialtyProduct;variant:SpecialtyVariant;value:Options;onChange:(options:Options)=>void;disabled:boolean;width:number;height:number;basePriced:boolean}) {
   const profile=specialtyProfile(variant);
@@ -14,7 +14,13 @@ export default function SpecialtyOptions({product,variant,value,onChange,disable
           <select id={`option-${group.key}`} value={value[group.key]} disabled={disabled} onChange={e=>onChange(specialtyOptions(variant,{...value,[group.key]:e.target.value}))} className="min-h-12 min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-base">
             {choices.map(option=>{
               const cents=specialtyOptionPriceCents(variant,width,height,{...value,[group.key]:String(option.key)},group.key);
-              const priceLabel=basePriced?(cents===undefined?'Price coming soon':cents===0?'Included':`${cents>0?'+':'−'}${formatSpecialtyPrice(Math.abs(cents))}`):'';
+              let priceLabel=basePriced?(cents===undefined?'Price coming soon':cents===0?'Included':`${cents>0?'+':'−'}${formatSpecialtyPrice(Math.abs(cents))}`):'';
+              if(basePriced&&variant.priceProposal?.revision==='margin-30-after-20-v1') {
+                const next=specialtyOptions(variant,{...value,[group.key]:String(option.key)});
+                const size=group.key==='size'&&String(option.key).match(/^(\d+)x(\d+)$/);
+                try {const quote=specialtyConfigurationPrice(product,variant,size?Number(size[1]):width,size?Number(size[2]):height,next);priceLabel=quote.verified?`${formatSpecialtyPrice(quote.unitCents)} total`:'Price coming soon';}
+                catch {priceLabel='Choose a valid size';}
+              }
               return <option key={option.key} value={option.key}>{option.label}{priceLabel?` · ${priceLabel}`:''}</option>;
             })}
           </select>
