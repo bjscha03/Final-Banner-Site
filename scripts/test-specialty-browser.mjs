@@ -26,6 +26,25 @@ if(process.env.BOF_QA_TEST_CHECKOUT)await page.route(origin+'/**',async route=>{
  try{await route.fulfill({response:await route.fetch({url:route.request().url().replace(origin,'http://127.0.0.1:8096'),maxRetries:2})});}
  catch{await route.abort().catch(()=>{});} // Navigation can cancel outstanding module requests.
 });
+// WebKit's request interception omits file bytes in multipart postDataBuffer.
+// Mock only the storage boundary, reading the real File/Blob in the page first.
+await page.exposeFunction('__qaStoreUpload',async file=>{
+ const bytes=Buffer.from(file.base64,'base64');assert.ok(bytes.length>0,'Uploaded file must contain bytes');
+ const id='qa-'+createHash('sha256').update(bytes).digest('hex').slice(0,20);
+ uploads.set(id,{bytes,type:file.type,name:file.name});const meta=file.type==='application/pdf'?{}:await sharp(bytes).metadata();
+ return {secure_url:`https://res.cloudinary.com/test/image/upload/${id}.${file.type==='application/pdf'?'pdf':'png'}`,public_id:id,resource_type:'image',format:file.type==='application/pdf'?'pdf':'png',bytes:bytes.length,width:meta.width,height:meta.height};
+});
+await page.addInitScript(()=>{
+ const nativeFetch=window.fetch;
+ window.fetch=async function(input,init){
+  if(String(input).endsWith('/.netlify/functions/upload-file')&&init?.body instanceof FormData){
+   const file=init.body.get('file');
+   const base64=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(file);});
+   return new Response(JSON.stringify(await window.__qaStoreUpload({base64,type:file.type,name:file.name})),{status:200,headers:{'Content-Type':'application/json'}});
+  }
+  return nativeFetch.call(this,input,init);
+ };
+});
 page.on('pageerror',e=>errors.push(e.message));
 const fixture=await sharp(Buffer.from('<svg width="800" height="1000" xmlns="http://www.w3.org/2000/svg"><rect width="800" height="1000" fill="#123b42"/><circle cx="400" cy="275" r="135" fill="#dd9b52"/><text x="400" y="570" text-anchor="middle" font-size="80" font-family="sans-serif" fill="white">MARKET</text><text x="400" y="680" text-anchor="middle" font-size="36" font-family="sans-serif" fill="white">BROWSER QA FIXTURE</text></svg>')).png().toBuffer();
 const json=(r,obj)=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify(obj)});
@@ -36,12 +55,6 @@ await page.route('https://res.cloudinary.com/**',async route=>{
 await page.route('https://www.b2sign.com/**',r=>r.fulfill({status:200,contentType:'image/png',body:fixture}));
 await page.route('**/.netlify/functions/**',async route=>{
  const req=route.request(),path=new URL(req.url()).pathname;
- if(path.endsWith('/upload-file')){
-  const form=await new Response(req.postDataBuffer(),{headers:{'Content-Type':req.headers()['content-type']}}).formData();
-  const file=form.get('file'),bytes=Buffer.from(await file.arrayBuffer()),id='qa-'+createHash('sha256').update(bytes).digest('hex').slice(0,20);
-  uploads.set(id,{bytes,type:file.type,name:file.name});const meta=file.type==='application/pdf'?{}:await sharp(bytes).metadata();
-  return json(route,{secure_url:`https://res.cloudinary.com/test/image/upload/${id}.${file.type==='application/pdf'?'pdf':'png'}`,public_id:id,resource_type:'image',format:file.type==='application/pdf'?'pdf':'png',bytes:bytes.length,width:meta.width,height:meta.height});
- }
  if(path.endsWith('/ai-designer-status'))return json(route,{authorized:true,sessionKey:'qa-session',ready:true,enabled:true});
  if(path.endsWith('/ai-designer-fit')){
   const body=req.postDataJSON();aiRequests.push(body);const h=1200,w=Math.round(h*body.widthIn/body.heightIn);const buf=await sharp(fixture).resize(w,h,{fit:'contain',background:'#123b42'}).jpeg().toBuffer();

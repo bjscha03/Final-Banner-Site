@@ -35,7 +35,8 @@ exports.handler = async (event) => {
         if(!Array.isArray(panels)||!panels.length)throw new Error('Saved product print panels are missing.');
         for(const panel of panels){
           assertReadyPlacementPreview(panel.preview,'specialty panel');
-          if(!panel.productionFileKey||!/^https:\/\/res\.cloudinary\.com\//.test(panel.productionUrl||''))throw new Error('A product print panel is not saved permanently.');
+          const {isStoredOriginalUrl}=require('../original-artwork-url.cjs');
+          if(!panel.productionFileKey||!(/^https:\/\/res\.cloudinary\.com\//.test(panel.productionUrl||'')||isStoredOriginalUrl(panel.productionUrl)))throw new Error('A product print panel is not saved permanently.');
         }
         // Specialty panels are already exported at the supplier PDF scale.
         // Never send a flag, table throw or multi-panel tent to the banner renderer.

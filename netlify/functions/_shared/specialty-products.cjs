@@ -4,6 +4,7 @@ const release = require('../../../shared/specialty-release.json');
 const templates = require('../../../shared/specialty-templates.json');
 const optionsEngine=require('../../../shared/specialty-options.cjs');
 const {assertReadyPlacementPreview}=require('./preview-artifact.cjs');
+const {isStoredOriginalUrl}=require('./original-artwork-url.cjs');
 function fail(code,message){throw Object.assign(new Error(message),{code,statusCode:409});}
 function resolveSpecialtyTemplate(productType,widthIn,heightIn){
   if(!String(productType).startsWith('specialty:')||![widthIn,heightIn].every(n=>typeof n==='number'&&Number.isFinite(n)&&n>0))fail('SPECIALTY_TEMPLATE_INVALID','Choose a valid product template and artwork size.');
@@ -27,7 +28,7 @@ function priceSpecialty(product,variant,width,height,options={}){
   catch(error){fail('SPECIALTY_CONFIGURATION_INVALID',error.message);}
 }
 function priceMatchSpecialty(product,variant,width,height){return product.priceMatches?.find(p=>(p.widthIn===width&&p.heightIn===height)||(p.widthIn===height&&p.heightIn===width))||variant.priceMatch;}
-const permanent=url=>{try{const u=new URL(url);return u.protocol==='https:'&&u.hostname==='res.cloudinary.com';}catch{return false;}};
+const permanent=url=>{try{const u=new URL(url);return (u.protocol==='https:'&&u.hostname==='res.cloudinary.com'&&!u.username&&!u.password&&!u.port)||isStoredOriginalUrl(url);}catch{return false;}};
 function normalizeSpecialtyItem(item){
   const config=item.specialty_config;
   const product=catalog.find(p=>p.slug===config?.productSlug);

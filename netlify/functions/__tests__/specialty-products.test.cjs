@@ -169,3 +169,12 @@ test('ACM double-sided prices are dimension-specific and add a second artwork pa
  for(const [w,h,total] of [[18,24,7250],[24,36,14000],[6,24,3750],[6,36,5250]]){const q=engine.priceConfiguration(p,v,w,h,{sides:'2'});assert.equal(q.unitCents,total);assert.equal(q.verified,true);assert.equal(engine.panelDefinitions(v,q.options).length,2);}
  const custom=engine.priceConfiguration(p,v,20,30,{sides:'2'});assert.equal(custom.unitCents,9639);assert.equal(custom.verified,true);assert.equal(custom.proposed,true);
 });
+test('large specialty originals and print PDFs use the existing trusted storage route',()=>{
+ const item=itemFor('custom-event-tents'),p=item.specialty_config.panels[0];
+ const original='https://bannersonthefly.com/artwork-original/12345678-1234-1234-1234-123456789abc/original.pdf';
+ p.artwork.url=original;p.artwork.productionUrl=original;p.productionUrl=original;
+ assert.equal(normalizeSpecialtyItem(item).specialty_config.panels[0].productionUrl,original);
+ for(const bad of [original.replace('bannersonthefly.com','example.com'),original.replace('/original.pdf','/private-data'),original.replace('https:','http:')]){
+  p.productionUrl=bad;assert.throws(()=>normalizeSpecialtyItem(item),{code:'SPECIALTY_UPLOAD_INCOMPLETE'});
+ }
+});

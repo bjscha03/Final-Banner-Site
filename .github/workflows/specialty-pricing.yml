@@ -1,8 +1,5 @@
 name: Specialty catalog release checks
 on:
-  push:
-    branches:
-      - 'feat/specialty-products-catalog'
   pull_request:
     paths:
       - 'shared/specialty-*'

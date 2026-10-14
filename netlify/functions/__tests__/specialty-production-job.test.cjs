@@ -17,6 +17,7 @@ function job(items){
   if(name==='@neondatabase/serverless')return {neon:()=>sql};
   if(name==='./render-order-pdf.cjs')return {handler:async event=>{rendered.push(JSON.parse(event.body));return {statusCode:200};}};
   if(name==='../preview-artifact.cjs')return {assertReadyPlacementPreview};
+  if(name==='../original-artwork-url.cjs')return require('../_shared/original-artwork-url.cjs');
   throw new Error('Unexpected production dependency '+name);
  }});
  return {run:()=>exports.handler({__internal:true,body:JSON.stringify({orderId:'order',skipNotifications:true})}),queries,rendered};
@@ -35,4 +36,10 @@ test('missing or temporary specialty production files fail without falling back 
   const response=await j.run();assert.equal(response.statusCode,500);assert.equal(j.rendered.length,0);
   assert.ok(j.queries.some(q=>/production_pdf_status = 'failed'/.test(q.query)));
  }
+});
+test('large specialty print PDFs remain available to the paid order production job',async()=>{
+ const large={...panel(),productionUrl:'https://bannersonthefly.com/artwork-original/12345678-1234-1234-1234-123456789abc/original.pdf'};
+ const j=job([{id:'tent',canvas_state_json:{kind:'specialty',configuration:{panels:[large]}}}]);
+ assert.equal((await j.run()).statusCode,200);assert.equal(j.rendered.length,0);
+ assert.ok(j.queries.some(q=>/production_pdf_status='generated'/.test(q.query)&&q.values.includes('tent')));
 });
