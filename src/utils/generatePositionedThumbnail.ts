@@ -154,7 +154,8 @@ export function measureVisibleArtworkFraction(
   } catch (error) {
     throw new PreviewLifecycleError('CANVAS_ALLOCATION_FAILED', 'The verification canvas could not be allocated.', { error: String(error) });
   }
-  const context = audit.getContext('2d', { alpha: false, willReadFrequently: true });
+  const transparent = backgroundColor.trim().toLowerCase() === 'transparent';
+  const context = audit.getContext('2d', { alpha: transparent, willReadFrequently: true });
   if (!context) {
     throw new PreviewLifecycleError('CANVAS_CONTEXT_UNAVAILABLE', 'The verification canvas has no 2D context.');
   }
@@ -177,6 +178,7 @@ export function measureVisibleArtworkFraction(
   let visible = 0;
   const total = pixels.length / 4;
   for (let offset = 0; offset < pixels.length; offset += 4) {
+    if (transparent) { if (pixels[offset + 3] >= 16) visible += 1; continue; }
     const delta = Math.abs(pixels[offset] - backgroundR)
       + Math.abs(pixels[offset + 1] - backgroundG)
       + Math.abs(pixels[offset + 2] - backgroundB);
@@ -270,7 +272,7 @@ export async function renderPositionedThumbnailBlob(
   }
 
   try {
-    const context = canvas.getContext('2d', { alpha: false });
+    const context = canvas.getContext('2d', { alpha: backgroundColor.trim().toLowerCase() === 'transparent' });
     if (!context) throw new PreviewLifecycleError('CANVAS_CONTEXT_UNAVAILABLE', 'The preview canvas has no 2D context.');
     context.fillStyle = backgroundColor;
     context.fillRect(0, 0, widthPx, heightPx);

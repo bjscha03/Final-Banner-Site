@@ -213,7 +213,9 @@ try{
      assert.equal(await page.getByRole('button',{name:'Crop artwork',exact:true}).count(),0);
      const editorImage=page.getByTestId('artwork-canvas').locator('img');await editorImage.evaluate(img=>img.decode());
      await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+     const painted=await sharp(await editorImage.screenshot()).stats();assert.ok(painted.channels.some(c=>c.min<100&&c.max>150),`${variant.id}/${panel.id}: artwork must be painted in the editor`);
      const proof=page.getByAltText(`${panel.label} flat artwork without guides`,{exact:true});await proof.waitFor();await proof.evaluate(img=>img.decode());
+     if(product.slug==='acrylic-signs'){const alpha=await proof.evaluate(img=>{const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);return ctx.getImageData(1,Math.floor(c.height/2),1,1).data[3];});assert.equal(alpha,0,'Unprinted acrylic must stay transparent, not black');}
      const size=await proof.evaluate(img=>({w:img.naturalWidth,h:img.naturalHeight}));
      const template=templates[panel.templateId],ratio=product.priceUnit==='sqft'?24/18:template.widthIn/template.heightIn;
      assert.ok(Math.abs(size.w/size.h-ratio)/ratio<.02,`${variant.id}/${panel.id}: proof ratio`);
