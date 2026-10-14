@@ -667,7 +667,7 @@ test('commerce admin analytics, customer history, and order tracking stay usable
   const isMobile = testInfo.project.name === 'chromium-pixel8-portrait';
 
   await page.goto('/admin/abandoned-carts', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('heading', { name: 'Abandoned Cart Analytics' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Abandoned Carts', exact: true })).toBeVisible();
   const allTimeMetrics = page.locator('section[aria-label="All-time abandoned cart metrics"]');
   await expect(allTimeMetrics).toBeVisible();
   await expect(allTimeMetrics).toContainText('Total captured value');
