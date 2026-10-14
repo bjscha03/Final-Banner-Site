@@ -19,7 +19,11 @@ for (const [path, product, headline] of [
     await expect(page).toHaveURL(new RegExp(`/design\\?product=${product}`));
     await expect(page.locator('#builder-start')).toHaveText(headline);
     await expect(page.locator('#order-builder')).toBeVisible();
-    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+    // The banner landing page sets robots explicitly; the shared yard-sign and
+    // car-magnet designer keeps the existing default indexing behavior.
+    if (product === 'banner') {
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
   });
 }

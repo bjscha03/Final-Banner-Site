@@ -303,6 +303,8 @@ test("guest activation opens past orders and older orders load without losing hi
       return route.fallback();
     const response = await route.fetch({
       url: `http://127.0.0.1:4175${url.pathname}${url.search}`,
+      // Retry transient local-dev-server connection resets, not HTTP failures.
+      maxRetries: 2,
     });
     await route.fulfill({ response });
   });
