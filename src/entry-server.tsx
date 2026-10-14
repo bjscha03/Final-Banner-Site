@@ -32,6 +32,7 @@ export function render(url: string): Promise<RenderedRoute> {
   // for lazy route modules before collecting the crawlable HTML instead.
   return new Promise((resolve, reject) => {
     let settled = false;
+    let renderError: unknown;
     const output = new PassThrough();
     let appHtml = '';
     output.setEncoding('utf8');
@@ -40,6 +41,7 @@ export function render(url: string): Promise<RenderedRoute> {
     output.on('end', () => {
       if (settled) return;
       settled = true;
+      if (renderError) { reject(renderError); return; }
       const helmet = helmetContext.helmet;
       if (!helmet) {
         reject(new Error(`Helmet did not produce server state for ${url}`));
@@ -72,6 +74,7 @@ export function render(url: string): Promise<RenderedRoute> {
         }
       },
       onError(error) {
+        renderError = error;
         console.error(`[prerender] ${url}`, error);
       },
     });

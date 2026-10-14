@@ -69,7 +69,6 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 // Google Ads landing page - lazy load
 const GoogleAdsBanner = lazy(() => import("./pages/GoogleAdsBanner"));
 
-const PoliticalSigns = lazy(() => import("./pages/PoliticalSigns"));
 
 // Admin pages - lazy load (heavy, rarely accessed)
 const AdminOrders = lazy(() => import("./pages/admin/Orders"));
@@ -287,8 +286,6 @@ export const RoutedApplication = () => (
               }
             />
 
-
-            <Route path="/political-signs" element={<PoliticalSigns />} />
 
             {/* 404 – catch-all must be last */}
             <Route path="*" element={<Layout><NotFound /></Layout>} />

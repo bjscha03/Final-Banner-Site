@@ -38,3 +38,6 @@
 /*.html
   Content-Type: text/html; charset=UTF-8
   Cache-Control: no-cache, no-store, must-revalidate
+
+/gone.html
+  X-Robots-Tag: noindex, follow

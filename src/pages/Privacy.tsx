@@ -1,10 +1,12 @@
 import React from 'react';
 import Layout from '@/components/Layout';
+import SEO from '@/components/SEO';
 import { Shield, Eye, Lock, Database, UserCheck, Globe } from 'lucide-react';
 
 const Privacy: React.FC = () => {
   return (
     <Layout>
+      <SEO title="Privacy Policy | Banners On The Fly" description="Learn how Banners On The Fly collects, uses and protects information when you browse, create an account or order custom printed products." canonical="https://bannersonthefly.com/privacy" />
       <div className="min-h-screen bg-slate-50 pt-8 pb-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}

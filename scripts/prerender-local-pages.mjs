@@ -68,3 +68,6 @@ console.log(`Prerendered ${prerenderRoutes.length} routes plus 404.html; ${index
 // Its separate verification leaves all existing local-route gates unchanged.
 const { publishAIArticle } = await import('./prerender-ai-blog.mjs');
 await publishAIArticle({ distDir, makeDocument });
+
+const { publishPublicPages } = await import('./prerender-public-pages.mjs');
+await publishPublicPages({ distDir, makeDocument, template });

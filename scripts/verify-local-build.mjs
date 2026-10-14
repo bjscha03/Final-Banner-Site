@@ -157,7 +157,8 @@ const shell = await readFile(path.join(distDir, 'index.html'), 'utf8');
 assert(!/modulepreload[^>]+(?:pdf|pdfjs|pdfkit)/i.test(shell), 'PDF code must not be preloaded on landing pages.');
 
 const redirects = await readFile(path.join(distDir, '_redirects'), 'utf8');
-const fallbackPosition = redirects.indexOf('/*    /index.html   200');
+const fallbackPosition = redirects.indexOf('/* /404.html 404');
+assert(fallbackPosition >= 0, 'Unknown URLs must return a real 404.');
 for (const namespace of ['/vinyl-banners/*', '/yard-signs/*', '/car-magnets/*', '/trade-shows/*']) {
   const rulePosition = redirects.indexOf(`${namespace}`);
   assert(rulePosition >= 0 && rulePosition < fallbackPosition, `${namespace}: true-404 rule must precede the SPA fallback.`);
