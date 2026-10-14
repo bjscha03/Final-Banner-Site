@@ -61,6 +61,9 @@ export function snapArtworkPosition(value: PixelArtworkTransform, canvas: Artwor
 export function resizeArtwork(value: PixelArtworkTransform, canvas: ArtworkCanvasSize, natural: ArtworkCanvasSize, handle: ArtworkHandle, dx: number, dy: number, threshold = 0): PixelArtworkTransform {
   const image = artworkImageBox(value, canvas, natural);
   const frame = artworkCropBox(image, value.crop);
+  // On a short phone canvas, a fixed pixel snap zone can consume a large
+  // fraction of the artwork and turn a small crop into an unexpected jump.
+  threshold = Math.min(threshold, Math.min(frame.width, frame.height) * 0.05);
   if (handle.length === 2) {
     const sx = handle.includes('r') ? 1 : -1;
     const sy = handle.includes('b') ? 1 : -1;

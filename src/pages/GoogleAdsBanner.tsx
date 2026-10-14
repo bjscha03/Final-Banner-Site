@@ -3204,7 +3204,7 @@ const GoogleAdsBanner: React.FC = () => {
                         <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
                       </div>
                       {/* Banner preview with depth background */}
-                      <div ref={artworkWorkspaceRef} data-testid="artwork-workspace" className="rounded-xl p-4 pt-[104px] md:p-6 md:pt-[108px] max-w-full overflow-hidden bg-slate-300 border border-slate-400/70 shadow-inner">
+                      <div ref={artworkWorkspaceRef} data-testid="artwork-workspace" className="banner-artwork-workspace rounded-xl p-4 pt-[104px] md:p-6 md:pt-[108px] max-w-full overflow-hidden bg-slate-300 border border-slate-400/70 shadow-inner">
                         {/* Width wrapper — constrains max-width so padding-bottom produces correct height */}
                         <PreviewRulerFrame
                           widthIn={widthIn}
