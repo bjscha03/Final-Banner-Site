@@ -21,7 +21,11 @@ Integrated catalog head `c89921bf095e68da32987b371e22389cd87bc2bc` with current 
 
 Browser fixtures have been refreshed for the current AI approval checkbox, checkout savings label, structured admin session, site-monitoring response, and existing advertising/referral UI. These updates retain price/total assertions and production authentication.
 
-These checks establish local integration and calculation coverage, not supplier confirmation or production release readiness. Hosted browser checks on this integrated commit must finish before release. Real upload/storage, live AI, isolated test-mode payment, admin/order-email propagation and the specialty-artwork database migration still require the documented release checks.
+The integrated catalog passed all 9 specialty CI browser scenarios on `dca67acf788d198f8335596b0b13d97ab74f06a5`, with no page errors. This includes all 58 variants, option/quantity pricing, mobile controls, artwork approval, saved-cart repricing, invalid-option blocking and test-checkout availability. Upload and AI transports are mocked; no payment is submitted.
+
+The core Order/Email/Tracking regression job also passed on that commit, including all 4 desktop/mobile admin contracts, artwork handoff, TypeScript and the production build. Hosted Stripe initialization and preview PayPal containment passed. A stale smoke assertion expected `/custom-banners`; it has been aligned with current main's `/design?product=banner` redirects. Direct HTTP checks confirmed all 3 retired campaign routes return 301 to that destination and all 7 retired functions return 410 for both GET and POST.
+
+These checks establish integration and calculation coverage, not supplier confirmation or production release readiness. The full cross-browser/responsive matrix, payment workflow and remaining hosted smoke gates must still finish before release. Real upload/storage, live AI, isolated test-mode payment, admin/order-email propagation and the specialty-artwork database migration still require the documented release checks.
 
 ## Approval blockers
 

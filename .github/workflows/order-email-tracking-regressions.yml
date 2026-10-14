@@ -423,7 +423,7 @@ jobs:
             headers=$(mktemp)
             code=$(curl -sS -o /dev/null -D "$headers" -w '%{http_code}' "$PREVIEW_URL$route")
             test "$code" = "301"
-            tr -d '\r' < "$headers" | grep -qi '^location: /custom-banners$'
+            tr -d '\r' < "$headers" | grep -qi '^location: /design?product=banner$'
           done
 
           for endpoint in \
