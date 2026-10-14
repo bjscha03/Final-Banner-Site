@@ -33,22 +33,23 @@ export function useArtworkWorkspaceViewport(
     let frame = 0;
     let firstReveal = true;
     let following = true;
+    const updateLayout = () => {
+      const { top, bottom } = visibleArtworkBounds();
+      const before = workspace.getBoundingClientRect();
+      const wasVisible = before.bottom > top && before.top < bottom;
+      const css = getComputedStyle(workspace);
+      // Include both ruler gutters, workspace padding and the reserved toolbar.
+      const verticalChrome = parseFloat(css.paddingTop) + parseFloat(css.paddingBottom)
+        + parseFloat(css.borderTopWidth) + parseFloat(css.borderBottomWidth) + 28;
+      const canvasHeight = Math.max(24, bottom - top - verticalChrome);
+      const rulerWidth = Math.floor(canvasHeight * aspect + 28);
+      workspace.style.setProperty('--artwork-viewport-width', `${rulerWidth}px`);
+      if (firstReveal || (following && wasVisible)) revealArtworkElement(workspace);
+      firstReveal = false;
+    };
     const update = () => {
       window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        const { top, bottom } = visibleArtworkBounds();
-        const before = workspace.getBoundingClientRect();
-        const wasVisible = before.bottom > top && before.top < bottom;
-        const css = getComputedStyle(workspace);
-        // Include both ruler gutters, workspace padding and the reserved toolbar.
-        const verticalChrome = parseFloat(css.paddingTop) + parseFloat(css.paddingBottom)
-          + parseFloat(css.borderTopWidth) + parseFloat(css.borderBottomWidth) + 28;
-        const canvasHeight = Math.max(24, bottom - top - verticalChrome);
-        const rulerWidth = Math.floor(canvasHeight * aspect + 28);
-        workspace.style.setProperty('--artwork-viewport-width', `${rulerWidth}px`);
-        if (firstReveal || (following && wasVisible)) revealArtworkElement(workspace);
-        firstReveal = false;
-      });
+      frame = window.requestAnimationFrame(updateLayout);
     };
     // Deliberate page navigation must not be pulled back by upload completion.
     const stopFollowing = () => { following = false; };
@@ -74,7 +75,9 @@ export function useArtworkWorkspaceViewport(
     window.addEventListener('wheel', stopFollowing, { passive: true });
     window.addEventListener('touchstart', onTouch, { passive: true });
     window.addEventListener('keydown', onKey);
-    update();
+    // Apply the fitted width before the new image can paint or the editor can
+    // measure it. This also avoids a full-size flash when undoing deletion.
+    updateLayout();
     return () => {
       observer?.disconnect();
       window.cancelAnimationFrame(frame);
