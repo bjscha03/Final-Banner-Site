@@ -25,7 +25,7 @@ if(process.env.BOF_QA_TEST_CHECKOUT){
  execFileSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-keyout',tlsDir+'/key.pem','-out',tlsDir+'/cert.pem','-days','1','-subj','/CN='+qaHost,'-addext','subjectAltName=DNS:'+qaHost],{stdio:'ignore'});
  https={key:await readFile(tlsDir+'/key.pem'),cert:await readFile(tlsDir+'/cert.pem')};
 }
-const server=await createServer({root,configFile:root+'vite.config.ts',server:{host:'127.0.0.1',port:8096,allowedHosts:[qaHost],https}});await server.listen();
+const server=await createServer({root,configFile:root+'vite.config.ts',optimizeDeps:{include:['pdfjs-dist','pdf-lib']},server:{host:'127.0.0.1',port:8096,allowedHosts:[qaHost],https}});await server.listen();
 const browserName=process.env.BOF_QA_BROWSER||'chromium';
 const browserType={chromium,firefox,webkit}[browserName];
 if(!browserType)throw new Error('Unknown QA browser '+browserName);
@@ -51,6 +51,9 @@ await page.addInitScript(()=>{
  };
 });
 page.on('pageerror',e=>errors.push(e.message));
+const diagnostics=[];
+page.on('console',m=>{if(['error','warning'].includes(m.type()))diagnostics.push(m.type()+': '+m.text());});
+page.on('requestfailed',r=>diagnostics.push('request failed: '+r.url()+' '+r.failure()?.errorText));
 const fixture=await sharp(Buffer.from('<svg width="800" height="1000" xmlns="http://www.w3.org/2000/svg"><rect width="800" height="1000" fill="#123b42"/><circle cx="400" cy="275" r="135" fill="#dd9b52"/><text x="400" y="570" text-anchor="middle" font-size="80" font-family="sans-serif" fill="white">MARKET</text><text x="400" y="680" text-anchor="middle" font-size="36" font-family="sans-serif" fill="white">BROWSER QA FIXTURE</text></svg>')).png().toBuffer();
 const json=(r,obj)=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify(obj)});
 await page.route('https://res.cloudinary.com/**',async route=>{
@@ -300,5 +303,5 @@ try{
  assert.deepEqual(errors,[]);
  console.log(JSON.stringify({browser:browserName,device:process.env.BOF_QA_DEVICE||'desktop',checks:checks.length,pageErrors:errors,uploadTransportsMocked:true,AIProviderMocked:true}));
  await writeFile(out+'/result.json',JSON.stringify({browser:browserName,device:process.env.BOF_QA_DEVICE||'desktop',checks,pageErrors:errors,uploadTransportsMocked:true,AIProviderMocked:true},null,2));
-}catch(error){await page.screenshot({path:out+'/failure.png',fullPage:true});console.error('BROWSER FAILURE',error.message,'ALERTS',await page.getByRole('alert').allTextContents(),'PAGE ERRORS',errors);process.exitCode=1;}
+}catch(error){console.error('BROWSER FAILURE',error.stack||error.message,'PAGE ERRORS',errors,'DIAGNOSTICS',diagnostics.slice(-40));await page.screenshot({path:out+'/failure.png',fullPage:true}).catch(()=>{});console.error('ALERTS',await page.getByRole('alert').allTextContents().catch(()=>[]));process.exitCode=1;}
 finally{await browser.close();await server.close();await rm(tlsDir,{recursive:true,force:true});}
