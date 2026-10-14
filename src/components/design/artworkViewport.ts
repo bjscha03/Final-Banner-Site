@@ -58,7 +58,14 @@ export function useArtworkWorkspaceViewport(
     const onKey = (event: KeyboardEvent) => {
       if (['PageUp', 'PageDown', 'Home', 'End', 'Tab'].includes(event.key)) stopFollowing();
     };
-    const onViewportResize = () => { following = true; update(); };
+    let viewportWidth = window.innerWidth;
+    const onViewportResize = () => {
+      // Address-bar collapse during a swipe is a resize too. Only a width
+      // change (rotation/resizing the window) re-enables automatic alignment.
+      if (window.innerWidth !== viewportWidth) following = true;
+      viewportWidth = window.innerWidth;
+      update();
+    };
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
     observer?.observe(workspace);
     for (const element of document.querySelectorAll('[data-site-header], [data-testid="mobile-subtotal-bar"]')) observer?.observe(element);
