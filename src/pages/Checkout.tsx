@@ -1,9 +1,12 @@
+import SavedSpecialtyPreview from '@/components/specialty/SavedSpecialtyPreview';
+import {specialtyItemHasIncludedShipping, specialtyItemHasVerifiedPrice, specialtyItemPrice} from '@/lib/specialtyProducts';
 import BOFCashCheckout from '@/components/checkout/BOFCashCheckout';
 import {saveBofReferral,bofPricingItems} from '@/lib/bofCash';
 import { readCheckoutCustomerDraft } from '@/components/checkout/checkoutCustomerDraft';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { cartEditUrl } from '@/lib/cartEditUrl';
 import CartLinePrice from '@/components/cart/CartLinePrice';
+import SpecialtyPendingPrice from '@/components/specialty/SpecialtyPendingPrice';
 import { trackAIEvent } from '@/lib/aiAnalytics';
 import { getCartDisplayPrices, getEnteredPromoLabel } from '@/lib/cartDisplayPricing';
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useSyncExternalStore } from 'react';
@@ -410,7 +413,11 @@ const Checkout: React.FC = () => {
     ? 'Please upload at least one design for your yard sign order.'
     : '';
 
-  const canProceed = minimumOrderValidation.isValid && !yardSignInvalid;
+  const specialtyInCart = items.some(item => item.product_type === 'specialty');
+  const pricingPending = items.some(item => !specialtyItemHasVerifiedPrice(item));
+  const shippingPending = items.some(item => !specialtyItemHasIncludedShipping(item));
+  const specialtyPending = pricingPending || shippingPending;
+  const canProceed = minimumOrderValidation.isValid && !yardSignInvalid && !specialtyPending;
   const providerTotalCents = activeCheckout?.totalCents || totalCents;
   const paymentSubmissionBlocked = !canProceed || Boolean(staleCartReview);
   if (flags.freeShipping || flags.minOrderFloor) {
@@ -462,7 +469,7 @@ const Checkout: React.FC = () => {
   const handleIncreaseQuantity = (itemId: string) => {
     if (checkoutLocked) return;
     const item = items.find(i => i.id === itemId);
-    if (item && item.quantity < 999) {
+    if (item && item.quantity < (item.product_type === 'specialty' ? 100 : 999)) {
       updateQuantity(itemId, item.quantity + 1);
     }
   };
@@ -843,14 +850,21 @@ const Checkout: React.FC = () => {
     discountAmountCents: resolvedDiscount.appliedDiscountAmountCents,
     discountLabel: discountCode?.automaticFirstOrder && resolvedDiscount.appliedDiscountType === 'promo' && resolvedDiscount.promoDiscountCode?.toUpperCase() === 'NEW20' ? 'First-order savings · 20%' : resolvedDiscount.appliedDiscountLabel,
     discountHelperMessage: resolvedDiscount.helperMessage,
-    shippingLabel: flags.freeShipping ? flags.shippingMethodLabel : 'Next-Day Air Shipping',
+    pricingPending,
+    shippingPending,
+    shippingLabel: specialtyInCart && !shippingPending ? 'Next Day Air shipping after production' : flags.freeShipping ? flags.shippingMethodLabel : 'Next-Day Air Shipping',
     taxCents,
     sameDayFeeCents,
     saturdayFeeCents,
     totalCents,
   };
 
-  const orderTotals = <CheckoutOrderTotals {...orderTotalsProps} />;
+  const specialtyPendingNotice = specialtyPending && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+    <strong>Your artwork is saved. These selections need confirmed prices or shipping before payment.</strong>
+    <ul className="mt-2 list-disc pl-5">{items.filter(item=>!specialtyItemHasVerifiedPrice(item)||!specialtyItemHasIncludedShipping(item)).map(item=><li key={item.id}>{item.specialty_config?.productName||'Product'}: {[...(!specialtyItemHasVerifiedPrice(item)?specialtyItemPrice(item)?.missing||['Configuration unavailable']:[]),...(!specialtyItemHasIncludedShipping(item)?['Shipping']:[])].join('; ')}.</li>)}</ul>
+    <p className="mt-2">Use Edit order to change these selections or remove them, then check out with your other items.</p>
+  </div>;
+  const orderTotals = <div className="space-y-3"><CheckoutOrderTotals {...orderTotalsProps} />{specialtyPendingNotice}</div>;
 
   const orderReviewContent = (
     <>
@@ -902,7 +916,7 @@ const Checkout: React.FC = () => {
                     return (
                     <div key={item.id} className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)] last:mb-0 sm:p-5">
                       <div className="grid gap-5 md:grid-cols-[200px_minmax(0,1fr)] md:items-start lg:gap-6">
-                        {isYardSign ? (
+                        {item.product_type === 'specialty' && item.specialty_config ? <SavedSpecialtyPreview configuration={item.specialty_config} /> : isYardSign ? (
                           <div className="flex justify-center shrink-0">
                             <ThumbnailPreviewWrapper
                               title={getItemDisplayName(item)}
@@ -1041,7 +1055,7 @@ const Checkout: React.FC = () => {
                                 </span>
                               </div>
                             </div>
-                            <CartLinePrice {...displayPrice} quantity={item.quantity} />
+                            {specialtyItemHasVerifiedPrice(item) ? <CartLinePrice {...displayPrice} quantity={item.quantity} /> : <SpecialtyPendingPrice item={item}/>}
                           </div>
 
                           <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -1077,7 +1091,7 @@ const Checkout: React.FC = () => {
                               size="sm"
                               aria-label={`Increase quantity for ${getItemDisplayName(item)}`}
                               onClick={() => handleIncreaseQuantity(item.id)}
-                              disabled={checkoutLocked || item.quantity >= 999}
+                              disabled={checkoutLocked || item.quantity >= (item.product_type === 'specialty' ? 100 : 999)}
                               className="h-11 w-11 p-0 border-2 hover:bg-[#18448D] hover:text-white hover:border-[#18448D] transition-all"
                             >
                               <Plus className="h-4 w-4" />
@@ -1271,6 +1285,7 @@ const Checkout: React.FC = () => {
 
                 {/* Same-Day Hit Service upsell — production priority (NOT shipping) */}
                 <SameDayHitServiceCard disabled={checkoutLocked} />
+                {specialtyInCart && items.some(item=>item.product_type!=='specialty') && <p className="text-xs leading-5 text-slate-600">Priority services apply only to eligible banners, yard signs and magnets. Displays and event gear have separate production times.</p>}
               </div>
   );
 
@@ -1315,13 +1330,13 @@ const Checkout: React.FC = () => {
 
           <div data-testid="checkout-flow" className="checkout-grid">
             <aside className="checkout-order-panel" aria-label="Order summary">
-              <CheckoutArtworkSummary showTotal={false} items={items} totalCents={totalCents}
+              <CheckoutArtworkSummary showTotal={false} items={items} totalCents={totalCents} linePrices={displayPrices}
                 editAction={<CheckoutReviewDialog label="Edit order">{orderReviewContent}</CheckoutReviewDialog>} />
-              <PriceDeliveryEstimate variant="checkout" />
+              {specialtyInCart ? <p className="p-4 text-sm text-slate-600">Production time varies by product. {shippingPending ? 'Shipping needs confirmation before payment.' : 'Free Next Day Air shipping is included after production.'}</p> : <PriceDeliveryEstimate variant="checkout" />}
               {desktopCheckout ? <div id="checkout-price-details">{orderTotals}{checkoutAdjustments}</div> : (
                 <div className="checkout-arrival-total">
                   <div><strong>Total</strong><p>Incl. tax · <a href="#checkout-price-details">View price details ↓</a></p></div>
-                  <strong>{usd(totalCents / 100)}</strong>
+                  <strong>{specialtyPending ? 'Pending' : usd(totalCents / 100)}</strong>
                 </div>
               )}
             </aside>

@@ -1,0 +1,4179 @@
+{
+  "standard-retractable": {
+    "supplierItemId": 3,
+    "groups": [
+      {
+        "key": "hardware",
+        "label": "Package",
+        "options": [
+          {
+            "key": "ph",
+            "label": "Stand + Insert",
+            "default": true,
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240325/ixv4f3aI-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240325/ixv4f3aI-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240325/ixv4f3aI-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "23x66"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240325/LZdJ93eP-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240325/LZdJ93eP-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240325/LZdJ93eP-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "24x81"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240325/PLtbAL61-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240325/PLtbAL61-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240325/PLtbAL61-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "33x81b"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240325/0ov9xJYW-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240325/0ov9xJYW-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240325/0ov9xJYW-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "33x81"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240325/kTKVC8iC-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240325/kTKVC8iC-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240325/kTKVC8iC-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "47x81"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "p",
+            "label": "Insert Only",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "size",
+        "label": "Size",
+        "options": [
+          {
+            "key": "23x66",
+            "label": "23\" x 66\"",
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240325/ixv4f3aI-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240325/ixv4f3aI-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240325/ixv4f3aI-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "23x66"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "24x81",
+            "label": "24\" x 81\"",
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240325/LZdJ93eP-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240325/LZdJ93eP-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240325/LZdJ93eP-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "24x81"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "33x81",
+            "label": "33\" x 81\"",
+            "default": true,
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240325/0ov9xJYW-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240325/0ov9xJYW-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240325/0ov9xJYW-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "33x81"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "33x81b",
+            "label": "33\" x 81\" (Black)",
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240325/PLtbAL61-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240325/PLtbAL61-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240325/PLtbAL61-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "33x81b"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "47x81",
+            "label": "47\" x 81\"",
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240325/kTKVC8iC-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240325/kTKVC8iC-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240325/kTKVC8iC-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "47x81"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "images": [],
+        "actions": [
+          {
+            "match": [
+              {
+                "op": "!=",
+                "key": "size",
+                "logic": "and",
+                "value": "47x81"
+              },
+              {
+                "op": "=",
+                "key": "led",
+                "logic": "and",
+                "value": "2"
+              }
+            ],
+            "change": [
+              {
+                "key": "led",
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "size",
+                "logic": "and",
+                "value": "47x81"
+              },
+              {
+                "op": "=",
+                "key": "led",
+                "logic": "and",
+                "value": "1"
+              }
+            ],
+            "change": [
+              {
+                "key": "led",
+                "value": "2"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "material",
+        "label": "Insert",
+        "options": [
+          {
+            "key": "9oz_premium_fabric",
+            "label": "UV Printed Fabric",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "13oz_matte_vinyl_banner",
+            "label": "UV Printed Matte Banner",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "led",
+        "label": "LED Light",
+        "visible": [
+          {
+            "key": "hardware",
+            "value": "ph",
+            "op": "=",
+            "logic": "and"
+          }
+        ],
+        "options": [
+          {
+            "key": "0",
+            "label": "No",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1",
+            "label": "1 LED Light",
+            "visible": [
+              {
+                "key": "size",
+                "value": "47x81",
+                "op": "!=",
+                "logic": "and"
+              },
+              {
+                "key": "hardware",
+                "value": "ph",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "2",
+            "label": "2 LED Light",
+            "visible": [
+              {
+                "key": "size",
+                "value": "47x81",
+                "op": "=",
+                "logic": "and"
+              },
+              {
+                "key": "hardware",
+                "value": "ph",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/standard-retractable",
+    "checkedAt": "2026-10-12"
+  },
+  "deluxe-retractable": {
+    "supplierItemId": 11,
+    "groups": [
+      {
+        "key": "hardware",
+        "label": "Package",
+        "options": [
+          {
+            "key": "ph",
+            "label": "Stand + Insert",
+            "default": true,
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240325/sefWElK8-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240325/sefWElK8-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240325/sefWElK8-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "33x81"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240325/3NPMyT54-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240325/3NPMyT54-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240325/3NPMyT54-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "33x81d"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "p",
+            "label": "Insert Only",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "size",
+        "label": "Size",
+        "options": [
+          {
+            "key": "33x81",
+            "label": "33\" x 81\" Single Sided",
+            "default": true,
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240325/sefWElK8-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240325/sefWElK8-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240325/sefWElK8-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "33x81"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "33x81d",
+            "label": "33\" x 81\" Double Sided",
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240325/3NPMyT54-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240325/3NPMyT54-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240325/3NPMyT54-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "33x81d"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "images": [],
+        "actions": [
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "size",
+                "logic": "and",
+                "value": "33x81"
+              },
+              {
+                "op": "=",
+                "key": "led",
+                "logic": "and",
+                "value": "2"
+              }
+            ],
+            "change": [
+              {
+                "key": "led",
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "size",
+                "logic": "and",
+                "value": "33x81d"
+              },
+              {
+                "op": "=",
+                "key": "led",
+                "logic": "and",
+                "value": "1"
+              }
+            ],
+            "change": [
+              {
+                "key": "led",
+                "value": "2"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "material",
+        "label": "Insert",
+        "options": [
+          {
+            "key": "9oz_premium_fabric",
+            "label": "UV Printed Fabric",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "13oz_matte_vinyl_banner",
+            "label": "UV Printed Matte Banner",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "led",
+        "label": "LED Light",
+        "visible": [
+          {
+            "key": "hardware",
+            "value": "ph",
+            "op": "=",
+            "logic": "and"
+          }
+        ],
+        "options": [
+          {
+            "key": "0",
+            "label": "No",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1",
+            "label": "1 LED Light",
+            "visible": [
+              {
+                "key": "size",
+                "value": "33x81",
+                "op": "=",
+                "logic": "and"
+              },
+              {
+                "key": "hardware",
+                "value": "ph",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "2",
+            "label": "2 LED Lights",
+            "visible": [
+              {
+                "key": "size",
+                "value": "33x81d",
+                "op": "=",
+                "logic": "and"
+              },
+              {
+                "key": "hardware",
+                "value": "ph",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/deluxe-retractable",
+    "checkedAt": "2026-10-12"
+  },
+  "sd-retractable": {
+    "supplierItemId": 44,
+    "groups": [
+      {
+        "key": "hardware",
+        "label": "Package",
+        "options": [
+          {
+            "key": "ph",
+            "label": "Stand + Insert",
+            "default": true,
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240314/FeWxBJLa-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240314/FeWxBJLa-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240314/FeWxBJLa-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "index": "1",
+                    "logic": "and",
+                    "value": "36x92"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240314/5joW2RR8-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240314/5joW2RR8-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240314/5joW2RR8-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "index": "1",
+                    "logic": "and",
+                    "value": "48x92"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240314/rpFZSkav-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240314/rpFZSkav-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240314/rpFZSkav-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "index": "1",
+                    "logic": "and",
+                    "value": "60x92"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "p",
+            "label": "Insert Only",
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240314/FeWxBJLa-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240314/FeWxBJLa-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240314/FeWxBJLa-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "index": "1",
+                    "logic": "and",
+                    "value": "36x92"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240314/5joW2RR8-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240314/5joW2RR8-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240314/5joW2RR8-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "index": "1",
+                    "logic": "and",
+                    "value": "48x92"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240314/rpFZSkav-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240314/rpFZSkav-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240314/rpFZSkav-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "index": "1",
+                    "logic": "and",
+                    "value": "60x92"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "images": [],
+        "actions": [
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "hardware",
+                "logic": "and",
+                "value": "p"
+              }
+            ],
+            "change": [
+              {
+                "key": "led",
+                "value": "0"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "size",
+        "label": "Size",
+        "options": [
+          {
+            "key": "36x69",
+            "label": "36\" x 69\"",
+            "images": []
+          },
+          {
+            "key": "36x80",
+            "label": "36\" x 80\"",
+            "images": []
+          },
+          {
+            "key": "36x92",
+            "label": "36\" x 92\"",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "48x69",
+            "label": "48\" x 69\"",
+            "images": []
+          },
+          {
+            "key": "48x80",
+            "label": "48\" x 80\"",
+            "images": []
+          },
+          {
+            "key": "48x92",
+            "label": "48\" x 92\"",
+            "images": []
+          },
+          {
+            "key": "60x69",
+            "label": "60\" x 69\"",
+            "images": []
+          },
+          {
+            "key": "60x80",
+            "label": "60\" x 80\"",
+            "images": []
+          },
+          {
+            "key": "60x92",
+            "label": "60\" x 92\"",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": [
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "hardware",
+                "logic": "and",
+                "value": "ph"
+              },
+              {
+                "op": "in",
+                "key": "size",
+                "logic": "and",
+                "value": [
+                  "36x69",
+                  "36x80",
+                  "36x92"
+                ]
+              },
+              {
+                "op": "=",
+                "key": "led",
+                "logic": "and",
+                "value": "2"
+              }
+            ],
+            "change": [
+              {
+                "key": "led",
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "hardware",
+                "logic": "and",
+                "value": "ph"
+              },
+              {
+                "op": "in",
+                "key": "size",
+                "logic": "and",
+                "value": [
+                  "48x69",
+                  "48x80",
+                  "48x92",
+                  "60x69",
+                  "60x80",
+                  "60x92"
+                ]
+              },
+              {
+                "op": "=",
+                "key": "led",
+                "logic": "and",
+                "value": "1"
+              }
+            ],
+            "change": [
+              {
+                "key": "led",
+                "value": "2"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "material",
+        "label": "Insert",
+        "options": [
+          {
+            "key": "9oz_premium_fabric",
+            "label": "UV Printed Fabric",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "13oz_matte_vinyl_banner",
+            "label": "UV Printed Matte Banner",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "led",
+        "label": "LED Light",
+        "visible": [
+          {
+            "key": "hardware",
+            "value": "ph",
+            "op": "=",
+            "logic": "and"
+          }
+        ],
+        "options": [
+          {
+            "key": "0",
+            "label": "No",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1",
+            "label": "1 LED Light",
+            "visible": [
+              {
+                "key": "hardware",
+                "value": "ph",
+                "op": "=",
+                "logic": "and"
+              },
+              {
+                "key": "size",
+                "value": [
+                  "36x69",
+                  "36x80",
+                  "36x92"
+                ],
+                "op": "in",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "2",
+            "label": "2 LED Lights",
+            "visible": [
+              {
+                "key": "hardware",
+                "value": "ph",
+                "op": "=",
+                "logic": "and"
+              },
+              {
+                "key": "size",
+                "value": [
+                  "48x69",
+                  "48x80",
+                  "48x92",
+                  "60x69",
+                  "60x80",
+                  "60x92"
+                ],
+                "op": "in",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/sd-retractable",
+    "checkedAt": "2026-10-12"
+  },
+  "x-stand": {
+    "supplierItemId": 45,
+    "groups": [
+      {
+        "key": "hardware",
+        "label": "Package",
+        "options": [
+          {
+            "key": "ph",
+            "label": "Stand + Graphic",
+            "default": true,
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/a6eU3hbR-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/a6eU3hbR-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/a6eU3hbR-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "24x63"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/fPEF15VO-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/fPEF15VO-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/fPEF15VO-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "32x71"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "p",
+            "label": "Graphic Only",
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/a6eU3hbR-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/a6eU3hbR-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/a6eU3hbR-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "24x63"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/fPEF15VO-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/fPEF15VO-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/fPEF15VO-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "32x71"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "size",
+        "label": "Size",
+        "options": [
+          {
+            "key": "24x63",
+            "label": "24\" x 63\"",
+            "default": true,
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/a6eU3hbR-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/a6eU3hbR-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/a6eU3hbR-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "24x63"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "32x71",
+            "label": "32\" x 71\"",
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/fPEF15VO-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/fPEF15VO-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/fPEF15VO-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "32x71"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "material",
+        "label": "Graphic",
+        "options": [
+          {
+            "key": "13oz_matte_vinyl_banner",
+            "label": "Matte Banner",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "double_white_popup",
+            "label": "Double White Popup",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/x-stand",
+    "checkedAt": "2026-10-12"
+  },
+  "table-top-banner-stand": {
+    "supplierItemId": 37,
+    "groups": [
+      {
+        "key": "size",
+        "label": "Size",
+        "options": [
+          {
+            "key": "11.5x17.5",
+            "label": "11.5\" x 17.5\"",
+            "default": true,
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "material",
+        "label": "Insert",
+        "options": [
+          {
+            "key": "double_white_popup",
+            "label": "Double White Popup",
+            "default": true,
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "lamination",
+        "label": "Lamination",
+        "visible": false,
+        "options": [
+          {
+            "key": "UV",
+            "label": "UV Printed",
+            "default": true,
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/table-top-banner-stand",
+    "checkedAt": "2026-10-12"
+  },
+  "tension-fabric-stand": {
+    "supplierItemId": 39,
+    "groups": [
+      {
+        "key": "hardware",
+        "label": "Package",
+        "options": [
+          {
+            "key": "ph",
+            "label": "Graphic + Frame",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "p",
+            "label": "Graphic Only",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "size",
+        "label": "Size",
+        "options": [
+          {
+            "key": "36x90",
+            "label": "36\" x 90\"",
+            "default": true,
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240313/6JzV9SAJ-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240313/6JzV9SAJ-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240313/6JzV9SAJ-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "36x90"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "48x90",
+            "label": "48\" x 90\"",
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240313/Mj30FeLf-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240313/Mj30FeLf-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240313/Mj30FeLf-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "48x90"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "sides",
+        "label": "Graphic",
+        "options": [
+          {
+            "key": "1",
+            "label": "Single Sided",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "2",
+            "label": "Double Sided",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "tradeshow_led",
+        "label": "LED Light",
+        "visible": [
+          {
+            "key": "hardware",
+            "value": "ph",
+            "op": "=",
+            "logic": "and"
+          }
+        ],
+        "options": [
+          {
+            "key": "0",
+            "label": "No",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "2",
+            "label": "2 LED Lights",
+            "visible": [
+              {
+                "key": "hardware",
+                "value": "ph",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/tension-fabric-stand",
+    "checkedAt": "2026-10-12"
+  },
+  "step-repeat-backdrop": {
+    "supplierItemId": 18,
+    "groups": [
+      {
+        "key": "hardware",
+        "label": "Package",
+        "options": [
+          {
+            "key": "ph",
+            "label": "Graphic + Frame",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "p",
+            "label": "Graphic Only",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "size",
+        "label": "Size",
+        "options": [
+          {
+            "key": "96x96",
+            "label": "8' W x 8' H",
+            "images": []
+          },
+          {
+            "key": "108x96",
+            "label": "9' W x 8' H",
+            "images": []
+          },
+          {
+            "key": "120x96",
+            "label": "10' W x 8' H",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "custom",
+            "label": "Custom Size",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "material",
+        "label": "Graphic",
+        "options": [
+          {
+            "key": "9oz_wrinklefree_fabric",
+            "label": "9 oz. Fabric Banner",
+            "default": true,
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/step-repeat-backdrop",
+    "checkedAt": "2026-10-12"
+  },
+  "feather-angled-flag": {
+    "supplierItemId": 4,
+    "groups": [
+      {
+        "key": "flag_pole_tab",
+        "label": "Package",
+        "options": [
+          {
+            "key": "1",
+            "label": "Flag + Pole",
+            "default": true,
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/FlYUnNAL-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/FlYUnNAL-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/FlYUnNAL-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "small"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/CsTKccH3-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/CsTKccH3-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/CsTKccH3-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "medium"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/uf4fTjWs-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/uf4fTjWs-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/uf4fTjWs-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "large"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/ArdkMvAt-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/ArdkMvAt-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/ArdkMvAt-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "xlarge"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "0",
+            "label": "Flag Only",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": [
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "1"
+              }
+            ],
+            "change": [
+              {
+                "key": "pole",
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "0"
+              }
+            ],
+            "change": [
+              {
+                "key": "pole",
+                "value": "0"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "size",
+        "label": "Size",
+        "options": [
+          {
+            "key": "small",
+            "label": "Small 9 ft.",
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/FlYUnNAL-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/FlYUnNAL-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/FlYUnNAL-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "small"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "medium",
+            "label": "Medium 10.5 ft.",
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/CsTKccH3-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/CsTKccH3-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/CsTKccH3-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "medium"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "large",
+            "label": "Large 14 ft.",
+            "default": true,
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/uf4fTjWs-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/uf4fTjWs-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/uf4fTjWs-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "large"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "xlarge",
+            "label": "X-Large 18 ft.",
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/ArdkMvAt-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/ArdkMvAt-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/ArdkMvAt-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "xlarge"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "images": [],
+        "actions": [
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "size",
+                "logic": "and",
+                "value": "small"
+              },
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "1"
+              }
+            ],
+            "change": []
+          },
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "1"
+              },
+              {
+                "op": "=",
+                "key": "size",
+                "logic": "and",
+                "value": "medium"
+              }
+            ],
+            "change": []
+          },
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "size",
+                "logic": "and",
+                "value": "large"
+              },
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "1"
+              }
+            ],
+            "change": []
+          },
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "1"
+              },
+              {
+                "op": "=",
+                "key": "size",
+                "logic": "and",
+                "value": "xlarge"
+              }
+            ],
+            "change": []
+          }
+        ]
+      },
+      {
+        "key": "sides",
+        "label": "Graphic",
+        "options": [
+          {
+            "key": "1",
+            "label": "Single Sided Print Thru",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "-1",
+            "label": "Single Sided Print Thru Reverse",
+            "images": []
+          },
+          {
+            "key": "2",
+            "label": "Double Sided",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "flaghardware",
+        "label": "Base",
+        "visible": [
+          {
+            "key": "flag_pole_tab",
+            "value": "1",
+            "op": "=",
+            "logic": "and"
+          }
+        ],
+        "options": [
+          {
+            "key": "PG",
+            "label": "Ground Stake",
+            "default": true,
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "PB",
+            "label": "Cross Base",
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "PBG",
+            "label": "Cross Base + Ground Stake",
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "PBW",
+            "label": "Cross Base + WaterBag",
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "PBS",
+            "label": "Square Base",
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "0",
+            "label": "No Hardware (Flag Only)",
+            "default": true,
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "0",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "carrybag",
+        "label": "Carry Bag",
+        "options": [
+          {
+            "key": "0",
+            "label": "No",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1",
+            "label": "Yes",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/feather-angled-flag",
+    "checkedAt": "2026-10-12"
+  },
+  "convex-flag": {
+    "supplierItemId": 41,
+    "groups": [
+      {
+        "key": "flag_pole_tab",
+        "label": "Package",
+        "options": [
+          {
+            "key": "1",
+            "label": "Flag + Pole",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "0",
+            "label": "Flag Only",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": [
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "1"
+              }
+            ],
+            "change": [
+              {
+                "key": "pole",
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "0"
+              }
+            ],
+            "change": [
+              {
+                "key": "pole",
+                "value": "0"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "Size",
+        "label": "Size",
+        "options": [
+          {
+            "key": "small",
+            "label": "Small 9 ft.",
+            "images": []
+          },
+          {
+            "key": "medium",
+            "label": "Medium 10.5 ft.",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "large",
+            "label": "Large 14 ft.",
+            "images": []
+          },
+          {
+            "key": "xlarge",
+            "label": "X-Large 18 ft.",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": [
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "1"
+              },
+              {
+                "op": "=",
+                "key": "Size",
+                "logic": "and",
+                "value": "small"
+              }
+            ],
+            "change": []
+          },
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "1"
+              },
+              {
+                "op": "=",
+                "key": "Size",
+                "logic": "and",
+                "value": "medium"
+              }
+            ],
+            "change": []
+          },
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "1"
+              },
+              {
+                "op": "=",
+                "key": "Size",
+                "logic": "and",
+                "value": "large"
+              }
+            ],
+            "change": []
+          },
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "1"
+              },
+              {
+                "op": "=",
+                "key": "Size",
+                "logic": "and",
+                "value": "xlarge"
+              }
+            ],
+            "change": []
+          }
+        ]
+      },
+      {
+        "key": "sides",
+        "label": "Graphic",
+        "options": [
+          {
+            "key": "1",
+            "label": "Single Sided Print Thru",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "-1",
+            "label": "Single Sided Print Thru Reverse",
+            "images": []
+          },
+          {
+            "key": "2",
+            "label": "Double Sided",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "flaghardware",
+        "label": "Base",
+        "visible": [
+          {
+            "key": "flag_pole_tab",
+            "value": "1",
+            "op": "=",
+            "logic": "and"
+          }
+        ],
+        "options": [
+          {
+            "key": "PG",
+            "label": "Ground Stake",
+            "default": true,
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "PB",
+            "label": "Cross Base",
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "PBG",
+            "label": "Cross Base + Ground Stake",
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "PBW",
+            "label": "Cross Base + WaterBag",
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "PBS",
+            "label": "Square Base",
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "0",
+            "label": "No Hardware (Flag Only)",
+            "default": true,
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "0",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "carrybag",
+        "label": "Carry Bag",
+        "options": [
+          {
+            "key": "0",
+            "label": "No",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1",
+            "label": "Yes",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/convex-flag",
+    "checkedAt": "2026-10-12"
+  },
+  "teardrop-flag": {
+    "supplierItemId": 42,
+    "groups": [
+      {
+        "key": "flag_pole_tab",
+        "label": "Package",
+        "options": [
+          {
+            "key": "1",
+            "label": "Flag + Pole",
+            "default": true,
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/QeM32vbo-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/QeM32vbo-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/QeM32vbo-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "small"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/vHLBTaeg-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/vHLBTaeg-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/vHLBTaeg-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "medium"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/250310/EVvpMoFk-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/250310/EVvpMoFk-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/250310/EVvpMoFk-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "large"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/7uuiHo6m-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/7uuiHo6m-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/7uuiHo6m-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "xlarge"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "0",
+            "label": "Flag Only",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "size",
+        "label": "Size",
+        "options": [
+          {
+            "key": "small",
+            "label": "Small 7 ft.",
+            "images": []
+          },
+          {
+            "key": "medium",
+            "label": "Medium 9 ft.",
+            "images": []
+          },
+          {
+            "key": "large",
+            "label": "Large 11.2 ft.",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "xlarge",
+            "label": "X-Large 13.5 ft.",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": [
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "1"
+              },
+              {
+                "op": "=",
+                "key": "size",
+                "logic": "and",
+                "value": "small"
+              }
+            ],
+            "change": []
+          },
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "1"
+              },
+              {
+                "op": "=",
+                "key": "size",
+                "logic": "and",
+                "value": "medium"
+              }
+            ],
+            "change": []
+          },
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "1"
+              },
+              {
+                "op": "=",
+                "key": "size",
+                "logic": "and",
+                "value": "large"
+              }
+            ],
+            "change": []
+          },
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "1"
+              },
+              {
+                "op": "=",
+                "key": "size",
+                "logic": "and",
+                "value": "xlarge"
+              }
+            ],
+            "change": []
+          }
+        ]
+      },
+      {
+        "key": "sides",
+        "label": "Graphic",
+        "options": [
+          {
+            "key": "1",
+            "label": "Single Sided Print Thru",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "-1",
+            "label": "Single Sided Print Thru Reverse",
+            "images": []
+          },
+          {
+            "key": "2",
+            "label": "Double Sided",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "flaghardware",
+        "label": "Base",
+        "visible": [
+          {
+            "key": "flag_pole_tab",
+            "value": "1",
+            "op": "=",
+            "logic": "and"
+          }
+        ],
+        "options": [
+          {
+            "key": "PG",
+            "label": "Ground Stake",
+            "default": true,
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "PB",
+            "label": "Cross Base",
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "PBG",
+            "label": "Cross Base + Ground Stake",
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "PBW",
+            "label": "Cross Base + WaterBag",
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "PBS",
+            "label": "Square Base",
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "0",
+            "label": "No Hardware (Flag Only)",
+            "default": true,
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "0",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "carrybag",
+        "label": "Carry Bag",
+        "options": [
+          {
+            "key": "0",
+            "label": "No",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1",
+            "label": "Yes",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/teardrop-flag",
+    "checkedAt": "2026-10-12"
+  },
+  "rectangle-flag": {
+    "supplierItemId": 43,
+    "groups": [
+      {
+        "key": "flag_pole_tab",
+        "label": "Package",
+        "options": [
+          {
+            "key": "1",
+            "label": "Flag + Pole",
+            "default": true,
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/mPSvTvDY-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/mPSvTvDY-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/mPSvTvDY-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "small"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/xHnMiT83-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/xHnMiT83-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/xHnMiT83-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "medium"
+                  }
+                ]
+              },
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240327/QOBiLHcp-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240327/QOBiLHcp-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240327/QOBiLHcp-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "large"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "0",
+            "label": "Flag Only",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "size",
+        "label": "Size",
+        "options": [
+          {
+            "key": "small",
+            "label": "Small 8.5 ft.",
+            "images": []
+          },
+          {
+            "key": "medium",
+            "label": "Medium 11.8 ft.",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "large",
+            "label": "Large 15 ft.",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": [
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "1"
+              },
+              {
+                "op": "=",
+                "key": "size",
+                "logic": "and",
+                "value": "small"
+              }
+            ],
+            "change": []
+          },
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "1"
+              },
+              {
+                "op": "=",
+                "key": "size",
+                "logic": "and",
+                "value": "medium"
+              }
+            ],
+            "change": []
+          },
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "flag_pole_tab",
+                "logic": "and",
+                "value": "1"
+              },
+              {
+                "op": "=",
+                "key": "size",
+                "logic": "and",
+                "value": "large"
+              }
+            ],
+            "change": []
+          }
+        ]
+      },
+      {
+        "key": "sides",
+        "label": "Graphic",
+        "options": [
+          {
+            "key": "1",
+            "label": "Single Sided Print Thru",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "-1",
+            "label": "Single Sided Print Thru Reverse",
+            "images": []
+          },
+          {
+            "key": "2",
+            "label": "Double Sided",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "flaghardware",
+        "label": "Base",
+        "visible": [
+          {
+            "key": "flag_pole_tab",
+            "value": "1",
+            "op": "=",
+            "logic": "and"
+          }
+        ],
+        "options": [
+          {
+            "key": "PG",
+            "label": "Ground Stake",
+            "default": true,
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "PB",
+            "label": "Cross Base",
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "PBG",
+            "label": "Cross Base + Ground Stake",
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "PBW",
+            "label": "Cross Base + WaterBag",
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "PBS",
+            "label": "Square Base",
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "1",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "0",
+            "label": "No Hardware (Flag Only)",
+            "default": true,
+            "visible": [
+              {
+                "key": "flag_pole_tab",
+                "value": "0",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "pole",
+        "label": "Pole",
+        "visible": false,
+        "options": [
+          {
+            "key": "1",
+            "label": "Yes",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "0",
+            "label": "No",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/rectangle-flag",
+    "checkedAt": "2026-10-12"
+  },
+  "econo-feather-flag": {
+    "supplierItemId": 1,
+    "groups": [
+      {
+        "key": "flag_pole",
+        "label": "Package",
+        "options": [
+          {
+            "key": "flag_pole",
+            "label": "Flag + Pole",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "fo",
+            "label": "Flag Only",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "graphic",
+        "label": "Graphic",
+        "options": [
+          {
+            "key": "1",
+            "label": "Single Side Print Thru",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "-1",
+            "label": "Single Side Print Thru Reverse",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "base",
+        "label": "Base",
+        "visible": [
+          {
+            "key": "flag_pole",
+            "value": "flag_pole",
+            "op": "=",
+            "logic": "and"
+          }
+        ],
+        "options": [
+          {
+            "key": "PG",
+            "label": "Ground Stake",
+            "default": true,
+            "visible": [
+              {
+                "key": "flag_pole",
+                "value": "flag_pole",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          },
+          {
+            "key": "0",
+            "label": "No Hardware (Flag Only)",
+            "default": true,
+            "visible": [
+              {
+                "key": "flag_pole",
+                "value": "fo",
+                "op": "=",
+                "logic": "and"
+              }
+            ],
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "material",
+        "label": "Material",
+        "visible": false,
+        "options": [
+          {
+            "key": "flag_polyster",
+            "label": "Flag Polyster",
+            "default": true,
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/econo-feather-flag",
+    "checkedAt": "2026-10-12"
+  },
+  "4ft-table-cover": {
+    "supplierItemId": 208,
+    "groups": [
+      {
+        "key": "sides",
+        "label": "Backside",
+        "options": [
+          {
+            "key": "3sided",
+            "label": "3 sided (Open-back)",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "4sided",
+            "label": "4 sided (Close-back)",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/4ft-table-cover",
+    "checkedAt": "2026-10-12"
+  },
+  "6ft-table-cover": {
+    "supplierItemId": 206,
+    "groups": [
+      {
+        "key": "sides",
+        "label": "Backside",
+        "options": [
+          {
+            "key": "3sided",
+            "label": "3 sided (Open-back)",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "4sided",
+            "label": "4 sided (Close-back)",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/6ft-table-cover",
+    "checkedAt": "2026-10-12"
+  },
+  "8ft-table-cover": {
+    "supplierItemId": 207,
+    "groups": [
+      {
+        "key": "sides",
+        "label": "Backside",
+        "options": [
+          {
+            "key": "3sided",
+            "label": "3 sided (Open-back)",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "4sided",
+            "label": "4 sided (Close-back)",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/8ft-table-cover",
+    "checkedAt": "2026-10-12"
+  },
+  "Fitted-Table-Cover": {
+    "supplierItemId": 253,
+    "groups": [
+      {
+        "key": "size",
+        "label": "Size",
+        "options": [
+          {
+            "key": "6ft",
+            "label": "6ft",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "8ft",
+            "label": "8ft",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "backside",
+        "label": "Backside",
+        "options": [
+          {
+            "key": "3sided",
+            "label": "3 sided (Open-back)",
+            "images": []
+          },
+          {
+            "key": "4sided",
+            "label": "4 sided (Close-back)",
+            "default": true,
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/Fitted-Table-Cover",
+    "checkedAt": "2026-10-12"
+  },
+  "stretch-table-cover": {
+    "supplierItemId": 209,
+    "groups": [
+      {
+        "key": "size",
+        "label": "Size",
+        "options": [
+          {
+            "key": "6ft",
+            "label": "6ft",
+            "default": true,
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240319/QgBqDTht-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240319/QgBqDTht-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240319/QgBqDTht-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "6ft"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "8ft",
+            "label": "8ft",
+            "images": [
+              {
+                "s200": "https://www.b2sign.com/image/thumb/240319/PHebOUNf-s200.jpg",
+                "s400": "https://www.b2sign.com/image/thumb/240319/PHebOUNf-s400.jpg",
+                "s1000": "https://www.b2sign.com/image/thumb/240319/PHebOUNf-s1000.jpg",
+                "match": [
+                  {
+                    "op": "=",
+                    "key": "size",
+                    "logic": "and",
+                    "value": "8ft"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/stretch-table-cover",
+    "checkedAt": "2026-10-12"
+  },
+  "event-tent-canopy-graphic": {
+    "supplierItemId": 35,
+    "groups": [
+      {
+        "key": "tent_hardware",
+        "label": "Package",
+        "options": [
+          {
+            "key": "1",
+            "label": "Canopy Graphic + Frame",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "0",
+            "label": "Canopy Graphic Only",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": [
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "tent_hardware",
+                "logic": "and",
+                "value": "0"
+              },
+              {
+                "op": "=",
+                "key": "tent_carrybag",
+                "logic": "and",
+                "value": "w"
+              }
+            ],
+            "change": [
+              {
+                "key": "tent_carrybag",
+                "value": "s"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "tent_sewing_thread",
+        "label": "Reinforced Strip",
+        "options": [
+          {
+            "key": "white",
+            "label": "White",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "black",
+            "label": "Black",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/240408/vpxiASlu-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/240408/vpxiASlu-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/240408/vpxiASlu-s1000.jpg"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "key": "tent_carrybag",
+        "label": "Carry Bag",
+        "visible": [
+          {
+            "key": "tent_hardware",
+            "value": "1",
+            "op": "=",
+            "logic": "and"
+          }
+        ],
+        "options": [
+          {
+            "key": "s",
+            "label": "Standard Bag",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "w",
+            "label": "Carry Bag with Wheels",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/240408/WsuhmWIw-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/240408/WsuhmWIw-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/240408/WsuhmWIw-s1000.jpg"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "key": "mesh_sidewall",
+        "label": "Mesh Sidewall",
+        "options": [
+          {
+            "key": "0",
+            "label": "No",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1",
+            "label": "Yes",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/260828/kiBfx3E3-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/260828/kiBfx3E3-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/260828/kiBfx3E3-s1000.jpg"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "key": "tent_sandbag",
+        "label": "Sandbag",
+        "options": [
+          {
+            "key": "0",
+            "label": "No",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1",
+            "label": "4 Sandbags",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/240408/89vwaPWy-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/240408/89vwaPWy-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/240408/89vwaPWy-s1000.jpg"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "key": "tent_full_wall",
+        "label": "Full Wall",
+        "options": [
+          {
+            "key": "0",
+            "label": "No Full Wall",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "A",
+            "label": "1 Full Wall",
+            "images": []
+          },
+          {
+            "key": "AB",
+            "label": "2 Full Walls",
+            "images": []
+          },
+          {
+            "key": "ABC",
+            "label": "3 Full Walls",
+            "images": []
+          },
+          {
+            "key": "ABCD",
+            "label": "4 Full Walls",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/240408/7j1t4Wwf-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/240408/7j1t4Wwf-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/240408/7j1t4Wwf-s1000.jpg"
+          }
+        ],
+        "actions": [
+          {
+            "match": [
+              {
+                "op": "!=",
+                "key": "tent_full_wall",
+                "logic": "and",
+                "value": "0"
+              }
+            ],
+            "change": [
+              {
+                "key": "tent_full_wall_velcro",
+                "value": "cfw"
+              }
+            ]
+          },
+          {
+            "match": [
+              {
+                "op": "=",
+                "key": "tent_full_wall",
+                "logic": "and",
+                "value": "0"
+              }
+            ],
+            "change": [
+              {
+                "key": "tent_full_wall_velcro",
+                "value": "nfw"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "tent_half_wall",
+        "label": "Half Wall",
+        "options": [
+          {
+            "key": "0",
+            "label": "No Half Wall",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1x1",
+            "label": "1 Half Wall (Single Sided)",
+            "images": []
+          },
+          {
+            "key": "2x1",
+            "label": "2 Half Walls (Single Sided)",
+            "images": []
+          },
+          {
+            "key": "3x1",
+            "label": "3 Half Walls (Single Sided)",
+            "images": []
+          },
+          {
+            "key": "4x1",
+            "label": "4 Half Walls (Single Sided)",
+            "images": []
+          },
+          {
+            "key": "1x2",
+            "label": "1 Half Wall (Double Sided)",
+            "images": []
+          },
+          {
+            "key": "2x2",
+            "label": "2 Half Walls (Double Sided)",
+            "images": []
+          },
+          {
+            "key": "3x2",
+            "label": "3 Half Walls (Double Sided)",
+            "images": []
+          },
+          {
+            "key": "4x2",
+            "label": "4 Half Walls (Double Sided)",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/240408/7j1t4Wwf-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/240408/7j1t4Wwf-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/240408/7j1t4Wwf-s1000.jpg"
+          }
+        ],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/event-tent-canopy-graphic",
+    "checkedAt": "2026-10-12"
+  },
+  "10x15-event-tent": {
+    "supplierItemId": 237,
+    "groups": [
+      {
+        "key": "tent_hardware",
+        "label": "Package",
+        "options": [
+          {
+            "key": "1",
+            "label": "Canopy Graphic + Frame",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "0",
+            "label": "Canopy Graphic Only",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "tent_sewing_thread",
+        "label": "Reinforced Strip",
+        "options": [
+          {
+            "key": "white",
+            "label": "White",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "black",
+            "label": "Black",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/250702/RVkr509i-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/250702/RVkr509i-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/250702/RVkr509i-s1000.jpg"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "key": "tent_carrybag",
+        "label": "Carry Bag",
+        "visible": [
+          {
+            "key": "tent_hardware",
+            "value": "1",
+            "op": "=",
+            "logic": "and"
+          }
+        ],
+        "options": [
+          {
+            "key": "s",
+            "label": "Standard Bag",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "w",
+            "label": "Carry Bag with Wheels",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/250702/DerhBUwU-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/250702/DerhBUwU-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/250702/DerhBUwU-s1000.jpg"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "key": "tent_sandbag",
+        "label": "Sandbag",
+        "options": [
+          {
+            "key": "0",
+            "label": "No",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1",
+            "label": "4 Sandbags",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/250702/VxC4GL9F-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/250702/VxC4GL9F-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/250702/VxC4GL9F-s1000.jpg"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "key": "tent_full_wall",
+        "label": "Full Wall \n(Short Side)",
+        "options": [
+          {
+            "key": "0",
+            "label": "No Full Wall",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "S1",
+            "label": "1 Short Side Full Wall",
+            "images": []
+          },
+          {
+            "key": "S2",
+            "label": "2 Short Side Full Wall",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/250703/cqJG1ZcE-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/250703/cqJG1ZcE-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/250703/cqJG1ZcE-s1000.jpg"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "key": "tent_full_wall_long",
+        "label": "Full Wall \n(Long Side)",
+        "options": [
+          {
+            "key": "0",
+            "label": "No Full Wall",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "L1",
+            "label": "1 Long Side Full Wall",
+            "images": []
+          },
+          {
+            "key": "L2",
+            "label": "2 Long Side Full Wall",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/250703/mXb7yFmc-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/250703/mXb7yFmc-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/250703/mXb7yFmc-s1000.jpg"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "key": "tent_half_wall",
+        "label": "Half Wall",
+        "options": [
+          {
+            "key": "0",
+            "label": "No Half Wall",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1x1",
+            "label": "1 Half Wall (Single Sided)",
+            "images": []
+          },
+          {
+            "key": "1x2",
+            "label": "1 Half Wall (Double Sided)",
+            "images": []
+          },
+          {
+            "key": "2x1",
+            "label": "2 Half Walls (Single Sided)",
+            "images": []
+          },
+          {
+            "key": "2x2",
+            "label": "2 Half Walls (Double Sided)",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/250703/O5XJwZOf-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/250703/O5XJwZOf-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/250703/O5XJwZOf-s1000.jpg"
+          }
+        ],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/10x15-event-tent",
+    "checkedAt": "2026-10-12"
+  },
+  "10x20-event-tent": {
+    "supplierItemId": 238,
+    "groups": [
+      {
+        "key": "tent_hardware",
+        "label": "Package",
+        "options": [
+          {
+            "key": "1",
+            "label": "Tent Frame + Canopy Graphic",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "0",
+            "label": "Canopy Graphic (No Hardware)",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "tent_sewing_thread",
+        "label": "Reinforced Strip",
+        "options": [
+          {
+            "key": "white",
+            "label": "White",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "black",
+            "label": "Black",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/250703/NRXfzOLr-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/250703/NRXfzOLr-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/250703/NRXfzOLr-s1000.jpg"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "key": "tent_carrybag",
+        "label": "Carry Bag",
+        "visible": [
+          {
+            "key": "tent_hardware",
+            "value": "1",
+            "op": "=",
+            "logic": "and"
+          }
+        ],
+        "options": [
+          {
+            "key": "s",
+            "label": "Standard Bag",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "w",
+            "label": "Carry Bag with Wheels",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/250703/XkGtHS8t-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/250703/XkGtHS8t-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/250703/XkGtHS8t-s1000.jpg"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "key": "tent_sandbag",
+        "label": "Sandbag",
+        "options": [
+          {
+            "key": "2",
+            "label": "No",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1",
+            "label": "6 Sandbags",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/250703/Iw6Wsplc-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/250703/Iw6Wsplc-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/250703/Iw6Wsplc-s1000.jpg"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "key": "tent_full_wall",
+        "label": "Full Wall \n(Short Side)",
+        "options": [
+          {
+            "key": "0",
+            "label": "No Full Wall",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "S1",
+            "label": "1 Short Side Full Wall",
+            "images": []
+          },
+          {
+            "key": "S2",
+            "label": "2 Short Side Full Wall",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/250703/8lQ3IfJ6-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/250703/8lQ3IfJ6-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/250703/8lQ3IfJ6-s1000.jpg"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "key": "tent_full_wall_long",
+        "label": "Full Wall \n(Long Side)",
+        "options": [
+          {
+            "key": "0",
+            "label": "No Full Wall",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "L1",
+            "label": "1 Long Side Full Wall",
+            "images": []
+          },
+          {
+            "key": "L2",
+            "label": "2 Long Side Full Wall",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/250703/UOpHVzTv-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/250703/UOpHVzTv-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/250703/UOpHVzTv-s1000.jpg"
+          }
+        ],
+        "actions": []
+      },
+      {
+        "key": "tent_half_wall",
+        "label": "Half Wall",
+        "options": [
+          {
+            "key": "0",
+            "label": "No Half Wall",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1x1",
+            "label": "1 Half Wall (Single Sided)",
+            "images": []
+          },
+          {
+            "key": "1x2",
+            "label": "1 Half Wall (Double Sided)",
+            "images": []
+          },
+          {
+            "key": "2x1",
+            "label": "2 Half Walls (Single Sided)",
+            "images": []
+          },
+          {
+            "key": "2x2",
+            "label": "2 Half Walls (Double Sided)",
+            "images": []
+          }
+        ],
+        "images": [
+          {
+            "s200": "https://www.b2sign.com/image/thumb/250703/TyxQkh3b-s200.jpg",
+            "s400": "https://www.b2sign.com/image/thumb/250703/TyxQkh3b-s400.jpg",
+            "s1000": "https://www.b2sign.com/image/thumb/250703/TyxQkh3b-s1000.jpg"
+          }
+        ],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/10x20-event-tent",
+    "checkedAt": "2026-10-12"
+  },
+  "clear-acrylic-transparent": {
+    "supplierItemId": 245,
+    "groups": [
+      {
+        "key": "hardware",
+        "label": "Drill Holes & Stand off",
+        "options": [
+          {
+            "key": "0",
+            "label": "None",
+            "images": []
+          },
+          {
+            "key": "acrylic+standoff",
+            "label": "4 Corners Hole Punch + Stand off",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "acrylic+2standoff_top",
+            "label": "Top Corners Hole Punch + Stand off",
+            "images": []
+          },
+          {
+            "key": "acrylic+2standoff_center",
+            "label": "Center Top and Bottom + Stand off",
+            "images": []
+          },
+          {
+            "key": "acrylic+6standoff",
+            "label": "4 Corners & Center Top and Bottom + Stand off",
+            "images": []
+          },
+          {
+            "key": "TL;TR;BL;BR",
+            "label": "4 Corners Hole Punch",
+            "images": []
+          },
+          {
+            "key": "TL;TR",
+            "label": "Top Corners Hole Punch",
+            "images": []
+          },
+          {
+            "key": "TC;BC",
+            "label": "Center Top and Bottom Hole Punch",
+            "images": []
+          },
+          {
+            "key": "TL;TR;BL;BR;TC;BC",
+            "label": "4 Corners & Center Top and Bottom Hole Punch",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "cornerstyle",
+        "label": "Round Corners",
+        "options": [
+          {
+            "key": "none",
+            "label": "None",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1_4",
+            "label": "1/4\"",
+            "images": []
+          },
+          {
+            "key": "1_2",
+            "label": "1/2\"",
+            "images": []
+          },
+          {
+            "key": "3_4",
+            "label": "3/4\"",
+            "images": []
+          },
+          {
+            "key": "1",
+            "label": "1\"",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/clear-acrylic-transparent",
+    "checkedAt": "2026-10-12"
+  },
+  "aluminum-sign": {
+    "supplierItemId": 38,
+    "groups": [
+      {
+        "key": "size",
+        "label": "Size",
+        "options": [
+          {
+            "key": "custom_size",
+            "label": "Custom Size",
+            "images": []
+          },
+          {
+            "key": "12x18",
+            "label": "12\" x 18\"",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "18x24",
+            "label": "18\" x 24\"",
+            "images": []
+          },
+          {
+            "key": "24x36",
+            "label": "24\" x 36\"",
+            "images": []
+          },
+          {
+            "key": "18x12",
+            "label": "18\" x 12\"",
+            "images": []
+          },
+          {
+            "key": "24x18",
+            "label": "24\" x 18\"",
+            "images": []
+          },
+          {
+            "key": "36x24",
+            "label": "36\" x 24\"",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "sides",
+        "label": "# of Sides",
+        "options": [
+          {
+            "key": "1",
+            "label": "1 Side",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "2",
+            "label": "2 Sides",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "cornerstyle",
+        "label": "Round Corners",
+        "options": [
+          {
+            "key": "1_4",
+            "label": "1/4\"",
+            "images": []
+          },
+          {
+            "key": "1_2",
+            "label": "1/2\"",
+            "images": []
+          },
+          {
+            "key": "R",
+            "label": "3/4\"",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1",
+            "label": "1\"",
+            "images": []
+          },
+          {
+            "key": "S",
+            "label": "None",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "holespunch",
+        "label": "Holes Punch",
+        "options": [
+          {
+            "key": "0",
+            "label": "None",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "TL;TR;BL;BR",
+            "label": "All Four Corners",
+            "images": []
+          },
+          {
+            "key": "TL;TR",
+            "label": "Top Corners",
+            "images": []
+          },
+          {
+            "key": "TC;BC",
+            "label": "Center-Top and Bottom",
+            "images": []
+          },
+          {
+            "key": "custom",
+            "label": "Custom Hole Punch",
+            "custom": {
+              "type": "hole",
+              "size_key": [
+                "size",
+                "_size"
+              ],
+              "is_grommet": false
+            },
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "lamination",
+        "label": "Print",
+        "options": [
+          {
+            "key": "UV",
+            "label": "UV Ink - Gloss Finish",
+            "default": true,
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/aluminum-sign",
+    "checkedAt": "2026-10-12"
+  },
+  "aluminum-sandwich-board": {
+    "supplierItemId": 13,
+    "groups": [
+      {
+        "key": "sides",
+        "label": "# of Sides",
+        "options": [
+          {
+            "key": "1",
+            "label": "1 Side",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "2",
+            "label": "2 Sides",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "holespunch",
+        "label": "Holes Punch",
+        "options": [
+          {
+            "key": "0",
+            "label": "None",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "TL;TR;BL;BR",
+            "label": "All Four Corners",
+            "images": []
+          },
+          {
+            "key": "TC;BC",
+            "label": "Center-Top and Bottom",
+            "images": []
+          },
+          {
+            "key": "TL;TR",
+            "label": "Top Corners",
+            "images": []
+          },
+          {
+            "key": "custom1",
+            "label": "Custom Hole Punch",
+            "custom": {
+              "type": "hole",
+              "size_key": [
+                "hot_size",
+                "_size"
+              ],
+              "is_grommet": false
+            },
+            "images": []
+          },
+          {
+            "key": "custom2",
+            "label": "Custom Grommets",
+            "custom": {
+              "type": "hole",
+              "size_key": [
+                "hot_size",
+                "_size"
+              ],
+              "is_grommet": true
+            },
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "cornerstyle",
+        "label": "Round Corners",
+        "options": [
+          {
+            "key": "R",
+            "label": "1/4\"",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1_2",
+            "label": "1/2\"",
+            "images": []
+          },
+          {
+            "key": "3_4",
+            "label": "3/4\"",
+            "images": []
+          },
+          {
+            "key": "1",
+            "label": "1\"",
+            "images": []
+          },
+          {
+            "key": "S",
+            "label": "None",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "material",
+        "label": "Material",
+        "options": [
+          {
+            "key": "1/8in_aluminum",
+            "label": "1/8\" Aluminum Sandwich Board",
+            "default": true,
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "lamination",
+        "label": "Print",
+        "options": [
+          {
+            "key": "UV",
+            "label": "UV Ink - Gloss Finish",
+            "default": true,
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/aluminum-sandwich-board",
+    "checkedAt": "2026-10-12"
+  },
+  "posters": {
+    "supplierItemId": 9,
+    "groups": [
+      {
+        "key": "material",
+        "label": "Material",
+        "options": [
+          {
+            "key": "double_white_popup",
+            "label": "14mil Double White Popup",
+            "default": true,
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "lamination",
+        "label": "Print",
+        "options": [
+          {
+            "key": "UV",
+            "label": "UV Ink - Matte Finish",
+            "default": true,
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "lam",
+        "label": "Lamination",
+        "options": [
+          {
+            "key": "no",
+            "label": "No",
+            "default": true,
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.b2sign.com/posters",
+    "checkedAt": "2026-10-12"
+  },
+  "signs365-acrylic": {
+    "groups": [
+      {
+        "key": "hardware",
+        "label": "Mounting",
+        "images": [],
+        "options": [
+          {
+            "key": "acrylic+standoff",
+            "label": "Wall standoffs",
+            "images": []
+          },
+          {
+            "key": "acrylic",
+            "label": "Panel only",
+            "images": []
+          }
+        ]
+      }
+    ],
+    "sourceUrl": "https://www.signs365.com/portal/static/managed/catalog/SignageCatalog9-23-HQ.pdf",
+    "checkedAt": "2026-10-12"
+  },
+  "signs365-acm": {
+    "groups": [
+      {
+        "key": "sides",
+        "label": "# of Sides",
+        "options": [
+          {
+            "key": "1",
+            "label": "1 Side",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "2",
+            "label": "2 Sides",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "holespunch",
+        "label": "Holes Punch",
+        "options": [
+          {
+            "key": "0",
+            "label": "None",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "TL;TR;BL;BR",
+            "label": "All Four Corners",
+            "images": []
+          },
+          {
+            "key": "TC;BC",
+            "label": "Center-Top and Bottom",
+            "images": []
+          },
+          {
+            "key": "TL;TR",
+            "label": "Top Corners",
+            "images": []
+          },
+          {
+            "key": "custom1",
+            "label": "Custom Hole Punch",
+            "custom": {
+              "type": "hole",
+              "size_key": [
+                "hot_size",
+                "_size"
+              ],
+              "is_grommet": false
+            },
+            "images": []
+          },
+          {
+            "key": "custom2",
+            "label": "Custom Grommets",
+            "custom": {
+              "type": "hole",
+              "size_key": [
+                "hot_size",
+                "_size"
+              ],
+              "is_grommet": true
+            },
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "cornerstyle",
+        "label": "Round Corners",
+        "options": [
+          {
+            "key": "R",
+            "label": "1/4\"",
+            "default": true,
+            "images": []
+          },
+          {
+            "key": "1_2",
+            "label": "1/2\"",
+            "images": []
+          },
+          {
+            "key": "3_4",
+            "label": "3/4\"",
+            "images": []
+          },
+          {
+            "key": "1",
+            "label": "1\"",
+            "images": []
+          },
+          {
+            "key": "S",
+            "label": "None",
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "material",
+        "label": "Material",
+        "options": [
+          {
+            "key": "1/8in_aluminum",
+            "label": "3 mm aluminum composite",
+            "default": true,
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      },
+      {
+        "key": "lamination",
+        "label": "Print",
+        "options": [
+          {
+            "key": "UV",
+            "label": "Standard printed finish",
+            "default": true,
+            "images": []
+          }
+        ],
+        "images": [],
+        "actions": []
+      }
+    ],
+    "sourceUrl": "https://www.signs365.com/portal/static/managed/catalog/SignageCatalog9-23-HQ.pdf",
+    "checkedAt": "2026-10-12"
+  }
+}

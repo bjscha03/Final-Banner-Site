@@ -1,4 +1,5 @@
 'use strict';
+const { normalizeSpecialtyItem, requireSpecialtyFulfillment } = require('./specialty-products.cjs');
 
 const PRODUCT_LIMIT = 50;
 const MAX_QUANTITY = 1000;
@@ -295,6 +296,7 @@ function repriceStripeCart(rawItems) {
     if (productType === 'banner') return normalizeBanner(rawItem, index);
     if (productType === 'yard_sign') return normalizeYardSign(rawItem, index);
     if (productType === 'car_magnet') return normalizeCarMagnet(rawItem, index);
+    if (productType === 'specialty') return normalizeSpecialtyItem(rawItem);
     fail('PRODUCT_TYPE_UNSUPPORTED', 'This product cannot be purchased through checkout.', { index, productType });
   });
   const totalBannerSqFt = rawItems.reduce((total, item) => {
@@ -304,6 +306,7 @@ function repriceStripeCart(rawItems) {
   if (totalBannerSqFt > 1000) {
     fail('BANNER_CUSTOM_QUOTE_REQUIRED', 'Banner orders over 1,000 total square feet require a custom quote and 1-5 business days of production.', { totalBannerSqFt });
   }
+  requireSpecialtyFulfillment(normalizedItems);
   return normalizedItems;
 }
 

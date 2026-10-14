@@ -1,3 +1,4 @@
+import { availableSpecialtyProducts } from '@/lib/specialtyProducts';
 import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, Mail, UserCheck, Users, Gift } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -50,6 +51,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
     { name: 'Vinyl Banners', href: '/design?product=banner' },
     { name: 'Yard Signs', href: '/design?product=yard-signs' },
     { name: 'Car Magnets', href: '/design?product=car-magnets' },
+    ...(availableSpecialtyProducts.length ? [{ name: 'Displays & Signs', href: '/products' }] : []),
     { name: 'Shipping', href: '/shipping' },
     { name: 'Blog', href: '/blog' },
     { name: 'Design Tool', href: '/design' },
@@ -258,18 +260,19 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
             </ScrollToTopLink>
           </div>
 
-          <nav className="hidden items-center gap-6 lg:flex" aria-label="Primary navigation">
+          <nav className="hidden items-center gap-3 xl:gap-4 2xl:gap-6 lg:flex" aria-label="Primary navigation">
             {[
               { name: 'Vinyl Banners', href: '/design?product=banner' },
               { name: 'Yard Signs', href: '/design?product=yard-signs' },
               { name: 'Car Magnets', href: '/design?product=car-magnets' },
+    ...(availableSpecialtyProducts.length ? [{ name: 'Displays & Signs', href: '/products' }] : []),
               { name: 'Shipping', href: '/shipping' },
               { name: 'Custom Quote', href: '/custom-quote' },
             ].map((item) => (
               <ScrollToTopLink
                 key={item.href}
                 to={item.href}
-                className={`relative py-2 text-sm font-semibold transition-colors after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:origin-left after:bg-[#FF6A00] after:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] ${
+                className={`relative whitespace-nowrap py-2 text-xs font-semibold transition-colors after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:origin-left after:bg-[#FF6A00] after:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] xl:text-sm ${
                   location.pathname === item.href
                     ? 'text-[#061A31] after:scale-x-100'
                     : 'text-[#26374a] hover:text-[#b84300] after:scale-x-0 hover:after:scale-x-100'

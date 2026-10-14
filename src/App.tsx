@@ -57,6 +57,8 @@ const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Shipping = lazy(() => import("./pages/Shipping"));
 const CustomQuote = lazy(() => import("./pages/CustomQuote"));
+const SpecialtyCatalog = lazy(() => import("./pages/SpecialtyCatalog"));
+const SpecialtyProductPage = lazy(() => import("./pages/SpecialtyProductPage"));
 
 // Blog pages - lazy load
 const Blog = lazy(() => import("./pages/Blog"));
@@ -210,6 +212,8 @@ export const RoutedApplication = () => (
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/shipping" element={<Shipping />} />
             <Route path="/custom-quote" element={<CustomQuote />} />
+            <Route path="/products" element={<SpecialtyCatalog />} />
+            <Route path="/products/:slug" element={<SpecialtyProductPage />} />
             
             {/* Blog */}
             <Route path="/blog" element={<Blog />} />

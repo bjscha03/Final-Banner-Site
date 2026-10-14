@@ -210,6 +210,7 @@ exports.handler = async (event, context) => {
       ['final_render_height_px'],
       ['final_render_dpi'],
       ['canvas_state_json'],
+      ['specialty_config'],
       ['design_service_enabled'],
       ['design_request_text'],
       ['design_draft_preference'],

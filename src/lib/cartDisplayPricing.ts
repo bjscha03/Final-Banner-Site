@@ -17,7 +17,7 @@ export function getCartDisplayPrices(
   const weights = items.map(item => {
     if (resolved.appliedDiscountType === 'none') return 0;
     if (resolved.appliedDiscountType === 'quantity') {
-      return !['yard_sign', 'car_magnet'].includes(item.product_type || 'banner') ? item.line_total_cents : 0;
+      return !['yard_sign', 'car_magnet', 'specialty'].includes(item.product_type || 'banner') ? item.line_total_cents : 0;
     }
     if (resolved.promotionId === LARGE_BANNER_PROMOTION_ID) {
       return isQualifyingLargeBannerDiscountItem({ ...item, product_type: item.product_type || 'banner' }) ? item.line_total_cents : 0;

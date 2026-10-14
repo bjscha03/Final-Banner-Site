@@ -451,6 +451,7 @@ exports.handler = async (event) => {
 
     const authoritativeRequest = buildAuthoritativeRequest(request, item);
     const parsedState = parseJson(authoritativeRequest.canvasStateJson);
+    if(parsedState?.kind==='specialty')return {statusCode:409,headers:{...CORS_HEADERS,'Content-Type':'application/json'},body:JSON.stringify({error:'USE_SPECIALTY_PANELS',message:'Download the approved product panels from the order details. Each panel has its own supplier-sized production PDF.'})};
     const isNativeSceneV2 = parsedState?.sceneVersion === 2;
 
     if (isNativeSceneV2) {

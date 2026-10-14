@@ -124,6 +124,13 @@ function normalizeReadyPlacementPreview(preview, label) {
 }
 
 function normalizeCartItemPlacement(item = {}) {
+  if(item.product_type==='specialty') {
+    // Specialty artwork has a distinct identity per panel. Validate every panel,
+    // then expose the first permanent artifact to existing cart/email consumers.
+    const normalized=require('./specialty-products.cjs').normalizeSpecialtyItem(item);
+    const preview=normalizeReadyPlacementPreview(normalized.specialty_config.panels[0].preview,'specialty preview');
+    return {...normalized,placement_preview:preview,thumbnail_url:preview.previewUrl,web_preview_url:preview.previewUrl,composition_signature:preview.compositionSignature,composition_revision:preview.compositionRevision};
+  }
   const normalized = { ...item };
   if (normalized.placement_preview != null) {
     normalized.placement_preview = normalizeReadyPlacementPreview(

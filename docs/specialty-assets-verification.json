@@ -1,0 +1,3508 @@
+{
+  "checkedAt": "2026-10-12",
+  "method": "Live public supplier asset requests through Firecrawl; validates binary signatures without downloading full production files.",
+  "verified": 350,
+  "total": 350,
+  "assets": [
+    {
+      "url": "https://www.b2sign.com/downloadable/02023d9b5191dd948a42e82b4e735a013058168a",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Econo_SingleSided_PrintThru.psd\"",
+      "prefixHex": "384250530001000000000000000400005171000012c000080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/05778faed117b8fe89cb7509c812e029a3aa9549",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_M_DoubleSided.psd\"",
+      "prefixHex": "384250530001000000000000000400003dd100001de000080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/05d61c344c0791c66f81e1b743cc47f6ac449095",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_XL_SingleSided_PrintThru.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/05f05889cd6521a629a1f3fd142420fb128461d6",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_M_SingleSided_PrintThru.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/0895772a89dad1c9c0c5a194d797edb447f86907",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_L_SingleSided_PrintThru.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/08cf5f11c4d7ee61d4895f78b7060fa372274415",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Teardrop_M_SingleSided_PrintThru_Reverse.psd\"",
+      "prefixHex": "384250530001000000000000000500002fcf0000142600080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/0c3bd7a2c96933d69420642470633479d9d0da6b",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_S_SingleSided_PrintThru_Reverse.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/0c8382a8bcb44e02fbdba55116a98aab091e6eb4",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_S_SingleSided_PrintThru_Reverse.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/0d99b3b85277eb2a8ce1c90904b34d2d13edb8cb",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_M_SingleSided_PrintThru_Reverse.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/1082075d3a985fe57fb2d843cb9cfae2c914a5a2",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_S_SingleSided_PrintThru.psd\"",
+      "prefixHex": "384250530001000000000000000500002e9500000e3600080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/10d30487ca63ad3758f3c406c47d8f428a4f4781",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"TearDrop_XL_SingleSide_PrintThru.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/10fe5352391918e4e5e18905a68e98d4321a8f32",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_XL_DoubleSided.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/145e68848f7c81e256beb32bf1147e7035f6b747",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"6FT_TABLE-THROW_4-SIDED_CLOSED-BACK.psd\"",
+      "prefixHex": "3842505300010000000000000005000031d200004ab900080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/172ff826e80482383f35cbae71b3bd2120512dff",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_L_SingleSided_PrintThru.psd\"",
+      "prefixHex": "3842505300010000000000000005000051bd0000114900080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/1a41971ccadcb5258b87cc9f9ccec8f4e78cef66",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_L_SingleSided_PrintThru_Reverse.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/1b8b0bb71ea4e60a2f07872def1405e77a8d444c",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"TearDrop_M_DoubleSided.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/1d0bde4ae285f1ec0bd293a92184bf5823e8c4cb",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_S_DoubleSided.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/1fb50d237885fff51aa0257d407a83e745c95e60",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_L_DoubleSided.psd\"",
+      "prefixHex": "3842505300010000000000000004000051bd0000229200080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/23448ff7c64d91bac92d3c2852db17364eae3b25",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"20ft_TENT_LONGSIDE_FULLWALL_TEMPLATE.pdf\"",
+      "prefixHex": "255044462d312e360d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/243e142a4d3d87581b5492b5aac6153609ca668a",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_S_SingleSided_PrintThru_Reverse.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/2bbcb6c38a3fd1689b052fbca087d129c2376536",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"15ft_TENT_LONGSIDE_FULLWALL_TEMPLATE.pdf\"",
+      "prefixHex": "255044462d312e360d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/2cca5ff9d62af07c43f36f8b276f7457c498b5c1",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_S_DoubleSided.psd\"",
+      "prefixHex": "3842505300010000000000000004000037aa000027d400080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/2ce3c8dbd2d62796db863de839e3a8178fc15f48",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_M_SingleSided_PrintThru.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/30f0a2c5156afe756a523f34c11110dec4e85ec3",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"15ft_TENT_SHORTSIDE_FULLWALL_TEMPLATE.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/3646e7132420d0f6146936e0159955d584476e05",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_M_DoubleSided.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/36e48061f22c5d08b323179e3ece0451e2820c5a",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_M_SingleSided_PrintThru_Reverse.psd\"",
+      "prefixHex": "384250530001000000000000000400003dd100000ef100080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/36e5dd04a14874a54a0076fbfad885c64c8b0847",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"20ft_TENT_LONGSIDE_TEMPLATE.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/3728b9387600be6e0da4bacb905dc518099df010",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"halfwall.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/3ab515a17c12ea4cbd107c53daf08446dc060220",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Econo_SingleSided_PrintThru_Reverse.pdf\"",
+      "prefixHex": "255044462d312e370d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/3ad23d0f9dbfafd231d9cc3f89d014224ff772d9",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"20ft_TENT_SHORTSIDE_TEMPLATE.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/3ae0c016251ce2c0af8b89732cd6d40ebf5daa55",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"TearDrop_M_DoubleSided.psd\"",
+      "prefixHex": "384250530001000000000000000500002fcf0000285400080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/3b9122c78b48e30f8664ac93ee684e9c16d0525e",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"TearDrop_XL_DoubleSide.psd\"",
+      "prefixHex": "38425053000100000000000000050000551c0000388500080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/3e485796181f5bc2491002ed00b32dd073f1806e",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_M_SingleSided_PrintThru_Reverse.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/3e9af9819dc56dbc5685e7bef44010179ff85ef8",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"TearDrop_XL_DoubleSide.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/3f96de608d6183d6b0ad534450cf70eff9c147e4",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Econo_SingleSided_PrintThru.pdf\"",
+      "prefixHex": "255044462d312e370d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/40b334c6c770acb93f4297772c77cc304c869755",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"6FT_TABLE-THROW_3-SIDED_OPEN-BACK.psd\"",
+      "prefixHex": "38425053000100000000000000050000261800004b4d00080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/44677b4a6d9177d8e97cc5c11b0022f9010a0b21",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_S_DoubleSided.psd\"",
+      "prefixHex": "384250530001000000000000000500002e8000001c9200080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/4732d872ec33a9c2525d083926f60274d9c61eb4",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Event Tent Half Wall.psd\"",
+      "prefixHex": "3842505300010000000000000005000018060000436200080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/47a40ffe27fc6b0648541cb32c381833040d19a6",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"15ft_TENT_SHORTSIDE_TEMPLATE.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/4831ff8869e770e16504300f65f4b294e7c6d9f3",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Teardrop_L_SingleSided_PrintThru_Reverse.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/4ebd2005674184ec4489ffd40f20580680d6a25a",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Teardrop_S_SingleSided_PrintThru_Reverse.psd\"",
+      "prefixHex": "38425053000100000000000000040000265e00000e3100080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/525e9fb1f98ae62fa6661f8f4e0087c1c94c492a",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_L_SingleSided_PrintThru.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/529354332e435066ceba2688f857dfe9ed03e841",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_L_SingleSided_PrintThru_Reverse.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/5375f758b968969064d52696f6d9d436c4526926",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_S_SingleSided_PrintThru.psd\"",
+      "prefixHex": "384250530001000000000000000500002ee000000ea600080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/537bfff142807bb959265089fb0362b04da3f49d",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_XL_SingleSided_PrintThru.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/55bf0f0bf9d61e24da610256f83eca8c1cbd4a62",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_M_SingleSided_PrintThru_Reverse.psd\"",
+      "prefixHex": "384250530001000000000000000400003dd100000ef100080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/56db908cb128160ad3f37a6bc9241495e9ea2375",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Teardrop_M_SingleSided_PrintThru.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/591e538becce3d6c3070abe1e32afcc9c71871c5",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_M_DoubleSided.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/598c5997967510e60f1682b24c459b42949ce8e0",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"4FT_TABLE-COVER_3-SIDED_OPEN-BACK.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/5a20411e9a621af7b91bd0748a96ba71c76b2a13",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_S_SingleSided_PrintThru_Reverse.psd\"",
+      "prefixHex": "384250530001000000000000000500002ee000000ea600080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/5a25efb7e860e72923e961efb25b94ead55fcdad",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_S_SingleSided_PrintThru_Reverse.psd\"",
+      "prefixHex": "384250530001000000000000000500002e9500000e3600080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/5bac04c7fa34637bdbcd07ebb96f69d6fc5c0d7c",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"8FT_STRETCH_TABLE-COVER.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/5c675412822bb8969e414f71c44bf06bfa9210cd",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Teardrop_M_SingleSided_PrintThru_Reverse.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/5cd53f7c269e19d5a6c47d81e03fa069b3ec6946",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_XL_SingleSided_PrintThru.psd\"",
+      "prefixHex": "384250530001000000000000000400006fea00000fd200080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/5dcaf9afd28303911fd5bd5995fcbba8a9258608",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"15ft_TENT_LONGSIDE_TEMPLATE.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/5ebfd4884e1719c1e666040b8ca515ffdb35142b",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Teardrop_S_SingleSided_PrintThru.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/5fffd6aa6030929df5fb912009415acfc470c8d8",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Teardrop_S_DoubleSided.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/61cbd526770b3af036ce7040ea96ed6056939ff0",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_M_SingleSided_PrintThru.psd\"",
+      "prefixHex": "384250530001000000000000000400004524000013ec00080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/6235ae9b0107e6c22a73709f8c07e08e469280ee",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Event Tent Full Wall.psd\"",
+      "prefixHex": "384250530001000000000000000500002ee00000436200080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/6720630bf5ec6747ab64875fb14be89dad3d21dc",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Tension_Fabric_Stand_3ft_Straight.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/678c62a2ccbc02e32a592e0057b0840e876884da",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"canopy.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/68127ee9e053ea8b561275f268d23197f1e79890",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"8FT_FITTED_FULLBACK_TABLECOVER.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/6db11c22a91637c05dec4e557807dd2ea11131f0",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_XL_DoubleSided.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/6dc92a4a1e2a7f655005a1e629849ff2e76aecc4",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Installation_Guide_Event_Tent.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/6ea5cee610f23bc85aa3637fbd579742dc02303c",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_M_SingleSided_PrintThru.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/6fe819dd2ae08937c89419d45d6d85f806c1ad02",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_XL_SingleSided_PrintThru_Reverse.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/736dbf14e7f10a15ac5a45bc3193395f24f3ab11",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_XL_SingleSided_PrintThru_Reverse.psd\"",
+      "prefixHex": "384250530001000000000000000400006fea00000fd200080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/73aec8f09685b0b020bbcbfafd080f16f2659dc4",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_M_DoubleSided.psd\"",
+      "prefixHex": "384250530001000000000000000400004524000027cf00080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/7d460d73a76c2a976696b86eb9698e7cf7807103",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_L_DoubleSided.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/7d8491f03494e8f864679c1c5eee8f2f4bfde0a4",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Teardrop_L_SingleSided_PrintThru_Reverse.psd\"",
+      "prefixHex": "384250530001000000000000000400003c9e000018c300080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/829b3bc88c2c290bc85fbc763b55cace9f83d290",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"6FT_FITTED_OPENBACK_TABLECOVER.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/83064dff6e0ce3f09d89c1641cb8400cb45b5cb1",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_L_DoubleSided.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/8460ad78f38ed8fb31d9baaa4248df22bf718824",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"8FT_TABLE-THROW_3-SIDED_OPEN-BACK.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/8b64262e3b2f2b91702119ead8a4fafb5e9a0b3e",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_S_SingleSided_PrintThru_Reverse.psd\"",
+      "prefixHex": "3842505300010000000000000004000037aa000013ec00080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/8e225185845c7b839fdd1bff40880c510fde0f7a",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_XL_DoubleSided.psd\"",
+      "prefixHex": "384250530001000000000000000500006c510000200300080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/8edad7e3e8c3c64af213ebc1308ba01f67186e35",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"TearDrop_XL_SingleSide_PrintThru_Reverse.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/8fb3636d3c59c7d6f4379917f07ac6a6086edb6f",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_S_DoubleSided.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/92160dd497560defdb52a6b41099d5ea993566cf",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"20ft_TENT_SHORTSIDE_FULLWALL_TEMPLATE.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/9355ee46ae69fef3de4b5d55222caeaaaf07c58f",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_M_SingleSided_PrintThru.psd\"",
+      "prefixHex": "384250530001000000000000000400003dd100000ef100080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/954e80cb93b34652e42e006254fc5cbe57151b35",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"6FT_TABLE-THROW_3-SIDED_OPEN-BACK.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/95da508590afce460e03a8c0c120b02d2e3f4370",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"8FT_TABLE-COVER_4-SIDED_CLOSED-BACK.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/96d62c9a08fdcda0d180fe11d1d1c32346424473",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_XL_SingleSided_PrintThru_Reverse.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/97da385e2e85a8ed781cfecf64f5c009dd2c8741",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Teardrop_S_DoubleSided.psd\"",
+      "prefixHex": "38425053000100000000000000040000265e00001c7400080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/99144061e4bcf506330d7f6d4390b8dbacf14f26",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"8FT_TABLE-THROW_3-SIDED_OPEN-BACK.psd\"",
+      "prefixHex": "38425053000100000000000000050000263e000059f300080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/9d51b68ab9a87f3e8a9026a684a7507f361408b1",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_M_DoubleSided.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/9d5985a9564bdc794eba015f40f7b2a83abfe56e",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Teardrop_L_DoubleSided.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/a44c413b8b80f3cc00d619234aaaa37f8367e410",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"6FT_FITTED_FULLBACK_TABLECOVER.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/a4a39c8fa16bb6589237b64726f7ac87a738390f",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_S_DoubleSided.psd\"",
+      "prefixHex": "384250530001000000000000000500002ee000001d4c00080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/a74d1e4de75ca2d74dbbb4f8267f4dcbaf9fe605",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_M_SingleSided_PrintThru_Reverse.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/a7b9556b277e1f790115a18085cf9cb10cbf4019",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_XL_SingleSided_PrintThru_Reverse.psd\"",
+      "prefixHex": "384250530001000000000000000500006db800000fd200080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/a848616120e0e0e9840a56f1c933845ceafa84f4",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"fullwall.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/ac9c31af59a970e60e5f9705180f28c50bb6c738",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"8FT_FITTED_OPENBACK_TABLECOVER.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/ae597475582ff8ff62e36c16c00f19f65aec16bc",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_M_SingleSided_PrintThru_Reverse.psd\"",
+      "prefixHex": "384250530001000000000000000400004524000013ec00080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/b05721223e326aa074d7d922c42616644e9990cf",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_S_SingleSided_PrintThru.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/b40453e1bf8ef3c802df23eacf7fda7cd9380b6e",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"4FT_TABLE-COVER_4-SIDED_CLOSED-BACK.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/b59d7d73ae7b7229351066972ff83880f9a68689",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"8FT_STRETCH_TABLE-COVER.psd\"",
+      "prefixHex": "38425053000100000000000000040000364d00005d9b00080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/b8db20ab7a230c1d0e503515d6bc1ec2b985393b",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_L_DoubleSided.psd\"",
+      "prefixHex": "3842505300010000000000000004000051bd0000229200080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/b8fb232d7bd5c27f9dfe5413e2c45e23849cbfa1",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"TearDrop_XL_SingleSide_PrintThru_Reverse.psd\"",
+      "prefixHex": "38425053000100000000000000050000551c00001c1d00080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/bbad08e768dc9f2fbc863a0ac845eeed9dde81ba",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"4FT_TABLE-COVER_4-SIDED_CLOSED-BACK.psd\"",
+      "prefixHex": "3842505300010000000000000005000031d000003ca700080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/be6ef15449ff57628f697e32e62b209dd3388be1",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_L_SingleSided_PrintThru.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/c728a8a593e5c8850adff05cdb80d80a85320e28",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_L_DoubleSided.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/c8ff5655a9250ef0e5b269d22e4ae3c23576bd0a",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_L_SingleSided_PrintThru_Reverse.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/ca2cfa04ffbe4e54f6ac2159922acc02ea584e9b",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"6FT_TABLE-THROW_4-SIDED_CLOSED-BACK.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/cdcae6006b1c40f41a83690854a73cf0bbb24cba",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Teardrop_L_SingleSided_PrintThru.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/cebd87365e7426235bf70cb6b154887bef541980",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Teardrop_S_SingleSided_PrintThru_Reverse.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/cf6c0df3aaee29f3e3215d8e153f81f69127e593",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_S_SingleSided_PrintThru.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/d08e0060b84162bdf809c07c29532234b78f5f5f",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_M_DoubleSided.psd\"",
+      "prefixHex": "384250530001000000000000000400003dd100001de200080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/d0cdde5ef49a53429338585884430aa90c296d17",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"4FT_TABLE-COVER_3-SIDED_OPEN-BACK.psd\"",
+      "prefixHex": "38425053000100000000000000050000261800003d3b00080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/d150604a07423fb592406e3fa7817094e888e8d7",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_S_DoubleSided.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/d19c80e22721fae5c4ab0c5b1f3460fedd7c9347",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Teardrop_S_SingleSided_PrintThru.psd\"",
+      "prefixHex": "38425053000100000000000000040000265e00000e3100080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/d1d99a25894d52ee0448065cb3a0fa33f652aa0a",
+      "status": 200,
+      "contentType": "application/x-download",
+      "filename": "attachment; filename=\"FeatherAngled_XL_DoubleSided.psd\"",
+      "prefixHex": "384250530001000000000000000500006c2500001fb900080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes",
+      "bytes": null
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/da757899bf12e95cc2b6891c0b10a3edd7b5798e",
+      "status": 200,
+      "contentType": "application/x-download",
+      "filename": "attachment; filename=\"FeatherAngled_L_SingleSided_PrintThru_Reverse.psd\"",
+      "prefixHex": "3842505300010000000000000004000051bd0000114900080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes",
+      "bytes": null
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/dc721f79eab1114de3fc349efa8eafe2f5268f11",
+      "status": 200,
+      "contentType": "application/x-download",
+      "filename": "attachment; filename=\"Tension_Fabric_Stand_4ft_Straight.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes",
+      "bytes": null
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/dca02818958679b99e9cfb650a8ba8014642e9e2",
+      "status": 200,
+      "contentType": "application/x-download",
+      "filename": "attachment; filename=\"FeatherAngled_M_SingleSided_PrintThru.psd\"",
+      "prefixHex": "384250530001000000000000000400003dd100000ef100080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes",
+      "bytes": null
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/dd97eb8754b7e23d56fa4c4b871910349edd7d91",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_L_SingleSided_PrintThru.psd\"",
+      "prefixHex": "384250530001000000000000000400005b68000013ec00080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/e1413fb43e2b9d2977b78f37a10ed2d0686554d7",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_L_DoubleSided.psd\"",
+      "prefixHex": "384250530001000000000000000400005b68000027bf00080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/e1867d453f093972186e676db8144a5b430f1835",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_L_SingleSided_PrintThru_Reverse.psd\"",
+      "prefixHex": "3842505300010000000000000004000051bd0000114900080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/e2ab02e8f2caf6aabb771dea5be5a7d295c90352",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_S_SingleSided_PrintThru.psd\"",
+      "prefixHex": "3842505300010000000000000004000037aa000013ec00080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/e4d4d90ec1a792735dbae8ed5d9ef13a4d6c9bb6",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Teardrop_L_DoubleSided.psd\"",
+      "prefixHex": "384250530001000000000000000400003c9f000031d100080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/e57236a09106419ddcd86aea890f6fbea87c1e94",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Event Tent Canopy.psd\"",
+      "prefixHex": "384250530001000000000000000500003162000045ba00080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/e71203ac4a0f96a4679c373d9f60cec85fa26a86",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"6FT_STRETCH_TABLECOVER.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/e9f98f75c273471ab2c0b105283aae83bf21ca42",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Installation_Guide_Tension_Fabric_Stand_3ft_Straight.jpg\"",
+      "prefixHex": "ffd8ffe000104a46494600010101012c012c0000ffe1108e4578696600004d4d",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/edc743b7a5080758ce033dade65f56997606f947",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherConvex_L_SingleSided_PrintThru.psd\"",
+      "prefixHex": "3842505300010000000000000004000051bd0000114900080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/f03fc157806b4185ffa959f48134f2512eb2ac7c",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Teardrop_L_SingleSided_PrintThru.psd\"",
+      "prefixHex": "384250530001000000000000000400003c9e000018c300080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/f3e09b9e2950993142b04815a801a50f3f760698",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Econo_SingleSided_PrintThru_Reverse.psd\"",
+      "prefixHex": "384250530001000000000000000500005171000012c000080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/f5a59631fd343bb14d4a8bed8beba2138c690523",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"FeatherAngled_XL_SingleSided_PrintThru.psd\"",
+      "prefixHex": "384250530001000000000000000500006db800000fd200080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/f6c3feb6949144385b160920e7ac60c48d14e7e1",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"8FT_TABLE-COVER_4-SIDED_CLOSED-BACK.psd\"",
+      "prefixHex": "3842505300010000000000000005000031cd000058c900080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/f6c74ef206a39156c178a3d0d47c774c8f513eed",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"6FT_STRETCH_TABLE-COVER.psd\"",
+      "prefixHex": "38425053000100000000000000040000364e00004f8b00080004000000000008",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/f9f1515d9ec154cc0c44a316f4a1009511245aea",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Teardrop_M_SingleSided_PrintThru.psd\"",
+      "prefixHex": "384250530001000000000000000500002fcf0000142600080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/fadb34b64129ffebc5093c2efd0481782d093de2",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"TearDrop_XL_SingleSide_PrintThru.psd\"",
+      "prefixHex": "38425053000100000000000000050000551c00001c1d00080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/fdf01b15dcabb8936062d0f2d10f778538a803ed",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_S_SingleSided_PrintThru.pdf\"",
+      "prefixHex": "255044462d312e350d25e2e3cfd30d0a312030206f626a0d3c3c2f4d65746164",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/downloadable/fecf82282d1e65179bf0408f162d53b2a7014b61",
+      "status": 200,
+      "contentType": "application/x-download",
+      "bytes": null,
+      "filename": "attachment; filename=\"Rectangle_L_SingleSided_PrintThru_Reverse.psd\"",
+      "prefixHex": "384250530001000000000000000400005b68000013ec00080004000000000009",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240305/hpZ44m8k-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240305/kMJQl4Yl-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240305/tTXg41HG-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240305/Xv4Uq7Fb-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240306/0s6vTFUw-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240306/RQ239jEo-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240306/zFMdcDl6-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240308/gOjjCRtu-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240308/vU8HVKND-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240311/0orfAv2N-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240311/CLqxAS62-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240311/dbDrPvzF-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240311/kslB4CT0-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240311/QIZAw7ro-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240311/xuDAkfis-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240312/2h9WEHE3-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240312/9M9wQ4iV-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240312/aWMJwx6Q-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240312/c5LAw0bf-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240312/IBIR8i6Z-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240312/kJybZbZv-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240312/kVlhX59f-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240312/L6q0lcTY-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240312/lkLJpeJi-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240312/m3bB2EDC-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240312/nQhhbT87-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240312/r305JAav-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240312/UJf7Sanq-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240312/VVRUipcv-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240312/xpqG4krw-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240312/YrhhH0wq-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240312/zIUck5RC-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240313/6JzV9SAJ-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240313/DlSsTk0I-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240313/Mj30FeLf-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240313/rl3dQPLL-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240314/1gcTCr9I-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240314/5joW2RR8-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240314/b35NMDzc-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240314/DToc1Ity-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240314/Ezu4FLdV-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240314/FeWxBJLa-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240314/I9VuT2YU-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240314/NLstrLsr-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240314/p9qEtA5R-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240314/q0zf3XLT-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240314/rpFZSkav-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240314/rplPSM95-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240314/u02STuwD-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240314/ufVWLkMA-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240314/uO73V3KB-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240314/WVB2l5BH-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240314/YQOXXy6S-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240319/582lRQxz-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240319/KmWrAJOV-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240319/PHebOUNf-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240319/QgBqDTht-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240320/cv74NBdb-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240320/e2ddHrnI-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240325/0ov9xJYW-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240325/3NPMyT54-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240325/ixv4f3aI-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240325/kTKVC8iC-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240325/LZdJ93eP-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240325/mC622nES-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240325/OG8Qhy6D-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240325/PLtbAL61-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240325/sefWElK8-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240325/XzpcrEFb-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/1tvFDw6N-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/279xtLpX-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/3j0spc44-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/3Tr46wVB-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/5PTaJJ5M-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/7hFNGsDZ-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/7UFUuJO6-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/91uQJ8i2-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/9FfbDWHn-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/ATqrWaAs-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/B7IZZPCj-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/F75K90M4-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/f9T1wNYg-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/fF21I6Do-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/FPwXFk5G-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/Gr89AAwv-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/HMcpOCxC-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/I25rbMgN-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/jtaXOiOD-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/k7MIq9TQ-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/LoPWc3sh-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/NA584ERA-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/ne4XdVGE-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/pALw0m7q-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/pi14iMhs-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/PMvZrIdo-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/Q4cODrwK-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/rn7FoECk-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/S8yaGibr-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/sw8TO8tz-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/T3rnm6g4-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/tJciLeSC-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/uoeE839m-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/vgjAVOhN-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/wdveZ8jk-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/WZQtUo3N-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/ZGFfYeYT-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/zmhOtmSQ-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240326/zY3ADBu8-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/59Aw9lwr-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/5Gvvtqjl-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/7uuiHo6m-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/87MD222c-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/9m0qBJcr-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/9V3MYC3v-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/a6eU3hbR-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/ArdkMvAt-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/CsTKccH3-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/DcBe6SFD-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/DKbWcR65-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/ePvg2v8P-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/FlYUnNAL-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/fPEF15VO-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/gPVz9T4y-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/hiuiC386-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/mPSvTvDY-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/nU4OCK3f-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/OAXEU137-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/pLPYwjso-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/QeM32vbo-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/QOBiLHcp-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/TK4mEsHy-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/uf4fTjWs-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/uv2puVpz-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/vHLBTaeg-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/WDgMX4hd-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/X7A4DS6I-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/xHnMiT83-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/YB7BtMPL-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/YpnY5xzH-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240327/zAL78Rre-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240328/4uM6lxg3-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240328/79VgNOdv-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240328/8M6W8bO6-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240328/eePkTRSE-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240328/KxBNj4dR-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240328/lKdL6ivs-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240328/oAPlCUEr-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240328/OMqPcYoc-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240328/ooBwNU7O-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240328/PUXGkhfG-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240328/qvWHosgR-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240328/ryEvH76z-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240328/UEk4m9vV-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240328/vgP3CqV7-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240328/XwLy597u-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240404/84SrcDZJ-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240404/DbDoaTw9-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240404/eXjGzY8L-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240404/fvPijfib-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240404/lDXMtMBO-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240404/pvuo7xg3-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240408/5HyLNJe9-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240408/7j1t4Wwf-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240408/89HOLbyx-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240408/89vwaPWy-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240408/a06Mlftd-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240408/KUchpkL7-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240408/vpxiASlu-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240408/WsuhmWIw-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240411/HRCg1olp-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240430/8umFt1Qe-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240430/crxDCf0q-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240430/GAhSX535-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240501/KUHMmaZy-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240501/OP55MEgU-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/240501/ZQPjLM6G-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250310/EVvpMoFk-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250319/FuMhmoQf-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250319/uLLUHbUs-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250630/XtmYtBL9-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250702/91bgmYaS-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250702/DerhBUwU-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250702/fVenovlY-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250702/ljU9mQQw-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250702/p9h6rtTN-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250702/Q7fhnRVk-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250702/RVkr509i-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250702/VxC4GL9F-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250702/z2wBBBRo-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250703/0a3pGsJF-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250703/2dVqkbHp-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250703/2koFWu1n-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250703/7QbBfFk9-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250703/Iw6Wsplc-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250703/NRXfzOLr-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250703/t1eqYTuM-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250703/VLfBiK1t-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250703/XkGtHS8t-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250828/Jz9JbGFo-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/250828/np9mkenf-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/251217/2zyByqla-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/251217/7mWDdVg1-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/251217/OL35DL8Y-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/251217/wC1xH7WA-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/260818/KTq3gUvI-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/260818/nXV03mRB-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/260821/T0u3QIkx-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/260827/6sYqhulB-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/260827/GV1PW2Jn-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/260827/HaxpCakC-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/260827/NnP05j6b-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/260827/xrIlePPp-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/260828/igrhVPvO-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/260828/kiBfx3E3-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/260828/KYa1LVlm-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/260828/TbqRT5tC-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/260831/fPkvGPIf-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    },
+    {
+      "url": "https://www.b2sign.com/image/thumb/260831/lo8rX2Vz-s1000.jpg",
+      "status": 206,
+      "contentType": "image/jpeg",
+      "bytes": 32,
+      "filename": null,
+      "prefixHex": "ffd8ffe000104a46494600010101006000600000fffe003b43524541544f523a",
+      "verifiedBinary": true,
+      "verificationMethod": "HTTP GET status, content type and binary signature; first 32 bytes"
+    }
+  ]
+}

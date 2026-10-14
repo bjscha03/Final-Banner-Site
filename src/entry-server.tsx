@@ -5,10 +5,12 @@ import { StaticRouter } from 'react-router-dom/server';
 import type { HelmetServerState } from 'react-helmet-async';
 import { RoutedApplication } from '@/App';
 import AppProviders from '@/components/AppProviders';
+import { availableSpecialtyProducts as specialtyProducts } from '@/lib/specialtyProducts';
 
-// Product details now route directly into the configurator.
-export const prerenderRoutes: string[] = [];
-export const indexablePrerenderRoutes: string[] = [];
+// Retired product/city routes stay retired; only the new specialty catalog is prerendered.
+const specialtyPaths = specialtyProducts.length ? ['/products', ...specialtyProducts.map(product => `/products/${product.slug}`)] : [];
+export const prerenderRoutes: string[] = specialtyPaths;
+export const indexablePrerenderRoutes: string[] = specialtyPaths;
 
 export interface RenderedRoute {
   appHtml: string;

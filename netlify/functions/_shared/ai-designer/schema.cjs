@@ -92,8 +92,11 @@ function requiredText(copy) {
 }
 
 function normalizeBrief(input = {}) {
-  const widthIn = requireNumber(input.widthIn, 'Width', 6, 600);
-  const heightIn = requireNumber(input.heightIn, 'Height', 6, 600);
+  const isSpecialty = String(input.productType).startsWith('specialty:');
+  // Supplier PDF artboards include fractional inches. Preserve their exact
+  // dimensions; the registered template resolver validates the allowed size.
+  const widthIn = isSpecialty ? Number(input.widthIn) : requireNumber(input.widthIn, 'Width', 6, 600);
+  const heightIn = isSpecialty ? Number(input.heightIn) : requireNumber(input.heightIn, 'Height', 6, 600);
   const description = boundedText(input.description, BRIEF_LIMITS.description, 'Description');
   if (!description) {
     const error = new Error('Describe the design you want before generating.');
@@ -101,7 +104,8 @@ function normalizeBrief(input = {}) {
     throw error;
   }
 
-  const productType = ['banner', 'yard_sign', 'car_magnet'].includes(input.productType)
+  if (isSpecialty) require('../specialty-products.cjs').resolveSpecialtyTemplate(input.productType,widthIn,heightIn);
+  const productType = (isSpecialty || ['banner', 'yard_sign', 'car_magnet'].includes(input.productType))
     ? input.productType
     : 'banner';
   const copy = normalizeCopy(input.copy);

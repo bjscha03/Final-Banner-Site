@@ -1052,6 +1052,7 @@ exports.handler = async (event) => {
       } catch (parseErr) {
         console.warn('[PRINT_SCENE_V2] Failed to parse canvasStateJson:', parseErr.message);
       }
+      if(parsedScene?.kind==='specialty')return {statusCode:409,headers:{'Content-Type':'application/json'},body:JSON.stringify({error:'USE_SPECIALTY_PANELS',message:'Use the individually approved product print panels in the order. They must not be rebuilt with the banner renderer.'})};
       parsedScene = require('../stored-original-print-scene.cjs').toStoredOriginalPrintScene(
         parsedScene, req.bannerWidthIn, req.bannerHeightIn,
       );

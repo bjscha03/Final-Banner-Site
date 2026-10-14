@@ -1,0 +1,66 @@
+name: Netlify preview build
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'shared/**'
+      - 'public/**'
+      - 'scripts/**'
+      - 'netlify/**'
+      - 'netlify.toml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite*.ts'
+      - '.github/workflows/netlify-preview-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  netlify-preview-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the exact preview commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Use the Node version configured for Netlify
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Verify build runtime matches Netlify
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const configured = fs.readFileSync('netlify.toml', 'utf8').match(/^\s*NODE_VERSION\s*=\s*"(\d+)"/m)?.[1];
+          assert.equal(process.versions.node.split('.')[0], configured, 'Keep CI and the Netlify build runtime in sync.');
+          NODE
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      # Independent of browser regression jobs: a failing UI test must not hide
+      # application, server-function, or edge-function packaging failures.
+      # Offline avoids account access and production secrets. Account-installed
+      # build plugins and real integrations still require a hosted preview.
+      - name: Build application and package Netlify functions
+        env:
+          COMMIT_REF: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          npx --no-install netlify build --offline --context deploy-preview 2>&1 | tee /tmp/netlify-preview-build.log
+
+      - name: Retain the build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: netlify-preview-build-log
+          path: /tmp/netlify-preview-build.log
+          if-no-files-found: ignore
+          retention-days: 7

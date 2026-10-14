@@ -1,0 +1,45 @@
+name: Specialty pricing preview
+on:
+  push:
+    branches:
+      - 'feat/specialty-products-catalog'
+  pull_request:
+    paths:
+      - 'shared/specialty-*'
+      - 'src/lib/specialty*'
+      - 'src/components/specialty/**'
+      - 'src/pages/SpecialtyCatalog.tsx'
+      - 'netlify/functions/__tests__/specialty-*'
+      - 'scripts/test-specialty-browser.mjs'
+      - '.github/workflows/specialty-pricing.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pricing-and-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/generate-specialty-options.mjs --check
+      - run: node --test netlify/functions/__tests__/specialty-products.test.cjs netlify/functions/__tests__/specialty-proposed-pricing.test.cjs netlify/functions/__tests__/specialty-quote-validation.test.cjs
+      - run: npx vitest run --config vitest.ai.config.ts src/lib/specialtyArtwork.test.ts src/store/cart.specialty.test.ts src/components/specialty/SpecialtyPreview.test.tsx
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Check catalog, accessories, custom sizes, cart repricing and mobile display
+        run: node scripts/test-specialty-browser.mjs
+        env:
+          BOF_QA_FILTER: 'all 19|catalog shows|flag size|tent and ACM|proposed custom|flag studio|flag upload|saved cart|mobile flag'
+          BOF_QA_TEST_CHECKOUT: '1'
+          BOF_QA_DIR: pricing-browser-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: specialty-pricing-browser-results
+          path: pricing-browser-results
+          if-no-files-found: ignore

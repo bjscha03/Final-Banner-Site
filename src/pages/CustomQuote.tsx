@@ -9,8 +9,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/components/ui/use-toast';
+import { useLocation, useSearchParams } from 'react-router-dom';
+import { getSpecialtyProduct } from '@/lib/specialtyProducts';
 
-type ProductType = 'banner' | 'yard_sign' | 'magnet';
+type ProductType = 'banner' | 'yard_sign' | 'magnet' | 'specialty';
 
 const MAX_FILE_MB = 200;
 const ACCEPTED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'ai', 'eps', 'svg'];
@@ -18,6 +20,7 @@ const PRODUCT_LABELS: Record<ProductType, string> = {
   banner: 'Banner',
   yard_sign: 'Yard Sign',
   magnet: 'Magnet',
+  specialty: 'Displays & Signs',
 };
 
 const emptyOptions = {
@@ -34,6 +37,11 @@ const emptyOptions = {
 };
 
 const CustomQuote: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const requestedDetails = typeof location.state?.details === 'string' ? location.state.details.slice(0, 500) : '';
+  const selectedProduct = getSpecialtyProduct(searchParams.get('product'));
+  const selectedVariant = selectedProduct?.variants.find(option => option.label === searchParams.get('variant')) || selectedProduct?.variants[0];
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [quoteNumber, setQuoteNumber] = useState<string | null>(null);
@@ -43,16 +51,20 @@ const CustomQuote: React.FC = () => {
     companyName: '',
     email: '',
     phone: '',
-    productType: 'banner' as ProductType,
-    width: '',
-    height: '',
+    productType: (selectedProduct ? 'specialty' : 'banner') as ProductType,
+    width: selectedProduct?.priceUnit === 'sqft' ? searchParams.get('width') || '' : selectedVariant?.widthIn?.toString() || '',
+    height: selectedProduct?.priceUnit === 'sqft' ? searchParams.get('height') || '' : selectedVariant?.heightIn?.toString() || '',
     unit: 'inches',
-    quantity: '',
+    quantity: selectedProduct ? String(Math.max(1, Math.min(100, Number.parseInt(searchParams.get('quantity') || '1', 10) || 1))) : '',
     materialSpecs: '',
     finishingOptions: '',
     neededByDate: '',
     shippingZip: '',
-    projectDescription: '',
+    shippingAddress: '',
+    shippingCity: '',
+    shippingState: '',
+    shippingLocationType: '',
+    projectDescription: selectedProduct ? `${selectedProduct.name} — ${selectedVariant?.label || 'Custom configuration'}${requestedDetails ? `\n${requestedDetails}` : ''}` : '',
     additionalNotes: '',
     ...emptyOptions,
   });
@@ -67,14 +79,16 @@ const CustomQuote: React.FC = () => {
   };
 
   const validate = () => {
-    const required = ['fullName', 'email', 'phone', 'width', 'height', 'quantity', 'shippingZip', 'projectDescription'];
+    const required = ['fullName', 'email', 'phone', 'quantity', 'shippingZip', 'projectDescription', ...(form.productType === 'specialty' ? ['shippingAddress', 'shippingCity', 'shippingState', 'shippingLocationType'] : ['width', 'height'])];
     for (const field of required) {
       if (!String((form as Record<string, unknown>)[field]).trim()) {
         return `${field.replace(/([A-Z])/g, ' $1')} is required.`;
       }
     }
     if (!/^\S+@\S+\.\S+$/.test(form.email)) return 'Please enter a valid email address.';
-    if (Number(form.width) <= 0 || Number(form.height) <= 0) return 'Width and height must be greater than zero.';
+    if (form.productType !== 'specialty' || form.width || form.height) {
+      if (Number(form.width) <= 0 || Number(form.height) <= 0) return 'Enter both width and height greater than zero, or leave both blank for a standard product configuration.';
+    }
     if (!Number.isInteger(Number(form.quantity)) || Number(form.quantity) <= 0) return 'Quantity must be a positive whole number.';
 
     for (const file of files) {
@@ -117,7 +131,17 @@ const CustomQuote: React.FC = () => {
               custom_size: form.customSize,
               special_quantity: form.specialQuantity,
             }
-          : { size: form.magnetSize, corners: form.magnetCorners };
+          : form.productType === 'magnet'
+            ? { size: form.magnetSize, corners: form.magnetCorners }
+            : {
+                specialty_slug: selectedProduct?.slug || '',
+                specialty_product: selectedProduct?.name || 'Custom display or sign',
+                variant: selectedVariant?.label || 'See project description',
+                shipping_address: form.shippingAddress,
+                shipping_city: form.shippingCity,
+                shipping_state: form.shippingState,
+                shipping_location_type: form.shippingLocationType,
+              };
 
       const formData = new FormData();
       Object.entries(form).forEach(([key, value]) => {
@@ -188,7 +212,7 @@ const CustomQuote: React.FC = () => {
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#b84300]">Custom quote</p>
           <h1 className="mt-3 font-display text-4xl font-bold tracking-[-0.04em] md:text-5xl">Tell us about your custom project.</h1>
           <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-            Special banner sizes, unusual quantities, custom finishing, and bulk yard-sign or magnet orders.
+            Special banner sizes, unusual quantities, custom finishing, and displays or signs with address-based shipping.
           </p>
         </div>
       </section>
@@ -215,11 +239,12 @@ const CustomQuote: React.FC = () => {
                     <SelectItem value="banner">Banner</SelectItem>
                     <SelectItem value="yard_sign">Yard Sign</SelectItem>
                     <SelectItem value="magnet">Magnet</SelectItem>
+                    <SelectItem value="specialty">Displays & Signs</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Width" required><Input type="number" min="0" step="0.01" value={form.width} onChange={(event) => update('width', event.target.value)} /></Field>
-              <Field label="Height" required><Input type="number" min="0" step="0.01" value={form.height} onChange={(event) => update('height', event.target.value)} /></Field>
+              <Field label="Width" required={form.productType !== 'specialty'}><Input type="number" min="0" step="0.01" value={form.width} onChange={(event) => update('width', event.target.value)} /></Field>
+              <Field label="Height" required={form.productType !== 'specialty'}><Input type="number" min="0" step="0.01" value={form.height} onChange={(event) => update('height', event.target.value)} /></Field>
               <Field label="Unit" required>
                 <Select value={form.unit} onValueChange={(value) => update('unit', value)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -234,6 +259,16 @@ const CustomQuote: React.FC = () => {
               <Field label="Needed-by date"><Input type="date" value={form.neededByDate} onChange={(event) => update('neededByDate', event.target.value)} /></Field>
               <Field label="Shipping ZIP code" required><Input value={form.shippingZip} onChange={(event) => update('shippingZip', event.target.value)} /></Field>
             </div>
+            {form.productType === 'specialty' && <div className="mt-5 rounded-lg border border-[#ff6a00]/25 bg-[#fff7f0] p-5">
+              <p className="text-sm font-bold text-[#0B1F3A]">Delivery details for an exact shipping quote</p>
+              <p className="mt-1 text-sm text-slate-600">No payment is taken here. We’ll confirm production, options, tax and shipping before you pay. Dimensions are optional for a standard configuration.</p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <Field label="Street address" required><Input autoComplete="shipping street-address" value={form.shippingAddress} onChange={event => update('shippingAddress', event.target.value)} /></Field>
+                <Field label="City" required><Input autoComplete="shipping address-level2" value={form.shippingCity} onChange={event => update('shippingCity', event.target.value)} /></Field>
+                <Field label="State" required><Input autoComplete="shipping address-level1" maxLength={40} value={form.shippingState} onChange={event => update('shippingState', event.target.value)} /></Field>
+                <Field label="Delivery location" required><Select value={form.shippingLocationType} onValueChange={value => update('shippingLocationType', value)}><SelectTrigger><SelectValue placeholder="Choose a location type" /></SelectTrigger><SelectContent><SelectItem value="commercial">Business</SelectItem><SelectItem value="residential">Home</SelectItem></SelectContent></Select></Field>
+              </div>
+            </div>}
 
             <div className="mt-6 border-l-4 border-[#FF6A00] bg-[#F7F7F7] p-5">
               <h3 className="font-display font-bold text-[#0B1F3A]">{PRODUCT_LABELS[form.productType]} options</h3>
@@ -369,6 +404,10 @@ const ProductOptions = ({
         <CheckField label="Special quantity" checked={form.specialQuantity} onChange={(value) => update('specialQuantity', value)} />
       </div>
     );
+  }
+
+  if (form.productType === 'specialty') {
+    return <p className="mt-3 text-sm leading-6 text-slate-600">Your selected product, configuration and project notes appear below. Add any extra finish, hardware or timing needs in the fields provided.</p>;
   }
 
   return (

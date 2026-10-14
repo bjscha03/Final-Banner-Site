@@ -349,6 +349,7 @@ function itemSignatureProjection(item) {
 
   return {
     product_type: item.product_type || 'banner',
+    specialty_config: canonicalJson(item.specialty_config),
     width_in: numericValue(item.width_in),
     height_in: numericValue(item.height_in),
     quantity: numericValue(item.quantity, 1),
@@ -1162,6 +1163,7 @@ exports.handler = async (event, context) => {
     try {
       await sql`
         ALTER TABLE order_items
+        ADD COLUMN IF NOT EXISTS specialty_config JSONB,
         ADD COLUMN IF NOT EXISTS artwork_manifest JSONB,
         ADD COLUMN IF NOT EXISTS placement_preview JSONB,
         ADD COLUMN IF NOT EXISTS production_pdf_status TEXT DEFAULT 'pending',
@@ -1705,7 +1707,7 @@ exports.handler = async (event, context) => {
               INSERT INTO order_items (
                 id, order_id, product_type, width_in, height_in, quantity, material,
                 grommets, rounded_corners, rope_feet, rope_placement, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
-                line_total_cents, file_key, file_name, file_url, artwork_manifest, placement_preview, original_filename, print_ready_url, web_preview_url, text_elements, overlay_image, overlay_images, canvas_background_color, image_scale, image_position, thumbnail_url, final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi, canvas_state_json,
+                line_total_cents, file_key, file_name, file_url, specialty_config, artwork_manifest, placement_preview, original_filename, print_ready_url, web_preview_url, text_elements, overlay_image, overlay_images, canvas_background_color, image_scale, image_position, thumbnail_url, final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi, canvas_state_json,
                 design_service_enabled, design_request_text, design_draft_preference, design_draft_contact, design_uploaded_assets,
                 yard_sign_sidedness, yard_sign_step_stakes_enabled, yard_sign_step_stakes_qty, yard_sign_design_count, yard_sign_designs, yard_sign_signs_subtotal_cents, yard_sign_stakes_subtotal_cents
               )
@@ -1729,6 +1731,7 @@ exports.handler = async (event, context) => {
                 ${item.file_key || null},
                 ${item.file_name || item.artwork_manifest?.originalFilename || null},
                 ${item.file_url || null},
+                ${item.specialty_config ? JSON.stringify(item.specialty_config) : null}::jsonb,
                 ${item.artwork_manifest ? JSON.stringify(item.artwork_manifest) : null}::jsonb,
                 ${item.placement_preview ? JSON.stringify(item.placement_preview) : null}::jsonb,
                 ${item.artwork_manifest?.originalFilename || item.file_name || null},

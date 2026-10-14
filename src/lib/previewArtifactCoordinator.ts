@@ -113,6 +113,7 @@ async function verifyPermanentArtifact(
 async function createArtifact(spec: ArtworkCompositionSpec): Promise<ReadyPlacementPreviewManifest> {
   validateCompositionSpec(spec);
   const compositionSignature = buildCompositionSignature(spec);
+  const transparent = spec.productType.startsWith('specialty:acrylic-signs:');
   const rendered = await renderPositionedThumbnailBlob({
     imageUrl: spec.sourceUrl,
     widthIn: spec.widthIn,
@@ -121,7 +122,8 @@ async function createArtifact(spec: ArtworkCompositionSpec): Promise<ReadyPlacem
     imgScale: spec.transform.scaleX,
     imgScaleY: spec.transform.scaleY,
     crop: spec.transform.crop,
-    backgroundColor: '#ffffff',
+    backgroundColor: transparent ? 'transparent' : '#ffffff',
+    mimeType: transparent ? 'image/png' : 'image/jpeg',
     maxOutputPx: 1400,
     maxOutputPixels: 1_500_000,
   });
@@ -130,7 +132,7 @@ async function createArtifact(spec: ArtworkCompositionSpec): Promise<ReadyPlacem
   try {
     uploaded = await uploadCanvasImageToCloudinary(
       rendered.blob,
-      `${compositionSignature}.jpg`,
+      `${compositionSignature}.${transparent ? 'png' : 'jpg'}`,
     );
   } catch (error) {
     throw new PreviewLifecycleError(

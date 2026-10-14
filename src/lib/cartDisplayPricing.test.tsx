@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { getCartDisplayPrices, getEnteredPromoLabel } from './cartDisplayPricing';
 import { resolveBestDiscount, getPromoDiscountSubtotalCents, type PromoDiscountInput } from './discount-resolver';
 import CartLinePrice from '../components/cart/CartLinePrice';
+import {calculateOrderTotals} from './order-pricing';
 const large = { id: 'large', product_type: 'banner', width_in: 72, height_in: 36, line_total_cents: 8100 };
 const small = { id: 'small', product_type: 'banner', width_in: 48, height_in: 24, line_total_cents: 3600 };
 const magnet = { id: 'magnet', product_type: 'car_magnet', width_in: 24, height_in: 18, line_total_cents: 5000 };
@@ -47,5 +48,14 @@ describe('cart and checkout displayed prices', () => {
  });
  it('reports no eligible items instead of claiming a discount', () => {
   expect(getEnteredPromoLabel(promo,resolve([magnet],promo))).toContain('no eligible items');
+ });
+ it('keeps banner quantity discounts on banner lines in a mixed specialty cart',()=>{
+  const items=[{...small,quantity:2,unit_price_cents:4000,line_total_cents:8000},{...magnet,id:'flag',product_type:'specialty',quantity:3,unit_price_cents:17500,line_total_cents:52500}];
+  const totals=calculateOrderTotals(items);
+  expect(totals.applied_discount_cents).toBe(400);
+  const resolved=resolveBestDiscount({subtotalCents:60500,quantity:2,quantitySubtotalCents:8000});
+  const prices=getCartDisplayPrices(items,resolved);
+  expect(prices.get('small')?.discountCents).toBe(400);
+  expect(prices.get('flag')).toEqual({originalCents:52500,discountCents:0,totalCents:52500});
  });
 });

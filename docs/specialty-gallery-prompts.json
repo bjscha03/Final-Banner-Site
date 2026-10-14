@@ -1,0 +1,383 @@
+{
+  "generator": "Built-in image generation",
+  "createdAt": "2026-10-12",
+  "purpose": "Branded catalog examples. Product geometry referenced from supplier photographs; manufacturing specifications remain authoritative.",
+  "prompts": [
+    {
+      "id": "tent-15",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph, square. Reference 1 is a contact sheet; preserve EXACTLY the physical 10 x 15 foot tent shown in its FIRST top-left panel: wide rectangular footprint, FOUR silver hexagonal legs, two roof peaks/ridge, silver pop-up frame. Reference 2 is the design/style reference. Rebrand ALL canopy printing to the same tasteful deep forest green and warm ivory FRESHFIELD / FARM MARKET identity and leaf emblem from Reference 2, adapted naturally to wider canopy. Entire 15-foot tent visible, no walls, ropes, bags, accessories, tables or people. Soft sunny lawn with distant trees, beautiful natural photographic light, premium polished materials. Retain hardware/roof shape/proportions from Reference 1 not the square tent from Reference 2. No diagram, collage or labels. Single physical tent, correct count of four legs. 1200x1200 or larger.",
+      "references": [
+        "10x15-event-tent-contact.jpg",
+        "custom-event-tents.webp"
+      ],
+      "output": "public/images/products/gallery/tent-15.webp"
+    },
+    {
+      "id": "tent-20",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph, square. Reference 1 is a contact sheet: use the FIRST top-left tent as exact physical reference. A 10 x 20 foot wide rectangular tent with SIX silver hexagonal aluminum legs, including center leg at both long sides, long roof with two peaks. Reference 2 is brand and style only. Replace all supplier artwork with tasteful deep forest-green canopy, ivory FRESHFIELD on roof, FARM MARKET on front valance, small leaf emblem, matching reference 2 brand. Natural grass setting with distant trees, expensive beautiful product photography. Entire tent visible with accurate wide 2:1 footprint, six-legged frame, no walls, ropes, bags, people or added props. Preserve real roof construction from reference 1; never make it a four-leg 10x10 tent. One product image, no contact sheet, no diagram, no measurement labels.",
+      "references": [
+        "10x20-event-tent-contact.jpg",
+        "custom-event-tents.webp"
+      ],
+      "output": "public/images/products/gallery/tent-20.webp"
+    },
+    {
+      "id": "tent-walls-10",
+      "prompt": "Create ONE premium photorealistic ecommerce photo of an optional wall arrangement for a 10 x 10 foot event tent. Reference1 contact sheet BOTTOM RIGHT panel is exact hardware and wall layout reference: four-leg silver pop-up canopy, ONE full-height rear wall and TWO half-height sidewalls, front open. Do not change the canopy construction or add accessories. Reference2 supplies the fictional FRESHFIELD FARM MARKET branding and outdoor photo style. Replace all lime supplier graphics with deep forest green/cream Freshfield identity. Rear wall readable FRESHFIELD FARM MARKET, restrained delicate botanical produce illustrations, sophisticated professional print design. Sidewalls deep forest green, cream small leaf emblem. Outdoor lawn, soft natural afternoon light, all hardware and full silhouette visible. No tables, people, ropes or props. Single photograph with no labels, dimensions or collage.",
+      "references": [
+        "event-tent-canopy-graphic-contact.jpg",
+        "custom-event-tents.webp"
+      ],
+      "output": "public/images/products/gallery/tent-walls-10.webp"
+    },
+    {
+      "id": "flag-base-options",
+      "prompt": "Create one refined photorealistic ecommerce accessory image. Use ONLY the FOUR base products shown in contact-sheet reference at row3 column1 (panel11) as exact shape/material reference. Neatly arrange four separated accessories on a warm light-gray studio surface: slim silver pointed ground spike, silver four-arm folding cross base with center spindle, same silver cross base with translucent circular water-weight bag fitted around spindle, and flat black square steel plate base with small center spindle. Premium studio photography, soft contact shadows, very crisp detail. All hardware physically faithful to reference: no invented parts or poles, no fabric flags, no logos, no people. Exactly four base options, all fully visible, orderly 2x2 arrangement with generous margins. No text or labels; labels will be in webpage HTML. Square image.",
+      "references": [
+        "feather-angled-flag-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/flag-base-options.webp"
+    },
+    {
+      "id": "premium-retractable-banner-2",
+      "prompt": "PRECISE EDIT of reference1. Preserve the exact original PRODUCT SILHOUETTE, proportions, canvas placement, camera angle and every hardware part. DO NOT REDESIGN HARDWARE OR MAKE THE GRAPHIC TALLER OR NARROWER. Change only the printed artwork and replace the plain backdrop with a softly blurred premium sunlit interior with stone floor. Create ONE premium photorealistic ecommerce photograph of ONE 48 × 92 in retractable banner stand. Reference1 is the single exact product photograph; its geometry is authoritative. Preserve actual stand construction: silver streamlined wide low-profile stable cassette with NO swing-out feet. Reference2 style sheet shows the established brand design for premium-retractable-banner. Printed graphic uses SUMMIT OUTDOOR CO., warm white with a beautiful alpine landscape photograph and dark charcoal elegant typography. Full-height beautiful print artwork with strong professional type hierarchy and a subtle matching emblem. Adapt layout naturally to EXACT 48 × 92 in print proportions; do not squash the text or change the physical size. Entire stand visible with clear margins, same viewpoint as reference1 in a sophisticated softly blurred interior showroom with natural daylight and realistic floor contact shadows. No people, no bags, no accessories, no dimensions, no caption or diagram, no contact sheet, no supplier graphics. Square output. Physical accuracy and beautifully designed print are essential.",
+      "references": [
+        "sd-retractable-06.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/premium-retractable-banner-2.webp"
+    },
+    {
+      "id": "premium-retractable-banner-3",
+      "prompt": "PRECISE EDIT of reference1. Preserve the exact original PRODUCT SILHOUETTE, proportions, canvas placement, camera angle and every hardware part. DO NOT REDESIGN HARDWARE OR MAKE THE GRAPHIC TALLER OR NARROWER. Change only the printed artwork and replace the plain backdrop with a softly blurred premium sunlit interior with stone floor. Create ONE premium photorealistic ecommerce photograph of ONE 60 × 92 in retractable banner stand. Reference1 is the single exact product photograph; its geometry is authoritative. Preserve actual stand construction: silver streamlined wide low-profile stable cassette with NO swing-out feet. Reference2 style sheet shows the established brand design for premium-retractable-banner. Printed graphic uses SUMMIT OUTDOOR CO., warm white with a beautiful alpine landscape photograph and dark charcoal elegant typography. Full-height beautiful print artwork with strong professional type hierarchy and a subtle matching emblem. Adapt layout naturally to EXACT 60 × 92 in print proportions; do not squash the text or change the physical size. Entire stand visible with clear margins, same viewpoint as reference1 in a sophisticated softly blurred interior showroom with natural daylight and realistic floor contact shadows. No people, no bags, no accessories, no dimensions, no caption or diagram, no contact sheet, no supplier graphics. Square output. Physical accuracy and beautifully designed print are essential.",
+      "references": [
+        "sd-retractable-09.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/premium-retractable-banner-3.webp"
+    },
+    {
+      "id": "premium-retractable-36x69",
+      "prompt": "PRECISE EDIT of reference1. Preserve the exact original PRODUCT SILHOUETTE, proportions, canvas placement, camera angle and every hardware part. DO NOT REDESIGN HARDWARE OR MAKE THE GRAPHIC TALLER OR NARROWER. Change only the printed artwork and replace the plain backdrop with a softly blurred premium sunlit interior with stone floor. Create ONE premium photorealistic ecommerce photograph of ONE 36 × 69 in retractable banner stand. Reference1 is the single exact product photograph; its geometry is authoritative. Preserve actual stand construction: silver streamlined wide low-profile stable cassette with NO swing-out feet. Reference2 style sheet shows the established brand design for premium-retractable-banner. Printed graphic uses SUMMIT OUTDOOR CO., warm white with a beautiful alpine landscape photograph and dark charcoal elegant typography. Full-height beautiful print artwork with strong professional type hierarchy and a subtle matching emblem. Adapt layout naturally to EXACT 36 × 69 in print proportions; do not squash the text or change the physical size. Entire stand visible with clear margins, same viewpoint as reference1 in a sophisticated softly blurred interior showroom with natural daylight and realistic floor contact shadows. No people, no bags, no accessories, no dimensions, no caption or diagram, no contact sheet, no supplier graphics. Square output. Physical accuracy and beautifully designed print are essential.",
+      "references": [
+        "sd-retractable-01.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/premium-retractable-36x69.webp"
+    },
+    {
+      "id": "premium-retractable-36x80",
+      "prompt": "PRECISE EDIT of reference1. Preserve the exact original PRODUCT SILHOUETTE, proportions, canvas placement, camera angle and every hardware part. DO NOT REDESIGN HARDWARE OR MAKE THE GRAPHIC TALLER OR NARROWER. Change only the printed artwork and replace the plain backdrop with a softly blurred premium sunlit interior with stone floor. Create ONE premium photorealistic ecommerce photograph of ONE 36 × 80 in retractable banner stand. Reference1 is the single exact product photograph; its geometry is authoritative. Preserve actual stand construction: silver streamlined wide low-profile stable cassette with NO swing-out feet. Reference2 style sheet shows the established brand design for premium-retractable-banner. Printed graphic uses SUMMIT OUTDOOR CO., warm white with a beautiful alpine landscape photograph and dark charcoal elegant typography. Full-height beautiful print artwork with strong professional type hierarchy and a subtle matching emblem. Adapt layout naturally to EXACT 36 × 80 in print proportions; do not squash the text or change the physical size. Entire stand visible with clear margins, same viewpoint as reference1 in a sophisticated softly blurred interior showroom with natural daylight and realistic floor contact shadows. No people, no bags, no accessories, no dimensions, no caption or diagram, no contact sheet, no supplier graphics. Square output. Physical accuracy and beautifully designed print are essential.",
+      "references": [
+        "sd-retractable-02.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/premium-retractable-36x80.webp"
+    },
+    {
+      "id": "premium-retractable-48x69",
+      "prompt": "PRECISE EDIT of reference1. Preserve the exact original PRODUCT SILHOUETTE, proportions, canvas placement, camera angle and every hardware part. DO NOT REDESIGN HARDWARE OR MAKE THE GRAPHIC TALLER OR NARROWER. Change only the printed artwork and replace the plain backdrop with a softly blurred premium sunlit interior with stone floor. Create ONE premium photorealistic ecommerce photograph of ONE 48 × 69 in retractable banner stand. Reference1 is the single exact product photograph; its geometry is authoritative. Preserve actual stand construction: silver streamlined wide low-profile stable cassette with NO swing-out feet. Reference2 style sheet shows the established brand design for premium-retractable-banner. Printed graphic uses SUMMIT OUTDOOR CO., warm white with a beautiful alpine landscape photograph and dark charcoal elegant typography. Full-height beautiful print artwork with strong professional type hierarchy and a subtle matching emblem. Adapt layout naturally to EXACT 48 × 69 in print proportions; do not squash the text or change the physical size. Entire stand visible with clear margins, same viewpoint as reference1 in a sophisticated softly blurred interior showroom with natural daylight and realistic floor contact shadows. No people, no bags, no accessories, no dimensions, no caption or diagram, no contact sheet, no supplier graphics. Square output. Physical accuracy and beautifully designed print are essential.",
+      "references": [
+        "sd-retractable-04.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/premium-retractable-48x69.webp"
+    },
+    {
+      "id": "premium-retractable-48x80",
+      "prompt": "PRECISE EDIT of reference1. Preserve the exact original PRODUCT SILHOUETTE, proportions, canvas placement, camera angle and every hardware part. DO NOT REDESIGN HARDWARE OR MAKE THE GRAPHIC TALLER OR NARROWER. Change only the printed artwork and replace the plain backdrop with a softly blurred premium sunlit interior with stone floor. Create ONE premium photorealistic ecommerce photograph of ONE 48 × 80 in retractable banner stand. Reference1 is the single exact product photograph; its geometry is authoritative. Preserve actual stand construction: silver streamlined wide low-profile stable cassette with NO swing-out feet. Reference2 style sheet shows the established brand design for premium-retractable-banner. Printed graphic uses SUMMIT OUTDOOR CO., warm white with a beautiful alpine landscape photograph and dark charcoal elegant typography. Full-height beautiful print artwork with strong professional type hierarchy and a subtle matching emblem. Adapt layout naturally to EXACT 48 × 80 in print proportions; do not squash the text or change the physical size. Entire stand visible with clear margins, same viewpoint as reference1 in a sophisticated softly blurred interior showroom with natural daylight and realistic floor contact shadows. No people, no bags, no accessories, no dimensions, no caption or diagram, no contact sheet, no supplier graphics. Square output. Physical accuracy and beautifully designed print are essential.",
+      "references": [
+        "sd-retractable-05.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/premium-retractable-48x80.webp"
+    },
+    {
+      "id": "premium-retractable-60x69",
+      "prompt": "PRECISE EDIT of reference1. Preserve the exact original PRODUCT SILHOUETTE, proportions, canvas placement, camera angle and every hardware part. DO NOT REDESIGN HARDWARE OR MAKE THE GRAPHIC TALLER OR NARROWER. Change only the printed artwork and replace the plain backdrop with a softly blurred premium sunlit interior with stone floor. Create ONE premium photorealistic ecommerce photograph of ONE 60 × 69 in retractable banner stand. Reference1 is the single exact product photograph; its geometry is authoritative. Preserve actual stand construction: silver streamlined wide low-profile stable cassette with NO swing-out feet. Reference2 style sheet shows the established brand design for premium-retractable-banner. Printed graphic uses SUMMIT OUTDOOR CO., warm white with a beautiful alpine landscape photograph and dark charcoal elegant typography. Full-height beautiful print artwork with strong professional type hierarchy and a subtle matching emblem. Adapt layout naturally to EXACT 60 × 69 in print proportions; do not squash the text or change the physical size. Entire stand visible with clear margins, same viewpoint as reference1 in a sophisticated softly blurred interior showroom with natural daylight and realistic floor contact shadows. No people, no bags, no accessories, no dimensions, no caption or diagram, no contact sheet, no supplier graphics. Square output. Physical accuracy and beautifully designed print are essential.",
+      "references": [
+        "sd-retractable-07.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/premium-retractable-60x69.webp"
+    },
+    {
+      "id": "premium-retractable-60x80",
+      "prompt": "PRECISE EDIT of reference1. Preserve the exact original PRODUCT SILHOUETTE, proportions, canvas placement, camera angle and every hardware part. DO NOT REDESIGN HARDWARE OR MAKE THE GRAPHIC TALLER OR NARROWER. Change only the printed artwork and replace the plain backdrop with a softly blurred premium sunlit interior with stone floor. Create ONE premium photorealistic ecommerce photograph of ONE 60 × 80 in retractable banner stand. Reference1 is the single exact product photograph; its geometry is authoritative. Preserve actual stand construction: silver streamlined wide low-profile stable cassette with NO swing-out feet. Reference2 style sheet shows the established brand design for premium-retractable-banner. Printed graphic uses SUMMIT OUTDOOR CO., warm white with a beautiful alpine landscape photograph and dark charcoal elegant typography. Full-height beautiful print artwork with strong professional type hierarchy and a subtle matching emblem. Adapt layout naturally to EXACT 60 × 80 in print proportions; do not squash the text or change the physical size. Entire stand visible with clear margins, same viewpoint as reference1 in a sophisticated softly blurred interior showroom with natural daylight and realistic floor contact shadows. No people, no bags, no accessories, no dimensions, no caption or diagram, no contact sheet, no supplier graphics. Square output. Physical accuracy and beautifully designed print are essential.",
+      "references": [
+        "sd-retractable-08.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/premium-retractable-60x80.webp"
+    },
+    {
+      "id": "standard-retractable-banner-1",
+      "prompt": "PRECISE EDIT of reference1. Preserve the exact original PRODUCT SILHOUETTE, proportions, canvas placement, camera angle and every hardware part. DO NOT REDESIGN HARDWARE OR MAKE THE GRAPHIC TALLER OR NARROWER. Change only the printed artwork and replace the plain backdrop with a softly blurred premium sunlit interior with stone floor. Create ONE premium photorealistic ecommerce photograph of ONE 23 × 66 in retractable banner stand. Reference1 is the single exact product photograph; its geometry is authoritative. Preserve actual stand construction: silver aluminum cassette with TWO silver swing-out stabilizer feet. Reference2 style sheet shows the established brand design for standard-retractable-banner. Printed graphic uses WILLOW & STONE, INTERIOR DESIGN, elegant warm ivory and muted olive with a tasteful contemporary living-room photograph. Full-height beautiful print artwork with strong professional type hierarchy and a subtle matching emblem. Adapt layout naturally to EXACT 23 × 66 in print proportions; do not squash the text or change the physical size. Entire stand visible with clear margins, same viewpoint as reference1 in a sophisticated softly blurred interior showroom with natural daylight and realistic floor contact shadows. No people, no bags, no accessories, no dimensions, no caption or diagram, no contact sheet, no supplier graphics. Square output. Physical accuracy and beautifully designed print are essential.",
+      "references": [
+        "standard-retractable-01.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/standard-retractable-banner-1.webp"
+    },
+    {
+      "id": "standard-retractable-banner-2",
+      "prompt": "PRECISE EDIT of reference1. Preserve the exact original PRODUCT SILHOUETTE, proportions, canvas placement, camera angle and every hardware part. DO NOT REDESIGN HARDWARE OR MAKE THE GRAPHIC TALLER OR NARROWER. Change only the printed artwork and replace the plain backdrop with a softly blurred premium sunlit interior with stone floor. Create ONE premium photorealistic ecommerce photograph of ONE 24 × 81 in retractable banner stand. Reference1 is the single exact product photograph; its geometry is authoritative. Preserve actual stand construction: silver aluminum cassette with TWO silver swing-out stabilizer feet. Reference2 style sheet shows the established brand design for standard-retractable-banner. Printed graphic uses WILLOW & STONE, INTERIOR DESIGN, elegant warm ivory and muted olive with a tasteful contemporary living-room photograph. Full-height beautiful print artwork with strong professional type hierarchy and a subtle matching emblem. Adapt layout naturally to EXACT 24 × 81 in print proportions; do not squash the text or change the physical size. Entire stand visible with clear margins, same viewpoint as reference1 in a sophisticated softly blurred interior showroom with natural daylight and realistic floor contact shadows. No people, no bags, no accessories, no dimensions, no caption or diagram, no contact sheet, no supplier graphics. Square output. Physical accuracy and beautifully designed print are essential.",
+      "references": [
+        "standard-retractable-02.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/standard-retractable-banner-2.webp"
+    },
+    {
+      "id": "standard-retractable-banner-4",
+      "prompt": "PRECISE EDIT of reference1. Preserve the exact original PRODUCT SILHOUETTE, proportions, canvas placement, camera angle and every hardware part. DO NOT REDESIGN HARDWARE OR MAKE THE GRAPHIC TALLER OR NARROWER. Change only the printed artwork and replace the plain backdrop with a softly blurred premium sunlit interior with stone floor. Create ONE premium photorealistic ecommerce photograph of ONE 47 × 81 in retractable banner stand. Reference1 is the single exact product photograph; its geometry is authoritative. Preserve actual stand construction: silver aluminum cassette with TWO silver swing-out stabilizer feet. Reference2 style sheet shows the established brand design for standard-retractable-banner. Printed graphic uses WILLOW & STONE, INTERIOR DESIGN, elegant warm ivory and muted olive with a tasteful contemporary living-room photograph. Full-height beautiful print artwork with strong professional type hierarchy and a subtle matching emblem. Adapt layout naturally to EXACT 47 × 81 in print proportions; do not squash the text or change the physical size. Entire stand visible with clear margins, same viewpoint as reference1 in a sophisticated softly blurred interior showroom with natural daylight and realistic floor contact shadows. No people, no bags, no accessories, no dimensions, no caption or diagram, no contact sheet, no supplier graphics. Square output. Physical accuracy and beautifully designed print are essential.",
+      "references": [
+        "standard-retractable-05.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/standard-retractable-banner-4.webp"
+    },
+    {
+      "id": "standard-retractable-black",
+      "prompt": "PRECISE EDIT of reference1. Preserve the exact original PRODUCT SILHOUETTE, proportions, canvas placement, camera angle and every hardware part. DO NOT REDESIGN HARDWARE OR MAKE THE GRAPHIC TALLER OR NARROWER. Change only the printed artwork and replace the plain backdrop with a softly blurred premium sunlit interior with stone floor. Create ONE premium photorealistic ecommerce photograph of ONE 33 × 81 in retractable banner stand. Reference1 is the single exact product photograph; its geometry is authoritative. Preserve actual stand construction: BLACK cassette and black top rail, two black swing-out stabilizer feet. Reference2 style sheet shows the established brand design for standard-retractable-banner. Printed graphic uses WILLOW & STONE, INTERIOR DESIGN, elegant warm ivory and muted olive with a tasteful contemporary living-room photograph. Full-height beautiful print artwork with strong professional type hierarchy and a subtle matching emblem. Adapt layout naturally to EXACT 33 × 81 in print proportions; do not squash the text or change the physical size. Entire stand visible with clear margins, same viewpoint as reference1 in a sophisticated softly blurred interior showroom with natural daylight and realistic floor contact shadows. No people, no bags, no accessories, no dimensions, no caption or diagram, no contact sheet, no supplier graphics. Square output. Physical accuracy and beautifully designed print are essential.",
+      "references": [
+        "standard-retractable-03.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/standard-retractable-black.webp"
+    },
+    {
+      "id": "deluxe-retractable-banner-2",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Deluxe Retractable Banner, exact configuration 33 × 81 in · double sided. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: NORTHLINE ESCAPES, navy and warm ivory, elegant compass logo and a beautiful mountain-lake travel photograph. Preserve the real product construction; do not substitute a different type of stand, flag or cover. Entire product visible, no accessories, in a warm sophisticated softly blurred commercial interior, natural light. Show ONE double-sided stand at a three-quarter angle, two back-to-back graphic panels in one broad silver cassette. Do not show two separate stands. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "deluxe-retractable-02.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/deluxe-retractable-banner-2.webp"
+    },
+    {
+      "id": "x-banner-stand-2",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of X Banner Stand, exact configuration 32 × 71 in. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: FRESHFIELD FARM MARKET, white and forest-green, attractive detailed photograph of fresh tomatoes and produce. Preserve the real product construction; do not substitute a different type of stand, flag or cover. Entire product visible, no accessories, in a warm sophisticated softly blurred commercial interior, natural light. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "x-stand-02.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/x-banner-stand-2.webp"
+    },
+    {
+      "id": "tension-fabric-stand-2",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Tension Fabric Stand, exact configuration 48 × 90 in. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: HARBOR DENTAL STUDIO, A reason to smile, warm ivory and muted teal with a tasteful dental-office photograph. Preserve the real product construction; do not substitute a different type of stand, flag or cover. Entire product visible, no accessories, in a warm sophisticated softly blurred commercial interior, natural light. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "tension-fabric-stand-02.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/tension-fabric-stand-2.webp"
+    },
+    {
+      "id": "step-and-repeat-backdrop-8x8",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Step & Repeat Backdrop, exact configuration 8 × 8 ft. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: repeating THE CEDAR FOUNDATION tree emblem and NORTHLINE PARTNERS dark navy wordmark on warm white. Preserve the real product construction; do not substitute a different type of stand, flag or cover. Entire product visible, no accessories, in a warm sophisticated softly blurred commercial interior, natural light. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "step-repeat-backdrop-01.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/step-and-repeat-backdrop-8x8.webp"
+    },
+    {
+      "id": "feather-flags-2",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Feather Flags, exact configuration Angled · 10.5 ft. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: FRESHFIELD FARM MARKET, forest green and cream with small leaf logo, readable FARM MARKET and small SAT 8-1. Preserve the real product construction; do not substitute a different type of stand, flag or cover. One flag only on its exact black flexible pole with ground spike in grass. Preserve the precise curved flag silhouette, printed width-to-height ratio and pole proportions from reference1. No cross base or bag. Outdoor retail landscaping, soft sunlight. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "feather-angled-flag-size-medium.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/feather-flags-2.webp"
+    },
+    {
+      "id": "feather-flags-3",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Feather Flags, exact configuration Angled · 14 ft. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: FRESHFIELD FARM MARKET, forest green and cream with small leaf logo, readable FARM MARKET and small SAT 8-1. Preserve the real product construction; do not substitute a different type of stand, flag or cover. One flag only on its exact black flexible pole with ground spike in grass. Preserve the precise curved flag silhouette, printed width-to-height ratio and pole proportions from reference1. No cross base or bag. Outdoor retail landscaping, soft sunlight. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "feather-angled-flag-size-large.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/feather-flags-3.webp"
+    },
+    {
+      "id": "feather-flags-4",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Feather Flags, exact configuration Angled · 18 ft. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: FRESHFIELD FARM MARKET, forest green and cream with small leaf logo, readable FARM MARKET and small SAT 8-1. Preserve the real product construction; do not substitute a different type of stand, flag or cover. One flag only on its exact black flexible pole with ground spike in grass. Preserve the precise curved flag silhouette, printed width-to-height ratio and pole proportions from reference1. No cross base or bag. Outdoor retail landscaping, soft sunlight. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "feather-angled-flag-size-xlarge.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/feather-flags-4.webp"
+    },
+    {
+      "id": "feather-flags-5",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Feather Flags, exact configuration Convex · 9 ft. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: FRESHFIELD FARM MARKET, forest green and cream with small leaf logo, readable FARM MARKET and small SAT 8-1. Preserve the real product construction; do not substitute a different type of stand, flag or cover. One flag only on its exact black flexible pole with ground spike in grass. Preserve the precise curved flag silhouette, printed width-to-height ratio and pole proportions from reference1. No cross base or bag. Outdoor retail landscaping, soft sunlight. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "convex-flag-Size-small.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/feather-flags-5.webp"
+    },
+    {
+      "id": "feather-flags-6",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Feather Flags, exact configuration Convex · 10.5 ft. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: FRESHFIELD FARM MARKET, forest green and cream with small leaf logo, readable FARM MARKET and small SAT 8-1. Preserve the real product construction; do not substitute a different type of stand, flag or cover. One flag only on its exact black flexible pole with ground spike in grass. Preserve the precise curved flag silhouette, printed width-to-height ratio and pole proportions from reference1. No cross base or bag. Outdoor retail landscaping, soft sunlight. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "convex-flag-Size-medium.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/feather-flags-6.webp"
+    },
+    {
+      "id": "feather-flags-7",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Feather Flags, exact configuration Convex · 14 ft. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: FRESHFIELD FARM MARKET, forest green and cream with small leaf logo, readable FARM MARKET and small SAT 8-1. Preserve the real product construction; do not substitute a different type of stand, flag or cover. One flag only on its exact black flexible pole with ground spike in grass. Preserve the precise curved flag silhouette, printed width-to-height ratio and pole proportions from reference1. No cross base or bag. Outdoor retail landscaping, soft sunlight. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "convex-flag-Size-large.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/feather-flags-7.webp"
+    },
+    {
+      "id": "feather-flags-8",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Feather Flags, exact configuration Convex · 18 ft. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: FRESHFIELD FARM MARKET, forest green and cream with small leaf logo, readable FARM MARKET and small SAT 8-1. Preserve the real product construction; do not substitute a different type of stand, flag or cover. One flag only on its exact black flexible pole with ground spike in grass. Preserve the precise curved flag silhouette, printed width-to-height ratio and pole proportions from reference1. No cross base or bag. Outdoor retail landscaping, soft sunlight. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "convex-flag-Size-xlarge.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/feather-flags-8.webp"
+    },
+    {
+      "id": "teardrop-flags-2",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Teardrop Flags, exact configuration 9 ft. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: BLUE TIDE SURF SCHOOL, crisp white and ocean blue, wave emblem, beautiful ocean photography and readable SURF LESSONS. Preserve the real product construction; do not substitute a different type of stand, flag or cover. One flag only on its exact black flexible pole with ground spike in grass. Preserve the precise curved flag silhouette, printed width-to-height ratio and pole proportions from reference1. No cross base or bag. Outdoor retail landscaping, soft sunlight. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "teardrop-flag-size-medium.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/teardrop-flags-2.webp"
+    },
+    {
+      "id": "teardrop-flags-3",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Teardrop Flags, exact configuration 11.2 ft. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: BLUE TIDE SURF SCHOOL, crisp white and ocean blue, wave emblem, beautiful ocean photography and readable SURF LESSONS. Preserve the real product construction; do not substitute a different type of stand, flag or cover. One flag only on its exact black flexible pole with ground spike in grass. Preserve the precise curved flag silhouette, printed width-to-height ratio and pole proportions from reference1. No cross base or bag. Outdoor retail landscaping, soft sunlight. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "teardrop-flag-size-large.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/teardrop-flags-3.webp"
+    },
+    {
+      "id": "teardrop-flags-4",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Teardrop Flags, exact configuration 13.5 ft. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: BLUE TIDE SURF SCHOOL, crisp white and ocean blue, wave emblem, beautiful ocean photography and readable SURF LESSONS. Preserve the real product construction; do not substitute a different type of stand, flag or cover. One flag only on its exact black flexible pole with ground spike in grass. Preserve the precise curved flag silhouette, printed width-to-height ratio and pole proportions from reference1. No cross base or bag. Outdoor retail landscaping, soft sunlight. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "teardrop-flag-size-xlarge.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/teardrop-flags-4.webp"
+    },
+    {
+      "id": "rectangle-flags-2",
+      "prompt": "Precise edit to this single product photograph. Keep absolutely everything unchanged: flag hardware, flag size and silhouette, light, colors, logos and background. Fix ONLY the oversized stacked OPEN HOUSE typography in the middle. Replace it with elegant navy lettering in two clean vertical columns, rotated 90 degrees clockwise like a refined retail sign, the words OPEN and HOUSE readable with generous spacing and NO overlapping letters. Preserve the OPEN HOUSE REALTY logo at top. Improve the typography to be professional and easily readable. No additional text. Square image.",
+      "references": [
+        "exec-cbc4f14d-1161-4acd-827b-6061661256b7.png"
+      ],
+      "output": "public/images/products/gallery/rectangle-flags-2.webp"
+    },
+    {
+      "id": "rectangle-flags-3",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Rectangle Flags, exact configuration 15 ft. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: OPEN HOUSE REALTY, cream and navy, refined house logo, large vertical stacked OPEN HOUSE. Preserve the real product construction; do not substitute a different type of stand, flag or cover. One flag only on its exact black flexible pole with ground spike in grass. Preserve the precise curved flag silhouette, printed width-to-height ratio and pole proportions from reference1. No cross base or bag. Outdoor retail landscaping, soft sunlight. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "rectangle-flag-size-large.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/rectangle-flags-3.webp"
+    },
+    {
+      "id": "standard-table-throws-1",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Standard Table Throws, exact configuration 4 ft · open back. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: CEDAR & CO. HOME GOODS, muted forest green top, cream front with elegant dark green tree emblem and CEDAR & CO.. Preserve the real product construction; do not substitute a different type of stand, flag or cover. Exactly one table cover on a folding table, with correct 4 ft · open back proportions. Show a three-quarter REAR view with the open rear clearly visible, uncovered rear table legs, closed front and both sides. The front brand print is naturally hidden in this rear view; do not invent print on the open back. Preserve loose draped fabric and natural corner folds. Warm airy professional event interior, empty tabletop. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "4ft-table-cover-01.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/standard-table-throws-1.webp"
+    },
+    {
+      "id": "standard-table-throws-2",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Standard Table Throws, exact configuration 4 ft · closed back. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: CEDAR & CO. HOME GOODS, muted forest green top, cream front with elegant dark green tree emblem and CEDAR & CO.. Preserve the real product construction; do not substitute a different type of stand, flag or cover. Exactly one table cover on a folding table, with correct 4 ft · closed back proportions. Show a three-quarter front view with branded FRONT and closed back. Preserve loose draped fabric and natural corner folds. Warm airy professional event interior, empty tabletop. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "4ft-table-cover-01.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/standard-table-throws-2.webp"
+    },
+    {
+      "id": "standard-table-throws-3",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Standard Table Throws, exact configuration 6 ft · open back. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: CEDAR & CO. HOME GOODS, muted forest green top, cream front with elegant dark green tree emblem and CEDAR & CO.. Preserve the real product construction; do not substitute a different type of stand, flag or cover. Exactly one table cover on a folding table, with correct 6 ft · open back proportions. Show a three-quarter REAR view with the open rear clearly visible, uncovered rear table legs, closed front and both sides. The front brand print is naturally hidden in this rear view; do not invent print on the open back. Preserve loose draped fabric and natural corner folds. Warm airy professional event interior, empty tabletop. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "6ft-table-cover-01.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/standard-table-throws-3.webp"
+    },
+    {
+      "id": "standard-table-throws-5",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Standard Table Throws, exact configuration 8 ft · open back. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: CEDAR & CO. HOME GOODS, muted forest green top, cream front with elegant dark green tree emblem and CEDAR & CO.. Preserve the real product construction; do not substitute a different type of stand, flag or cover. Exactly one table cover on a folding table, with correct 8 ft · open back proportions. Show a three-quarter REAR view with the open rear clearly visible, uncovered rear table legs, closed front and both sides. The front brand print is naturally hidden in this rear view; do not invent print on the open back. Preserve loose draped fabric and natural corner folds. Warm airy professional event interior, empty tabletop. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "8ft-table-cover-01.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/standard-table-throws-5.webp"
+    },
+    {
+      "id": "standard-table-throws-6",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Standard Table Throws, exact configuration 8 ft · closed back. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: CEDAR & CO. HOME GOODS, muted forest green top, cream front with elegant dark green tree emblem and CEDAR & CO.. Preserve the real product construction; do not substitute a different type of stand, flag or cover. Exactly one table cover on a folding table, with correct 8 ft · closed back proportions. Show a three-quarter front view with branded FRONT and closed back. Preserve loose draped fabric and natural corner folds. Warm airy professional event interior, empty tabletop. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "8ft-table-cover-01.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/standard-table-throws-6.webp"
+    },
+    {
+      "id": "fitted-table-throws-1",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Fitted Table Throws, exact configuration 6 ft · open back. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: NORTHLINE FINANCIAL, solid navy fabric, restrained champagne-gold lettering NORTHLINE and smaller FINANCIAL centered on front. Preserve the real product construction; do not substitute a different type of stand, flag or cover. Exactly one table cover on a folding table, with correct 6 ft · open back proportions. Show a three-quarter REAR view with the open rear clearly visible, uncovered rear table legs, closed front and both sides. The front brand print is naturally hidden in this rear view; do not invent print on the open back. Preserve tailored box seams and flat sides, NOT loose draped fabric. Warm airy professional event interior, empty tabletop. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "Fitted-Table-Cover-01.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/fitted-table-throws-1.webp"
+    },
+    {
+      "id": "fitted-table-throws-3",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Fitted Table Throws, exact configuration 8 ft · open back. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: NORTHLINE FINANCIAL, solid navy fabric, restrained champagne-gold lettering NORTHLINE and smaller FINANCIAL centered on front. Preserve the real product construction; do not substitute a different type of stand, flag or cover. Exactly one table cover on a folding table, with correct 8 ft · open back proportions. Show a three-quarter REAR view with the open rear clearly visible, uncovered rear table legs, closed front and both sides. The front brand print is naturally hidden in this rear view; do not invent print on the open back. Preserve tailored box seams and flat sides, NOT loose draped fabric. Warm airy professional event interior, empty tabletop. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "Fitted-Table-Cover-01.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/fitted-table-throws-3.webp"
+    },
+    {
+      "id": "fitted-table-throws-4",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Fitted Table Throws, exact configuration 8 ft · closed back. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: NORTHLINE FINANCIAL, solid navy fabric, restrained champagne-gold lettering NORTHLINE and smaller FINANCIAL centered on front. Preserve the real product construction; do not substitute a different type of stand, flag or cover. Exactly one table cover on a folding table, with correct 8 ft · closed back proportions. Show a three-quarter front view with branded FRONT and closed back. Preserve tailored box seams and flat sides, NOT loose draped fabric. Warm airy professional event interior, empty tabletop. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "Fitted-Table-Cover-01.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/fitted-table-throws-4.webp"
+    },
+    {
+      "id": "stretch-table-throws-2",
+      "prompt": "Create ONE premium photorealistic ecommerce product photograph of Stretch Table Throws, exact configuration 8 ft. Reference1 is authoritative for the actual physical product, its hardware, shape and proportions. Reference2 is the already approved brand/style contact sheet. Replace every supplier design with this beautiful fictional brand: HARBOR WELLNESS, warm muted teal with elegant ivory sun emblem and lettering. Preserve the real product construction; do not substitute a different type of stand, flag or cover. Exactly one table cover on a folding table, with correct 8 ft proportions. Show a three-quarter front view with branded FRONT and closed back. Preserve stretch fabric tension and concave lower edges fitted onto four leg pockets. Warm airy professional event interior, empty tabletop. The PRINTED PRODUCT is the subject and occupies most of the image, all of it visible with comfortable margins. Professional typography and real-looking print. No people, no unrelated props, no supplier designs, no measurement markings, no watermark, no collage. Square output.",
+      "references": [
+        "stretch-table-cover-02.jpg",
+        "existing-style-contact.jpg"
+      ],
+      "output": "public/images/products/gallery/stretch-table-throws-2.webp"
+    },
+    {
+      "id": "acrylic-signs-1",
+      "prompt": "Create one premium realistic ecommerce photograph of a rectangular 24 by 18 inch clear 3 mm ACRYLIC sign mounted on a warm pale office wall above a walnut credenza. Reference1 bottom-left acrylic image supplies WILLOW & STONE INTERIOR DESIGN branding and setting. Reference2 specifies the real material: thin 3mm acrylic, print directly on the BACK with a white ink underbase beneath printed logo and text, clear surrounding unprinted acrylic. Elegant dark olive arch/leaf logo and refined serif WILLOW & STONE wordmark. Four small aluminum standoff caps at corners, panel separated 3/4 inch from wall. Full panel and thin polished transparent edge in view, believable material and soft daylight, sophisticated expensive photography. No thick quarter-inch slab, no oversized chrome caps, no people, no watermark, no labels. Square image.",
+      "references": [
+        "existing-style-contact.jpg",
+        "signs365-12.jpg"
+      ],
+      "output": "public/images/products/gallery/acrylic-signs-1.webp"
+    }
+  ]
+}

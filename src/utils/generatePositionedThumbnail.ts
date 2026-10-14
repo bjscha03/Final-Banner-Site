@@ -18,6 +18,7 @@ export interface PositionedThumbnailInput {
   imgScaleY?: number;
   crop?: ArtworkCrop;
   backgroundColor?: string;
+  mimeType?: 'image/jpeg' | 'image/png';
   maxOutputPx?: number;
   maxOutputPixels?: number;
 }
@@ -184,7 +185,7 @@ export function measureVisibleArtworkFraction(
   return total > 0 ? visible / total : 0;
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+function canvasToBlob(canvas: HTMLCanvasElement, mimeType: string = PREVIEW_MIME_TYPE): Promise<Blob> {
   return new Promise((resolve, reject) => {
     try {
       canvas.toBlob((blob) => {
@@ -196,7 +197,7 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
           return;
         }
         resolve(blob);
-      }, PREVIEW_MIME_TYPE, PREVIEW_QUALITY);
+      }, mimeType, PREVIEW_QUALITY);
     } catch (error) {
       reject(new PreviewLifecycleError(
         'CANVAS_EXPORT_FAILED',
@@ -313,7 +314,7 @@ export async function renderPositionedThumbnailBlob(
         error: error instanceof Error ? error.message : String(error),
       });
     }
-    const blob = await canvasToBlob(canvas);
+    const blob = await canvasToBlob(canvas, input.mimeType);
     return { blob, widthPx, heightPx, visiblePixelFraction };
   } finally {
     canvas.width = 0;

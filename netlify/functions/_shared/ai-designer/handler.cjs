@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const {layoutContext,layoutGuide,guideInstruction}=require('./specialty-layout.cjs');
 const { AsyncLocalStorage } = require('node:async_hooks');
 const { createProgressWriter } = require('./progress.cjs');
 const pipelineProgress = new AsyncLocalStorage();
@@ -489,21 +490,24 @@ async function runGenerateRequest(body, session, jobId = crypto.randomUUID()) {
   // concepts for comparison across separate requests.
   const generationId = crypto.randomUUID();
   const conceptStarted = Date.now();
+  const productLayout=layoutContext(brief.productType,brief.widthIn,brief.heightIn);
+  const technicalGuide=await layoutGuide(productLayout,plan);
   const generationOptions = {
-    prompt: buildGenerationPrompt(brief, plan, 0),
+    prompt: buildGenerationPrompt(brief, productLayout?{...plan,strategy:'native-exact-ratio'}:plan, 0),
     size: plan.providerSize,
     user: providerUser(session),
     idempotencyKey: providerRequestKey(jobId, 'generate'),
   };
-  const primaryInput = reference || photos[0] || logo;
-  const currentImageRole = reference ? 'style-reference' : photos.length ? 'featured-photo' : 'logo-reference';
+  const primaryInput = reference || photos[0] || logo || technicalGuide;
+  const currentImageRole = reference ? 'style-reference' : photos.length ? 'featured-photo' : logo?'logo-reference':'layout-guide';
+  if(productLayout)generationOptions.prompt+='\n'+guideInstruction(productLayout,primaryInput===technicalGuide?'FIRST':'SECOND');
   const remainingPhotos = reference ? photos : photos.slice(1);
   const generated = await withPipelineStage('Creating your artwork', () => primaryInput
-    ? editImage({ ...generationOptions, prompt: `${generationOptions.prompt}\nCreate a NEW banner composition. ${customerPhotoPrompt(photos.length)} ${brief.hasIntegratedLogo ? 'Print the approved banner wording and the exact source-logo wording; integrate that logo faithfully once as part of the design without a second logo overlay.' : 'Print only the approved wording; never reproduce a separately uploaded logo in the generated artwork.'}`, currentImage: primaryInput.buffer, currentMime: primaryInput.mimeType, currentImageRole, photoReferenceImages: remainingPhotos, logoReferenceImage: primaryInput === logo ? null : logo, logoRendering: brief.logoRendering })
+    ? editImage({ ...generationOptions, prompt: `${generationOptions.prompt}\nCreate a NEW banner composition. ${customerPhotoPrompt(photos.length)} ${brief.hasIntegratedLogo ? 'Print the approved banner wording and the exact source-logo wording; integrate that logo faithfully once as part of the design without a second logo overlay.' : 'Print only the approved wording; never reproduce a separately uploaded logo in the generated artwork.'}`, currentImage: primaryInput.buffer, currentMime: primaryInput.mimeType, currentImageRole, ...(primaryInput!==technicalGuide?{layoutReferenceImage:technicalGuide}:{}), photoReferenceImages: remainingPhotos, logoReferenceImage: primaryInput === logo ? null : logo, logoRendering: brief.logoRendering })
     : generateImage(generationOptions));
   const providerCalls = [generated];
   let guided = generated;
-  if (plan.strategy === 'gpt-image-2-outpainting') {
+  if (!productLayout && plan.strategy === 'gpt-image-2-outpainting') {
     const { prepareOutpaintInput } = require('./image-utils.cjs');
     const outpaint = await withPipelineStage('preparing the exact banner ratio', () => prepareOutpaintInput(generated.buffer, plan));
     const guidance = [
@@ -650,8 +654,11 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
     ? editPlan.removeLogo ? removalArtworkInstruction : [manual ? `Apply the updated wording and requested text styling/placement: ${JSON.stringify(brief.layers)}. Preserve the existing artistic lettering style unless a style change is requested.` : instruction, buildCopyChangeInstruction(body.previousCopy, brief.copy)].filter(Boolean).join('\n')
     : cleanText(editPlan.backgroundInstruction, 700);
   if (replaceIntegratedLogo) backgroundInstruction += `\nThe customer has supplied a NEW logo reference. Replace the old integrated logo and its old logo-specific lettering ${JSON.stringify(previousLogoWording)} with this new source logo exactly ONCE, using its actual wording ${JSON.stringify(brief.logoWording)}. If the artwork has no logo, add this logo once. Do not retain the old mark, old logo-only wording, or add a duplicate. Preserve unrelated approved banner wording, layout and styling.`;
+  const productLayout=layoutContext(brief.productType,brief.widthIn,brief.heightIn);
+  const technicalGuide=await layoutGuide(productLayout,plan);
   const edited = backgroundInstruction ? await withPipelineStage('editing the artwork', () => editImage({
-    prompt: buildEditPrompt(brief, plan, backgroundInstruction),
+    prompt: buildEditPrompt(brief, plan, backgroundInstruction)+'\n'+guideInstruction(productLayout),
+    layoutReferenceImage:technicalGuide,
     size: plan.providerSize,
     currentImage: current.buffer,
     currentMime: current.mimeType,
