@@ -476,14 +476,26 @@ jobs:
             grep -q 'UNAUTHORIZED' "/tmp/${endpoint}.json"
           done
 
-          for endpoint in ai-designer-status ai-designer-brief ai-designer-generate ai-designer-edit ai-designer-job; do
+          # Status GET requires an existing session. Status POST is the
+          # customer-session bootstrap and rejects requests without an origin.
+          code=$(curl -sS -o /tmp/ai-designer-status.json -w '%{http_code}' \
+            "$PREVIEW_URL/.netlify/functions/ai-designer-status")
+          test "$code" = "401"
+          grep -q 'AI_SESSION_REQUIRED' /tmp/ai-designer-status.json
+          code=$(curl -sS -o /tmp/ai-designer-bootstrap.json -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' --data '{}' \
+            "$PREVIEW_URL/.netlify/functions/ai-designer-status")
+          test "$code" = "403"
+          grep -q 'FORBIDDEN_ORIGIN' /tmp/ai-designer-bootstrap.json
+
+          for endpoint in ai-designer-brief ai-designer-generate ai-designer-edit ai-designer-job; do
             code=$(curl -sS -o "/tmp/${endpoint}.json" -w '%{http_code}' \
               -X POST \
               -H 'Content-Type: application/json' \
               --data '{}' \
               "$PREVIEW_URL/.netlify/functions/${endpoint}")
             test "$code" = "401"
-            grep -q 'UNAUTHORIZED' "/tmp/${endpoint}.json"
+            grep -q 'AI_SESSION_REQUIRED' "/tmp/${endpoint}.json"
           done
 
           # A background function acknowledges immediately with 202. This
