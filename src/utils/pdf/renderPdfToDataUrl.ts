@@ -29,6 +29,8 @@ export type PdfRenderOptions = {
   maxPixels?: number;
   /** Hard timeout for parsing/rendering the PDF page. */
   timeoutMs?: number;
+  /** Preserve unprinted regions for clear substrates such as acrylic. */
+  transparentBackground?: boolean;
   signal?: AbortSignal;
 };
 
@@ -103,7 +105,7 @@ const dataUrlToBlob = (dataUrl: string) => {
   return new Blob([bytes], { type: mime });
 };
 
-const canvasToPreviewBlob = (canvas: HTMLCanvasElement) => new Promise<Blob>((resolve, reject) => {
+const canvasToPreviewBlob = (canvas: HTMLCanvasElement, mimeType = PREVIEW_MIME_TYPE) => new Promise<Blob>((resolve, reject) => {
   let settled = false;
 
   const finish = (callback: () => void) => {
@@ -115,8 +117,8 @@ const canvasToPreviewBlob = (canvas: HTMLCanvasElement) => new Promise<Blob>((re
 
   const timeoutId = window.setTimeout(() => {
     try {
-      const fallback = dataUrlToBlob(canvas.toDataURL(PREVIEW_MIME_TYPE, PREVIEW_QUALITY));
-      if (!fallback.size) throw new Error('empty JPEG fallback');
+      const fallback = dataUrlToBlob(canvas.toDataURL(mimeType, PREVIEW_QUALITY));
+      if (!fallback.size) throw new Error('empty image fallback');
       finish(() => resolve(fallback));
     } catch {
       finish(() => reject(new Error('PDF preview image encoding timed out')));
@@ -128,12 +130,12 @@ const canvasToPreviewBlob = (canvas: HTMLCanvasElement) => new Promise<Blob>((re
       finish(() => reject(new Error('PDF preview canvas produced an empty image blob')));
       return;
     }
-    if (blob.type !== PREVIEW_MIME_TYPE) {
-      finish(() => reject(new Error(`PDF preview canvas produced ${blob.type || 'an unknown type'} instead of ${PREVIEW_MIME_TYPE}`)));
+    if (blob.type !== mimeType) {
+      finish(() => reject(new Error(`PDF preview canvas produced ${blob.type || 'an unknown type'} instead of ${mimeType}`)));
       return;
     }
     finish(() => resolve(blob));
-  }, PREVIEW_MIME_TYPE, PREVIEW_QUALITY);
+  }, mimeType, PREVIEW_QUALITY);
 });
 
 export async function renderPdfToDataUrl(
@@ -224,22 +226,24 @@ export async function renderPdfToDataUrl(
     canvas.width = Math.max(1, Math.floor(viewport.width));
     canvas.height = Math.max(1, Math.floor(viewport.height));
 
-    const context = canvas.getContext('2d', { alpha: false });
+    const context = canvas.getContext('2d', { alpha: Boolean(opts.transparentBackground) });
     if (!context) throw new Error('Could not create a canvas context for PDF preview');
 
-    // Keep transparent PDF regions white before encoding to JPEG.
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
+    // Opaque substrates use white; clear substrates retain PDF transparency.
+    if (!opts.transparentBackground) {
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+    }
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = 'high';
 
-    renderTask = page.render({ canvasContext: context, viewport });
+    renderTask = page.render({ canvasContext: context, viewport, ...(opts.transparentBackground ? { background: 'rgba(0,0,0,0)' } : {}) });
     await renderTask.promise;
     throwIfAborted(opts.signal);
 
     const width = canvas.width;
     const height = canvas.height;
-    const blob = await canvasToPreviewBlob(canvas);
+    const blob = await canvasToPreviewBlob(canvas, opts.transparentBackground ? 'image/png' : PREVIEW_MIME_TYPE);
     throwIfAborted(opts.signal);
 
     const previewUrl = URL.createObjectURL(blob);

@@ -135,6 +135,16 @@ describe('renderPdfToDataUrl', () => {
     expect(mockCanvas.context.imageSmoothingQuality).toBe('high');
   });
 
+  it('keeps unprinted PDF regions transparent for clear acrylic', async () => {
+    mockCanvas.toBlob.mockImplementation(callback => callback(new Blob(['transparent png'], { type: 'image/png' })));
+    const file = new File(['%PDF-1.7 page bytes'], 'clear.pdf', { type: 'application/pdf' });
+    await renderPdfToDataUrl(file, { transparentBackground: true });
+    expect(mockCanvas.getContext).toHaveBeenCalledWith('2d', { alpha: true });
+    expect(mockCanvas.context.fillRect).not.toHaveBeenCalled();
+    expect(mockPage.render).toHaveBeenCalledWith(expect.objectContaining({ background: 'rgba(0,0,0,0)' }));
+    expect(mockCanvas.toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/png', 0.9);
+  });
+
   it('reads only requested slices of a large PDF instead of copying the whole original', async () => {
     const file = new File(['%PDF-1.7 page bytes'], 'large.pdf', { type: 'application/pdf' });
     Object.defineProperty(file, 'size', { value: 300 * 1024 * 1024 });

@@ -172,7 +172,7 @@ try{
  });
  await check('saved cart reprices options and quantity and blocks only unavailable configurations',async()=>{
   const original=await page.evaluate(async()=>{const {useCartStore}=await import('/src/store/cart.ts');const s=useCartStore.getState(),item=s.items.find(i=>i.specialty_config?.productSlug==='feather-flags');if(!item)throw new Error('Run flag upload before this cart check.');s.replaceItemsFromRecovery([{...item,quantity:2,unit_price_cents:1,line_total_cents:2,specialty_config:{...item.specialty_config,priceVerified:false,options:{...item.specialty_config.options,flaghardware:'PB',carrybag:'1'}}}]);return item;});
-  await page.reload();const totals=page.getByTestId('checkout-order-totals');await totals.waitFor();
+  await page.reload();const totals=page.getByTestId('checkout-order-totals');await totals.waitFor();await totals.getByText('First-order savings · 20%',{exact:true}).waitFor();
   assert.match(await totals.innerText(),/\$537\.04/);assert.match(await totals.innerText(),/First-order savings · 20%/);assert.match(await totals.innerText(),/\$455\.41/);assert.match(await totals.innerText(),/FREE/);
   if(process.env.BOF_QA_TEST_CHECKOUT)assert.equal(await page.getByRole('button',{name:/^Place test order · \$/}).isEnabled(),true);
   await page.evaluate(async()=>{const {useCartStore}=await import('/src/store/cart.ts');const item=useCartStore.getState().items[0];useCartStore.getState().replaceItemsFromRecovery([{...item,specialty_config:{...item.specialty_config,priceVerified:true,options:{...item.specialty_config.options,sides:'invalid'}}}]);});
@@ -190,6 +190,9 @@ try{
   const item=await page.evaluate(async()=>{const {useCartStore}=await import('/src/store/cart.ts');return useCartStore.getState().items.find(i=>i.specialty_config?.productSlug==='display-posters')});
   assert.equal(item.specialty_config.panels[0].artwork.isPdf,true);const printed=uploads.get(item.specialty_config.panels[0].productionFileKey),output=await PDFDocument.load(printed.bytes);assert.deepEqual(output.getPage(0).getSize(),{width:1728,height:1296});assert.match(output.getPage(0).node.Resources().toString(),/XObject/);
   await open('display-posters');pdf.addPage();await page.locator('#specialty-artwork input[type=file]').setInputFiles({name:'qa-multipage.pdf',mimeType:'application/pdf',buffer:Buffer.from(await pdf.save())});await page.getByRole('alert').filter({hasText:'separate single-page PDF'}).waitFor();assert.equal(await page.getByRole('button',{name:'Add to cart',exact:true}).isDisabled(),true);
+  await open('acrylic-signs');await page.locator('#specialty-artwork input[type=file]').setInputFiles({name:'qa-clear-vector.pdf',mimeType:'application/pdf',buffer:Buffer.from(bytes)});
+  const clearProof=page.getByAltText('Front flat artwork without guides',{exact:true});await clearProof.waitFor({timeout:60000});await clearProof.evaluate(img=>img.decode());
+  assert.equal(await clearProof.evaluate(img=>{const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);return ctx.getImageData(Math.floor(c.width/2),Math.floor(c.height*.8),1,1).data[3];}),0,'Clear acrylic must preserve transparent regions inside the PDF page');
  });
  await check('selected tent wall artwork guide downloads at the correct print scale',async()=>{
   await open('custom-event-tents');await page.locator('#specialty-variant').selectOption('custom-event-tents-3');await page.locator('#option-tent_full_wall_long').selectOption('L1');
