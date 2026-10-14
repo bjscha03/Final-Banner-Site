@@ -672,7 +672,7 @@ const GoogleAdsBanner: React.FC = () => {
   const paidBannerLanding = compactMobileLanding && (designerPath === '/google-ads-banner' || !isLgScreen);
   const mobilePaidLayout = paidBannerLanding && !isLgScreen;
   const artworkWorkspaceRef = useRef<HTMLDivElement>(null);
-  useArtworkWorkspaceViewport(artworkWorkspaceRef, uploadedFile?.editorIdentity || uploadedFile?.fileKey, widthIn / heightIn);
+  useArtworkWorkspaceViewport(artworkWorkspaceRef, uploadedFile?.editorIdentity || uploadedFile?.fileKey, widthIn / heightIn, isLgScreen);
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');
     const handler = () => setIsLgScreen(mq.matches);

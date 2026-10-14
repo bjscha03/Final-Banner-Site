@@ -25,7 +25,7 @@ export function revealArtworkElement(element: HTMLElement | null) {
  * Resizing never changes the normalized print composition or follows scrolling.
  */
 export function useArtworkWorkspaceViewport(
-  ref: RefObject<HTMLDivElement>, artworkIdentity: string | undefined, aspect: number,
+  ref: RefObject<HTMLDivElement>, artworkIdentity: string | undefined, aspect: number, desktopLayout: boolean,
 ) {
   useLayoutEffect(() => {
     const workspace = ref.current;
@@ -87,5 +87,5 @@ export function useArtworkWorkspaceViewport(
       window.removeEventListener('touchstart', onTouch);
       window.removeEventListener('keydown', onKey);
     };
-  }, [ref, artworkIdentity, aspect]);
+  }, [ref, artworkIdentity, aspect, desktopLayout]);
 }

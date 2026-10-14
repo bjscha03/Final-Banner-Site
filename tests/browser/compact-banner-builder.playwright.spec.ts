@@ -483,6 +483,14 @@ for (const route of ['/google-ads-banner', '/design?product=vinyl-banners']) {
       await page.setViewportSize(originalViewport);
       await checkVisible();
       await page.screenshot({ path: info.outputPath(`${scenario}-ready.png`) });
+      if (originalViewport.width >= 768 && originalViewport.width < 1024) {
+        // Tablet rotation crosses the mobile/desktop layout boundary and moves
+        // the editor to a different parent; its new workspace must also fit.
+        await page.setViewportSize({ width: 1180, height: 820 });
+        await checkVisible();
+        await page.setViewportSize(originalViewport);
+        await checkVisible();
+      }
       // Normal scrolling remains possible after the automatic reveal.
       await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
       await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
