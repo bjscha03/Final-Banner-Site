@@ -28,7 +28,7 @@ jobs:
       - run: npm ci
       - run: node scripts/generate-specialty-options.mjs --check
       - run: node --test netlify/functions/__tests__/specialty-products.test.cjs netlify/functions/__tests__/specialty-proposed-pricing.test.cjs netlify/functions/__tests__/specialty-quote-validation.test.cjs
-      - run: npx vitest run --config vitest.ai.config.ts src/lib/specialtyArtwork.test.ts src/store/cart.specialty.test.ts src/components/specialty/SpecialtyPreview.test.tsx
+      - run: npx vitest run --config vitest.ai.config.ts src/lib/specialtyArtwork.test.ts src/lib/specialtyDiscount.test.ts src/store/cart.specialty.test.ts src/components/specialty/SpecialtyPreview.test.tsx
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - name: Check catalog, accessories, custom sizes, cart repricing and mobile display

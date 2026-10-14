@@ -13,6 +13,7 @@
  */
 
 import { getQuantityDiscountRate } from './quantity-discount';
+import specialtyDiscountPolicy from '../../shared/specialty-discount-policy.mjs';
 import {
   LARGE_BANNER_PROMOTION_ENABLED,
   LARGE_BANNER_PROMOTION_ID,
@@ -125,6 +126,7 @@ export interface ResolvedDiscount {
 // automatic eligible subtotal alongside the same promo object without changing
 // the existing public return type used by those callers.
 const automaticLargeBannerSubtotalByPromo = new WeakMap<PromoDiscountInput, number>();
+const specialtyCappedPromo = new WeakMap<PromoDiscountInput, PromoDiscountInput>();
 
 function normalizedCents(value: number | null | undefined): number {
   const numeric = Number(value);
@@ -198,6 +200,7 @@ export function getPromoDiscountSubtotalCents(
   const automaticSubtotalCents = getAutomaticLargeBannerSubtotalCents(items);
   if (promoDiscount) {
     automaticLargeBannerSubtotalByPromo.set(promoDiscount, automaticSubtotalCents);
+    specialtyCappedPromo.set(promoDiscount, specialtyDiscountPolicy.capSpecialtyPromotion(items, subtotalCents, promoDiscount));
   }
 
   // With no typed promo, the returned subtotal carries the automatic eligible
@@ -265,11 +268,15 @@ export function resolveBestDiscount(input: DiscountResolverInput): ResolvedDisco
   const {
     subtotalCents,
     quantity,
-    promoDiscount,
+    promoDiscount: originalPromoDiscount,
     quantitySubtotalCents,
     promoSubtotalCents,
     automaticLargeBannerSubtotalCents,
   } = input;
+  const promoDiscount = originalPromoDiscount ? specialtyCappedPromo.get(originalPromoDiscount) || originalPromoDiscount : originalPromoDiscount;
+  if (originalPromoDiscount && promoDiscount && originalPromoDiscount !== promoDiscount) {
+    automaticLargeBannerSubtotalByPromo.set(promoDiscount, automaticLargeBannerSubtotalByPromo.get(originalPromoDiscount) || 0);
+  }
 
   const normalizedSubtotalCents = Math.max(0, normalizedCents(subtotalCents));
   const quantityBaseCents = quantitySubtotalCents == null

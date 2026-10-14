@@ -76,13 +76,15 @@ function priceConfiguration(product,variant,width,height,input={}) {
   const options=optionsFor(variant,input,true), match=priceMatch(product,variant,width,height);
   const selectedSize=product.priceUnit==='sqft'&&options.size?.match(/^(\d+)x(\d+)$/);
   if(selectedSize&&!((width===Number(selectedSize[1])&&height===Number(selectedSize[2]))||(height===Number(selectedSize[1])&&width===Number(selectedSize[2]))))throw new Error('The dimensions must match the selected sign size. Choose Custom Size to enter different dimensions.');
-  let base=match?.priceCents??variant.priceCents??0;
-  if(product.priceUnit==='sqft'&&!match?.priceCents) base=Math.max(product.minOrderCents||0,Math.ceil(width*height/144*base));
+  const revised=variant.priceProposal?.revision==='profit-20-v1';
+  const retailMatch=product.retailPriceOverrides?.find(p=>(p.widthIn===width&&p.heightIn===height)||(p.widthIn===height&&p.heightIn===width));
+  let base=revised?(retailMatch?.priceCents??variant.priceCents??0):(match?.priceCents??variant.priceCents??0);
+  if(product.priceUnit==='sqft'&&!(revised?retailMatch?.priceCents:match?.priceCents)) base=Math.max(product.minOrderCents||0,Math.ceil(width*height/144*base));
   base+=variant.baseAddCents||0;
   // A complete preview proposal is priced, but is not a verified competitor
   // match or John's approval. Keep that provenance separate from completeness.
   const baseVerified=!!(match||variant.priceProposal)&&Number.isInteger(base)&&base>0;
-  let proposed=!match&&!!variant.priceProposal;
+  let proposed=revised||(!match&&!!variant.priceProposal);
   const missing=baseVerified?[]:['Product price']; const adjustments=[];
   if(release.categories[product.category]===false || release.products[product.slug]===false) missing.push('Product unavailable');
   for(const group of profileFor(variant)?.groups||[]) {

@@ -42,12 +42,12 @@ describe('specialty print export',()=>{
 describe('matched customer pricing',()=>{
   it('uses fixed ACM size prices and includes shipping for all valid sign sizes',()=>{
     const p=getSpecialtyProduct('aluminum-composite-signs')!,v=p.variants[0];
-    expect(specialtyUnitPrice(p,v,24,18)).toBe(4800);expect(specialtyUnitPrice(p,v,24,36)).toBe(9000);
+    expect(specialtyUnitPrice(p,v,24,18)).toBe(6000);expect(specialtyUnitPrice(p,v,24,36)).toBe(11500);
     const item={product_type:'specialty',width_in:24,height_in:18,specialty_config:{productSlug:p.slug,variantId:v.id}};
     expect(specialtyItemHasIncludedShipping(item)).toBe(true);
     expect(specialtyItemHasIncludedShipping({...item,width_in:20})).toBe(true);
     expect(specialtyItemHasVerifiedPrice({...item,width_in:20})).toBe(true);
-    expect(specialtyUnitPrice(p,v,20,18)).toBe(3750);
+    expect(specialtyUnitPrice(p,v,20,18)).toBe(4688);
   });
   it('prices proposed accessories with included shipping and rejects invalid configurations',()=>{
     const product=getSpecialtyProduct('custom-event-tents')!,variant=product.variants[0];

@@ -25,27 +25,30 @@ test('every selectable configuration has a positive complete quote and included 
  }
  assert.ok(count>1000);console.log(`Checked ${count} selectable configurations across 58 variants.`);
 });
-test('rigid and poster rates, per-item minimums, mounting and print sides calculate independently',()=>{
- for(const [s,w,h,opts,total] of [
-  ['acrylic-signs',6,6,{},9000],['acrylic-signs',6,6,{hardware:'acrylic'},6500],
-  ['acrylic-signs',18,24,{},12100],['acrylic-signs',24,18,{hardware:'acrylic'},9600],
-  ['aluminum-signs',12,12,{sides:'2'},5500],['aluminum-signs',18,24,{sides:'2',cornerstyle:'R',holespunch:'TL;TR;BL;BR'},9600],
-  ['aluminum-composite-signs',20,30,{sides:'2'},7709],
-  ['aluminum-composite-signs',6,24,{sides:'2'},2800],
-  ['display-posters',6,6,{},3900],['display-posters',24,36,{},5100],
-  ['display-posters',52,1908,{},585650]
- ])assert.equal(quote(s,w,h,opts).unitCents,total,`${s} ${w}x${h}`);
- for(const s of ['acrylic-signs','aluminum-signs','aluminum-composite-signs','display-posters'])assert.equal(quote(s,20.25,31.75).unitCents,quote(s,31.75,20.25).unitCents);
+test('revised configurations meet the independently audited price floors',()=>{
+ const quotes=require('./fixtures/specialty-price-floors-2026-10-14.json');
+ assert.equal(quotes.length,175);
+ for(const row of quotes){
+  const p=catalog.find(p=>p.slug===row.slug),v=p.variants.find(v=>v.id===row.variantId);
+  const q=engine.priceConfiguration(p,v,row.width,row.height,row.options);
+  assert.ok(q.unitCents>=row.minimumListCents,row.label);
+  assert.equal(q.proposed,true);
+ }
+ assert.equal(quote('rectangle-flags',25,80).unitCents,43900);
+ const p=catalog.find(p=>p.slug==='standard-retractable-banner');
+ assert.equal(engine.priceConfiguration(p,p.variants[3],47,81).unitCents,44900);
+ assert.equal(quote('custom-event-tents',119,84).unitCents,112900);
+});
+test('custom dimensions and source prices remain separate from the new proposals',()=>{
+ for(const s of ['acrylic-signs','aluminum-signs','aluminum-composite-signs','display-posters']){
+  assert.equal(quote(s,20.25,31.75).unitCents,quote(s,31.75,20.25).unitCents);
+ }
  assert.throws(()=>quote('display-posters',53,53));
  assert.throws(()=>quote('aluminum-signs',24,36,{size:'12x18'}));
- assert.equal(quote('aluminum-signs',12,18,{size:'12x18'}).unitCents,4500);
-});
-test('replacement graphics remove hardware once and tent walls charge per selected panel including half-wall hardware',()=>{
- assert.equal(quote('standard-retractable-banner',23,66,{hardware:'p',material:'13oz_matte_vinyl_banner'}).unitCents,8900);
- assert.equal(quote('feather-flags',25,80,{flag_pole_tab:'0',sides:'2',carrybag:'1'}).unitCents,18900);
- assert.equal(quote('custom-event-tents',119,84,{tent_hardware:'0',tent_full_wall:'AB',tent_half_wall:'2x2'}).unitCents,160500);
- const p=catalog.find(p=>p.slug==='custom-event-tents'),v=p.variants[2];
- assert.equal(engine.priceConfiguration(p,v,128,84,{tent_full_wall_long:'L2',tent_half_wall:'2x1'}).unitCents,277600);
+ assert.equal(quote('acrylic-signs',6,6).unitCents,12000);
+ assert.equal(quote('acrylic-signs',6,6,{hardware:'acrylic'}).unitCents,8500);
+ assert.equal(quote('display-posters',24,36).unitCents,10900);
+ assert.equal(quote('aluminum-signs',18,24,{sides:'2'}).unitCents,15200);
 });
 test('unpriced or invalid input still cannot become a zero-dollar or client-priced order',()=>{
  const p=catalog[0],v=structuredClone(p.variants[0]);delete v.priceProposal;
@@ -54,10 +57,21 @@ test('unpriced or invalid input still cannot become a zero-dollar or client-pric
  assert.equal(engine.priceConfiguration(p,v,23,66,{material:'13oz_matte_vinyl_banner'}).verified,false);
  assert.throws(()=>engine.priceConfiguration(p,p.variants[0],23,66,{hardware:'free'}));
 });
-test('exact ACM overrides and existing kit prices retain published provenance',()=>{
+test('historical retail references are retained without overriding current prices',()=>{
  const p=catalog.find(p=>p.slug==='aluminum-composite-signs');
- for(const [w,h,expected] of [[18,24,5800],[24,36,11000],[6,24,2800],[6,36,4200]]){
-  const q=engine.priceConfiguration(p,p.variants[0],w,h,{sides:'2'});assert.equal(q.unitCents,expected);assert.equal(q.proposed,false);
+ assert.equal(p.priceMatches.find(x=>x.widthIn===18).priceCents,4800);
+ const q=quote(p.slug,18,24,{sides:'2'});
+ assert.equal(q.unitCents,7250);assert.equal(q.proposed,true);
+});
+test('20% cap protects specialty and mixed carts from percentage and fixed promotions',()=>{
+ const {computeTotals}=require('../_shared/checkoutTotals.cjs');
+ const specialty={product_type:'specialty',quantity:1,line_total_cents:44900};
+ for(const promo of [{code:'SARAH30',discountPercentage:30},{code:'FIXED',discountAmountCents:40000}]){
+  const t=computeTotals([specialty],.06,{freeShipping:true},promo);
+  assert.equal(t.applied_discount_cents,8980);assert.equal(t.shipping_cents,0);assert.equal(t.total_cents,38075);
  }
- assert.equal(quote('feather-flags',25,80,{sides:'2',flaghardware:'PB',carrybag:'1'}).proposed,false);
+ const mixed=computeTotals([specialty,{product_type:'banner',quantity:1,line_total_cents:10000}],0,{freeShipping:true},{code:'SARAH30',discountPercentage:30});
+ assert.equal(mixed.applied_discount_cents,10980);
+ const banner=computeTotals([{product_type:'banner',quantity:1,line_total_cents:10000}],0,{freeShipping:true},{code:'SARAH30',discountPercentage:30});
+ assert.equal(banner.applied_discount_cents,3000);
 });

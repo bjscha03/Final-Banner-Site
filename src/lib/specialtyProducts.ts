@@ -75,7 +75,7 @@ export function formatSpecialtyPrice(cents: number): string {
 }
 
 export function specialtyStartingPrice(product: SpecialtyProduct): number | undefined {
-  const prices = (product.priceMatches||[]).map(p=>p.priceCents!).filter(Number.isFinite);
+  const prices = (product.priceMatches||[]).map(p=>specialtyConfigurationPrice(product,product.variants[0],p.widthIn!,p.heightIn!).unitCents).filter(Number.isFinite);
   for(const variant of product.variants){
     const size=product.sizeLimits?.min||variant.widthIn||24;
     const quote=specialtyConfigurationPrice(product,variant,size,product.sizeLimits?.min||variant.heightIn||18);

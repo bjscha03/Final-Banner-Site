@@ -45,3 +45,12 @@ All 10 specialty browser scenarios pass, including the economy flag at 1280, 390
 The hosted smoke job exposed another stale expectation: current main uses `AI_SESSION_REQUIRED` for absent designer sessions, and status POST rejects a missing origin with `FORBIDDEN_ORIGIN`. The workflow now checks those exact current responses while retaining the admin `UNAUTHORIZED` checks. Production authentication is unchanged. Full matrix/payment and hosted real-provider release gates are still required.
 
 The private PDF was rebuilt with separate supplier cost, shipping cost, total cost, selling price and profit-after-both columns; full price, 20% and 30% are separate rows. All 525 numeric scenarios (175 quoted configurations) were checked in the final rendered document. Missing supplier costs remain TBD. This is an approval package, not launch authorization.
+
+
+## 20% maximum discount pricing revision
+
+The owner authorized repricing all new specialty products for a 20% maximum discount. The new catalog targets 35% contribution after recorded supplier cost, included next-day freight and estimated 3% + $0.30 processing. All 175 measured configurations meet that target; 164 prices increase and 11 already sufficient prices remain. Unknown costs remain unknown: Signs365 acrylic/ACM use a clearly provisional 25% retail uplift, and unquoted options/custom sizes require review. These are preview proposals, not supplier approval.
+
+The previous 18 retail references remain historical source records; the canonical price engine now selects the revised proposals. Catalog cards, size selectors, designer, saved cart and server payment repricing use the new values. Order-wide coupons in specialty or mixed carts are capped at 20%, including fixed-value promotions; banner-only scoped offers do not reduce specialty items.
+
+Validation before preview deployment: 28 specialty server/quote tests (all 3,196 combinations and 175 quote-margin assertions), 16 specialty frontend/artwork/cart/discount tests, 25 existing payment/promotion tests, and the production build pass. Local browser launch is unavailable under the runtime socket restrictions; the existing GitHub Actions browser job will supply desktop/mobile screenshots. This note does not claim those browser checks passed before their run completes. Remaining real-provider and approval gates still apply.
