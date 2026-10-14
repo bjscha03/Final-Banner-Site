@@ -244,6 +244,10 @@ try{
   assert.equal(await page.getByRole('button',{name:'Add to cart',exact:true}).isDisabled(),true);
   await page.getByTestId('selected-configuration-guide').waitFor();
   assert.equal(await page.locator('button[aria-label^="Enlarge"] img').count(),0);
+  await open('acrylic-signs');await page.getByLabel('Width (in)',{exact:true}).fill('36');
+  await page.getByTestId('selected-configuration-guide').waitFor();
+  assert.match(await page.getByTestId('selected-configuration-guide').innerText(),/36 × 18 in/);
+  assert.equal(await page.locator('button[aria-label^="Enlarge"] img').count(),0);
  });
  await check('homepage and desktop/mobile navigation expose each product category without overflow',async()=>{
   await page.goto(origin+'/');await page.getByRole('heading',{name:'Build your entire display.'}).waitFor();

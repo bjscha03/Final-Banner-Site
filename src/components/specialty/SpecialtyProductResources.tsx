@@ -17,7 +17,10 @@ function loadGuideFonts(){
 export function SpecialtyProductGallery({product,variant,options,width=24,height=18}:{product:SpecialtyProduct;variant:SpecialtyVariant;options:SpecialtyOptions;width?:number;height?:number}) {
   const [selected,setSelected]=useState(0),[open,setOpen]=useState(false);
   const variantImages=media.variants[variant.id]||[{url:product.image,label:product.imageAlt}];
-  const matches=variantImages.filter(img=>!img.when||Object.entries(img.when).every(([k,v])=>options[k]===v));
+  // Custom-size photos depict the catalog's 24 x 18-inch reference only.
+  // Other dimensions need their actual artboard, not an unchanged setup image.
+  const referenceSize=product.priceUnit!=='sqft'||(width===24&&height===18);
+  const matches=referenceSize?variantImages.filter(img=>!img.when||Object.entries(img.when).every(([k,v])=>options[k]===v)):[];
   const images=matches.length?[...matches,...(media.products[product.slug]||[])]:[];
   useEffect(()=>setSelected(0),[variant.id,JSON.stringify(options)]);
   const current=images[selected]||images[0];

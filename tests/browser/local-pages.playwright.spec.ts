@@ -10,14 +10,15 @@ for (const product of ['vinyl-banners', 'yard-signs', 'car-magnets']) {
 }
 
 for (const [path, product, headline] of [
-  ['vinyl-banners', 'banner', 'Custom vinyl banners, produced fast.'],
-  ['yard-signs', 'yard-signs', 'Custom yard signs, produced fast.'],
-  ['car-magnets', 'car-magnets', 'Custom car magnets, made fast.'],
+  ['vinyl-banners', 'banner', 'Build Your Banner'],
+  ['yard-signs', 'yard-signs', 'Build Your Yard Sign Order'],
+  ['car-magnets', 'car-magnets', 'Design Your Custom Car Magnets'],
 ]) {
   test(`${path} opens its active product designer`, async ({ page }) => {
     await page.goto(`/${path}/`, { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(new RegExp(`/design\\?product=${product}`));
-    await expect(page.getByRole('heading', { level: 1, name: headline })).toBeVisible();
+    await expect(page.locator('#builder-start')).toHaveText(headline);
+    await expect(page.locator('#order-builder')).toBeVisible();
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
   });
@@ -125,6 +126,7 @@ test('homepage exposes the four specialty categories alongside existing products
   await expect(section.getByRole('heading', { name: 'Build your entire display.' })).toBeVisible();
   for (const category of ['stands', 'flags', 'events', 'signs']) {
     const link = section.locator(`a[href="/products#${category}"]`);
+    await link.scrollIntoViewIfNeeded();
     await expect(link).toBeVisible();
     await expect(link.locator('img')).toBeVisible();
     await link.locator('img').evaluate((image: HTMLImageElement) => image.decode());
