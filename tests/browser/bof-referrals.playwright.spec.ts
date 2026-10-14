@@ -397,24 +397,26 @@ for (const scenario of ["guest", "new-account", "empty-wallet", "pending-only"] 
   });
 }
 
-test("site navigation is present across routes except the advertising landing pages", async ({ page }, info) => {
+test("current desktop navigation and compact mobile banner headers are preserved", async ({ page }, info) => {
   await mock(page);
   const mobile = info.project.name.includes("portrait");
-  for (const path of ["/design", "/design?product=yard-sign", "/double-sided-banners", "/bof-cash-test", "/canva-test", "/design/canva-editor", "/pdf-diagnostic", "/missing-page"]) {
+  for (const path of ["/design", "/design?product=yard-sign", "/double-sided-banners", "/large-banners-fast", "/fall-festival-banners", "/bof-cash-test", "/canva-test", "/design/canva-editor", "/pdf-diagnostic", "/missing-page", "/google-ads-banner"]) {
     await page.goto(path);
-    if (mobile) {
+    // Current main uses a logo/cart header on mobile banner designers and
+    // Google Ads, while large/festival and other routes keep full navigation.
+    const compactHeader = path === "/google-ads-banner"
+      || (mobile && ["/design", "/double-sided-banners"].includes(path));
+    await expect(page.getByRole("button", { name: "Shopping cart", exact: true }), path).toBeVisible();
+    if (compactHeader) {
+      await expect(page.getByRole("navigation", { name: "Primary navigation" }), path).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Open navigation menu" }), path).toHaveCount(0);
+    } else if (mobile) {
       await page.getByRole("button", { name: "Open navigation menu" }).click();
-      await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Mobile navigation" }), path).toBeVisible();
       await page.getByRole("button", { name: "Close navigation menu" }).click();
     } else {
-      await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Primary navigation" }), path).toBeVisible();
     }
-  }
-  for (const path of ["/google-ads-banner", "/large-banners-fast", "/fall-festival-banners"]) {
-    await page.goto(path);
-    await expect(page.getByRole("button", { name: "Shopping cart", exact: true })).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Open navigation menu" })).toHaveCount(0);
   }
 });
 
