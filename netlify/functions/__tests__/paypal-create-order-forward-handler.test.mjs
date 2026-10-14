@@ -9,9 +9,9 @@ const checkoutKey = '12345678-1234-4234-9234-123456789abc';
 const order = {
   id: '5e532adb-ec9d-4b76-9892-87d190f9fa63',
   status: 'pending',
-  subtotal_cents: 3600,
-  tax_cents: 216,
-  total_cents: 3816,
+  subtotal_cents: 4000,
+  tax_cents: 240,
+  total_cents: 4240,
   currency: 'usd',
   applied_discount_cents: 0,
   same_day_fee_cents: 0,
@@ -47,7 +47,7 @@ const item = {
   pole_pockets: 'none',
   pole_pocket_position: 'none',
   pole_pocket_size: null,
-  line_total_cents: 3600,
+  line_total_cents: 4000,
   design_service_enabled: false,
   yard_sign_sidedness: null,
   yard_sign_step_stakes_enabled: false,
@@ -129,7 +129,7 @@ test('authoritative create sends exact invoice, identity, and persisted shipping
     const response = await createModule.handler({
       httpMethod: 'POST',
       headers: {},
-      body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 3816 }),
+      body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 4240 }),
     });
     assert.equal(response.statusCode, 200, response.body);
     assert.equal(JSON.parse(response.body).paypalOrderId, 'PAYPAL-ORDER-1');
@@ -138,13 +138,13 @@ test('authoritative create sends exact invoice, identity, and persisted shipping
     assert.equal(unit.custom_id, order.id);
     assert.equal(unit.invoice_id, `BOTF-${order.id}`);
     assert.equal(unit.items[0].quantity, '1');
-    assert.equal(unit.items[0].unit_amount.value, '36.00');
+    assert.equal(unit.items[0].unit_amount.value, '40.00');
     assert.deepEqual(unit.amount.breakdown, {
-      item_total: { currency_code: 'USD', value: '36.00' },
+      item_total: { currency_code: 'USD', value: '40.00' },
       shipping: { currency_code: 'USD', value: '0.00' },
-      tax_total: { currency_code: 'USD', value: '2.16' },
+      tax_total: { currency_code: 'USD', value: '2.40' },
     });
-    assert.equal(unit.amount.value, '38.16');
+    assert.equal(unit.amount.value, '42.40');
     assert.equal(unit.shipping.name.full_name, 'Delivery Recipient');
     assert.equal(unit.shipping.address.address_line_2, 'Suite 4');
   } finally {
@@ -172,7 +172,7 @@ test('PayPal echo identity mismatch fails closed and never links the provider or
     const response = await createModule.handler({
       httpMethod: 'POST',
       headers: {},
-      body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 3816 }),
+      body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 4240 }),
     });
     assert.equal(response.statusCode, 502, response.body);
     assert.equal(JSON.parse(response.body).error, 'PAYPAL_ORDER_IDENTITY_MISMATCH');
@@ -195,7 +195,7 @@ test('bad checkout credential is rejected before OAuth or provider creation', as
     const response = await createModule.handler({
       httpMethod: 'POST',
       headers: {},
-      body: JSON.stringify({ internalOrderId: order.id, checkoutKey: 'wrong', totalCents: 3816 }),
+      body: JSON.stringify({ internalOrderId: order.id, checkoutKey: 'wrong', totalCents: 4240 }),
     });
     assert.equal(response.statusCode, 401);
     assert.equal(calls, 0);
@@ -227,7 +227,7 @@ test('a reconciliation-locked bound order cannot reuse an APPROVED provider orde
     const response = await createModule.handler({
       httpMethod: 'POST',
       headers: {},
-      body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 3816 }),
+      body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 4240 }),
     });
     const payload = JSON.parse(response.body);
     assert.equal(response.statusCode, 202, response.body);
@@ -261,7 +261,7 @@ test('persisted browser-authored amount or invalid option is rejected before Pay
       const response = await createModule.handler({
         httpMethod: 'POST',
         headers: {},
-        body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 3816 }),
+        body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 4240 }),
       });
       assert.equal(response.statusCode, 409, response.body);
       assert.equal(db.state.linkWrites, 0);
@@ -294,7 +294,7 @@ test('a definitive decline advances PayPal create idempotency while duplicate re
     const responses = await Promise.all([0, 1].map(() => createModule.handler({
       httpMethod: 'POST',
       headers: {},
-      body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 3816 }),
+      body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 4240 }),
     })));
     for (const response of responses) {
       // This fixture deliberately withholds the conditional link so both calls
@@ -336,14 +336,14 @@ test('a lost first-create response preserves the historical request ID and recov
     const first = await createModule.handler({
       httpMethod: 'POST',
       headers: {},
-      body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 3816 }),
+      body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 4240 }),
     });
     assert.equal(first.statusCode, 500, first.body);
 
     const recovered = await createModule.handler({
       httpMethod: 'POST',
       headers: {},
-      body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 3816 }),
+      body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 4240 }),
     });
     assert.equal(recovered.statusCode, 200, recovered.body);
     assert.equal(JSON.parse(recovered.body).paypalOrderId, 'PAYPAL-ORDER-1');
@@ -417,14 +417,17 @@ test('a delayed create response cannot relink a provider order retired by a conc
     const delayed = createModule.handler({
       httpMethod: 'POST',
       headers: {},
-      body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 3816 }),
+      body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 4240 }),
     });
-    await delayedCreateStarted;
+    await Promise.race([
+      delayedCreateStarted,
+      delayed.then(response => { throw new Error(`Create completed before the delayed provider request: ${response.body}`); }),
+    ]);
 
     const fast = await createModule.handler({
       httpMethod: 'POST',
       headers: {},
-      body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 3816 }),
+      body: JSON.stringify({ internalOrderId: order.id, checkoutKey, totalCents: 4240 }),
     });
     assert.equal(fast.statusCode, 200, fast.body);
     assert.equal(state.order.paypal_order_id, providerOrderId);

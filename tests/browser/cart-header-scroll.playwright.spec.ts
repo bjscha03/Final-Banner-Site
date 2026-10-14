@@ -103,7 +103,7 @@ const expectDrawerFlushWithHeader = async (page: Page) => {
 };
 
 test('scrolled account menu stays onscreen without locking the storefront', async ({ page }) => {
-  await page.goto('/design?product=banner', { waitUntil: 'domcontentloaded' });
+  await page.goto('/products', { waitUntil: 'domcontentloaded' });
   await scrollStorefrontAwayFromTop(page);
 
   const beforeOpen = await readPageState(page);
@@ -153,7 +153,7 @@ test('scrolled account menu stays onscreen without locking the storefront', asyn
 test('nonempty scrolled cart is contained, accessible, and preserves page state through close paths', async ({ page }, testInfo) => {
   await seedNonemptyGuestCart(page);
   await mockCartLoad(page);
-  await page.goto('/car-magnets/', { waitUntil: 'domcontentloaded' });
+  await page.goto('/products', { waitUntil: 'domcontentloaded' });
   await scrollStorefrontAwayFromTop(page);
 
   const beforeOpen = await readPageState(page);
