@@ -27,6 +27,10 @@ describe('specialty print export',()=>{
     expect(exported.getPage(0).node.Resources()?.toString()).toContain('/XObject');
     expect(result.productionFileKey).toBe('print');
   });
+  it('rejects an old cropped specialty placement before exporting or uploading',async()=>{
+    await expect(exportSpecialtyPanel(source,{...spec,transform:{...spec.transform,crop:{x:0,y:0,width:.5,height:1}}},specialtyTemplates['20ft-event-tent-canopy-short-side'])).rejects.toThrow(/do not support image cropping/);
+    expect(uploadArtworkFile).not.toHaveBeenCalled();
+  });
   it('rejects multipage input before creating a misleading single-panel file',async()=>{
     const pdf=await PDFDocument.create();pdf.addPage();pdf.addPage();vi.stubGlobal('fetch',vi.fn(async()=>new Response(await pdf.save())));
     await expect(exportSpecialtyPanel(source,spec,specialtyTemplates['20ft-event-tent-canopy-short-side'])).rejects.toThrow(/one PDF page/);

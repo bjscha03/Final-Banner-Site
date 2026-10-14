@@ -50,6 +50,7 @@ function normalizeSpecialtyItem(item){
     if((product.priceUnit==='sqft'||variant.customSize)&&(template.widthIn!==item.width_in||template.heightIn!==item.height_in))fail('SPECIALTY_ARTWORK_STALE','The artwork size must match the ordered sign size.');
     if(p.composition.productType!==type||p.composition.sourceUrl!==p.preview?.sourceUrl||p.composition.sourceIdentity!==p.preview?.sourceIdentity||p.preview?.uploadStatus!=='uploaded'||p.preview.productType!==type||p.preview.widthIn!==template.widthIn||p.preview.heightIn!==template.heightIn||p.preview.compositionRevision!==p.composition.revision)fail('SPECIALTY_ARTWORK_STALE','Save the current artwork and preview before checkout.');
     const t=p.composition.transform;
+    if(t?.crop||p.preview.crop)fail('SPECIALTY_ARTWORK_STALE','Reopen this product and approve its full artwork placement. Specialty print files do not support image cropping.');
     if(!t||![t.xPct,t.yPct,t.scaleX,t.scaleY].every(Number.isFinite)||t.scaleX<=0||t.scaleY<=0||t.scaleX>5||t.scaleY>5||t.xPct!==p.preview.positionPct?.x||t.yPct!==p.preview.positionPct?.y||t.scaleX!==p.preview.scaleX||t.scaleY!==p.preview.scaleY)fail('SPECIALTY_ARTWORK_STALE','The preview placement does not match the artwork.');
     if(![p.artwork?.url,p.artwork?.productionUrl||p.artwork?.url,p.composition.sourceUrl,p.preview.url,p.productionUrl].every(permanent)||!p.productionFileKey)fail('SPECIALTY_UPLOAD_INCOMPLETE','An original file or print panel has not finished saving.');
   }

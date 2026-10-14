@@ -386,14 +386,22 @@
     "exportScale": 1.0,
     "sourceUrl": "https://www.b2sign.com/downloadable/537bfff142807bb959265089fb0362b04da3f49d",
     "sourceDate": "2026-10-12",
-    "outline": null,
-    "guides": [],
-    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded.",
+    "outline": "M95.293310 84.578294 L95.293260 84.592113 L95.293260 84.579828 C95.269593 85.053389 94.381067 89.686813 68.971246 92.950791 C38.362649 96.882577 6.482712 97.117720 6.482712 97.117720 L7.320778 16.063921 C7.320778 16.063921 10.871705 4.205972 95.776436 0.949130 L95.293518 84.544492 C95.293825 84.550131 95.294133 84.561464 95.293310 84.578294 Z",
+    "guides": [
+      {
+        "d": "M95.293310 84.578294 L95.293260 84.592113 L95.293260 84.579828 C95.269593 85.053389 94.381067 89.686813 68.971246 92.950791 C38.362649 96.882577 6.482712 97.117720 6.482712 97.117720 L7.320778 16.063921 C7.320778 16.063921 10.871705 4.205972 95.776436 0.949130 L95.293518 84.544492 C95.293825 84.550131 95.294133 84.561464 95.293310 84.578294 Z",
+        "color": "#0284c7",
+        "dashed": false
+      }
+    ],
+    "fitNotes": "Keep critical content inside the template boundary and away from seams and pole pockets. Extend background through the print area. Use the manufacturer\u2019s template for final file setup.",
     "poleBottom": [
       4,
       99.5
     ],
-    "polePath": "M4 100 L4 37 C4 15 30 2 67 1.5 L98 1.5"
+    "polePath": "M4 100 L4 37 C4 15 30 2 67 1.5 L98 1.5",
+    "geometrySource": "Exact inner boundary of the gray compound path in the manufacturer PDF; page coordinates normalized to 0\u2013100.",
+    "sourceSha256": "9b8f72e1554ea3ac32bd0c766df376d8be9909e25f8762b7128310726c4fdda5"
   },
   "teardrop-small": {
     "id": "teardrop-small",

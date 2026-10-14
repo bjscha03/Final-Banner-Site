@@ -178,3 +178,14 @@ test('large specialty originals and print PDFs use the existing trusted storage 
   p.productionUrl=bad;assert.throws(()=>normalizeSpecialtyItem(item),{code:'SPECIALTY_UPLOAD_INCOMPLETE'});
  }
 });
+test('every flag face has a cut outline and visible supplier guide, including convex XL',()=>{
+ for(const product of catalog.filter(p=>p.visual==='flag'))for(const variant of product.variants)for(const panel of engine.allPanelDefinitions(variant)){
+  const t=templates[panel.templateId];assert.ok(t.outline,`${variant.id}: cut outline missing`);assert.ok(t.guides?.length,`${variant.id}: guide missing`);
+ }
+ assert.ok(templates['convex-x-large'].sourceSha256);
+});
+
+test('older cropped specialty placements cannot reach payment without a new review',()=>{
+ const item=itemFor('feather-flags');item.specialty_config.panels[0].composition.transform.crop={x:0,y:0,width:.5,height:1};
+ assert.throws(()=>normalizeSpecialtyItem(item),{code:'SPECIALTY_ARTWORK_STALE'});
+});

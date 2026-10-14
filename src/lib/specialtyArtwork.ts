@@ -41,6 +41,7 @@ export function specialtyArtworkPpi(artwork: UploadedArtworkFile, composition: P
 
 /** Export the original artwork at the exact saved placement, never the small cart image. */
 export async function exportSpecialtyPanel(artwork: UploadedArtworkFile, composition: ArtworkCompositionSpec, template: SpecialtyTemplate) {
+  if (composition.transform.crop) throw new Error('Reopen this product and approve the full artwork placement before saving. Specialty print files do not support image cropping.');
   const { PDFDocument, PDFName, PDFNumber, rgb } = await import('pdf-lib');
   const response = await fetch(artwork.productionUrl || artwork.url);
   if (!response.ok) throw new Error('The original artwork could not be read for production. Please retry.');

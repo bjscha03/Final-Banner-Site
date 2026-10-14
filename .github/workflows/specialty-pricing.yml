@@ -61,6 +61,8 @@ jobs:
       - run: npx vitest run --config vitest.ai.config.ts src/lib/specialtyArtwork.test.ts src/lib/specialtyDiscount.test.ts src/store/cart.specialty.test.ts src/components/specialty/SpecialtyPreview.test.tsx src/pages/SpecialtyProductPage.test.tsx netlify/functions/__tests__/specialty-ai-layout.test.mjs
       - run: npm run build
       - run: npx playwright install --with-deps ${{ matrix.install }}
+      - name: Resolve the local HTTPS fixture for all browser engines
+        run: echo '127.0.0.1 deploy-preview-0--bof-local.netlify.app' | sudo tee -a /etc/hosts
       - name: Check catalog, accessories, custom sizes, cart repricing and mobile display
         run: node scripts/test-specialty-browser.mjs
         env:

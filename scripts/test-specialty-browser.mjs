@@ -3,7 +3,9 @@ import {createServer} from 'vite';
 import {chromium,firefox,webkit,devices} from 'playwright';
 import sharp from 'sharp';
 import {PDFDocument,rgb} from 'pdf-lib';
-import {readFile,mkdir,writeFile} from 'node:fs/promises';
+import {readFile,mkdir,writeFile,mkdtemp,rm} from 'node:fs/promises';
+import {execFileSync} from 'node:child_process';
+import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
 const root=new URL('../',import.meta.url).pathname;
@@ -16,16 +18,19 @@ const localPreviewPassword='local-browser-qa-fixture';
 if(process.env.BOF_QA_TEST_CHECKOUT)process.env.VITE_PREVIEW_ACCESS_PASSWORD=localPreviewPassword;
 // A secure test origin keeps WebCrypto available for upload/AI identities.
 const origin=`${process.env.BOF_QA_TEST_CHECKOUT?'https':'http'}://${qaHost}:8096`;
-const server=await createServer({root,configFile:root+'vite.config.ts',server:{host:'127.0.0.1',port:8096,allowedHosts:[qaHost]}});await server.listen();
+// Serve actual HTTPS so PDF workers use the same origin in every browser.
+const tlsDir=await mkdtemp(tmpdir()+'/specialty-qa-tls-');
+let https;
+if(process.env.BOF_QA_TEST_CHECKOUT){
+ execFileSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-keyout',tlsDir+'/key.pem','-out',tlsDir+'/cert.pem','-days','1','-subj','/CN='+qaHost,'-addext','subjectAltName=DNS:'+qaHost],{stdio:'ignore'});
+ https={key:await readFile(tlsDir+'/key.pem'),cert:await readFile(tlsDir+'/cert.pem')};
+}
+const server=await createServer({root,configFile:root+'vite.config.ts',server:{host:'127.0.0.1',port:8096,allowedHosts:[qaHost],https}});await server.listen();
 const browserName=process.env.BOF_QA_BROWSER||'chromium';
 const browserType={chromium,firefox,webkit}[browserName];
 if(!browserType)throw new Error('Unknown QA browser '+browserName);
 const browser=await browserType.launch({...(process.env.BOF_QA_CHANNEL?{channel:process.env.BOF_QA_CHANNEL}:{}),...(process.env.BOF_CHROMIUM_PATH?{executablePath:process.env.BOF_CHROMIUM_PATH}:{}),...(browserName==='chromium'?{args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu',`--host-resolver-rules=MAP ${qaHost} 127.0.0.1`]}:{})});
-const page=await browser.newPage(process.env.BOF_QA_DEVICE?devices[process.env.BOF_QA_DEVICE]:{viewport:{width:1280,height:900}}),errors=[],checks=[],uploads=new Map(),jobs=new Map(),aiRequests=[];
-if(process.env.BOF_QA_TEST_CHECKOUT)await page.route(origin+'/**',async route=>{
- try{await route.fulfill({response:await route.fetch({url:route.request().url().replace(origin,'http://127.0.0.1:8096'),maxRetries:2})});}
- catch{await route.abort().catch(()=>{});} // Navigation can cancel outstanding module requests.
-});
+const page=await browser.newPage({...process.env.BOF_QA_DEVICE?devices[process.env.BOF_QA_DEVICE]:{viewport:{width:1280,height:900}},ignoreHTTPSErrors:true}),errors=[],checks=[],uploads=new Map(),jobs=new Map(),aiRequests=[];
 // WebKit's request interception omits file bytes in multipart postDataBuffer.
 // Mock only the storage boundary, reading the real File/Blob in the page first.
 await page.exposeFunction('__qaStoreUpload',async file=>{
@@ -205,6 +210,9 @@ try{
     for(const panel of variant.panels){
      if(variant.panels.length>1)await page.getByRole('tab',{name:panel.label,exact:true}).click();
      await uploadArt();
+     assert.equal(await page.getByRole('button',{name:'Crop artwork',exact:true}).count(),0);
+     const editorImage=page.getByTestId('artwork-canvas').locator('img');await editorImage.evaluate(img=>img.decode());
+     await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
      const proof=page.getByAltText(`${panel.label} flat artwork without guides`,{exact:true});await proof.waitFor();await proof.evaluate(img=>img.decode());
      const size=await proof.evaluate(img=>({w:img.naturalWidth,h:img.naturalHeight}));
      const template=templates[panel.templateId],ratio=product.priceUnit==='sqft'?24/18:template.widthIn/template.heightIn;
@@ -291,4 +299,4 @@ try{
  console.log(JSON.stringify({browser:browserName,device:process.env.BOF_QA_DEVICE||'desktop',checks:checks.length,pageErrors:errors,uploadTransportsMocked:true,AIProviderMocked:true}));
  await writeFile(out+'/result.json',JSON.stringify({browser:browserName,device:process.env.BOF_QA_DEVICE||'desktop',checks,pageErrors:errors,uploadTransportsMocked:true,AIProviderMocked:true},null,2));
 }catch(error){await page.screenshot({path:out+'/failure.png',fullPage:true});console.error('BROWSER FAILURE',error.message,'ALERTS',await page.getByRole('alert').allTextContents(),'PAGE ERRORS',errors);process.exitCode=1;}
-finally{await browser.close();await server.close();}
+finally{await browser.close();await server.close();await rm(tlsDir,{recursive:true,force:true});}
