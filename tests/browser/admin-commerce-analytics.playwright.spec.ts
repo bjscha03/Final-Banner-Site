@@ -634,6 +634,12 @@ test.beforeEach(async ({ page }) => {
       return;
     }
 
+    if (url.pathname.endsWith('/admin-site-issues')) {
+      await expectAdminSession();
+      await route.fulfill({ json: { ok: true, issues: [], truncated: false, checkedAt: '2026-10-14T00:00:00Z' } });
+      return;
+    }
+
     if (url.pathname.endsWith('/admin-custom-quotes')) {
       await expectAdminSession();
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, quotes: [] }) });

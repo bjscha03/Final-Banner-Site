@@ -14,9 +14,12 @@ Integrated catalog head `c89921bf095e68da32987b371e22389cd87bc2bc` with current 
 
 ## Verification
 
+- Application TypeScript check (`npx tsc --noEmit --pretty false`) passed on both current main and the integrated catalog.
 - Production build passed and verified 20 specialty routes; retired product/city routes remain excluded.
 - 33 server/catalog/production tests passed, including all 3,196 selectable retail-price combinations and stored-original print-scene regressions.
 - 60 frontend assertions/tests passed across the selected specialty, artwork, checkout layout, payment-integrity and order-total suites. One source assertion was updated for the existing specialty quantity cap of 100 while retaining 999 for other eligible products and the payment lock.
+
+Browser fixtures have been refreshed for the current AI approval checkbox, checkout savings label, structured admin session, site-monitoring response, and existing advertising/referral UI. These updates retain price/total assertions and production authentication.
 
 These checks establish local integration and calculation coverage, not supplier confirmation or production release readiness. Hosted browser checks on this integrated commit must finish before release. Real upload/storage, live AI, isolated test-mode payment, admin/order-email propagation and the specialty-artwork database migration still require the documented release checks.
 
