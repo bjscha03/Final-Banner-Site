@@ -397,10 +397,10 @@ for (const scenario of ["guest", "new-account", "empty-wallet", "pending-only"] 
   });
 }
 
-test("site navigation is present across routes except the Google Ads landing page", async ({ page }, info) => {
+test("site navigation is present across routes except the advertising landing pages", async ({ page }, info) => {
   await mock(page);
   const mobile = info.project.name.includes("portrait");
-  for (const path of ["/design", "/design?product=yard-sign", "/double-sided-banners", "/large-banners-fast", "/fall-festival-banners", "/bof-cash-test", "/canva-test", "/design/canva-editor", "/pdf-diagnostic", "/missing-page"]) {
+  for (const path of ["/design", "/design?product=yard-sign", "/double-sided-banners", "/bof-cash-test", "/canva-test", "/design/canva-editor", "/pdf-diagnostic", "/missing-page"]) {
     await page.goto(path);
     if (mobile) {
       await page.getByRole("button", { name: "Open navigation menu" }).click();
@@ -410,10 +410,12 @@ test("site navigation is present across routes except the Google Ads landing pag
       await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
     }
   }
-  await page.goto("/google-ads-banner");
-  await expect(page.getByRole("button", { name: "Shopping cart", exact: true })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Open navigation menu" })).toHaveCount(0);
+  for (const path of ["/google-ads-banner", "/large-banners-fast", "/fall-festival-banners"]) {
+    await page.goto(path);
+    await expect(page.getByRole("button", { name: "Shopping cart", exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Open navigation menu" })).toHaveCount(0);
+  }
 });
 
 test("checkout shows usable credit, applies it once, and restores totals on removal", async ({
@@ -607,14 +609,14 @@ test("sharing uses the public referral link across Facebook, text, email, and co
   );
   expect(facebook.hostname).toBe("www.facebook.com");
   expect(facebook.searchParams.get("u")).toBe(link);
+  const shareDraft = await sharing.getByLabel("Your ready-to-send message").inputValue();
+  expect(shareDraft).toContain("first qualifying order");
   for (const label of ["Text a friend", "Email a friend"]) {
     const href = (await sharing
       .getByRole("link", { name: label })
       .getAttribute("href"))!;
     expect(decodeURIComponent(href)).toContain(link);
-    expect(decodeURIComponent(href)).toContain(
-      "I earn BOF Cash on qualifying referrals, too.",
-    );
+    expect(decodeURIComponent(href)).toContain(shareDraft);
     expect(href).not.toContain("claim");
   }
   for (const name of ["Copy link", "Copy code", "Copy message"])

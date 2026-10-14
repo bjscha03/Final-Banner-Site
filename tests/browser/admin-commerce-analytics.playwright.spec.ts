@@ -2,7 +2,11 @@ import { readFile } from 'node:fs/promises';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
 const VISUAL_QA_PROJECTS = new Set(['chromium-1440x900', 'chromium-pixel8-portrait']);
-const ADMIN_SESSION = 'admin-commerce-browser-contract';
+// Deliberately unsigned fixture: every protected endpoint is intercepted below.
+// Match the current browser session shape without weakening production authentication.
+const ADMIN_SESSION = `${Buffer.from(JSON.stringify({
+  sub: 'server-admin', email: 'admin-browser@example.test', admin: true, exp: 4102444800,
+})).toString('base64url')}.test-signature`;
 const ORDER_ID = '11111111-2222-4333-8444-000011223344';
 
 const abandonedCarts = [
