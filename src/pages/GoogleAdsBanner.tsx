@@ -20,6 +20,8 @@ import { cartEditUrl } from '@/lib/cartEditUrl';
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
+import SEO from '@/components/SEO';
+import { getDesignerSEO } from '@/lib/seo/designerSEO';
 import { Shield, Clock, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Tag, Move, ZoomIn, ZoomOut, ShoppingCart, Ruler, Layers, Package, Sparkles, Monitor } from 'lucide-react';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
 import { useCartStore, type CartItem } from '@/store/cart';
@@ -303,7 +305,11 @@ const GoogleAdsBanner: React.FC = () => {
   // Initialise from localStorage so the user's previous choice survives a
   // hard refresh; fall back to 'ft' when no stored value exists (first load).
   const [unit, setUnit] = useState<'in' | 'ft'>(
-    () => (localStorage.getItem('banner-unit-pref') as 'in' | 'ft' | null) ?? 'ft'
+    () => {
+      if (typeof window === 'undefined') return 'ft';
+      try { return localStorage.getItem('banner-unit-pref') === 'in' ? 'in' : 'ft'; }
+      catch { return 'ft'; }
+    }
   );
   const [addRope, setAddRope] = useState(false);
   const [finishingType, setFinishingType] = useState<FinishingType>('none');
@@ -3321,13 +3327,15 @@ const GoogleAdsBanner: React.FC = () => {
 
   return (
     <>
-      <Helmet>
+      {location.pathname.replace(/\/+$/, '') === '/design' || location.pathname === '/halloween-banner' ? (
+        <SEO {...getDesignerSEO(productType)} />
+      ) : <Helmet>
         <title>{isLargeBannerLanding ? 'Large Banners Fast — Free Next-Day Air Shipping' : isFallFestivalLanding ? 'Custom Fall Festival Banners' : isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Car Magnets' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
         <meta name="description" content={isLargeBannerLanding ? "Order large custom vinyl banners with 24-hour production and free next-day air shipping after production. Choose 8 × 4 ft, 10 × 4 ft or custom sizes. Get instant pricing and design online." : isFallFestivalLanding ? 'Custom fall festival banners for churches, schools, harvest festivals and trunk-or-treats. Upload artwork or create with AI. 24-hour production.' : isYardSign ? "Upload yard-sign artwork, review the supported size and current price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
         <meta name="robots" content={isLargeBannerLanding ? "noindex, follow" : isFallFestivalLanding ? "index, follow" : "noindex, nofollow"} />
         {isLargeBannerLanding && <link rel="canonical" href="https://bannersonthefly.com/large-banners-fast" />}
         {isFallFestivalLanding && <link rel="canonical" href="https://bannersonthefly.com/fall-festival-banners" />}
-      </Helmet>
+      </Helmet>}
       <div className="min-h-screen bg-white text-gray-900">
         {/* Share the light logo-and-cart header on mobile; retain each desktop header. */}
         {location.pathname.replace(/\/+$/, "") === "/google-ads-banner" || mobilePaidLayout ? (

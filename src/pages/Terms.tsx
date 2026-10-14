@@ -1,10 +1,12 @@
 import React from 'react';
 import Layout from '@/components/Layout';
+import SEO from '@/components/SEO';
 import { Shield, AlertTriangle, Clock, FileText, Scale, Truck } from 'lucide-react';
 
 const Terms: React.FC = () => {
   return (
     <Layout>
+      <SEO title="Terms and Conditions | Banners On The Fly" description="Read the terms for ordering custom printed products from Banners On The Fly, including production, payment, shipping and order policies." canonical="https://bannersonthefly.com/terms" />
       <div className="min-h-screen bg-slate-50 pt-8 pb-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}

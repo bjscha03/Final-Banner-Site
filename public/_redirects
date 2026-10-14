@@ -1,3 +1,14 @@
+/images/product-heroes/political-signs-1440.webp /gone.html 410!
+/images/product-heroes/political-signs-640.webp /gone.html 410!
+/images/blog/political-sign-disclaimer-requirements.webp /gone.html 410!
+# Permanently retired political content.
+/political-signs /gone.html 410!
+/political-signs/* /gone.html 410!
+/blog/political-sign-disclaimer-requirements /gone.html 410!
+/blog/political-sign-disclaimer-requirements/* /gone.html 410!
+/blog/political-campaign-banners-guide /gone.html 410!
+/blog/political-campaign-banners-guide/* /gone.html 410!
+
 # Retired product details open their product configurator directly.
 /yard-signs   /design?product=yard-signs   301!
 /car-magnets   /design?product=car-magnets   301!

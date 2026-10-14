@@ -12,7 +12,8 @@ import GoogleAdsBanner from './GoogleAdsBanner';
 import PromoBanner from '@/components/PromoBanner';
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
+import SEO from '@/components/SEO';
+import { getDesignerSEO } from '@/lib/seo/designerSEO';
 import { Clock, CheckCircle, Truck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Tag, Move, ZoomIn, ZoomOut, Ruler, Layers, Sparkles } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
@@ -517,7 +518,11 @@ const Design: React.FC = () => {
   // Initialise from localStorage so the user's previous choice survives a
   // hard refresh; fall back to 'ft' when no stored value exists (first load).
   const [unit, setUnit] = useState<'in' | 'ft'>(
-    () => (localStorage.getItem('banner-unit-pref') as 'in' | 'ft' | null) ?? 'ft'
+    () => {
+      if (typeof window === 'undefined') return 'ft';
+      try { return localStorage.getItem('banner-unit-pref') === 'in' ? 'in' : 'ft'; }
+      catch { return 'ft'; }
+    }
   );
   const [addRope, setAddRope] = useState(false);
   const [finishingType, setFinishingType] = useState<FinishingType>('none');
@@ -2977,11 +2982,7 @@ const Design: React.FC = () => {
 
   return (
     <Layout>
-      <Helmet>
-        <title>Design Your Banner | Banners On The Fly</title>
-        <meta name="description" content="Design custom vinyl banners online. Upload artwork, choose size and material, preview the print, and review production and shipping before checkout." />
-        <link rel="canonical" href="https://bannersonthefly.com/design" />
-      </Helmet>
+      <SEO {...getDesignerSEO(productType)} />
 
       {productType === 'banner' && <GoogleReviewSpotlight />}
 

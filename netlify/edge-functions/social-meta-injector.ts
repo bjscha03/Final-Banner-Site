@@ -2,13 +2,6 @@ import type { Context } from "https://edge.netlify.com";
 
 // Static page metadata
 const staticPages: Record<string, { title: string; description: string; image: string; url: string; type: string }> = {
-  "political-signs": {
-    title: "Political Campaign Signs & Banners | Banners On The Fly",
-    description: "Fast political campaign signs, banners, and yard signs with free next-day air shipping.",
-    image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1778180324/Screenshot_2026-05-07_at_2.58.40_PM_h8ozp5.png?v=2",
-    url: "https://bannersonthefly.com/political-signs",
-    type: "website"
-  }
 };
 
 // Blog post metadata
@@ -142,11 +135,6 @@ const blogPosts: Record<string, { title: string; description: string; image: str
     title: "How to Install Yard Sign Stakes: A Step-by-Step Guide",
     description: "Learn how to install yard sign stakes: align the flutes, seat the panel, choose suitable soil, avoid damage, check stability, and plan safe placement.",
     image: "https://bannersonthefly.com/images/blog/how-to-install-yard-sign-stakes.webp"
-  },
-  "political-sign-disclaimer-requirements": {
-    title: "Political Sign Disclaimer Requirements: A Pre-Print Checklist",
-    description: "Review political sign disclaimer requirements, wording, readability, placement, state-law checks, and artwork steps before sending campaign signs to print.",
-    image: "https://bannersonthefly.com/images/blog/political-sign-disclaimer-requirements.webp"
   },
   "trade-show-banner-checklist": {
     title: "Trade Show Booth Checklist: Plan Banners, Setup, and Backup Gear",

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, HelpCircle, Search } from 'lucide-react';
 import Layout from '@/components/Layout';
+import SEO from '@/components/SEO';
 import PageHeader from '@/components/PageHeader';
 import { SITE_POLICIES } from '@/lib/sitePolicies';
 
@@ -90,6 +91,7 @@ const FAQ: React.FC = () => {
 
   return (
     <Layout showFooterBanner={false}>
+      <SEO title="Frequently Asked Questions | Banners On The Fly" description="Find answers about banner materials, artwork, sizes, production, shipping and ordering custom banners, yard signs and car magnets." canonical="https://bannersonthefly.com/faq" />
       <PageHeader
         title="Frequently Asked Questions"
         subtitle="Search current answers about products, materials, artwork, pricing, production, shipping, changes, and order support."
