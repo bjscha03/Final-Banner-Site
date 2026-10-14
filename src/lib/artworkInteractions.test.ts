@@ -8,6 +8,17 @@ const natural = { w: 1200, h: 600 };
 const value = { x: 10, y: -10, scaleX: 0.8, scaleY: 0.8 };
 const frame = (v = value) => artworkCropBox(artworkImageBox(v, canvas, natural), v['crop']);
 describe('artwork interactions', () => {
+  it('keeps small landscape crop movements precise instead of jumping to center', () => {
+    const smallCanvas = { w: 120, h: 60 };
+    const placed = { x: -15, y: -7.5, scaleX: 0.75, scaleY: 0.75 };
+    const before = artworkImageBox(placed, smallCanvas, natural);
+    const next = resizeArtwork(placed, smallCanvas, natural, 't', 0, 3, 6);
+    expect(artworkImageBox(next, smallCanvas, natural)).toEqual(before);
+    const cropped = artworkCropBox(before, next.crop);
+    expect(cropped.top).toBeCloseTo(3);
+    expect(cropped.height).toBeCloseTo(42);
+    expect(cropped.width).toBeCloseTo(90);
+  });
   it('lets an already centered image resize immediately instead of snapping back to its starting size', () => {
     const centered = { x: 0, y: 0, scaleX: 1, scaleY: 1 };
     const smaller = resizeArtwork(centered, canvas, natural, 'br', -10, -5, 6);

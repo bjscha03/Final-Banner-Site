@@ -92,7 +92,7 @@ export default function MobileSubtotalBar({
         ref={barRef}
         data-testid="mobile-subtotal-bar"
         data-compact-landscape={compact && Boolean(primaryAction) ? 'true' : undefined}
-        className={`fixed inset-x-0 bottom-0 z-40 overflow-x-clip px-4 ${compact && primaryAction ? 'border-t-4 border-[#FF6A00] bg-[#091C32] pt-2 text-white shadow-[0_-8px_24px_rgba(9,28,50,0.16)] lg:hidden' : primaryAction ? 'border-t border-gray-200 bg-white pt-2 shadow-lg lg:hidden' : 'border-t border-gray-200 bg-white pt-3 shadow-lg md:hidden'}`}
+        className={`fixed inset-x-0 bottom-0 z-40 overflow-x-clip px-4 ${compact && primaryAction ? 'banner-order-bar pt-2 lg:hidden' : primaryAction ? 'border-t border-gray-200 bg-white pt-2 shadow-lg lg:hidden' : 'border-t border-gray-200 bg-white pt-3 shadow-lg md:hidden'}`}
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}
       >
         {compact && primaryAction ? <div className="mx-auto max-w-xl">

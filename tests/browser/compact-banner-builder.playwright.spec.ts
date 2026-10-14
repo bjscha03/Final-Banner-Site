@@ -123,9 +123,14 @@ test('banner finishing preserves the artwork, price and cart through add-another
   await expect(fitWithAI).toBeEnabled();
   await expect(artworkToolbar.getByRole('button', { name: /Fill banner/ })).toHaveCount(0);
   await expect(page.getByText('Need a better fit for this size?', { exact: true })).toHaveCount(0);
-  const showEntireBox = (await artworkToolbar.getByRole('button', { name: /Show entire design/ }).boundingBox())!;
-  const aiFitBox = (await fitWithAI.boundingBox())!;
-  expect(aiFitBox.y).toBe(showEntireBox.y);
+  // Measure the row in one frame: upload completion can resize the footer
+  // between separate boundingBox calls while both controls remain aligned.
+  const controlTops = await fitWithAI.evaluate(button => {
+    const showEntire = Array.from(button.parentElement!.querySelectorAll('button'))
+      .find(candidate => candidate.textContent?.includes('Show entire design'))!;
+    return [showEntire.getBoundingClientRect().top, button.getBoundingClientRect().top];
+  });
+  expect(controlTops[1]).toBe(controlTops[0]);
   await fitWithAI.click();
   await expect(page.getByRole('dialog', { name: /Fit your design to/ })).toBeVisible();
   await page.keyboard.press('Escape');
@@ -173,6 +178,13 @@ test('banner finishing preserves the artwork, price and cart through add-another
     await expect(choices.getByRole('button', { name })).toBeVisible();
   }
   if (mobile) {
+    const finishingBar = finish.getByTestId('finishing-subtotal-bar');
+    await expect(finishingBar).toHaveCSS('background-color', 'rgb(9, 28, 50)');
+    await expect(finishingBar).toHaveCSS('border-top-color', 'rgb(255, 106, 0)');
+    await expect(finishingBar).toHaveCSS('border-top-width', '4px');
+    await expect(finishingBar.locator('[data-banner-current-price]')).toHaveCSS('color', 'rgb(255, 255, 255)');
+    await expect(finishingBar.getByTestId('free-next-day-air-badge')).toHaveCSS('color', 'rgb(255, 255, 255)');
+    await page.screenshot({ path: testInfo.outputPath('finishing-navy-footer.png') });
     await expect(finish.locator('[data-realistic-grommet]')).toHaveCount(0);
     await expect(finish.getByRole('button', { name: 'Choose finishing', exact: true })).toBeDisabled();
     await expect(finish.getByRole('button', { name: 'Add & design another', exact: true })).toBeDisabled();
@@ -419,3 +431,76 @@ test('single and double sided pricing, artwork and cart editing share one design
   await expect(page.getByTestId('checkout-order-totals')).toContainText('-$20.40');
   await expect(page.getByTestId('checkout-order-totals')).toContainText('$86.50');
 });
+
+
+for (const route of ['/google-ads-banner', '/design?product=vinyl-banners']) {
+  test(`upload remains centered above the order bar during and after upload: ${route}`, async ({ page }, info) => {
+    const scenario = `focus-${route.startsWith('/design') ? 'organic' : 'paid'}-${info.project.name}`;
+    await installUploadAndFunctionHarness(page, scenario);
+    await page.request.post(`/__compact-test-hold?scenario=${scenario}&hold=1`);
+    const originalViewport = page.viewportSize()!;
+    const mobile = originalViewport.width < 1024;
+    try {
+      await page.goto(route, { waitUntil: 'domcontentloaded' });
+      const chooser = page.waitForEvent('filechooser');
+      if (mobile) await page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Upload artwork', exact: true }).click();
+      else await page.locator('#upload-section').getByRole('button', { name: /Upload your artwork/ }).click();
+      if (mobile) {
+        const choice = (await page.locator('#upload-section').getByRole('button', { name: /I have artwork/ }).boundingBox())!;
+        const header = (await page.locator('[data-site-header]').boundingBox())!;
+        const footer = (await page.getByTestId('mobile-subtotal-bar').boundingBox())!;
+        expect(choice.y).toBeGreaterThanOrEqual(header.y + header.height);
+        expect(choice.y + choice.height).toBeLessThanOrEqual(footer.y + 1);
+      }
+      // Portrait artwork reproduces the customer's screenshot on a wide banner.
+      const portrait = await sharp(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="1200"><rect width="600" height="1200" fill="#2563eb"/><rect x="20" y="20" width="560" height="1160" fill="#facc15"/><circle cx="300" cy="600" r="180" fill="#091c32"/></svg>')).png().toBuffer();
+      await (await chooser).setFiles({ name: 'portrait.png', mimeType: 'image/png', buffer: portrait });
+      const image = page.getByAltText('Uploaded artwork preview').first();
+      await expect(image).toBeVisible();
+      await expect(page.locator('#upload-section').getByRole('status')).toContainText(/Uploading|Finalizing/);
+      const checkVisible = async () => {
+        await expect.poll(async () => page.evaluate(() => {
+          const workspace = document.querySelector('[data-testid="artwork-workspace"]')!.getBoundingClientRect();
+          const canvas = document.querySelector('[data-testid="artwork-canvas"]')!.getBoundingClientRect();
+          const image = document.querySelector<HTMLImageElement>('img[alt="Uploaded artwork preview"]')!.getBoundingClientRect();
+          const header = document.querySelector('[data-site-header]')!.getBoundingClientRect();
+          const footer = document.querySelector('[data-testid="mobile-subtotal-bar"]')!.getBoundingClientRect();
+          const toolbar = document.querySelector('[role="toolbar"][aria-label="Selected artwork"]')!.getBoundingClientRect();
+          const bottom = footer.height ? footer.top : window.innerHeight;
+          return workspace.top >= header.bottom - 1 && workspace.bottom <= bottom + 1
+            && toolbar.top >= header.bottom - 1 && toolbar.bottom <= bottom + 1
+            && Math.abs(image.x + image.width / 2 - canvas.x - canvas.width / 2) < 1
+            && Math.abs(image.y + image.height / 2 - canvas.y - canvas.height / 2) < 1
+            && image.top >= canvas.top - 1 && image.bottom <= canvas.bottom + 1
+            && image.left >= canvas.left - 1 && image.right <= canvas.right + 1;
+        })).toBe(true);
+      };
+      await expect(page.getByRole('toolbar', { name: 'Selected artwork', exact: true })).toBeVisible();
+      await checkVisible();
+      await page.screenshot({ path: info.outputPath(`${scenario}-uploading.png`) });
+      // Reduce the visible page like an in-app browser with expanded browser chrome.
+      await page.setViewportSize({ width: originalViewport.width, height: Math.max(360, originalViewport.height - 150) });
+      await checkVisible();
+      await page.screenshot({ path: info.outputPath(`${scenario}-short-viewport.png`) });
+      await page.request.post(`/__compact-test-hold?scenario=${scenario}`);
+      await expect(page.locator('#upload-section').getByRole('status')).toHaveCount(0);
+      await checkVisible();
+      await page.setViewportSize(originalViewport);
+      await checkVisible();
+      await page.screenshot({ path: info.outputPath(`${scenario}-ready.png`) });
+      if (originalViewport.width >= 768 && originalViewport.width < 1024) {
+        // Tablet rotation crosses the mobile/desktop layout boundary and moves
+        // the editor to a different parent; its new workspace must also fit.
+        await page.setViewportSize({ width: 1180, height: 820 });
+        await checkVisible();
+        await page.setViewportSize(originalViewport);
+        await checkVisible();
+      }
+      // Normal scrolling remains possible after the automatic reveal.
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    } finally {
+      await page.request.post(`/__compact-test-hold?scenario=${scenario}`);
+    }
+  });
+}
