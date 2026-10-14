@@ -412,7 +412,6 @@ const GoogleAdsBanner: React.FC = () => {
   const [modalMobileToolbarEl, setModalMobileToolbarEl] = useState<HTMLDivElement | null>(null);
 
   // Drag hint auto-fade state
-  const [showDragHint, setShowDragHint] = useState(false);
 
   // Upsell modal state
   const [showUpsellModal, setShowUpsellModal] = useState(false);
@@ -639,16 +638,6 @@ const GoogleAdsBanner: React.FC = () => {
     localStorage.setItem('banner-unit-pref', unit);
   }, [unit]);
 
-
-  // Show drag hint briefly when artwork is first uploaded
-  useEffect(() => {
-    if (uploadedFile) {
-      setShowDragHint(true);
-      const timer = setTimeout(() => setShowDragHint(false), 2000);
-      return () => clearTimeout(timer);
-    }
-    setShowDragHint(false);
-  }, [uploadedFile]);
 
   // Close material dropdown on outside click
   useEffect(() => {
@@ -3243,7 +3232,6 @@ const GoogleAdsBanner: React.FC = () => {
                             }}
                             constrain={constrainProps}
                             onConstrainChange={setConstrainProps}
-                            showDragHint={showDragHint}
                             canvasStyle={{
                               backgroundColor: '#ffffff',
                               borderRadius: 2,
@@ -3266,7 +3254,7 @@ const GoogleAdsBanner: React.FC = () => {
                         Size: {isCarMagnet ? `${widthIn}" × ${heightIn}"` : `${widthFt} ft${widthInR > 0 ? ` ${widthInR} in` : ''} × ${heightFt} ft${heightInR > 0 ? ` ${heightInR} in` : ''}`} ({sqft.toFixed(1)} sq ft)
                       </p>
                       {/* Confidence text */}
-                      <p className="text-xs text-gray-500 text-center mt-1 font-medium">Your design will be printed based on this preview</p>
+                      <p className="text-xs text-gray-500 text-center mt-1 font-medium">Drag artwork to move it. Use corner handles to resize.</p>
                       {/* File info bar */}
                       <div className="mt-2 p-3 flex items-center justify-between bg-green-50 border border-green-200 rounded-lg">
                         <div className="flex items-center gap-2 min-w-0">
@@ -3776,7 +3764,7 @@ const GoogleAdsBanner: React.FC = () => {
                 Size: {widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''} ({sqft.toFixed(1)} sq ft)
               </p>
               {/* Confidence text */}
-              <p className="text-xs text-gray-500 text-center mt-2 font-medium">Your design will be printed based on this preview</p>
+              <p className="text-xs text-gray-500 text-center mt-2 font-medium">Drag artwork to move it. Use corner handles to resize.</p>
             </div>
             <div className="flex gap-3 p-4 border-t">
               <button onClick={() => setShowPreview(false)} className="flex-1 py-3.5 sm:py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
