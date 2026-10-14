@@ -249,23 +249,6 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     if (!node && containerRef && containerRef.current === previousNode) containerRef.current = null;
   }, [containerRef]);
 
-  useEffect(() => {
-    if (loading || typeof window.matchMedia !== 'function') return;
-    const landscape = window.matchMedia('(max-width: 1023px) and (max-height: 500px) and (orientation: landscape)');
-    let frame = 0;
-    const revealWorkspace = () => {
-      if (!landscape.matches) return;
-      frame = window.requestAnimationFrame(() => {
-        // A fixed header/footer do not count as occlusion to scrollIntoViewIfNeeded.
-        // Center the complete editing area once after upload/orientation change.
-        internalRef.current?.closest('[data-testid="artwork-workspace"]')?.scrollIntoView({ block: 'center', behavior: 'instant' });
-      });
-    };
-    revealWorkspace();
-    landscape.addEventListener('change', revealWorkspace);
-    return () => { window.cancelAnimationFrame(frame); landscape.removeEventListener('change', revealWorkspace); };
-  }, [loading, imageSrc]);
-
   // Restore the forwarded ref to the visible editor after the modal closes.
   useEffect(() => {
     const node = internalRef.current;

@@ -6,7 +6,7 @@ import type { MobileFinishingStepProps } from './MobileFinishingStep';
 
 /** The live editor remains mounted under this step and owns the checkout render. */
 export default function MobileBannerReviewStep({ open, onBack, children, preview, summary, price,
-  description, ready, busy, editing, cartItemCount, onViewCart, onCheckout, onAddAnother,
+  description, promotionNote, ready, busy, editing, cartItemCount, onViewCart, onCheckout, onAddAnother,
   onReplaceArtwork }: MobileFinishingStepProps) {
   return <Dialog.Root open={open} onOpenChange={next => { if (!next && !busy) onBack(); }}>
     <Dialog.Portal>
@@ -38,14 +38,14 @@ export default function MobileBannerReviewStep({ open, onBack, children, preview
             <button type="button" onClick={onAddAnother} disabled={!ready || busy} className="mt-2 min-h-11 w-full text-sm font-semibold text-[#18448D] underline disabled:text-slate-400">{editing ? 'Save & design another' : 'Add & design another'}</button>
           </div>
         </div>
-        <footer className="shrink-0 border-t border-slate-200 bg-white px-4 pt-2 shadow-[0_-4px_20px_rgba(15,23,42,0.06)]" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+        <footer data-testid="finishing-subtotal-bar" className="banner-order-bar shrink-0 px-4 pt-2" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
           <div className="mx-auto flex max-w-xl items-center justify-between gap-3">
-            <div>{price}<p className="text-[10px] text-slate-500">Before tax</p></div>
-            <button type="button" onClick={onCheckout} disabled={!ready || busy} className="inline-flex min-h-12 max-w-[60%] items-center justify-center gap-2 rounded-xl bg-[#F56600] px-5 py-3 text-base font-bold text-white disabled:bg-slate-300 disabled:text-slate-600">
+            <div className="min-w-0">{price}<p className="text-[11px] leading-[14px] text-[#B8C8DC]">{promotionNote && <span>{promotionNote}<br /></span>}Before tax</p></div>
+            <button type="button" onClick={onCheckout} disabled={!ready || busy} className="inline-flex min-h-12 max-w-[60%] items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-5 py-3 text-base font-bold text-white disabled:bg-slate-600 disabled:text-slate-200 focus-visible:ring-2 focus-visible:ring-white">
               {busy ? <><Loader2 className="h-4 w-4 animate-spin" />Saving…</> : ready ? <>Checkout <ArrowRight className="h-4 w-4" /></> : 'Choose finishing'}
             </button>
           </div>
-          <ShippingBenefitBadge variant="price" className="mx-auto mt-1.5 max-w-xl" />
+          <ShippingBenefitBadge variant="price" className="mx-auto mt-1.5 max-w-xl !text-xs !text-white [&>svg]:h-4 [&>svg]:w-4" />
         </footer>
       </Dialog.Content>
     </Dialog.Portal>
