@@ -106,9 +106,9 @@ test('mixed-cart shipping is free and specialty quantity does not alter banner d
  assert.equal(mixed.shipping_cents,0);
  assert.equal(mixed.total_cents,52256);
 });
-test('AI fit uses a registered template and rejects mismatched dimensions',()=>{
+test('specialty AI remains unavailable even for a valid registered template',()=>{
  const p=catalog.find(p=>p.slug==='feather-flags'),v=p.variants[0],t=templates[v.panels[0].templateId];const type=`specialty:${p.slug}:${v.id}:front`;const body={productType:type,widthIn:t.widthIn,heightIn:t.heightIn,sourceImage:'data:image/png;base64,eA=='};
- assert.equal(validateFitRequest(body).productType,type);assert.throws(()=>validateFitRequest({...body,widthIn:t.widthIn+2}));
+ assert.throws(()=>validateFitRequest(body),{code:'SPECIALTY_AI_UNAVAILABLE'});assert.throws(()=>validateFitRequest({...body,widthIn:t.widthIn+2}));
  assert.match(buildFitPrompt({...body,plan:{strategy:'native'},source:{lines:['FARM MARKET'],elements:[]}}),/Printable boundary/);
 });
 test('20 ft tent template scale and table front/top regions remain distinct',()=>{

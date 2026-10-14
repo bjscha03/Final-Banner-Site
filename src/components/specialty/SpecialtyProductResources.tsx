@@ -2,7 +2,8 @@ import {useEffect,useState} from 'react';
 import {FileDown,ZoomIn} from 'lucide-react';
 import sourceData from '../../../shared/specialty-supplier.json';
 import mediaData from '../../../shared/specialty-media.json';
-import {specialtyPanels,specialtyTemplate} from '@/lib/specialtyProducts';
+import {specialtyPanels,specialtyTemplate,specialtyOptionSummary} from '@/lib/specialtyProducts';
+import {SpecialtyTemplateGuide} from './SpecialtyPreview';
 import {Dialog,DialogContent,DialogTitle} from '@/components/ui/dialog';
 import {type SpecialtyProduct,type SpecialtyVariant,type SpecialtyOptions} from '@/lib/specialtyProducts';
 type Resource={id:string;name:string;sourceUrl:string;specifications:string[];gallery:Array<{url:string;thumb:string;label:string}>;groups:any[];downloads:Array<{label:string;url:string;kind:string;format:string;localUrl?:string}>;installation?:Array<{text:string;images:string[]}>;installationNotes?:string[];videos?:string[]};
@@ -13,12 +14,16 @@ let guideFonts:Promise<{regular:Uint8Array;bold:Uint8Array}>|undefined;
 function loadGuideFonts(){
   return guideFonts ||= Promise.all(['DejaVuSans.ttf','DejaVuSans-Bold.ttf'].map(async file=>{const response=await fetch(`/fonts/artwork-guides/${file}`);if(!response.ok)throw new Error('Font download failed');return new Uint8Array(await response.arrayBuffer());})).then(([regular,bold])=>({regular,bold})).catch(error=>{guideFonts=undefined;throw error;});
 }
-export function SpecialtyProductGallery({product,variant,options}:{product:SpecialtyProduct;variant:SpecialtyVariant;options:SpecialtyOptions}) {
+export function SpecialtyProductGallery({product,variant,options,width=24,height=18}:{product:SpecialtyProduct;variant:SpecialtyVariant;options:SpecialtyOptions;width?:number;height?:number}) {
   const [selected,setSelected]=useState(0),[open,setOpen]=useState(false);
   const variantImages=media.variants[variant.id]||[{url:product.image,label:product.imageAlt}];
-  const images=[...variantImages,...(media.products[product.slug]||[])].filter(img=>!img.when||Object.entries(img.when).every(([k,v])=>options[k]===v));
+  const matches=variantImages.filter(img=>!img.when||Object.entries(img.when).every(([k,v])=>options[k]===v));
+  const images=matches.length?[...matches,...(media.products[product.slug]||[])]:[];
   useEffect(()=>setSelected(0),[variant.id,JSON.stringify(options)]);
   const current=images[selected]||images[0];
+  const panel=specialtyPanels(variant,options)[0];
+  const template=specialtyTemplate(product,variant,panel,width,height);
+  if(!current)return <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 sm:p-8" data-testid="selected-configuration-guide"><p className="text-xs font-black uppercase tracking-widest text-orange-700">Your selected configuration</p><h2 className="mt-3 text-2xl font-bold text-slate-900">{product.name}</h2><p className="mt-2 font-semibold">{variant.label}</p><div className="mx-auto my-6 relative w-full border bg-white" style={{aspectRatio:`${template.widthIn}/${template.heightIn}`,maxWidth:Math.min(420,300*template.widthIn/template.heightIn)}}><SpecialtyTemplateGuide template={template}/></div><p className="text-center text-sm font-semibold">{panel.label}: {template.widthIn.toFixed(2).replace(/\.00$/,'')} × {template.heightIn.toFixed(2).replace(/\.00$/,'')} in</p><dl className="mt-6 space-y-2 text-sm">{specialtyOptionSummary(variant,options).map(o=><div key={o.key} className="flex justify-between gap-4 border-t pt-2"><dt className="text-slate-600">{o.label}</dt><dd className="text-right font-semibold">{o.value}</dd></div>)}</dl><p className="mt-5 text-sm leading-6 text-slate-600">Upload your artwork below to preview its exact print placement. The guide shows this panel; selected accessories are listed above.</p></div>;
   return <div className="min-w-0">
     <button type="button" className="relative block w-full overflow-hidden rounded-2xl border border-slate-200 bg-white" onClick={()=>setOpen(true)} aria-label={`Enlarge ${current.label}`}><img src={current.url} alt={current.label} className="aspect-square w-full object-contain"/><span className="absolute bottom-3 right-3 rounded-full bg-white p-2 shadow"><ZoomIn className="h-5 w-5"/></span></button>
     {images.length>1&&<div className="mt-3 flex gap-2 overflow-x-auto pb-2" aria-label="Product and accessory photographs">{images.map((img,i)=><button key={`${img.url}-${i}`} type="button" onClick={()=>setSelected(i)} aria-pressed={selected===i} aria-label={img.label} className={`h-20 w-20 shrink-0 overflow-hidden rounded-lg border-2 bg-white ${selected===i?'border-orange-600':'border-slate-200'}`}><img src={img.url} alt="" loading="lazy" className="h-full w-full object-contain"/></button>)}</div>}

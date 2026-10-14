@@ -1,3 +1,4 @@
+import { availableSpecialtyProducts, specialtyCategories } from '@/lib/specialtyProducts';
 import React, { useState } from 'react';
 import { Mail, MapPin, Linkedin, Send, CheckCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -73,6 +74,7 @@ const Footer: React.FC = () => {
     { name: 'Vinyl Banners', href: '/design?product=banner' },
     { name: 'Yard Signs', href: '/design?product=yard-signs' },
     { name: 'Car Magnets', href: '/design?product=car-magnets' },
+    ...(availableSpecialtyProducts.length ? [{name:'Displays & Signs',href:'/products'},...Object.entries(specialtyCategories).filter(([key])=>availableSpecialtyProducts.some(p=>p.category===key)).map(([key,category])=>({name:category.label,href:`/products#${key}`}))] : []),
     { name: 'Custom Quote', href: '/custom-quote' },
     { name: 'Design Tool', href: '/design' },
   ];
@@ -134,12 +136,12 @@ const Footer: React.FC = () => {
             <ul className="space-y-2">
               {quickLinks.map((link, index) => (
                 <li key={index}>
-                  <ScrollToTopLink
-                    to={link.href}
+                  <a
+                    href={link.href}
                     className="flex min-h-11 items-center text-sm text-slate-300 transition-colors hover:text-white"
                   >
                     {link.name}
-                  </ScrollToTopLink>
+                  </a>
                 </li>
               ))}
             </ul>
@@ -164,12 +166,12 @@ const Footer: React.FC = () => {
             <ul className="space-y-2">
               {supportLinks.map((link, index) => (
                 <li key={index}>
-                  <ScrollToTopLink
-                    to={link.href}
+                  <a
+                    href={link.href}
                     className="flex min-h-11 items-center text-sm text-slate-300 transition-colors hover:text-white"
                   >
                     {link.name}
-                  </ScrollToTopLink>
+                  </a>
                 </li>
               ))}
             </ul>

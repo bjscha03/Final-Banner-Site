@@ -9,6 +9,7 @@ const FIT_INSPECTION_MODEL = 'gpt-6-astra';
 function validateFitRequest(body) {
   const productType = body.productType ?? 'banner';
   const specialty = String(productType).startsWith('specialty:');
+  if (specialty) throw Object.assign(new Error('Upload print-ready artwork for this product. AI design and fitting are not available for its print template.'), {code:'SPECIALTY_AI_UNAVAILABLE',statusCode:409});
   if (specialty) resolveSpecialtyTemplate(productType, Number(body.widthIn), Number(body.heightIn));
   if (!specialty && !['banner', 'yard_sign', 'car_magnet'].includes(productType)) {
     throw Object.assign(new Error('Choose a supported print product.'), { code: 'INVALID_REQUEST' });

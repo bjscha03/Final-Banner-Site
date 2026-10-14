@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight, Package, Truck } from 'lucide-react';
 import Layout from '@/components/Layout';
 import SEO from '@/components/SEO';
@@ -7,6 +8,8 @@ import { formatSpecialtyPrice, specialtyCategories, availableSpecialtyProducts a
 const groups = (Object.entries(specialtyCategories) as Array<[SpecialtyCategory, typeof specialtyCategories[SpecialtyCategory]]>).filter(([key])=>specialtyProducts.some(product=>product.category===key));
 
 export default function SpecialtyCatalog() {
+  const {hash}=useLocation();
+  useEffect(()=>{if(hash)document.getElementById(hash.slice(1))?.scrollIntoView({block:'start'});},[hash]);
   return <Layout showFooterBanner={false}>
     <SEO title="Displays, Event Gear & Signs | Banners On The Fly" description="Explore retractable banners, flags, table covers, event tents and custom rigid signs. Upload artwork, customize your design and preview your product." canonical="https://bannersonthefly.com/products" schema={[
       { '@context': 'https://schema.org', '@type': 'WebPage', name: 'Displays, Event Gear & Signs', url: 'https://bannersonthefly.com/products', description: 'Portable displays, branded event gear and custom signs.' },
@@ -49,7 +52,7 @@ export default function SpecialtyCatalog() {
           })}
         </div>
       </section>)}
-      <div className="brand-shell mt-14"><div className="border-l-4 border-[#ff6a00] bg-white p-6 text-sm leading-7 text-slate-600 shadow-sm sm:p-8"><strong className="block text-base text-[#0B1F3A]">About production and delivery</strong>Every product includes free Next Day Air shipping after production. Production times vary by product. New prices in this preview are proposals awaiting approval.</div></div>
+      <div className="brand-shell mt-14"><div className="border-l-4 border-[#ff6a00] bg-white p-6 text-sm leading-7 text-slate-600 shadow-sm sm:p-8"><strong className="block text-base text-[#0B1F3A]">About production and delivery</strong>Every product includes free Next Day Air shipping after production. Production times vary by product. Choose your size and options on the product page, then upload and approve each required artwork panel.</div></div>
     </div>
   </Layout>;
 }

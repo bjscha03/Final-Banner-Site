@@ -1,6 +1,6 @@
 /** Local integration checks with intercepted upload/AI transports; never a live-provider test. */
 import {createServer} from 'vite';
-import {chromium} from 'playwright';
+import {chromium,firefox,webkit,devices} from 'playwright';
 import sharp from 'sharp';
 import {PDFDocument,rgb} from 'pdf-lib';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
@@ -17,8 +17,11 @@ if(process.env.BOF_QA_TEST_CHECKOUT)process.env.VITE_PREVIEW_ACCESS_PASSWORD=loc
 // A secure test origin keeps WebCrypto available for upload/AI identities.
 const origin=`${process.env.BOF_QA_TEST_CHECKOUT?'https':'http'}://${qaHost}:8096`;
 const server=await createServer({root,configFile:root+'vite.config.ts',server:{host:'127.0.0.1',port:8096,allowedHosts:[qaHost]}});await server.listen();
-const browser=await chromium.launch({...(process.env.BOF_CHROMIUM_PATH?{executablePath:process.env.BOF_CHROMIUM_PATH}:{}),args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu',`--host-resolver-rules=MAP ${qaHost} 127.0.0.1`]});
-const page=await browser.newPage({viewport:{width:1280,height:900}}),errors=[],checks=[],uploads=new Map(),jobs=new Map(),aiRequests=[];
+const browserName=process.env.BOF_QA_BROWSER||'chromium';
+const browserType={chromium,firefox,webkit}[browserName];
+if(!browserType)throw new Error('Unknown QA browser '+browserName);
+const browser=await browserType.launch({...(process.env.BOF_QA_CHANNEL?{channel:process.env.BOF_QA_CHANNEL}:{}),...(process.env.BOF_CHROMIUM_PATH?{executablePath:process.env.BOF_CHROMIUM_PATH}:{}),...(browserName==='chromium'?{args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu',`--host-resolver-rules=MAP ${qaHost} 127.0.0.1`]}:{})});
+const page=await browser.newPage(process.env.BOF_QA_DEVICE?devices[process.env.BOF_QA_DEVICE]:{viewport:{width:1280,height:900}}),errors=[],checks=[],uploads=new Map(),jobs=new Map(),aiRequests=[];
 if(process.env.BOF_QA_TEST_CHECKOUT)await page.route(origin+'/**',async route=>{
  try{await route.fulfill({response:await route.fetch({url:route.request().url().replace(origin,'http://127.0.0.1:8096'),maxRetries:2})});}
  catch{await route.abort().catch(()=>{});} // Navigation can cancel outstanding module requests.
@@ -59,7 +62,7 @@ async function open(slug){
  }
  await page.locator('#specialty-variant').waitFor();
 }
-async function uploadArt(){await page.locator('#specialty-artwork input[type=file]').setInputFiles({name:'qa-market.png',mimeType:'image/png',buffer:fixture});await page.getByRole('button',{name:'Replace artwork',exact:true}).waitFor();await page.getByLabel('I checked the', {exact:false}).waitFor({timeout:30000});}
+async function uploadArt(){await page.locator('#specialty-artwork input[type=file]').setInputFiles({name:'qa-market.png',mimeType:'image/png',buffer:fixture});await page.waitForFunction(()=>document.querySelector('#specialty-artwork input[type=file]').value==='');await page.getByRole('button',{name:'Replace artwork',exact:true}).waitFor();await page.getByLabel('I checked the', {exact:false}).waitFor({timeout:30000});await page.waitForFunction(()=>[...document.querySelectorAll('label')].find(el=>el.textContent.includes('I checked the'))?.querySelector('input')?.disabled===false);}
 try{
  await check('all 19 product pages and 58 variants render valid supplier selections',async()=>{
   const catalog=JSON.parse(await readFile(root+'shared/specialty-catalog.json','utf8'));
@@ -76,7 +79,7 @@ try{
   await page.locator('#specialty-qty').fill('2');assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$352.68');
   await page.locator('#specialty-variant').selectOption('standard-retractable-banner-1');
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$411.40');
-  assert.match(await page.getByTestId('specialty-price').innerText(),/Proposed price/);
+  assert.match(await page.getByTestId('specialty-price').innerText(),/Tax calculated separately/);
   assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
   await page.goto(origin+'/products');await page.getByRole('heading',{name:'Make the entire space yours.'}).waitFor();
   for(const [slug,price] of [['standard-retractable-banner','$176.34'],['feather-flags','$204.79'],['standard-table-throws','$185.70'],['custom-event-tents','$1040.07'],['step-and-repeat-backdrop','$488.46'],['aluminum-composite-signs','$35.00']]){
@@ -106,7 +109,7 @@ try{
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$1133.05');
   await page.locator('#option-tent_full_wall').selectOption('A');
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$1475.74');
-  assert.match(await page.getByTestId('specialty-price').innerText(),/Proposed price/);
+  assert.match(await page.getByTestId('specialty-price').innerText(),/Tax calculated separately/);
   assert.doesNotMatch(await page.getByTestId('specialty-price').innerText(),/Price coming soon/);
   assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
   await open('aluminum-composite-signs');await page.getByRole('button',{name:'24 × 36 in · $115.00',exact:true}).click();
@@ -137,12 +140,12 @@ try{
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$88.00');
   await page.setViewportSize({width:1280,height:900});
  });
- await check('flag studio opens with its product and exact print size',async()=>{
-  await open('feather-flags');await page.getByRole('button',{name:'Create with AI',exact:true}).click();await page.getByTestId('ai-product-example').waitFor();assert.equal(await page.locator('.ai-studio-banner-showcase').count(),0);assert.match(await page.getByTestId('ai-workspace').innerText(),/25 in × 80 in/);await page.getByRole('button',{name:'Back to order'}).click();
- });
- await check('flag upload, Fit with AI, preview approval and cart preserve exact identity',async()=>{
-  await uploadArt();await page.getByRole('button',{name:'Fit my design with AI',exact:true}).click();await page.getByRole('button',{name:'Create fitted version',exact:true}).click();await page.getByLabel('Approve design',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Use this version',exact:true}).isDisabled(),true);assert.equal(aiRequests[0].productType,'specialty:feather-flags:feather-flags-1:front');assert.deepEqual([aiRequests[0].widthIn,aiRequests[0].heightIn],[25,80]);await page.getByLabel('Approve design',{exact:true}).check();await page.getByRole('button',{name:'Use this version',exact:true}).click();await page.getByRole('button',{name:'Restore original',exact:true}).waitFor();await page.getByLabel('I checked the front artwork', {exact:false}).check();await page.getByRole('button',{name:'Add to cart',exact:true}).click();await page.waitForURL('**/checkout',{timeout:60000});await page.locator('[aria-label="Your artwork on Feather Flags"]').first().waitFor();await page.reload();await page.locator('[aria-label="Your artwork on Feather Flags"]').first().waitFor();await page.screenshot({path:out+'/flag-cart.png',fullPage:true});
-  const item=await page.evaluate(async()=>{const {useCartStore}=await import('/src/store/cart.ts');return useCartStore.getState().items.find(i=>i.product_type==='specialty')});assert.equal(item.specialty_config.panels[0].composition.widthIn,25);assert.ok(item.specialty_config.panels[0].originalArtwork);assert.ok(item.specialty_config.panels[0].productionUrl.endsWith('.pdf'));
+ await check('specialty AI actions stay hidden and uploaded artwork reaches checkout unchanged',async()=>{
+  await open('feather-flags');
+  assert.equal(await page.getByRole('button',{name:'Create with AI',exact:true}).count(),0);
+  await uploadArt();assert.equal(await page.getByRole('button',{name:'Fit my design with AI',exact:true}).count(),0);
+  await page.getByLabel('I checked the front artwork', {exact:false}).check();await page.getByRole('button',{name:'Add to cart',exact:true}).click();await page.waitForURL('**/checkout',{timeout:60000});await page.locator('[aria-label="Your artwork on Feather Flags"]').first().waitFor();await page.reload();await page.locator('[aria-label="Your artwork on Feather Flags"]').first().waitFor();await page.screenshot({path:out+'/flag-cart.png',fullPage:true});
+  const item=await page.evaluate(async()=>{const {useCartStore}=await import('/src/store/cart.ts');return useCartStore.getState().items.find(i=>i.product_type==='specialty')});assert.equal(item.specialty_config.panels[0].composition.widthIn,25);assert.equal(item.specialty_config.panels[0].artwork.name,'qa-market.png');assert.ok(item.specialty_config.panels[0].productionUrl.endsWith('.pdf'));assert.equal(aiRequests.length,0);
   const totals=page.getByTestId('checkout-order-totals');assert.match(await totals.innerText(),/\$208\.49/);assert.match(await totals.innerText(),/First-order savings · 20%/);assert.match(await totals.innerText(),/\$176\.80/);assert.match(await totals.innerText(),/FREE/);assert.doesNotMatch(await totals.innerText(),/Pending|Not yet calculated/);
   if(process.env.BOF_QA_TEST_CHECKOUT)assert.equal(await page.getByRole('button',{name:/^Place test order · \$/}).isEnabled(),true);
  });
@@ -177,6 +180,59 @@ try{
  await check('product galleries load local branded images for every variant',async()=>{
   const catalog=JSON.parse(await readFile(root+'shared/specialty-catalog.json','utf8'));
   for(const product of catalog){await open(product.slug);assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);for(const variant of product.variants){await page.locator('#specialty-variant').selectOption(variant.id);const hero=page.locator('button[aria-label^="Enlarge"] img').first();assert.match(await hero.getAttribute('src'),/^\/images\/products\//);await hero.evaluate(img=>img.decode());assert.equal(await page.locator('img[src*="b2sign.com"]').count(),0);}}
+ });
+ await check('every variant and default print panel uses its registered artwork size with no AI actions',async()=>{
+  const catalog=JSON.parse(await readFile(root+'shared/specialty-catalog.json','utf8'));
+  const templates=JSON.parse(await readFile(root+'shared/specialty-templates.json','utf8'));
+  for(const product of catalog){
+   await open(product.slug);
+   for(const variant of product.variants){
+    await page.locator('#specialty-variant').selectOption(variant.id);
+    assert.equal(await page.getByRole('button',{name:'Create with AI',exact:true}).count(),0);
+    for(const panel of variant.panels){
+     if(variant.panels.length>1)await page.getByRole('tab',{name:panel.label,exact:true}).click();
+     await uploadArt();
+     const proof=page.getByAltText(`${panel.label} flat artwork without guides`,{exact:true});await proof.waitFor();await proof.evaluate(img=>img.decode());
+     const size=await proof.evaluate(img=>({w:img.naturalWidth,h:img.naturalHeight}));
+     const template=templates[panel.templateId],ratio=product.priceUnit==='sqft'?24/18:template.widthIn/template.heightIn;
+     assert.ok(Math.abs(size.w/size.h-ratio)/ratio<.02,`${variant.id}/${panel.id}: proof ratio`);
+     assert.equal(await page.getByRole('button',{name:'Fit my design with AI',exact:true}).count(),0);
+     if(!['tent','table'].includes(product.visual)){
+      await page.getByRole('button',{name:'See product',exact:true}).click();
+      await page.locator(`[aria-label="Your artwork on ${product.name}"]`).waitFor();
+      await page.getByRole('button',{name:'See flat artwork',exact:true}).click();
+     } else assert.equal(await page.getByRole('button',{name:'See product',exact:true}).count(),0);
+    }
+   }
+   await page.locator('#specialty-artwork').screenshot({path:`${out}/artwork-${product.slug}.png`});
+  }
+ });
+ await check('configuration changes clear approval and never retain an incompatible setup photo',async()=>{
+  await open('standard-retractable-banner');await uploadArt();
+  await page.getByLabel('I checked the front artwork',{exact:false}).check();
+  await page.locator('#option-hardware').selectOption('p');
+  assert.equal(await page.getByLabel('I checked the front artwork',{exact:false}).isChecked(),false);
+  assert.equal(await page.getByRole('button',{name:'Add to cart',exact:true}).isDisabled(),true);
+  await page.getByTestId('selected-configuration-guide').waitFor();
+  assert.equal(await page.locator('button[aria-label^="Enlarge"] img').count(),0);
+ });
+ await check('homepage and desktop/mobile navigation expose each product category without overflow',async()=>{
+  await page.goto(origin+'/');await page.getByRole('heading',{name:'Build your entire display.'}).waitFor();
+  for(const width of [320,390,768,1024,1280,1536]){
+   await page.setViewportSize({width,height:900});
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`Homepage overflows at ${width}`);
+   if(width===390||width===1280)await page.locator('[aria-labelledby="product-selection-heading"]').screenshot({path:`${out}/homepage-products-${width}.png`});
+  }
+  await page.getByRole('link',{name:/Advertising flags.*Feather/}).click();
+  await page.getByRole('heading',{name:'Advertising flags',exact:true}).waitFor();
+  assert.equal(new URL(page.url()).hash,'#flags');
+  await page.setViewportSize({width:390,height:844});
+  await page.getByRole('button',{name:/Open menu|Toggle menu|Open navigation|Toggle navigation/i}).click();
+  const nav=page.getByRole('navigation',{name:'Mobile navigation'});
+  for(const category of ['Banner stands & backdrops','Advertising flags','Table covers & tents','Rigid signs & posters'])await nav.getByRole('link',{name:category,exact:true}).waitFor();
+  await nav.getByRole('link',{name:'Table covers & tents',exact:true}).click();await page.getByRole('heading',{name:'Table covers & tents',exact:true}).waitFor();
+  assert.equal(new URL(page.url()).hash,'#events');
+  await page.setViewportSize({width:1280,height:900});
  });
  await check('mobile flag controls remain outside the narrow artboard',async()=>{await page.setViewportSize({width:390,height:844});await open('feather-flags');await uploadArt();const fit=page.getByRole('button',{name:/^Show entire design/});await fit.waitFor();const box=await fit.boundingBox();assert.ok(box.width>110);assert.ok(box.x>=0&&box.x+box.width<=390);await page.locator('#specialty-artwork').screenshot({path:out+'/flag-mobile.png'});});
  await check('specialty cart preview stays readable for narrow flags on desktop and mobile',async()=>{
@@ -219,7 +275,7 @@ try{
   await page.setViewportSize({width:1280,height:900});
  });
  assert.deepEqual(errors,[]);
- console.log(JSON.stringify({checks:checks.length,pageErrors:errors,uploadTransportsMocked:true,AIProviderMocked:true}));
- await writeFile(out+'/result.json',JSON.stringify({checks,pageErrors:errors,uploadTransportsMocked:true,AIProviderMocked:true},null,2));
+ console.log(JSON.stringify({browser:browserName,device:process.env.BOF_QA_DEVICE||'desktop',checks:checks.length,pageErrors:errors,uploadTransportsMocked:true,AIProviderMocked:true}));
+ await writeFile(out+'/result.json',JSON.stringify({browser:browserName,device:process.env.BOF_QA_DEVICE||'desktop',checks,pageErrors:errors,uploadTransportsMocked:true,AIProviderMocked:true},null,2));
 }catch(error){await page.screenshot({path:out+'/failure.png',fullPage:true});console.error('BROWSER FAILURE',error.message,'ALERTS',await page.getByRole('alert').allTextContents(),'PAGE ERRORS',errors);process.exitCode=1;}
 finally{await browser.close();await server.close();}

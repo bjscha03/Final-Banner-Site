@@ -93,6 +93,7 @@ function requiredText(copy) {
 
 function normalizeBrief(input = {}) {
   const isSpecialty = String(input.productType).startsWith('specialty:');
+  if (isSpecialty) throw Object.assign(new Error('Upload print-ready artwork for this product. AI design and fitting are not available for its print template.'), {code:'SPECIALTY_AI_UNAVAILABLE',statusCode:409});
   // Supplier PDF artboards include fractional inches. Preserve their exact
   // dimensions; the registered template resolver validates the allowed size.
   const widthIn = isSpecialty ? Number(input.widthIn) : requireNumber(input.widthIn, 'Width', 6, 600);

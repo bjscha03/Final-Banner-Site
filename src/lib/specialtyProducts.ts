@@ -55,7 +55,7 @@ export interface SpecialtyProduct {
 export const specialtyCategories: Record<SpecialtyCategory, { label: string; description: string }> = {
   stands: { label: 'Banner stands & backdrops', description: 'Portable displays for counters, lobbies and trade shows.' },
   flags: { label: 'Advertising flags', description: 'Tall, visible graphics for storefronts and outdoor events.' },
-  events: { label: 'Event gear', description: 'Table covers and tents that make a whole booth feel intentional.' },
+  events: { label: 'Table covers & tents', description: 'Table covers and tents that make a whole booth feel intentional.' },
   signs: { label: 'Rigid signs & posters', description: 'Polished graphics for walls, wayfinding and long-lasting displays.' },
 };
 

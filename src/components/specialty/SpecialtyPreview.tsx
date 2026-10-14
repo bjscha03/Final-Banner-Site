@@ -93,6 +93,6 @@ export default function SpecialtyPreview({ product, template, imageUrl, panels =
         {Array.from({length:lightCount},(_,i)=><g key={i} data-preview-part="led-light" transform={`translate(${x+w*(lightCount===1?.5:(i+1)/3)} ${y})`}><path d="M0 0V-16L8 -22" fill="none" stroke="#48515a" strokeWidth="3"/><rect x="-7" y="-27" width="31" height="8" rx="3" fill="#38424c"/><path d="M-4 -20H20" stroke="#f9f0ce" strokeWidth="2"/></g>)}
       </g>}
     </svg>
-    {showCaption && <p className="px-4 pb-3 text-center text-xs leading-5 text-slate-500">{template.doubleFlag?'Front and back views of one flag. ':''}Appearance preview. Your saved flat artwork controls print placement. Color and fabric drape can vary.{product.slug==='acrylic-signs'?' Mounting is illustrative; final hole positions are confirmed before production.':''}</p>}
+    {showCaption && <p className="px-4 pb-3 text-center text-xs leading-5 text-slate-500">{template.doubleFlag?'Front and back views of one flag. ':''}Appearance preview. Your saved flat artwork controls print placement. Hardware details and print color can vary.{product.slug==='acrylic-signs'?' Mounting is illustrative; final hole positions are confirmed before production.':''}</p>}
   </div>;
 }
