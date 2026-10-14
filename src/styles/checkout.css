@@ -26,6 +26,7 @@
 .checkout-preview-mode button[aria-pressed=true] { border-color: var(--checkout-ink); color: var(--checkout-ink); }
 .checkout-artwork-image { min-width: 0; display: flex; align-items: center; justify-content: center; border-radius: 5px; overflow: hidden; background: #f7f8fa; padding: 8px; }
 .checkout-artwork-image > div { max-width: min(100%, calc(250px * var(--checkout-artwork-ratio))); }
+.checkout-artwork-image.checkout-artwork-image-specialty > div { width: 100%; max-width: 320px; }
 .checkout-artwork-copy { margin-top: 12px; }
 .checkout-artwork-copy h3 { font-size: 16px; line-height: 1.35; font-weight: 700; }
 .checkout-artwork-copy p { color: #64748b; font-size: 13px; line-height: 1.55; margin-top: 4px; overflow-wrap: anywhere; }

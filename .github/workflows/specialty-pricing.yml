@@ -34,7 +34,7 @@ jobs:
       - name: Check catalog, accessories, custom sizes, cart repricing and mobile display
         run: node scripts/test-specialty-browser.mjs
         env:
-          BOF_QA_FILTER: 'all 19|catalog shows|flag size|tent and ACM|proposed custom|flag studio|flag upload|saved cart|mobile flag'
+          BOF_QA_FILTER: 'all 19|catalog shows|flag size|tent and ACM|proposed custom|flag studio|flag upload|saved cart|mobile flag|specialty cart preview'
           BOF_QA_TEST_CHECKOUT: '1'
           BOF_QA_DIR: pricing-browser-results
       - uses: actions/upload-artifact@v4

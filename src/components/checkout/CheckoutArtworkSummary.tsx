@@ -62,7 +62,7 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction, 
                 <button type="button" aria-pressed={showRealisticPreview} onClick={() => setPrintLayoutItems(current => ({ ...current, [item.id]: false }))}>Realistic preview</button>
                 <button type="button" aria-pressed={!showRealisticPreview} onClick={() => setPrintLayoutItems(current => ({ ...current, [item.id]: true }))}>Print layout</button>
               </div>}
-              <div className="checkout-artwork-image" style={{ "--checkout-artwork-ratio": item.width_in / item.height_in } as React.CSSProperties}>
+              <div className={`checkout-artwork-image${item.product_type === 'specialty' ? ' checkout-artwork-image-specialty' : ''}`} style={{ "--checkout-artwork-ratio": item.width_in / item.height_in } as React.CSSProperties}>
                 {item.product_type === 'specialty' && item.specialty_config ? <SavedSpecialtyPreview configuration={item.specialty_config} /> : <ThumbnailPreviewWrapper
                   title={title}
                   widthIn={item.width_in}

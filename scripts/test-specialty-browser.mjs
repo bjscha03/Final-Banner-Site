@@ -179,6 +179,45 @@ try{
   for(const product of catalog){await open(product.slug);assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);for(const variant of product.variants){await page.locator('#specialty-variant').selectOption(variant.id);const hero=page.locator('button[aria-label^="Enlarge"] img').first();assert.match(await hero.getAttribute('src'),/^\/images\/products\//);await hero.evaluate(img=>img.decode());assert.equal(await page.locator('img[src*="b2sign.com"]').count(),0);}}
  });
  await check('mobile flag controls remain outside the narrow artboard',async()=>{await page.setViewportSize({width:390,height:844});await open('feather-flags');await uploadArt();const fit=page.getByRole('button',{name:/^Show entire design/});await fit.waitFor();const box=await fit.boundingBox();assert.ok(box.width>110);assert.ok(box.x>=0&&box.x+box.width<=390);await page.locator('#specialty-artwork').screenshot({path:out+'/flag-mobile.png'});});
+ await check('specialty cart preview stays readable for narrow flags on desktop and mobile',async()=>{
+  await page.setViewportSize({width:1280,height:900});
+  await open('economy-feather-flag');await uploadArt();
+  await page.getByLabel('I checked the front artwork',{exact:false}).check();
+  await page.getByRole('button',{name:'Add to cart',exact:true}).click();
+  await page.waitForURL('**/checkout',{timeout:60000});
+  const item=page.locator('[data-checkout-artwork-item]').filter({has:page.getByRole('heading',{name:'Economy Feather Flag',exact:true})});
+  const preview=item.getByTestId('saved-specialty-preview');
+  await preview.waitFor();
+  for(const width of [1280,390,320]){
+   await page.setViewportSize({width,height:900});
+   const box=await preview.boundingBox(),scene=await preview.locator('svg[role=img]').boundingBox();
+   assert.ok(box.width>=120,`Preview squeezed to ${box.width}px at ${width}px viewport`);
+   assert.ok(box.x>=0&&box.x+box.width<=width,'Preview extends outside the viewport');
+   assert.ok(Math.abs(scene.width/scene.height-500/450)<.02,'Product scene is distorted');
+   assert.equal(await preview.getByText(/Appearance preview/).count(),0,'Detailed caption must not crowd the thumbnail');
+   assert.ok((await preview.getByRole('button',{name:'Review artwork',exact:true}).boundingBox()).height>=44);
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'Page overflows horizontally');
+   await page.getByTestId('checkout-artwork-summary').screenshot({path:`${out}/economy-flag-checkout-${width}.png`});
+  }
+  await preview.getByRole('button',{name:'Review artwork',exact:true}).click();
+  const dialog=page.getByRole('dialog');await dialog.waitFor();
+  assert.match(await dialog.innerText(),/Appearance preview.*saved flat artwork/);
+  await dialog.screenshot({path:out+'/economy-flag-artwork-review-mobile.png'});
+  await page.keyboard.press('Escape');
+  await page.goto(origin+'/products');
+  await page.getByRole('button',{name:'Shopping cart',exact:true}).click();
+  const cart=page.getByRole('dialog',{name:'Shopping cart',exact:true});await cart.waitFor();
+  for(const width of [390,1280]){
+   await page.setViewportSize({width,height:900});
+   for(const saved of await cart.getByTestId('saved-specialty-preview').all()){
+    assert.ok((await saved.boundingBox()).width>=240,'Cart preview is too narrow');
+    assert.equal(await saved.getByText(/Appearance preview/).count(),0);
+   }
+   await cart.screenshot({path:`${out}/specialty-cart-drawer-${width}.png`});
+  }
+  await cart.getByRole('button',{name:'Close cart',exact:true}).click();
+  await page.setViewportSize({width:1280,height:900});
+ });
  assert.deepEqual(errors,[]);
  console.log(JSON.stringify({checks:checks.length,pageErrors:errors,uploadTransportsMocked:true,AIProviderMocked:true}));
  await writeFile(out+'/result.json',JSON.stringify({checks,pageErrors:errors,uploadTransportsMocked:true,AIProviderMocked:true},null,2));
