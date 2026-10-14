@@ -123,9 +123,14 @@ test('banner finishing preserves the artwork, price and cart through add-another
   await expect(fitWithAI).toBeEnabled();
   await expect(artworkToolbar.getByRole('button', { name: /Fill banner/ })).toHaveCount(0);
   await expect(page.getByText('Need a better fit for this size?', { exact: true })).toHaveCount(0);
-  const showEntireBox = (await artworkToolbar.getByRole('button', { name: /Show entire design/ }).boundingBox())!;
-  const aiFitBox = (await fitWithAI.boundingBox())!;
-  expect(aiFitBox.y).toBe(showEntireBox.y);
+  // Measure the row in one frame: upload completion can resize the footer
+  // between separate boundingBox calls while both controls remain aligned.
+  const controlTops = await fitWithAI.evaluate(button => {
+    const showEntire = Array.from(button.parentElement!.querySelectorAll('button'))
+      .find(candidate => candidate.textContent?.includes('Show entire design'))!;
+    return [showEntire.getBoundingClientRect().top, button.getBoundingClientRect().top];
+  });
+  expect(controlTops[1]).toBe(controlTops[0]);
   await fitWithAI.click();
   await expect(page.getByRole('dialog', { name: /Fit your design to/ })).toBeVisible();
   await page.keyboard.press('Escape');
