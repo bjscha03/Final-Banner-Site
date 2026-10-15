@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
+import OrderCelebration from '@/components/OrderCelebration';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, CheckCircle, CircleAlert, Home, Loader2 } from 'lucide-react';
 import { usd } from '@/lib/pricing';
@@ -272,6 +273,7 @@ const PaymentSuccess: React.FC = () => {
 
   return (
     <Layout>
+      <OrderCelebration key={verifiedOrderId} orderId={verifiedOrderId} />
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Success Header */}
