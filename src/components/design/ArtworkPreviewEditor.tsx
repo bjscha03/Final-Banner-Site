@@ -186,8 +186,8 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   const [guides, setGuides] = useState({ x: false, y: false });
   const [activeHandle, setActiveHandle] = useState<ArtworkHandle | null>(null);
   const gestureStart = useRef<NormalizedArtworkGeometry | null>(null);
-  // Temporarily disabled in production pending customer testing of the AI fit flow.
-  const fitHelp = useArtworkFitHelp(artworkKey, undefined, () => {
+  // Preview branch only: customer must approve before restoring on production.
+  const fitHelp = useArtworkFitHelp(artworkKey, fitAssistance, () => {
     const canvas = internalRef.current;
     return Boolean(canvas && !gestureStart.current && !cropModeRef.current && !loading && !previewError
       && document.visibilityState === 'visible' && isTopmostCanvas(canvas)

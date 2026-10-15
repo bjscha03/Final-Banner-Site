@@ -137,6 +137,7 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
 
   const proposed = result ? `data:${result.mimeType};base64,${result.imageBase64}` : '';
   const canApply = canApplyArtworkFit(result);
+  const unreadableSource = error.includes('could not reliably read part of the original wording');
   return <Dialog open={open} onOpenChange={value => { if (!applying) onOpenChange(value); }}>
     <DialogContent className="max-h-[94dvh] w-[calc(100%_-_1rem)] overflow-y-auto p-4 sm:max-w-5xl sm:p-6" onInteractOutside={event => { if (busy || applying) event.preventDefault(); }}>
       <DialogHeader>
@@ -158,13 +159,13 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
         </figure>
       </div>}
       {busy && <div role="status" aria-live="polite" className="rounded-xl bg-orange-50 p-4 text-sm text-slate-800"><p className="flex items-center gap-2 font-semibold"><Loader2 className="h-5 w-5 animate-spin text-orange-600" />{stage}</p><p className="mt-2">This can take a few minutes. Please keep this window open while we finish your design.</p></div>}
-      {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{retrySeconds > 0 ? `Please wait ${Math.floor(retrySeconds / 60)}:${String(retrySeconds % 60).padStart(2, '0')} before retrying. Your original and latest preview are safe.` : error}</p>}
+      {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{retrySeconds > 0 ? `Please wait ${Math.floor(retrySeconds / 60)}:${String(retrySeconds % 60).padStart(2, '0')} before retrying. Your original and latest preview are safe.` : unreadableSource ? 'Some text in this upload is too small or blurry to rearrange safely. Upload the original design file or a clearer image instead of a screenshot. Your original artwork has not changed.' : error}</p>}
       {result && !busy && !canApply && <p className="text-sm text-slate-600">Please retry this design.</p>}
       {canApply && !busy && <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold text-slate-800"><input type="checkbox" checked={reviewed} disabled={applying} onChange={event => setReviewed(event.target.checked)} className="h-5 w-5 accent-orange-600" />Approve design</label>}
       {!busy && <div className="flex flex-wrap gap-2 border-t pt-4">
-        <button type="button" disabled={applying} onClick={() => onOpenChange(false)} className="min-h-11 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">Keep original</button>
+        <button type="button" disabled={applying} onClick={() => onOpenChange(false)} className="min-h-11 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">{unreadableSource ? 'Back to editor' : 'Keep original'}</button>
         {error && !ready && !loading && <button type="button" onClick={() => setReadinessAttempt(value => value + 1)} className="min-h-11 rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold text-white">Retry</button>}
-        {!result && !busy && (ready || loading) && <button type="button" disabled={!ready || loading || applying || retrySeconds > 0} onClick={() => void generate()} className="min-h-11 rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold text-white disabled:opacity-50">{error ? 'Retry' : 'Create fitted version'}</button>}
+        {!unreadableSource && !result && !busy && (ready || loading) && <button type="button" disabled={!ready || loading || applying || retrySeconds > 0} onClick={() => void generate()} className="min-h-11 rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold text-white disabled:opacity-50">{error ? 'Retry' : 'Create fitted version'}</button>}
         {result && !busy && <button type="button" disabled={applying || retrySeconds > 0} onClick={() => void generate(!retryPending)} className="min-h-11 rounded-lg border border-orange-300 px-4 py-2 text-sm font-semibold text-orange-800 disabled:opacity-50">Retry</button>}
         {result && <button type="button" disabled={busy || applying || !reviewed || !canApply} onClick={() => void apply()} className="min-h-11 rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold text-white disabled:opacity-50">{applying ? 'Saving your layout…' : 'Use this version'}</button>}
       </div>}

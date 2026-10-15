@@ -237,3 +237,22 @@ it('keeps legacy banner requests valid and rejects unsupported product types', a
   expect(validateFitRequest(await request()).productType).toBe('banner');
   expect(() => validateFitRequest({ productType: 'unsupported' })).toThrow('supported print product');
 });
+
+it.each([[120, 600], [600, 120]])('reads long artwork with complete overlapping original-pixel crops (%i × %i)', async (width, height) => {
+  const { sourceReadingTiles } = require('../_shared/ai-designer/fit.cjs');
+  const pixels = Buffer.from(Array.from({ length: width * height * 3 }, (_, i) => i % 251));
+  const original = { buffer: await sharp(pixels, { raw: { width, height, channels: 3 } }).png().toBuffer() };
+  const tiles = await sourceReadingTiles(original);
+  expect(tiles).toHaveLength(4);
+  const vertical = height > width;
+  let previousEnd = 0;
+  for (let i = 0; i < tiles.length; i++) {
+    const start = Math.round(400 * i / 3);
+    expect(start).toBeLessThanOrEqual(previousEnd);
+    const region = vertical ? { left: 0, top: start, width, height: 200 } : { left: start, top: 0, width: 200, height };
+    const expected = await sharp(original.buffer).extract(region).raw().toBuffer();
+    expect(await sharp(tiles[i].buffer).raw().toBuffer()).toEqual(expected);
+    previousEnd = start + 200;
+  }
+  expect(previousEnd).toBe(600);
+});
