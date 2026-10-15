@@ -31,6 +31,8 @@ const browserType={chromium,firefox,webkit}[browserName];
 if(!browserType)throw new Error('Unknown QA browser '+browserName);
 const browser=await browserType.launch({...(process.env.BOF_QA_CHANNEL?{channel:process.env.BOF_QA_CHANNEL}:{}),...(process.env.BOF_CHROMIUM_PATH?{executablePath:process.env.BOF_CHROMIUM_PATH}:{}),...(browserName==='chromium'?{args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu',`--host-resolver-rules=MAP ${qaHost} 127.0.0.1`]}:{})});
 const page=await browser.newPage({...process.env.BOF_QA_DEVICE?devices[process.env.BOF_QA_DEVICE]:{viewport:{width:1280,height:900}},ignoreHTTPSErrors:true}),errors=[],checks=[],uploads=new Map(),jobs=new Map(),aiRequests=[];
+const initialViewport=page.viewportSize();
+page.setDefaultTimeout(45000);page.setDefaultNavigationTimeout(60000);
 // WebKit's request interception omits file bytes in multipart postDataBuffer.
 // Mock only the storage boundary, reading the real File/Blob in the page first.
 await page.exposeFunction('__qaStoreUpload',async file=>{
@@ -42,6 +44,12 @@ await page.exposeFunction('__qaStoreUpload',async file=>{
 await page.addInitScript(()=>{
  const nativeFetch=window.fetch;
  window.fetch=async function(input,init){
+  // Lifecycle snapshots are already mocked below. Answer at the fetch boundary
+  // so WebKit does not report an intercepted keepalive request after page exit.
+  const requestUrl=typeof input==='string'?input:input?.url||String(input);
+  if(requestUrl.endsWith('/.netlify/functions/save-cart-snapshot')){
+   return new Response('{}',{status:200,headers:{'Content-Type':'application/json'}});
+  }
   if(String(input).endsWith('/.netlify/functions/upload-file')&&init?.body instanceof FormData){
    const file=init.body.get('file');
    const base64=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(file);});
@@ -159,7 +167,7 @@ try{
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$98.47');
   await open('display-posters');await page.getByLabel('Height (in)',{exact:true}).fill('36');
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$88.00');
-  await page.setViewportSize({width:1280,height:900});
+  await page.setViewportSize(initialViewport);
  });
  await check('specialty AI actions stay hidden and uploaded artwork reaches checkout unchanged',async()=>{
   await open('feather-flags');
