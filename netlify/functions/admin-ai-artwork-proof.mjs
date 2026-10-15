@@ -1,3 +1,7 @@
+// The shared CommonJS renderer retains runtime requires. Declare its packages
+// here so Netlify includes them in this function's deployment artifact.
+import 'cloudinary';
+import 'pdf-lib';
 import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import auth from './_shared/server-auth.cjs';
