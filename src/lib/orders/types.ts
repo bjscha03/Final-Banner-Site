@@ -138,6 +138,9 @@ export interface Order {
   saturday_fee_cents?: number;
   order_timestamp_et?: string | null;
   same_day_qualified?: boolean;
+  partial_refund_cents?: number;
+  partial_refund_tax_cents?: number;
+  partial_refund_history?: Array<{ recorded_at: string; admin?: string; note?: string; previous_amount_cents: number; amount_cents: number; previous_tax_cents?: number; tax_cents?: number }>;
   // Payment provider metadata (returned by get-orders via SELECT *)
   payment_method?: 'stripe' | 'paypal' | string | null;
   paypal_order_id?: string | null;

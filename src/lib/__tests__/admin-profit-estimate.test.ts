@@ -27,6 +27,14 @@ const magnetItem = (size: string, quantity: number, extra: Partial<OrderItem> = 
 } as Partial<OrderItem>);
 
 describe('admin supplier cost regressions', () => {
+  it('subtracts only the non-tax refund from profit while preserving supplier costs', () => {
+    const order = { ...baseOrder([{ product_type: 'banner', width_in: 72, height_in: 24, material: '13oz', quantity: 1, line_total_cents: 10000 }]), total_cents: 10600, tax_cents: 600 };
+    const original = estimateOrderProfit(order);
+    const refunded = estimateOrderProfit({ ...order, partial_refund_cents: 2500, partial_refund_tax_cents: 150 });
+    expect(refunded.netProfitCents).toBe(original.netProfitCents - 2350);
+    expect(refunded.totalCostCents).toBe(original.totalCostCents);
+    expect(refunded.refundRevenueCents).toBe(2350);
+  });
   const sign = (extra: Partial<OrderItem> = {}): Partial<OrderItem> => ({
     product_type: 'yard_sign', width_in: 24, height_in: 18, material: 'corrugated',
     quantity: 10, line_total_cents: 14000, yard_sign_sidedness: 'double', ...extra,

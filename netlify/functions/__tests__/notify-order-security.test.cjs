@@ -219,6 +219,17 @@ test('notify-order preserves ordinary unauthenticated idempotent notification ca
   }
 });
 
+test('customer and admin order emails include the original expected delivery date and carrier note', async () => {
+  const response = await notifier.handler({ httpMethod: 'POST', headers: {}, body: JSON.stringify({ orderId: order.id }) });
+  assert.equal(response.statusCode, 200);
+  assert.equal(sentEmails.length, 2);
+  for (const email of sentEmails) {
+    assert.match(email.html, /Monday, Aug 10, 2026/);
+    assert.match(email.html, /Delivery dates are estimates, not guarantees/);
+    assert.match(email.html, /carrier-caused delays/);
+  }
+});
+
 test('notify-order accepts force resend from internal jobs and verified administrators', async () => {
   process.env.INTERNAL_JOB_SECRET = 'test-internal-job-secret';
   let response = await notifier.handler({

@@ -46,6 +46,9 @@ function getReviewRequestEligibility(order = {}) {
   }
 
   const customerEmail = getCanonicalCustomerEmail(order);
+  if (Number(order.partial_refund_cents || 0) > 0) {
+    return { eligible: false, code: 'PARTIAL_REFUND_RECORDED', reason: 'Review emails are disabled because a partial refund is recorded for this order.' };
+  }
   if (!customerEmail) {
     return { eligible: false, code: 'INVALID_CUSTOMER_EMAIL', reason: 'No valid customer email is available for this order.' };
   }

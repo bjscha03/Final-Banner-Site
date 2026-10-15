@@ -1,4 +1,5 @@
 import React from 'react';
+import { CARRIER_DELIVERY_NOTE, getOrderDeliveryEstimate } from '../lib/delivery/orderEstimate';
 import {
   Html,
   Head,
@@ -19,6 +20,9 @@ interface OrderConfirmationProps {
   to: string;
   order: {
     id: string;
+    created_at?: string;
+    same_day_hit_service?: boolean;
+    saturday_delivery?: boolean;
     number?: string;
     orderNumber?: string;
     customerName?: string;
@@ -66,14 +70,15 @@ interface OrderConfirmationProps {
 }
 
 export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmationProps) {
+  const delivery = getOrderDeliveryEstimate(order);
   // Format date in US Eastern timezone - use toLocaleString for proper formatting
-  const now = new Date();
-  const orderDateFormatted = now.toLocaleString('en-US', {
+  const placedAt = order.created_at ? new Date(order.created_at) : null;
+  const orderDateFormatted = placedAt && Number.isFinite(placedAt.getTime()) ? placedAt.toLocaleString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     timeZone: 'America/New_York',
-  });
+  }) : '';
 
   // Handle different prop formats
   const orderNumber = order.number || order.orderNumber || (order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN');
@@ -136,6 +141,13 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
             </Text>
 
             {/* Order Items */}
+            <Section style={{ backgroundColor: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '10px', padding: '16px', margin: '16px 0' }}>
+              <Text style={{ fontSize: '12px', fontWeight: '700', color: '#9a3412', margin: '0 0 6px' }}>EXPECTED DELIVERY</Text>
+              <Text style={{ fontSize: '20px', fontWeight: '700', color: '#0f172a', margin: '0' }}>{delivery.deliveryLabel || 'We will confirm your delivery estimate'}</Text>
+              {delivery.shipLabel && <Text style={{ fontSize: '13px', color: '#475569', margin: '6px 0 0' }}>Expected shipment: {delivery.shipLabel}</Text>}
+              {order.items.some(item => item.design_service_enabled) && <Text style={{ fontSize: '12px', color: '#64748b', margin: '6px 0 0' }}>{delivery.note}</Text>}
+              <Text style={{ fontSize: '12px', lineHeight: '1.6', color: '#64748b', margin: '10px 0 0' }}>{CARRIER_DELIVERY_NOTE}</Text>
+            </Section>
             <Section style={itemsSection}>
               <Heading style={sectionTitle}>Order Items</Heading>
               <div style={itemsContainer}>

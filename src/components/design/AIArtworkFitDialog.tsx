@@ -9,6 +9,7 @@ import { artworkFitIdentity, canApplyArtworkFit, prepareArtworkFitSource, saveFi
 import { logUx } from '@/lib/uxAnalytics';
 import {aiProductContext} from './ai/productContext';
 import {SpecialtyTemplateGuide} from '@/components/specialty/SpecialtyPreview';
+import { artworkResolution } from '@/lib/artworkResolution';
 
 export function ArtworkFitButton({ onClick, disabled, onRestore }: { onClick: () => void; disabled?: boolean; onRestore?: () => void }) {
   return <div className="mt-3 border-t border-slate-100 pt-3">
@@ -137,6 +138,7 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
 
   const proposed = result ? `data:${result.mimeType};base64,${result.imageBase64}` : '';
   const canApply = canApplyArtworkFit(result);
+  const resolution = result ? artworkResolution(result.widthPx, result.heightPx, widthIn, heightIn) : null;
   return <Dialog open={open} onOpenChange={value => { if (!applying) onOpenChange(value); }}>
     <DialogContent className="max-h-[94dvh] w-[calc(100%_-_1rem)] overflow-y-auto p-4 sm:max-w-5xl sm:p-6" onInteractOutside={event => { if (busy || applying) event.preventDefault(); }}>
       <DialogHeader>
@@ -160,6 +162,7 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
       {busy && <div role="status" aria-live="polite" className="rounded-xl bg-orange-50 p-4 text-sm text-slate-800"><p className="flex items-center gap-2 font-semibold"><Loader2 className="h-5 w-5 animate-spin text-orange-600" />{stage}</p><p className="mt-2">This can take a few minutes. Please keep this window open while we finish your design.</p></div>}
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{retrySeconds > 0 ? `Please wait ${Math.floor(retrySeconds / 60)}:${String(retrySeconds % 60).padStart(2, '0')} before retrying. Your original and latest preview are safe.` : error}</p>}
       {result && !busy && !canApply && <p className="text-sm text-slate-600">Please retry this design.</p>}
+      {result && !busy && (!resolution || !resolution.meetsMinimum) && <p role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"><strong>Print resolution needs attention.</strong> {resolution ? `This layout has ${resolution.ppi.toFixed(1)} pixels per inch at ${widthIn}″ × ${heightIn}″, below our 200 PPI minimum.` : 'We could not verify this layout’s resolution.'} A larger file or a different DPI label will not restore missing detail. Keep your original high-resolution artwork or contact us for help before printing.</p>}
       {canApply && !busy && <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold text-slate-800"><input type="checkbox" checked={reviewed} disabled={applying} onChange={event => setReviewed(event.target.checked)} className="h-5 w-5 accent-orange-600" />Approve design</label>}
       {!busy && <div className="flex flex-wrap gap-2 border-t pt-4">
         <button type="button" disabled={applying} onClick={() => onOpenChange(false)} className="min-h-11 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">Keep original</button>

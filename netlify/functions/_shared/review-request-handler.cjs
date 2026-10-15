@@ -351,6 +351,8 @@ async function processReviewRequest({
 
   let payload;
   try {
+    const currentEligibility = getReviewRequestEligibility(await data.loadOrder(orderId) || {});
+    if (!currentEligibility.eligible) throw new ReviewRequestError(422, currentEligibility.code, currentEligibility.reason);
     // Recheck after taking the shared per-order delivery lock. A request that
     // started before another send completed must not duplicate or downgrade it.
     latestSent = await data.loadLatestSent(orderId);

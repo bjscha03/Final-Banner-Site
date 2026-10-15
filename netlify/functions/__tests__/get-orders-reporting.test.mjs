@@ -48,6 +48,17 @@ test('summary and hydrated cards agree on sidedness, stakes, pockets, and fracti
     assert.equal(estimates[2].netProfitCents, 11950);
     assert.equal(estimates[3].netProfitCents, 11900);
     assert.equal(estimates.filter((p) => !p.needsReview).reduce((sum, p) => sum + p.netProfitCents, 0), summary.metrics.netProfitCents);
+    await db.exec(`ALTER TABLE orders ADD COLUMN partial_refund_cents integer DEFAULT 0, ADD COLUMN partial_refund_tax_cents integer DEFAULT 0;
+      UPDATE orders SET partial_refund_cents=2500, partial_refund_tax_cents=100 WHERE id='${ids[0]}';
+      UPDATE orders SET status='refunded', partial_refund_cents=500 WHERE id='${ids[1]}';`);
+    const revised = _test.normalizeAdminSummary((await db.query(_test.buildAdminSummaryQuery(), ['2026-09-01T00:00:00Z', '2026-10-01T00:00:00Z'])).rows[0]);
+    assert.equal(revised.metrics.grossSalesCents, summary.metrics.grossSalesCents);
+    assert.equal(revised.metrics.recordedRefundsCents, 2500 + 16430);
+    assert.equal(revised.metrics.netSalesCents, summary.metrics.grossSalesCents - 2500 - 16430);
+    assert.equal(revised.metrics.netProfitCents, summary.metrics.netProfitCents - 2400);
+    const revisedHydrated = (await db.query(_test.buildAdminHydrationQuery(), [ids, 100])).rows;
+    assert.equal(revisedHydrated[0].partial_refund_cents, 2500);
+    assert.equal(estimateOrderProfit(revisedHydrated[0]).netProfitCents, 2300);
   } finally { await db.close(); }
 });
 

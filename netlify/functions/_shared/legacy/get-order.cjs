@@ -266,11 +266,13 @@ exports.handler = async (event, context) => {
       checkout_idempotency_key: _checkoutIdempotencyKey,
       stripe_payment_intent_id: _stripePaymentIntentId,
       stripe_charge_id: _stripeChargeId,
+      partial_refund_history: _partialRefundHistory,
       ...publicOrder
     } = order;
     if (session?.admin) {
       publicOrder.stripe_payment_intent_id = _stripePaymentIntentId || null;
       publicOrder.stripe_charge_id = _stripeChargeId || null;
+      publicOrder.partial_refund_history = _partialRefundHistory || [];
     }
     const trackingNumbers = normalizeTrackingEntries(order);
     const rawStatus = String(order.status || '').trim().toLowerCase();

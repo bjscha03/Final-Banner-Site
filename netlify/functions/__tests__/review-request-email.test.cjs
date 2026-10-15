@@ -124,6 +124,22 @@ test('server order IDs are validated before database access', () => {
   assert.equal(isValidOrderId(''), false);
 });
 
+test('partial refunds block every review action, including a refund recorded while a request opens', async () => {
+  for (const action of ['initial', 'followup', 'coupon']) {
+    const { data, state } = createFakeData({ order: { ...paidOrder, partial_refund_cents: 2500 } });
+    await assert.rejects(() => processReviewRequest({ orderId: paidOrder.id, action, data, emailConfig,
+      sendEmail: async () => assert.fail('A refunded order must not send review email') }), error => error.code === 'PARTIAL_REFUND_RECORDED');
+    assert.equal(state.beginCalls, 0);
+  }
+  const { data, state } = createFakeData();
+  let reads = 0;
+  data.loadOrder = async () => ({ ...paidOrder, partial_refund_cents: ++reads > 1 ? 2500 : 0 });
+  await assert.rejects(() => processReviewRequest({ orderId: paidOrder.id, action: 'initial', data, emailConfig,
+    sendEmail: async () => assert.fail('A newly recorded refund must block delivery') }), error => error.code === 'PARTIAL_REFUND_RECORDED');
+  assert.equal(state.failed.length, 1);
+  assert.equal(state.completed.length, 0);
+});
+
 test('canonical customer lookup falls back to the customer profile when the order email is malformed', () => {
   const eligibility = getReviewRequestEligibility({
     ...paidOrder,

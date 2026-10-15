@@ -42,3 +42,17 @@ test('does not invent placement for incomplete or unrelated design formats', () 
   const editor = { ...state, source: 'banner-editor' };
   assert.equal(toStoredOriginalPrintScene(editor, 21, 33), editor);
 });
+
+test('AI-fitted Cloudinary originals take the full-size source path instead of blank legacy reconstruction', () => {
+  const url = 'https://res.cloudinary.com/dtrxl120u/image/upload/v1792065153/uploads/ai-fit-72x36-saved.jpg';
+  const result = toStoredOriginalPrintScene({ ...state, originalImageUrl: url, originalWidth: 2560, originalHeight: 1280, originalFormat: 'jpg', mimeType: 'image/jpeg' }, 72, 36);
+  assert.equal(result.sceneVersion, 2);
+  assert.equal(result.widthIn, 72);
+  assert.equal(result.heightIn, 36);
+  assert.equal(result.objects[0].source.originalUrl, url);
+  assert.equal(result.objects[0].source.originalWidth / result.objects[0].widthIn, 2560 / 72);
+  for (const invalid of [url.replace('/v1792065153/', '/w_1080/'), url.replace('dtrxl120u', 'another-cloud'), url.replace('res.cloudinary.com', 'attacker.test')]) {
+    const untrusted = { ...state, originalImageUrl: invalid };
+    assert.equal(toStoredOriginalPrintScene(untrusted, 72, 36), untrusted);
+  }
+});
