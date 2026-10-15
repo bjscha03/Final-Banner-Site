@@ -37,6 +37,8 @@ const order = {
   checkout_idempotency_key: 'checkout-key-with-at-least-32-random-characters',
   created_at: '2026-08-06T18:00:00.000Z',
   updated_at: '2026-08-06T18:01:00.000Z',
+  partial_refund_cents: 2500,
+  partial_refund_history: [{ admin: 'admin@business.test', note: 'Internal only', amount_cents: 2500 }],
 };
 
 function queryText(first) {
@@ -94,6 +96,7 @@ test('get-order handler accepts a valid fragment-delivered guest view header and
   assert.equal(payload.order.checkout_idempotency_key, undefined);
   assert.equal(payload.order.stripe_payment_intent_id, undefined);
   assert.equal(payload.order.stripe_charge_id, undefined);
+  assert.equal(payload.order.partial_refund_history, undefined);
   assert.equal(payload.order.discount_code, 'NEW20');
 });
 
@@ -160,6 +163,8 @@ test('admin and customer detail reads remain read-only while preserving the full
   assert.deepEqual(adminPayload.order.items, []);
   assert.equal(ownerPayload.order.stripe_payment_intent_id, undefined);
   assert.equal(adminPayload.order.stripe_payment_intent_id, null);
+  assert.equal(ownerPayload.order.partial_refund_history, undefined);
+  assert.deepEqual(adminPayload.order.partial_refund_history, order.partial_refund_history);
   assert.ok(queries.length > 0);
   for (const query of queries) {
     assert.match(query.trim(), /^SELECT\b/i);

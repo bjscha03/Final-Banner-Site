@@ -55,6 +55,10 @@
   timeout = 120
   memory = 2048
 
+[functions."admin-ai-artwork-proof"]
+  timeout = 120
+  memory = 2048
+
 [functions."ai-generate-banner"]
   timeout = 120
   memory = 1024

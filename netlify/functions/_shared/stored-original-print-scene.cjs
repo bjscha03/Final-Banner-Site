@@ -1,11 +1,11 @@
-const { isStoredOriginalUrl } = require('./original-artwork-url.cjs');
+const { isStoredOriginalUrl, isCloudinaryOriginalUrl } = require('./original-artwork-url.cjs');
 
 // Older simple-banner designers save transforms but not sceneVersion. Convert
 // only that known, single-image format; previews are never production sources.
 function toStoredOriginalPrintScene(state, widthIn, heightIn) {
   if (!state || state.sceneVersion === 2 || state.version !== 2
     || !['google-ads-banner', 'design-page'].includes(state.source)
-    || !isStoredOriginalUrl(state.originalImageUrl)) return state;
+    || !(isStoredOriginalUrl(state.originalImageUrl) || isCloudinaryOriginalUrl(state.originalImageUrl))) return state;
   const sourceWidth = Number(state.originalWidth);
   const sourceHeight = Number(state.originalHeight);
   const width = Number(widthIn);
@@ -33,7 +33,7 @@ function toStoredOriginalPrintScene(state, widthIn, heightIn) {
       ...(crop ? { crop } : {}),
       source: {
         originalUrl: state.originalImageUrl,
-        resourceType: 'original', format: state.originalFormat,
+        resourceType: isStoredOriginalUrl(state.originalImageUrl) ? 'original' : 'image', format: state.originalFormat,
         mimeType: state.mimeType, originalWidth: sourceWidth,
         originalHeight: sourceHeight,
       },

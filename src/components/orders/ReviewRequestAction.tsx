@@ -110,19 +110,20 @@ const ReviewRequestAction: React.FC<ReviewRequestActionProps> = ({ order, onSent
     <div className={cn('rounded-md border border-indigo-200 bg-indigo-50/70 p-2', fullWidth ? 'w-full' : 'min-w-[220px]')}>
       <div className="flex flex-col gap-2">
         <Button type="button" size="sm" onClick={() => openAction('initial')} disabled={actionDisabled.initial}
-          aria-describedby={`review-request-status-${order.id}`} className={cn('h-auto min-h-9 whitespace-normal px-2 py-2', initialSent ? sentButtonClasses : 'bg-indigo-700 text-white hover:bg-indigo-800')}>
+          aria-describedby={`review-request-status-${order.id}`} className={cn('h-auto min-h-9 whitespace-normal px-2 py-2', initialSent || !eligibility.eligible ? sentButtonClasses : 'bg-indigo-700 text-white hover:bg-indigo-800')}>
           <Star className="mr-1.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />{initialSent ? 'Review Email Sent' : 'Send Review Email'}
         </Button>
         <Button type="button" size="sm" variant="outline" onClick={() => openAction('followup')}
-          disabled={actionDisabled.followup} className={cn('h-auto min-h-9 whitespace-normal px-2 py-2', followupSentAt ? sentButtonClasses : 'border-indigo-300 text-indigo-900')}>
+          disabled={actionDisabled.followup} className={cn('h-auto min-h-9 whitespace-normal px-2 py-2', followupSentAt || !eligibility.eligible ? sentButtonClasses : 'border-indigo-300 text-indigo-900')}>
           <Mail className="mr-1.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />{followupSentAt ? '30% Follow-Up Sent' : 'Send 30% Follow-Up'}
         </Button>
         <Button type="button" size="sm" onClick={() => openAction('coupon')}
-          disabled={actionDisabled.coupon} className="h-auto min-h-9 whitespace-normal bg-emerald-700 px-2 py-2 text-white hover:bg-emerald-800">
+          disabled={actionDisabled.coupon} className={cn('h-auto min-h-9 whitespace-normal px-2 py-2', !eligibility.eligible ? sentButtonClasses : 'bg-emerald-700 text-white hover:bg-emerald-800')}>
           <Gift className="mr-1.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />{couponSentAt ? `${offer}% Coupon Sent` : `Verify Review & Send ${offer}% Coupon`}
         </Button>
       </div>
       <div id={`review-request-status-${order.id}`} className="mt-2 space-y-1 text-xs leading-5" aria-live="polite">
+        {!eligibility.eligible && formattedLastSentAt && <p className="font-semibold text-slate-700">{eligibility.reason}</p>}
         {formattedLastSentAt ? <p className="font-medium text-indigo-900">Review request sent {formattedLastSentAt}</p>
           : <p className="text-slate-700">{eligibility.eligible ? 'Initial offer: 25%. Send each email manually.' : eligibility.reason}</p>}
         {followupSentAt && <p className="text-indigo-900">30% follow-up: {formatReviewRequestSentAt(followupSentAt)}</p>}

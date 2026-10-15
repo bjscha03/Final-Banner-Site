@@ -10,6 +10,7 @@ import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, File
 import TrackingBadge from './TrackingBadge';
 import OrderItemPreview from '@/components/preview/OrderItemPreview';
 import EmailDeliveryStatus from './EmailDeliveryStatus';
+import OrderDeliveryEstimate from './OrderDeliveryEstimate';
 import { getItemDisplayName, getProductLabel, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
@@ -418,6 +419,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
               </div>
             </div>
 
+          {isAdminUser && <OrderDeliveryEstimate order={order} />}
           {/* Shipping Address - Admin Only */}
           {isAdminUser && hasAddress && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -862,6 +864,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     <div className="flex justify-between"><span>Original Subtotal</span><span className="font-semibold">{usd(profit.originalSubtotalCents / 100)}</span></div>
                     {profit.discountsAppliedCents > 0 && <div className="flex justify-between"><span>Discounts Applied</span><span className="font-semibold text-red-700">-{usd(profit.discountsAppliedCents / 100)}</span></div>}
                     <div className="flex justify-between"><span>Adjusted Retail Subtotal (before tax)</span><span className="font-semibold">{usd(profit.adjustedRetailSubtotalCents / 100)}</span></div>
+                    {profit.partialRefundCents > 0 && <div className="flex justify-between text-red-700"><span>Partial refund (excluding refunded tax)</span><span className="font-semibold">-{usd(profit.refundRevenueCents / 100)}</span></div>}
                     <div className="flex justify-between text-slate-700"><span>Production Cost</span><span className="font-semibold">{usd(profit.productionCostCents / 100)}</span></div>
                     <div className="flex justify-between text-slate-700"><span>Shipping/Handling Cost</span><span className="font-semibold">{usd(profit.shippingCostCents / 100)}</span></div>
                     <div className="flex justify-between text-slate-700"><span>Total Cost</span><span className="font-semibold">{usd(profit.totalCostCents / 100)}</span></div>

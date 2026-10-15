@@ -16,6 +16,9 @@ const order = (status: Order['status'], totalCents: number, extra: Partial<Order
 });
 
 describe('admin order overview', () => {
+  it('includes partial refund dollars without counting an active order as fully refunded', () => {
+    expect(summarizeAdminOrders([order('paid', 10600, { partial_refund_cents: 2500 }), order('refunded', 5000, { partial_refund_cents: 1000 })])).toMatchObject({ totalRevenueCents: 8100, refundedRevenueCents: 7500, refundedOrders: 1, pendingOrders: 1 });
+  });
   it('separates refunded orders from active workflow counts and revenue', () => {
     const summary = summarizeAdminOrders([
       order('paid', 4_579),

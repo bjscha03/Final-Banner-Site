@@ -6,6 +6,16 @@ const PREVIEW_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="240" height=
 const LARGE_PREVIEW_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/v1/orders/browser-test/high-resolution-preview.jpg';
 const THUMBNAIL_PREVIEW_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/v1/orders/browser-test/thumbnail-preview.jpg';
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    // All API calls in this file are mocked. This payload exercises the client
+    // identity/expiry checks and cannot authenticate to a real server.
+    const token = btoa(JSON.stringify({ sub: '00000000-0000-0000-0000-000000000001', exp: Math.floor(Date.now() / 1000) + 3600 })).replace(/=+$/, '') + '.test-signature';
+    localStorage.setItem('banners_server_session', token);
+    sessionStorage.setItem('banners_server_session', token);
+  });
+});
+
 type AdminOrderFixture = {
   id: string;
   status: string;
@@ -98,8 +108,6 @@ test('Admin review request requires confirmation, prevents repeat clicks, and up
       email: 'admin-browser-test@example.com',
       is_admin: true,
     }));
-    window.localStorage.setItem('banners_server_session', 'browser-test-signed-session');
-    window.sessionStorage.setItem('banners_server_session', 'browser-test-signed-session');
     if (!window.localStorage.getItem('banners_orders')) {
       window.localStorage.setItem('banners_orders', JSON.stringify([savedOrder]));
     }
@@ -165,7 +173,7 @@ test('Admin review request requires confirmation, prevents repeat clicks, and up
       return;
     }
 
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, issues: [] }) });
   });
 
   await page.goto('/admin/orders', { waitUntil: 'domcontentloaded' });
@@ -273,8 +281,6 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
       email: 'admin-browser-test@example.com',
       is_admin: true,
     }));
-    window.localStorage.setItem('banners_server_session', 'browser-test-signed-session');
-    window.sessionStorage.setItem('banners_server_session', 'browser-test-signed-session');
     window.localStorage.setItem('banners_orders', JSON.stringify([savedOrder]));
 
   }, { savedOrder: order });
@@ -335,7 +341,7 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
       });
       return;
     }
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, issues: [] }) });
   });
 
   // Match the real-order failure mode: the compact derivative is available,
@@ -435,12 +441,10 @@ test('existing review request upgrades to 30%, sends one coupon, and remains com
   });
   await page.addInitScript(() => {
     localStorage.setItem('banners_current_user', JSON.stringify({ id: '00000000-0000-0000-0000-000000000001', email: 'admin-browser-test@example.com', is_admin: true }));
-    localStorage.setItem('banners_server_session', 'browser-test-signed-session');
-    sessionStorage.setItem('banners_server_session', 'browser-test-signed-session');
   });
   await page.route('**/.netlify/functions/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
-    let body: unknown = { ok: true };
+    let body: unknown = { ok: true, issues: [] };
     if (path.endsWith('/get-orders')) body = adminOrdersReportResponse(order());
     if (path.endsWith('/get-order')) body = { ok: true, order: order() };
     if (path.endsWith('/get-abandoned-carts')) body = { carts: [] };
