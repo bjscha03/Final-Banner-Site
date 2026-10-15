@@ -42,6 +42,7 @@ async function upload(page: Page, scenario: string, artwork: Buffer, name = 'art
   await expect(fitter).toHaveCount(0);
   await page.locator('[data-artwork-image="true"]').first().click();
   await expect(page.getByTestId('artwork-selection')).toBeVisible();
+  await page.getByTestId('artwork-workspace').scrollIntoViewIfNeeded();
   return image;
 }
 async function patternedArtwork() {
