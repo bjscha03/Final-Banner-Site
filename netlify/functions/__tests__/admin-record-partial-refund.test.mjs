@@ -12,9 +12,10 @@ test('refund records require an admin, reject preview writes, and validate amoun
     const customer = auth.createSessionToken({ id: 'customer', email: 'customer@example.test', is_admin: false });
     assert.equal((await handler({ ...event, headers: { authorization: `Bearer ${customer}` } })).statusCode, 401);
     const admin = auth.createSessionToken({ id: 'admin', email: 'admin@example.test', is_admin: true });
-    event.headers = { authorization: `Bearer ${admin}` };
+    event.headers = { authorization: `Bearer ${admin}`, host: 'bannersonthefly.com' };
     assert.equal((await handler({ ...event, body: 'null' })).statusCode, 400);
     assert.equal((await handler({ ...event, body: '{' })).statusCode, 400);
+    assert.equal((await handler({ ...event, headers: { ...event.headers, host: '6ad0e9845f392aef36d8008f--bannersonthefly.netlify.app' } })).statusCode, 409);
     process.env.CONTEXT = 'deploy-preview';
     assert.equal((await handler(event)).statusCode, 409);
   } finally { for (const [key,value] of Object.entries(env)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } }

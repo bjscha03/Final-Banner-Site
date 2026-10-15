@@ -10,7 +10,10 @@ export async function handler(event) {
   if (!session.ok) return session.response;
   if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'Method not allowed' });
   // Previews can read live orders, but must never change real financial records.
-  if (auth.isDeployPreviewEnvironment(event) || session.session.preview) return reply(409, { ok: false, error: 'Refund records can only be saved on the live admin site. This preview does not change financial records.' });
+  // Also block immutable deploy permalinks, where CONTEXT may be unavailable.
+  const host = String(event.headers?.host || event.headers?.Host || '').toLowerCase();
+  const liveHost = ['bannersonthefly.com', 'www.bannersonthefly.com', 'bannersonthefly.netlify.app'].includes(host);
+  if (!liveHost || auth.isDeployPreviewEnvironment(event) || session.session.preview) return reply(409, { ok: false, error: 'Refund records can only be saved on the live admin site. This preview does not change financial records.' });
   let body;
   try { body = JSON.parse(event.body || '{}'); } catch { return reply(400, { ok: false, error: 'Invalid request body' }); }
   try {
