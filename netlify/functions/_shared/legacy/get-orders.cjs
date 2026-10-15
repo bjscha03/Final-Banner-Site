@@ -179,6 +179,7 @@ exports.handler = async (event, context) => {
       ['final_render_height_px',          `oi.final_render_height_px`],
       ['final_render_dpi',                `oi.final_render_dpi`],
       ['canvas_state_json',               `oi.canvas_state_json`],
+      ['specialty_config',                `oi.specialty_config`],
       ['design_service_enabled',          `COALESCE(oi.design_service_enabled, false)`],
       ['design_request_text',             `oi.design_request_text`],
       ['design_draft_preference',         `oi.design_draft_preference`],

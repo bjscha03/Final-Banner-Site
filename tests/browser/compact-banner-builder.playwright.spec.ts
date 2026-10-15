@@ -437,7 +437,7 @@ for (const route of ['/google-ads-banner', '/design?product=vinyl-banners']) {
   test(`upload remains centered above the order bar during and after upload: ${route}`, async ({ page }, info) => {
     const scenario = `focus-${route.startsWith('/design') ? 'organic' : 'paid'}-${info.project.name}`;
     await installUploadAndFunctionHarness(page, scenario);
-    await page.request.post(`/__compact-test-hold?scenario=${scenario}&hold=1`);
+    await page.request.post(`/__compact-test-hold?scenario=${scenario}&hold=1`, { maxRetries: 2 });
     const originalViewport = page.viewportSize()!;
     const mobile = originalViewport.width < 1024;
     try {
@@ -482,7 +482,7 @@ for (const route of ['/google-ads-banner', '/design?product=vinyl-banners']) {
       await page.setViewportSize({ width: originalViewport.width, height: Math.max(360, originalViewport.height - 150) });
       await checkVisible();
       await page.screenshot({ path: info.outputPath(`${scenario}-short-viewport.png`) });
-      await page.request.post(`/__compact-test-hold?scenario=${scenario}`);
+      await page.request.post(`/__compact-test-hold?scenario=${scenario}`, { maxRetries: 2 });
       await expect(page.locator('#upload-section').getByRole('status')).toHaveCount(0);
       await checkVisible();
       await page.setViewportSize(originalViewport);
@@ -500,7 +500,7 @@ for (const route of ['/google-ads-banner', '/design?product=vinyl-banners']) {
       await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
       await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
     } finally {
-      await page.request.post(`/__compact-test-hold?scenario=${scenario}`);
+      await page.request.post(`/__compact-test-hold?scenario=${scenario}`, { maxRetries: 2 });
     }
   });
 }

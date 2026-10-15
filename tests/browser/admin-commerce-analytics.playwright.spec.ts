@@ -2,7 +2,11 @@ import { readFile } from 'node:fs/promises';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
 const VISUAL_QA_PROJECTS = new Set(['chromium-1440x900', 'chromium-pixel8-portrait']);
-const ADMIN_SESSION = 'admin-commerce-browser-contract';
+// Deliberately unsigned fixture: every protected endpoint is intercepted below.
+// Match the current browser session shape without weakening production authentication.
+const ADMIN_SESSION = `${Buffer.from(JSON.stringify({
+  sub: 'server-admin', email: 'admin-browser@example.test', admin: true, exp: 4102444800,
+})).toString('base64url')}.test-signature`;
 const ORDER_ID = '11111111-2222-4333-8444-000011223344';
 
 const abandonedCarts = [
@@ -630,6 +634,12 @@ test.beforeEach(async ({ page }) => {
       return;
     }
 
+    if (url.pathname.endsWith('/admin-site-issues')) {
+      await expectAdminSession();
+      await route.fulfill({ json: { ok: true, issues: [], truncated: false, checkedAt: '2026-10-14T00:00:00Z' } });
+      return;
+    }
+
     if (url.pathname.endsWith('/admin-custom-quotes')) {
       await expectAdminSession();
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, quotes: [] }) });
@@ -657,7 +667,7 @@ test('commerce admin analytics, customer history, and order tracking stay usable
   const isMobile = testInfo.project.name === 'chromium-pixel8-portrait';
 
   await page.goto('/admin/abandoned-carts', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('heading', { name: 'Abandoned Cart Analytics' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Abandoned Carts', exact: true })).toBeVisible();
   const allTimeMetrics = page.locator('section[aria-label="All-time abandoned cart metrics"]');
   await expect(allTimeMetrics).toBeVisible();
   await expect(allTimeMetrics).toContainText('Total captured value');

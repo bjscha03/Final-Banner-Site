@@ -1,0 +1,671 @@
+{
+  "variants": {
+    "standard-retractable-banner-1": [
+      {
+        "url": "/images/products/gallery/standard-retractable-banner-1.webp",
+        "label": "Standard Retractable Banner \u00b7 23 \u00d7 66 in",
+        "when": {
+          "hardware": "ph",
+          "size": "23x66",
+          "led": "0"
+        }
+      }
+    ],
+    "standard-retractable-banner-2": [
+      {
+        "url": "/images/products/gallery/standard-retractable-banner-2.webp",
+        "label": "Standard Retractable Banner \u00b7 24 \u00d7 81 in",
+        "when": {
+          "hardware": "ph",
+          "size": "24x81",
+          "led": "0"
+        }
+      }
+    ],
+    "standard-retractable-banner-3": [
+      {
+        "url": "/images/products/standard-retractable-banner.webp",
+        "label": "Standard Retractable Banner \u00b7 33 \u00d7 81 in",
+        "when": {
+          "hardware": "ph",
+          "size": "33x81",
+          "led": "0"
+        }
+      }
+    ],
+    "standard-retractable-banner-4": [
+      {
+        "url": "/images/products/gallery/standard-retractable-banner-4.webp",
+        "label": "Standard Retractable Banner \u00b7 47 \u00d7 81 in",
+        "when": {
+          "hardware": "ph",
+          "size": "47x81",
+          "led": "0"
+        }
+      }
+    ],
+    "standard-retractable-black": [
+      {
+        "url": "/images/products/gallery/standard-retractable-black.webp",
+        "label": "Standard Retractable Banner \u00b7 33 \u00d7 81 in \u00b7 black base",
+        "when": {
+          "hardware": "ph",
+          "size": "33x81b",
+          "led": "0"
+        }
+      }
+    ],
+    "deluxe-retractable-banner-1": [
+      {
+        "url": "/images/products/deluxe-retractable-banner.webp",
+        "label": "Deluxe Retractable Banner \u00b7 33 \u00d7 81 in \u00b7 single sided",
+        "when": {
+          "hardware": "ph",
+          "size": "33x81",
+          "led": "0"
+        }
+      }
+    ],
+    "deluxe-retractable-banner-2": [
+      {
+        "url": "/images/products/gallery/deluxe-retractable-banner-2.webp",
+        "label": "Deluxe Retractable Banner \u00b7 33 \u00d7 81 in \u00b7 double sided",
+        "when": {
+          "hardware": "ph",
+          "size": "33x81d",
+          "led": "0"
+        }
+      }
+    ],
+    "premium-retractable-banner-1": [
+      {
+        "url": "/images/products/premium-retractable-banner.webp",
+        "label": "Premium Retractable Banner \u00b7 36 \u00d7 92 in",
+        "when": {
+          "hardware": "ph",
+          "size": "36x92",
+          "led": "0"
+        }
+      }
+    ],
+    "premium-retractable-banner-2": [
+      {
+        "url": "/images/products/gallery/premium-retractable-banner-2.webp",
+        "label": "Premium Retractable Banner \u00b7 48 \u00d7 92 in",
+        "when": {
+          "hardware": "ph",
+          "size": "48x92",
+          "led": "0"
+        }
+      }
+    ],
+    "premium-retractable-banner-3": [
+      {
+        "url": "/images/products/gallery/premium-retractable-banner-3.webp",
+        "label": "Premium Retractable Banner \u00b7 60 \u00d7 92 in",
+        "when": {
+          "hardware": "ph",
+          "size": "60x92",
+          "led": "0"
+        }
+      }
+    ],
+    "premium-retractable-36x69": [
+      {
+        "url": "/images/products/gallery/premium-retractable-36x69.webp",
+        "label": "Premium Retractable Banner \u00b7 36 \u00d7 69 in",
+        "when": {
+          "hardware": "ph",
+          "size": "36x69",
+          "led": "0"
+        }
+      }
+    ],
+    "premium-retractable-36x80": [
+      {
+        "url": "/images/products/gallery/premium-retractable-36x80.webp",
+        "label": "Premium Retractable Banner \u00b7 36 \u00d7 80 in",
+        "when": {
+          "hardware": "ph",
+          "size": "36x80",
+          "led": "0"
+        }
+      }
+    ],
+    "premium-retractable-48x69": [
+      {
+        "url": "/images/products/gallery/premium-retractable-48x69.webp",
+        "label": "Premium Retractable Banner \u00b7 48 \u00d7 69 in",
+        "when": {
+          "hardware": "ph",
+          "size": "48x69",
+          "led": "0"
+        }
+      }
+    ],
+    "premium-retractable-48x80": [
+      {
+        "url": "/images/products/gallery/premium-retractable-48x80.webp",
+        "label": "Premium Retractable Banner \u00b7 48 \u00d7 80 in",
+        "when": {
+          "hardware": "ph",
+          "size": "48x80",
+          "led": "0"
+        }
+      }
+    ],
+    "premium-retractable-60x69": [
+      {
+        "url": "/images/products/gallery/premium-retractable-60x69.webp",
+        "label": "Premium Retractable Banner \u00b7 60 \u00d7 69 in",
+        "when": {
+          "hardware": "ph",
+          "size": "60x69",
+          "led": "0"
+        }
+      }
+    ],
+    "premium-retractable-60x80": [
+      {
+        "url": "/images/products/gallery/premium-retractable-60x80.webp",
+        "label": "Premium Retractable Banner \u00b7 60 \u00d7 80 in",
+        "when": {
+          "hardware": "ph",
+          "size": "60x80",
+          "led": "0"
+        }
+      }
+    ],
+    "x-banner-stand-1": [
+      {
+        "url": "/images/products/x-banner-stand.webp",
+        "label": "X Banner Stand \u00b7 24 \u00d7 63 in",
+        "when": {
+          "hardware": "ph",
+          "size": "24x63"
+        }
+      }
+    ],
+    "x-banner-stand-2": [
+      {
+        "url": "/images/products/gallery/x-banner-stand-2.webp",
+        "label": "X Banner Stand \u00b7 32 \u00d7 71 in",
+        "when": {
+          "hardware": "ph",
+          "size": "32x71"
+        }
+      }
+    ],
+    "tabletop-banner-stand-1": [
+      {
+        "url": "/images/products/tabletop-banner-stand.webp",
+        "label": "Tabletop Banner Stand \u00b7 11.5 \u00d7 17.5 in",
+        "when": {
+          "size": "11.5x17.5"
+        }
+      }
+    ],
+    "tension-fabric-stand-1": [
+      {
+        "url": "/images/products/tension-fabric-stand.webp",
+        "label": "Tension Fabric Stand \u00b7 36 \u00d7 90 in",
+        "when": {
+          "hardware": "ph",
+          "size": "36x90",
+          "sides": "1",
+          "tradeshow_led": "0"
+        }
+      }
+    ],
+    "tension-fabric-stand-2": [
+      {
+        "url": "/images/products/gallery/tension-fabric-stand-2.webp",
+        "label": "Tension Fabric Stand \u00b7 48 \u00d7 90 in",
+        "when": {
+          "hardware": "ph",
+          "size": "48x90",
+          "sides": "1",
+          "tradeshow_led": "0"
+        }
+      }
+    ],
+    "step-and-repeat-backdrop-8x8": [
+      {
+        "url": "/images/products/gallery/step-and-repeat-backdrop-8x8.webp",
+        "label": "Step & Repeat Backdrop \u00b7 8 \u00d7 8 ft",
+        "when": {
+          "hardware": "ph",
+          "size": "96x96"
+        }
+      }
+    ],
+    "step-and-repeat-backdrop-1": [
+      {
+        "url": "/images/products/step-and-repeat-backdrop.webp",
+        "label": "Step & Repeat Backdrop \u00b7 10 \u00d7 8 ft",
+        "when": {
+          "hardware": "ph",
+          "size": "120x96"
+        }
+      }
+    ],
+    "feather-flags-1": [
+      {
+        "url": "/images/products/feather-flags.webp",
+        "label": "Feather Flags \u00b7 Angled \u00b7 9 ft",
+        "when": {
+          "flag_pole_tab": "1",
+          "size": "small",
+          "sides": "1",
+          "flaghardware": "PG"
+        }
+      }
+    ],
+    "feather-flags-2": [
+      {
+        "url": "/images/products/gallery/feather-flags-2.webp",
+        "label": "Feather Flags \u00b7 Angled \u00b7 10.5 ft",
+        "when": {
+          "flag_pole_tab": "1",
+          "size": "medium",
+          "sides": "1",
+          "flaghardware": "PG"
+        }
+      }
+    ],
+    "feather-flags-3": [
+      {
+        "url": "/images/products/gallery/feather-flags-3.webp",
+        "label": "Feather Flags \u00b7 Angled \u00b7 14 ft",
+        "when": {
+          "flag_pole_tab": "1",
+          "size": "large",
+          "sides": "1",
+          "flaghardware": "PG"
+        }
+      }
+    ],
+    "feather-flags-4": [
+      {
+        "url": "/images/products/gallery/feather-flags-4.webp",
+        "label": "Feather Flags \u00b7 Angled \u00b7 18 ft",
+        "when": {
+          "flag_pole_tab": "1",
+          "size": "xlarge",
+          "sides": "1",
+          "flaghardware": "PG"
+        }
+      }
+    ],
+    "feather-flags-5": [
+      {
+        "url": "/images/products/gallery/feather-flags-5.webp",
+        "label": "Feather Flags \u00b7 Convex \u00b7 9 ft",
+        "when": {
+          "flag_pole_tab": "1",
+          "Size": "small",
+          "sides": "1",
+          "flaghardware": "PG"
+        }
+      }
+    ],
+    "feather-flags-6": [
+      {
+        "url": "/images/products/gallery/feather-flags-6.webp",
+        "label": "Feather Flags \u00b7 Convex \u00b7 10.5 ft",
+        "when": {
+          "flag_pole_tab": "1",
+          "Size": "medium",
+          "sides": "1",
+          "flaghardware": "PG"
+        }
+      }
+    ],
+    "feather-flags-7": [
+      {
+        "url": "/images/products/gallery/feather-flags-7.webp",
+        "label": "Feather Flags \u00b7 Convex \u00b7 14 ft",
+        "when": {
+          "flag_pole_tab": "1",
+          "Size": "large",
+          "sides": "1",
+          "flaghardware": "PG"
+        }
+      }
+    ],
+    "feather-flags-8": [
+      {
+        "url": "/images/products/gallery/feather-flags-8.webp",
+        "label": "Feather Flags \u00b7 Convex \u00b7 18 ft",
+        "when": {
+          "flag_pole_tab": "1",
+          "Size": "xlarge",
+          "sides": "1",
+          "flaghardware": "PG"
+        }
+      }
+    ],
+    "teardrop-flags-1": [
+      {
+        "url": "/images/products/teardrop-flags.webp",
+        "label": "Teardrop Flags \u00b7 7 ft",
+        "when": {
+          "flag_pole_tab": "1",
+          "size": "small",
+          "sides": "1",
+          "flaghardware": "PG"
+        }
+      }
+    ],
+    "teardrop-flags-2": [
+      {
+        "url": "/images/products/gallery/teardrop-flags-2.webp",
+        "label": "Teardrop Flags \u00b7 9 ft",
+        "when": {
+          "flag_pole_tab": "1",
+          "size": "medium",
+          "sides": "1",
+          "flaghardware": "PG"
+        }
+      }
+    ],
+    "teardrop-flags-3": [
+      {
+        "url": "/images/products/gallery/teardrop-flags-3.webp",
+        "label": "Teardrop Flags \u00b7 11.2 ft",
+        "when": {
+          "flag_pole_tab": "1",
+          "size": "large",
+          "sides": "1",
+          "flaghardware": "PG"
+        }
+      }
+    ],
+    "teardrop-flags-4": [
+      {
+        "url": "/images/products/gallery/teardrop-flags-4.webp",
+        "label": "Teardrop Flags \u00b7 13.5 ft",
+        "when": {
+          "flag_pole_tab": "1",
+          "size": "xlarge",
+          "sides": "1",
+          "flaghardware": "PG"
+        }
+      }
+    ],
+    "rectangle-flags-1": [
+      {
+        "url": "/images/products/rectangle-flags.webp",
+        "label": "Rectangle Flags \u00b7 8.5 ft",
+        "when": {
+          "flag_pole_tab": "1",
+          "size": "small",
+          "sides": "1",
+          "flaghardware": "PG"
+        }
+      }
+    ],
+    "rectangle-flags-2": [
+      {
+        "url": "/images/products/gallery/rectangle-flags-2.webp",
+        "label": "Rectangle Flags \u00b7 11.8 ft",
+        "when": {
+          "flag_pole_tab": "1",
+          "size": "medium",
+          "sides": "1",
+          "flaghardware": "PG"
+        }
+      }
+    ],
+    "rectangle-flags-3": [
+      {
+        "url": "/images/products/gallery/rectangle-flags-3.webp",
+        "label": "Rectangle Flags \u00b7 15 ft",
+        "when": {
+          "flag_pole_tab": "1",
+          "size": "large",
+          "sides": "1",
+          "flaghardware": "PG"
+        }
+      }
+    ],
+    "economy-feather-flag-1": [
+      {
+        "url": "/images/products/economy-feather-flag.webp",
+        "label": "Economy Feather Flag \u00b7 16 ft",
+        "when": {
+          "flag_pole": "flag_pole",
+          "graphic": "1",
+          "base": "PG"
+        }
+      }
+    ],
+    "standard-table-throws-1": [
+      {
+        "url": "/images/products/gallery/standard-table-throws-1.webp",
+        "label": "Standard Table Throws \u00b7 4 ft \u00b7 open back \u00b7 rear view",
+        "when": {
+          "sides": "3sided"
+        }
+      }
+    ],
+    "standard-table-throws-2": [
+      {
+        "url": "/images/products/gallery/standard-table-throws-2.webp",
+        "label": "Standard Table Throws \u00b7 4 ft \u00b7 closed back",
+        "when": {
+          "sides": "4sided"
+        }
+      }
+    ],
+    "standard-table-throws-3": [
+      {
+        "url": "/images/products/gallery/standard-table-throws-3.webp",
+        "label": "Standard Table Throws \u00b7 6 ft \u00b7 open back \u00b7 rear view",
+        "when": {
+          "sides": "3sided"
+        }
+      }
+    ],
+    "standard-table-throws-4": [
+      {
+        "url": "/images/products/standard-table-throws.webp",
+        "label": "Standard Table Throws \u00b7 6 ft \u00b7 closed back",
+        "when": {
+          "sides": "4sided"
+        }
+      }
+    ],
+    "standard-table-throws-5": [
+      {
+        "url": "/images/products/gallery/standard-table-throws-5.webp",
+        "label": "Standard Table Throws \u00b7 8 ft \u00b7 open back \u00b7 rear view",
+        "when": {
+          "sides": "3sided"
+        }
+      }
+    ],
+    "standard-table-throws-6": [
+      {
+        "url": "/images/products/gallery/standard-table-throws-6.webp",
+        "label": "Standard Table Throws \u00b7 8 ft \u00b7 closed back",
+        "when": {
+          "sides": "4sided"
+        }
+      }
+    ],
+    "fitted-table-throws-1": [
+      {
+        "url": "/images/products/gallery/fitted-table-throws-1.webp",
+        "label": "Fitted Table Throws \u00b7 6 ft \u00b7 open back \u00b7 rear view",
+        "when": {
+          "size": "6ft",
+          "backside": "3sided"
+        }
+      }
+    ],
+    "fitted-table-throws-2": [
+      {
+        "url": "/images/products/fitted-table-throws.webp",
+        "label": "Fitted Table Throws \u00b7 6 ft \u00b7 closed back",
+        "when": {
+          "size": "6ft",
+          "backside": "4sided"
+        }
+      }
+    ],
+    "fitted-table-throws-3": [
+      {
+        "url": "/images/products/gallery/fitted-table-throws-3.webp",
+        "label": "Fitted Table Throws \u00b7 8 ft \u00b7 open back \u00b7 rear view",
+        "when": {
+          "size": "8ft",
+          "backside": "3sided"
+        }
+      }
+    ],
+    "fitted-table-throws-4": [
+      {
+        "url": "/images/products/gallery/fitted-table-throws-4.webp",
+        "label": "Fitted Table Throws \u00b7 8 ft \u00b7 closed back",
+        "when": {
+          "size": "8ft",
+          "backside": "4sided"
+        }
+      }
+    ],
+    "stretch-table-throws-1": [
+      {
+        "url": "/images/products/stretch-table-throws.webp",
+        "label": "Stretch Table Throws \u00b7 6 ft",
+        "when": {
+          "size": "6ft"
+        }
+      }
+    ],
+    "stretch-table-throws-2": [
+      {
+        "url": "/images/products/gallery/stretch-table-throws-2.webp",
+        "label": "Stretch Table Throws \u00b7 8 ft",
+        "when": {
+          "size": "8ft"
+        }
+      }
+    ],
+    "custom-event-tents-1": [
+      {
+        "url": "/images/products/custom-event-tents.webp",
+        "label": "Custom Event Tents \u00b7 10 \u00d7 10 ft",
+        "when": {
+          "tent_hardware": "1",
+          "mesh_sidewall": "0",
+          "tent_sandbag": "0",
+          "tent_full_wall": "0",
+          "tent_half_wall": "0"
+        }
+      },
+      {
+        "url": "/images/products/gallery/tent-walls-10.webp",
+        "label": "10 \u00d7 10 ft tent with optional full rear wall and two half sidewalls",
+        "when": {
+          "tent_hardware": "1",
+          "mesh_sidewall": "0",
+          "tent_sandbag": "0",
+          "tent_full_wall": "A",
+          "tent_half_wall": "2x1"
+        }
+      }
+    ],
+    "custom-event-tents-2": [
+      {
+        "url": "/images/products/gallery/tent-15.webp",
+        "label": "Custom Event Tents \u00b7 10 \u00d7 15 ft",
+        "when": {
+          "tent_hardware": "1",
+          "tent_sandbag": "0",
+          "tent_full_wall": "0",
+          "tent_full_wall_long": "0",
+          "tent_half_wall": "0"
+        }
+      }
+    ],
+    "custom-event-tents-3": [
+      {
+        "url": "/images/products/gallery/tent-20.webp",
+        "label": "Custom Event Tents \u00b7 10 \u00d7 20 ft",
+        "when": {
+          "tent_hardware": "1",
+          "tent_sandbag": "2",
+          "tent_full_wall": "0",
+          "tent_full_wall_long": "0",
+          "tent_half_wall": "0"
+        }
+      }
+    ],
+    "acrylic-signs-1": [
+      {
+        "url": "/images/products/gallery/acrylic-signs-1.webp",
+        "label": "Acrylic Signs \u00b7 Back print with white underbase \u00b7 example design",
+        "when": {
+          "hardware": "acrylic+standoff"
+        }
+      }
+    ],
+    "aluminum-signs-1": [
+      {
+        "url": "/images/products/aluminum-signs.webp",
+        "label": "Solid Aluminum Signs \u00b7 Single-sided print \u00b7 square corners \u00b7 example design",
+        "when": {
+          "size": "custom_size",
+          "sides": "1",
+          "cornerstyle": "S",
+          "holespunch": "0"
+        }
+      }
+    ],
+    "aluminum-composite-signs-1": [
+      {
+        "url": "/images/products/aluminum-composite-signs.webp",
+        "label": "Aluminum Composite Signs \u00b7 Single-sided print \u00b7 square corners \u00b7 example design",
+        "when": {
+          "sides": "1",
+          "holespunch": "0",
+          "cornerstyle": "S"
+        }
+      }
+    ],
+    "display-posters-1": [
+      {
+        "url": "/images/products/display-posters.webp",
+        "label": "Durable Display Posters \u00b7 Single-sided print \u00b7 square corners \u00b7 example design",
+        "when": {}
+      }
+    ]
+  },
+  "products": {
+    "feather-flags": [
+      {
+        "url": "/images/products/gallery/flag-base-options.webp",
+        "label": "Base options: ground stake, cross base, cross base with water bag, and square base"
+      }
+    ],
+    "teardrop-flags": [
+      {
+        "url": "/images/products/gallery/flag-base-options.webp",
+        "label": "Base options: ground stake, cross base, cross base with water bag, and square base"
+      }
+    ],
+    "rectangle-flags": [
+      {
+        "url": "/images/products/gallery/flag-base-options.webp",
+        "label": "Base options: ground stake, cross base, cross base with water bag, and square base"
+      }
+    ]
+  },
+  "options": {
+    "feather-angled-flag:flaghardware": "/images/products/gallery/flag-base-options.webp",
+    "convex-flag:flaghardware": "/images/products/gallery/flag-base-options.webp",
+    "teardrop-flag:flaghardware": "/images/products/gallery/flag-base-options.webp",
+    "rectangle-flag:flaghardware": "/images/products/gallery/flag-base-options.webp"
+  }
+}

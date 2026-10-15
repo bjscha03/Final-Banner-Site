@@ -123,12 +123,12 @@ function createAdminOrderEmailHtml(payload) {
   const itemsHtml = order.items.map(item => {
     const isYardSign = item.product_type === 'yard_sign';
     const isCarMagnet = item.product_type === 'car_magnet';
-    const productBadge = isYardSign
+    const productBadge = item.product_type==='specialty'?`<span>${escapeHtml(item.name)}</span>`:isYardSign
       ? `<span style="display: inline-block; background-color: #ecfdf5; color: #065f46; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; margin-bottom: 4px;">🪧 Yard Sign</span>`
       : isCarMagnet
         ? `<span style="display: inline-block; background-color: #fff7ed; color: #9a3412; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; margin-bottom: 4px;">🚗 Car Magnets</span>`
         : `<span style="display: inline-block; background-color: #eff6ff; color: #1e40af; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; margin-bottom: 4px;">🏷️ Banner</span>`;
-    const imgAlt = isYardSign ? 'Yard Sign' : isCarMagnet ? 'Car Magnets' : 'Banner';
+    const imgAlt = item.product_type==='specialty'?escapeHtml(item.name):isYardSign ? 'Yard Sign' : isCarMagnet ? 'Car Magnets' : 'Banner';
 
     return `
     <tr>
@@ -957,6 +957,7 @@ exports.handler = async (event) => {
           const normalized = normalizeOrderItemDisplay(item);
           return {
           product_type: item.product_type || 'banner',
+          specialty_config:item.specialty_config||null,
           name: getItemDisplayName(item),
           quantity: item.quantity,
           price: item.line_total_cents / 100,

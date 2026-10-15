@@ -1,3 +1,4 @@
+import { availableSpecialtyProducts, specialtyCategories } from '@/lib/specialtyProducts';
 import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, Mail, UserCheck, Users, Gift } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -50,6 +51,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
     { name: 'Vinyl Banners', href: '/design?product=banner' },
     { name: 'Yard Signs', href: '/design?product=yard-signs' },
     { name: 'Car Magnets', href: '/design?product=car-magnets' },
+    ...(availableSpecialtyProducts.length ? [{ name: 'Displays & Signs', href: '/products' }] : []),
     { name: 'Shipping', href: '/shipping' },
     { name: 'Blog', href: '/blog' },
     { name: 'Design Tool', href: '/design' },
@@ -136,15 +138,17 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
                       key={item.name}
                       to={item.href}
                       className={`block border-b border-slate-100 px-5 py-3.5 text-sm font-semibold ${
-                        location.pathname === item.href
+                        (item.href==='/products'?location.pathname.startsWith('/products'):location.pathname+location.search===item.href)
                           ? 'border-l-4 border-l-[#FF6A00] bg-slate-50 text-[#0B1F3A]'
                           : 'text-slate-700 hover:bg-slate-50 hover:text-[#0B1F3A]'
                       }`}
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      {item.name}
+                      {item.name}{item.href==='/products'&&<span className="ml-1.5 rounded bg-orange-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-orange-800">New</span>}
                     </ScrollToTopLink>
                   ))}
+
+                  {availableSpecialtyProducts.length>0&&<div className="border-t border-slate-200 px-5 py-4"><p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">Displays & signs</p>{Object.entries(specialtyCategories).filter(([key])=>availableSpecialtyProducts.some(p=>p.category===key)).map(([key,category])=><a key={key} href={`/products#${key}`} onClick={()=>setIsMenuOpen(false)} className="flex min-h-11 items-center text-sm font-semibold text-slate-700">{category.label}</a>)}</div>}
 
                   {/* Account section in menu */}
                   <div className="border-t border-slate-200 mt-2 pt-2">
@@ -258,24 +262,25 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
             </ScrollToTopLink>
           </div>
 
-          <nav className="hidden items-center gap-6 lg:flex" aria-label="Primary navigation">
+          <nav className="hidden items-center gap-3 xl:gap-4 2xl:gap-6 lg:flex" aria-label="Primary navigation">
             {[
               { name: 'Vinyl Banners', href: '/design?product=banner' },
               { name: 'Yard Signs', href: '/design?product=yard-signs' },
               { name: 'Car Magnets', href: '/design?product=car-magnets' },
+    ...(availableSpecialtyProducts.length ? [{ name: 'Displays & Signs', href: '/products' }] : []),
               { name: 'Shipping', href: '/shipping' },
               { name: 'Custom Quote', href: '/custom-quote' },
             ].map((item) => (
               <ScrollToTopLink
                 key={item.href}
                 to={item.href}
-                className={`relative py-2 text-sm font-semibold transition-colors after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:origin-left after:bg-[#FF6A00] after:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] ${
-                  location.pathname === item.href
+                className={`relative whitespace-nowrap py-2 text-xs font-semibold transition-colors after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:origin-left after:bg-[#FF6A00] after:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] xl:text-sm ${
+                  (item.href==='/products'?location.pathname.startsWith('/products'):location.pathname+location.search===item.href)
                     ? 'text-[#061A31] after:scale-x-100'
                     : 'text-[#26374a] hover:text-[#b84300] after:scale-x-0 hover:after:scale-x-100'
                 }`}
               >
-                {item.name}
+                {item.name}{item.href==='/products'&&<span className="ml-1.5 rounded bg-orange-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-orange-800">New</span>}
               </ScrollToTopLink>
             ))}
           </nav>

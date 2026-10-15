@@ -8,13 +8,18 @@ import { getSmallPreviewSelection, getExpandedPreviewSelection } from '@/lib/pre
 import { getGrommetModeForPreview, getGrommetLabelForDisplay } from '@/lib/cartGrommet';
 import { getItemDisplayName, normalizeOrderItemDisplay } from '@/lib/product-display';
 import { usd } from '@/lib/pricing';
+import SavedSpecialtyPreview from '@/components/specialty/SavedSpecialtyPreview';
+import SpecialtyPendingPrice from '@/components/specialty/SpecialtyPendingPrice';
+import CartLinePrice from '@/components/cart/CartLinePrice';
+import {specialtyItemHasVerifiedPrice} from '@/lib/specialtyProducts';
 
 /** Keep the saved composition visible on arrival without opening an order dialog. */
-export default function CheckoutArtworkSummary({ items, totalCents, editAction, showTotal = true }: {
+export default function CheckoutArtworkSummary({ items, totalCents, editAction, showTotal = true, linePrices }: {
   items: CartItem[];
   totalCents: number;
   editAction: React.ReactNode;
   showTotal?: boolean;
+  linePrices?: Map<string,{originalCents:number;totalCents:number}>;
 }) {
   const [printLayoutItems, setPrintLayoutItems] = useState<Record<string, boolean>>({});
   return (
@@ -57,8 +62,8 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction, 
                 <button type="button" aria-pressed={showRealisticPreview} onClick={() => setPrintLayoutItems(current => ({ ...current, [item.id]: false }))}>Realistic preview</button>
                 <button type="button" aria-pressed={!showRealisticPreview} onClick={() => setPrintLayoutItems(current => ({ ...current, [item.id]: true }))}>Print layout</button>
               </div>}
-              <div className="checkout-artwork-image" style={{ "--checkout-artwork-ratio": item.width_in / item.height_in } as React.CSSProperties}>
-                <ThumbnailPreviewWrapper
+              <div className={`checkout-artwork-image${item.product_type === 'specialty' ? ' checkout-artwork-image-specialty' : ''}`} style={{ "--checkout-artwork-ratio": item.width_in / item.height_in } as React.CSSProperties}>
+                {item.product_type === 'specialty' && item.specialty_config ? <SavedSpecialtyPreview configuration={item.specialty_config} /> : <ThumbnailPreviewWrapper
                   title={title}
                   widthIn={item.width_in}
                   heightIn={item.height_in}
@@ -76,11 +81,15 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction, 
                   {showRealisticPreview
                     ? <RealisticBannerScene item={item} previewSize={600} />
                     : <BannerPreview {...previewProps} imageUrl={small.url} isFinalizedSnapshot={small.isExactComposition} maxSize={600} />}
-                </ThumbnailPreviewWrapper>
+                </ThumbnailPreviewWrapper>}
               </div>
               <div className="checkout-artwork-copy">
                 <h3>{isBanner ? (item.material === '18oz_double' ? 'Double-sided vinyl banner' : 'Custom vinyl banner') : getItemDisplayName(item)}</h3>
                 <p>{isBanner ? bannerSize.feet : details.sizeDisplay} · {details.materialDisplay} · Qty {details.qtyDisplay}</p>
+                {item.product_type === 'specialty' && (specialtyItemHasVerifiedPrice(item)
+                  ? <CartLinePrice {...(linePrices?.get(item.id) || {originalCents: item.line_total_cents, totalCents: item.line_total_cents})} quantity={item.quantity} />
+                  : <SpecialtyPendingPrice item={item} />)}
+                {item.specialty_config?.optionSummary?.map(option => <p key={option.key}>{option.label}: {option.value}</p>)}
                 {isBanner && <p className="checkout-artwork-finishing">{item.material === '18oz_double' ? 'Double-sided' : 'Single-sided'} · Grommets: {getGrommetLabelForDisplay(item, details.grommetsDisplay)}</p>}
               </div>
             </div>
@@ -92,7 +101,7 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction, 
           <p className="text-sm font-semibold text-slate-700">Order total</p>
           <p className="text-xs text-slate-500">Including tax</p>
         </div>
-        <p className="text-xl font-bold text-[#0B1F3A]">{usd(totalCents / 100)}</p>
+        <p className="text-xl font-bold text-[#0B1F3A]">{items.some(item=>!specialtyItemHasVerifiedPrice(item))?'Price pending':usd(totalCents / 100)}</p>
       </div>}
     </section>
   );

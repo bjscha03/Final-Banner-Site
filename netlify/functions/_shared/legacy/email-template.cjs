@@ -106,7 +106,7 @@ function renderItems(items = []) {
                 <tr>
                   ${thumbnail ? `
                   <td class="bof-item-image" style="width:220px;padding-right:14px;vertical-align:top;">
-                    <img src="${escapeHtml(thumbnail)}" alt="${isYardSign ? 'Yard Sign Preview' : 'Banner Preview'}" width="220" style="display:block;width:220px;max-width:100%;height:auto;border-radius:8px;border:1px solid #d1d5db;" />
+                    <img src="${escapeHtml(thumbnail)}" alt="${escapeHtml(item.productLabel||'Product')} preview" width="220" style="display:block;width:220px;max-width:100%;height:auto;border-radius:8px;border:1px solid #d1d5db;" />
                   </td>` : ''}
                   <td class="bof-item-details" style="vertical-align:top;">
                     <p style="margin:0 0 4px;color:#0f172a;font-size:15px;font-weight:700;">${escapeHtml(item.name || item.displayName || 'Item')}</p>
@@ -117,10 +117,11 @@ function renderItems(items = []) {
                     <p style="margin:0 0 4px;color:#475569;font-size:13px;">Qty: ${quantity}</p>
                     ${item.uploadedDesignsCount ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Uploaded Designs: ${Number(item.uploadedDesignsCount)}</p>` : ''}
                     ${item.stepStakesQty ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Step Stakes: ${Number(item.stepStakesQty)}</p>` : ''}
-                    ${(!isYardSign && !isCarMagnet) ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Grommets: ${escapeHtml(item.grommetsDisplay || 'None')}</p>
+                    ${(!isYardSign && !isCarMagnet && item.product_type!=='specialty') ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Grommets: ${escapeHtml(item.grommetsDisplay || 'None')}</p>
                     <p style="margin:0 0 2px;color:#64748b;font-size:12px;">Pole Pockets: ${escapeHtml(item.polePocketsDisplay || 'None')}</p>
                     <p style="margin:0 0 2px;color:#64748b;font-size:12px;">Rope: ${escapeHtml(item.ropeDisplay || 'None')}</p>
                     <p style="margin:0 0 2px;color:#64748b;font-size:12px;">Hemming: Always included</p>` : ''}
+                    ${item.product_type==='specialty'?`<p style="margin:0;color:#475569;font-size:12px;">${escapeHtml(item.options)}</p>`:''}
                     ${item.roundedCornersDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Rounded Corners: ${escapeHtml(item.roundedCornersDisplay)}</p>` : ''}
                     ${lineTotal > 0 ? `<p style="margin:0 0 2px;color:${BRAND_NAVY};font-size:13px;font-weight:600;">Unit Price: $${unitPrice.toFixed(2)}</p>` : ''}
                     ${lineTotal > 0 ? `<p style="margin:0;color:${BRAND_ORANGE};font-size:14px;font-weight:700;">Line Total: $${lineTotal.toFixed(2)}</p>` : ''}

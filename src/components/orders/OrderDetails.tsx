@@ -217,7 +217,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
     const item = order.items[itemIndex];
     
     try {
-      addFromQuote(orderItemToReorderQuote(item));
+      if(item.product_type==='specialty'&&item.specialty_config) useCartStore.getState().saveSpecialtyItem({configuration:item.specialty_config,quantity:item.quantity,widthIn:item.width_in,heightIn:item.height_in});
+      else addFromQuote(orderItemToReorderQuote(item));
     } catch (error) {
       toast({ title: 'Unable to reorder', description: error instanceof Error ? error.message : 'Please review the saved artwork.', variant: 'destructive' });
       return;
@@ -703,6 +704,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                       <p className="break-words">Material: {normalized.materialDisplay}</p>
                       <p className="break-words">Print: {normalized.printDisplay}</p>
                       <p className="break-words">Qty: {normalized.qtyDisplay}</p>
+                      {item.specialty_config?.optionSummary?.map(option=><p key={option.key} className="break-words">{option.label}: {option.value}</p>)}
+                      {item.specialty_config?.customHoles?.map((hole,i)=><p key={i}>Mounting hole {i+1}: {hole.xIn}″ from left, {hole.yIn}″ from top</p>)}
                       {normalized.uploadedDesignsCount ? <p className="break-words">Uploaded Designs: {normalized.uploadedDesignsCount}</p> : null}
                       {normalized.stepStakesQty ? <p className="break-words">Step Stakes: {normalized.stepStakesQty}</p> : null}
                       {normalized.productType === 'banner' ? (
@@ -730,7 +733,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                       </div>
                     </div>
 
-                    {isAdminUser && <div className="space-y-3">
+                    {isAdminUser && item.specialty_config && <section className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3"><p className="font-semibold text-emerald-900">Approved production panels</p>{item.specialty_config.panels.map(panel=><div key={panel.id} className="rounded-lg bg-white p-3"><p className="font-bold">{panel.label}</p><p className="text-xs text-slate-600">{panel.composition.widthIn}″ × {panel.composition.heightIn}″ print area · {panel.templateId}</p><div className="mt-2 flex flex-wrap gap-4 text-sm font-semibold text-blue-800"><a href={panel.productionUrl} target="_blank" rel="noreferrer">Production PDF</a><a href={panel.artwork.productionUrl||panel.artwork.url} target="_blank" rel="noreferrer">Original artwork</a><a href={panel.preview.url} target="_blank" rel="noreferrer">Approved preview</a></div></div>)}</section>}
+                    {isAdminUser && item.product_type!=='specialty' && <div className="space-y-3">
                       <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                         <p className="font-semibold text-emerald-900">Generated Production PDF</p>
                         <p className="mt-1 text-xs text-emerald-800">Status: {item.generated_print_pdf_url ? 'generated' : item.production_pdf_status || 'pending'}</p>
@@ -744,7 +748,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     </div>}
 
                     <div className="space-y-2">
-                      {isAdminUser && (() => {
+                      {isAdminUser && item.product_type!=='specialty' && (() => {
                         const downloadInfo = getBestDownloadUrl(item);
                         return downloadInfo ? (
                           <Button

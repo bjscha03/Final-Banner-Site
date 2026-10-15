@@ -1,0 +1,6680 @@
+[
+  {
+    "slug": "standard-retractable-banner",
+    "name": "Standard Retractable Banner",
+    "category": "stands",
+    "visual": "retractable",
+    "eyebrow": "Most popular portable display",
+    "summary": "A complete, easy-to-carry banner stand for events and sales floors.",
+    "description": "Choose a printed graphic with the stand and carrying bag.",
+    "features": [
+      "Aluminum retractable base",
+      "Carrying bag included",
+      "Multiple sizes",
+      "Choose print, hardware and accessories below"
+    ],
+    "variants": [
+      {
+        "label": "23 × 66 in",
+        "priceCents": 20570,
+        "widthIn": 23,
+        "heightIn": 66,
+        "id": "standard-retractable-banner-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "standard-retractable-banner-1-front"
+          }
+        ],
+        "supplierProfile": "standard-retractable",
+        "supplierFixed": {
+          "size": "23x66"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "23x66",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -10520
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 2668
+          },
+          "led": {
+            "1": 13894,
+            "2": 21075
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/standard-retractable"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "23x66",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 20570
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "23x66",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 10050
+          }
+        ]
+      },
+      {
+        "label": "24 × 81 in",
+        "priceCents": 21084,
+        "widthIn": 24,
+        "heightIn": 81,
+        "id": "standard-retractable-banner-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "standard-retractable-banner-2-front"
+          }
+        ],
+        "supplierProfile": "standard-retractable",
+        "supplierFixed": {
+          "size": "24x81"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "24x81",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -10008
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 2668
+          },
+          "led": {
+            "1": 13894,
+            "2": 21075
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/standard-retractable"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "24x81",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 21084
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "24x81",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 11076
+          }
+        ]
+      },
+      {
+        "label": "33 × 81 in",
+        "priceCents": 17634,
+        "widthIn": 33,
+        "heightIn": 81,
+        "id": "standard-retractable-banner-3",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "standard-retractable-banner-3-front"
+          }
+        ],
+        "supplierProfile": "standard-retractable",
+        "supplierFixed": {
+          "size": "33x81"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "33x81",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -4710
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 2667
+          },
+          "led": {
+            "1": 13895,
+            "2": 21075
+          }
+        },
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/banner-stands.html",
+          "checkedAt": "2026-10-12",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "owner_retail_mapping",
+          "note": "Owner-directed Lexington retail pricing for the corresponding standard single-sided retractable kit. Lexington advertises 33.5 × 80 in; supplied product and artwork remain B2Sign 33 × 81 in."
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/standard-retractable"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "33x81",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 12924
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "33x81",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 17634
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "33x81",
+              "material": "13oz_matte_vinyl_banner",
+              "led": "1"
+            },
+            "priceCents": 34196
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "33x81",
+              "material": "13oz_matte_vinyl_banner",
+              "led": "0"
+            },
+            "priceCents": 20301
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "33x81",
+              "material": "9oz_premium_fabric",
+              "led": "1"
+            },
+            "priceCents": 31529
+          }
+        ]
+      },
+      {
+        "label": "47 × 81 in",
+        "priceCents": 41175,
+        "widthIn": 47,
+        "heightIn": 81,
+        "id": "standard-retractable-banner-4",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "standard-retractable-banner-4-front"
+          }
+        ],
+        "supplierProfile": "standard-retractable",
+        "supplierFixed": {
+          "size": "47x81"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "47x81",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -26200
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 0
+          },
+          "led": {
+            "1": 13894,
+            "2": 21075
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/standard-retractable"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "47x81",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 14975
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "47x81",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 41175
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "47x81",
+              "material": "9oz_premium_fabric",
+              "led": "2"
+            },
+            "priceCents": 62250
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "47x81",
+              "material": "13oz_matte_vinyl_banner",
+              "led": "2"
+            },
+            "priceCents": 62250
+          }
+        ]
+      },
+      {
+        "id": "standard-retractable-black",
+        "label": "33 × 81 in · black base",
+        "widthIn": 33,
+        "heightIn": 81,
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "standard-retractable-black-front"
+          }
+        ],
+        "supplierProfile": "standard-retractable",
+        "supplierFixed": {
+          "size": "33x81b"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "33x81b",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -11893
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 2668
+          },
+          "led": {
+            "1": 13894,
+            "2": 21075
+          }
+        },
+        "priceCents": 24817,
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/standard-retractable"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "33x81b",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 12924
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "33x81b",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 24817
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/standard-retractable-banner.webp",
+    "imageAlt": "Standard Retractable Banner with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": "Printed graphic and display hardware",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
+  },
+  {
+    "slug": "deluxe-retractable-banner",
+    "name": "Deluxe Retractable Banner",
+    "category": "stands",
+    "visual": "retractable",
+    "eyebrow": "Upgraded hardware",
+    "summary": "A sturdier 33-inch display, available with one or two printed sides.",
+    "description": "A premium version of the portable retractable stand for a more permanent presentation.",
+    "features": [
+      "Upgraded stand",
+      "Single or double sided",
+      "33 × 81 in graphic",
+      "Choose print, hardware and accessories below"
+    ],
+    "variants": [
+      {
+        "label": "33 × 81 in · single sided",
+        "priceCents": 25034,
+        "widthIn": 33,
+        "heightIn": 81,
+        "id": "deluxe-retractable-banner-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "deluxe-retractable-banner-1-front"
+          }
+        ],
+        "supplierProfile": "deluxe-retractable",
+        "supplierFixed": {
+          "size": "33x81"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "33x81",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -12110
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 2668
+          },
+          "led": {
+            "1": 13894,
+            "2": 21075
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/deluxe-retractable"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "33x81",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 25034
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "33x81",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 12924
+          }
+        ]
+      },
+      {
+        "label": "33 × 81 in · double sided",
+        "priceCents": 48821,
+        "widthIn": 33,
+        "heightIn": 81,
+        "id": "deluxe-retractable-banner-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "deluxe-retractable-banner-2-front"
+          },
+          {
+            "id": "back",
+            "label": "Back",
+            "templateId": "deluxe-retractable-banner-2-back"
+          }
+        ],
+        "supplierProfile": "deluxe-retractable",
+        "supplierFixed": {
+          "size": "33x81d"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "33x81d",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -29197
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 2668
+          },
+          "led": {
+            "1": 13894,
+            "2": 21075
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/deluxe-retractable"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "33x81d",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 19624
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "33x81d",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 48821
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/deluxe-retractable-banner.webp",
+    "imageAlt": "Deluxe Retractable Banner with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": "Printed graphic and display hardware",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
+  },
+  {
+    "slug": "premium-retractable-banner",
+    "name": "Premium Retractable Banner",
+    "category": "stands",
+    "visual": "retractable",
+    "eyebrow": "Wider impact",
+    "summary": "A height-adjustable stand in three wide formats.",
+    "description": "A high-end retractable display with adjustable height for larger presentations.",
+    "features": [
+      "Height-adjustable hardware",
+      "Three widths",
+      "Portable display",
+      "Choose print, hardware and accessories below"
+    ],
+    "variants": [
+      {
+        "label": "36 × 92 in",
+        "priceCents": 31354,
+        "widthIn": 36,
+        "heightIn": 92,
+        "id": "premium-retractable-banner-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-banner-1-front"
+          }
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "36x92"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "36x92",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -17199
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 2668
+          },
+          "led": {
+            "1": 13894,
+            "2": 21075
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/sd-retractable"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "36x92",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 31354
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "36x92",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 14155
+          }
+        ]
+      },
+      {
+        "label": "48 × 92 in",
+        "priceCents": 48295,
+        "widthIn": 48,
+        "heightIn": 92,
+        "id": "premium-retractable-banner-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-banner-2-front"
+          }
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "48x92"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "48x92",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -31266
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 2668
+          },
+          "led": {
+            "1": 13894,
+            "2": 21075
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/sd-retractable"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "48x92",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 17029
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "48x92",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 48295
+          }
+        ]
+      },
+      {
+        "label": "60 × 92 in",
+        "priceCents": 57139,
+        "widthIn": 60,
+        "heightIn": 92,
+        "id": "premium-retractable-banner-3",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-banner-3-front"
+          }
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "60x92"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "60x92",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -24565
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 2668
+          },
+          "led": {
+            "1": 13894,
+            "2": 21075
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/sd-retractable"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "60x92",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 32574
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "60x92",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 57139
+          }
+        ]
+      },
+      {
+        "id": "premium-retractable-36x69",
+        "label": "36 × 69 in",
+        "widthIn": 36,
+        "heightIn": 69,
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-36x69-front"
+          }
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "36x69"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "36x69",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -18634
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 2668
+          },
+          "led": {
+            "1": 13894,
+            "2": 21075
+          }
+        },
+        "priceCents": 30942,
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/sd-retractable"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "36x69",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 30942
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "36x69",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 12308
+          }
+        ]
+      },
+      {
+        "id": "premium-retractable-36x80",
+        "label": "36 × 80 in",
+        "widthIn": 36,
+        "heightIn": 80,
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-36x80-front"
+          }
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "36x80"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "36x80",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -17958
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 2668
+          },
+          "led": {
+            "1": 13894,
+            "2": 21075
+          }
+        },
+        "priceCents": 31150,
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/sd-retractable"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "36x80",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 13192
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "36x80",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 31150
+          }
+        ]
+      },
+      {
+        "id": "premium-retractable-48x69",
+        "label": "48 × 69 in",
+        "widthIn": 48,
+        "heightIn": 69,
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-48x69-front"
+          }
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "48x69"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "48x69",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -31471
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 2668
+          },
+          "led": {
+            "1": 13894,
+            "2": 21075
+          }
+        },
+        "priceCents": 45934,
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/sd-retractable"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "48x69",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 14463
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "48x69",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 45934
+          }
+        ]
+      },
+      {
+        "id": "premium-retractable-48x80",
+        "label": "48 × 80 in",
+        "widthIn": 48,
+        "heightIn": 80,
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-48x80-front"
+          }
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "48x80"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "48x80",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -31373
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 2668
+          },
+          "led": {
+            "1": 13894,
+            "2": 21075
+          }
+        },
+        "priceCents": 47064,
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/sd-retractable"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "48x80",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 15691
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "48x80",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 47064
+          }
+        ]
+      },
+      {
+        "id": "premium-retractable-60x69",
+        "label": "60 × 69 in",
+        "widthIn": 60,
+        "heightIn": 69,
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-60x69-front"
+          }
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "60x69"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "60x69",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -24696
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 2668
+          },
+          "led": {
+            "1": 13894,
+            "2": 21075
+          }
+        },
+        "priceCents": 54191,
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/sd-retractable"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "60x69",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 29495
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "60x69",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 54191
+          }
+        ]
+      },
+      {
+        "id": "premium-retractable-60x80",
+        "label": "60 × 80 in",
+        "widthIn": 60,
+        "heightIn": 80,
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "premium-retractable-60x80-front"
+          }
+        ],
+        "supplierProfile": "sd-retractable",
+        "supplierFixed": {
+          "size": "60x80"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "60x80",
+          "material": "9oz_premium_fabric",
+          "led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -24634
+          },
+          "material": {
+            "13oz_matte_vinyl_banner": 2668
+          },
+          "led": {
+            "1": 13894,
+            "2": 21075
+          }
+        },
+        "priceCents": 55600,
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/sd-retractable"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "13oz_matte_vinyl_banner"
+          ],
+          "led": [
+            "1",
+            "2"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "60x80",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 30966
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "60x80",
+              "material": "9oz_premium_fabric",
+              "led": "0"
+            },
+            "priceCents": 55600
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/premium-retractable-banner.webp",
+    "imageAlt": "Premium Retractable Banner with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": "Printed graphic and display hardware",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
+  },
+  {
+    "slug": "x-banner-stand",
+    "name": "X Banner Stand",
+    "category": "stands",
+    "visual": "xstand",
+    "eyebrow": "Lightweight & interchangeable",
+    "summary": "An affordable stand with graphics that are easy to change.",
+    "description": "A compact, lightweight X-frame suited to short events and promotions.",
+    "features": [
+      "Easy-change graphic",
+      "Lightweight frame",
+      "Two sizes",
+      "Choose print, hardware and accessories below"
+    ],
+    "variants": [
+      {
+        "label": "24 × 63 in",
+        "priceCents": 13532,
+        "widthIn": 24,
+        "heightIn": 63,
+        "id": "x-banner-stand-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "x-banner-stand-1-front"
+          }
+        ],
+        "supplierProfile": "x-stand",
+        "supplierFixed": {
+          "size": "24x63"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "24x63",
+          "material": "13oz_matte_vinyl_banner"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -4711
+          },
+          "material": {
+            "double_white_popup": 2257
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/x-stand"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "double_white_popup"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "24x63",
+              "material": "13oz_matte_vinyl_banner"
+            },
+            "priceCents": 13532
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "24x63",
+              "material": "13oz_matte_vinyl_banner"
+            },
+            "priceCents": 8821
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "24x63",
+              "material": "double_white_popup"
+            },
+            "priceCents": 11079
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "24x63",
+              "material": "double_white_popup"
+            },
+            "priceCents": 15789
+          }
+        ]
+      },
+      {
+        "label": "32 × 71 in",
+        "priceCents": 15014,
+        "widthIn": 32,
+        "heightIn": 71,
+        "id": "x-banner-stand-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "x-banner-stand-2-front"
+          }
+        ],
+        "supplierProfile": "x-stand",
+        "supplierFixed": {
+          "size": "32x71"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "32x71",
+          "material": "13oz_matte_vinyl_banner"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -5364
+          },
+          "material": {
+            "double_white_popup": 3598
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/x-stand"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "material": [
+            "double_white_popup"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "32x71",
+              "material": "13oz_matte_vinyl_banner"
+            },
+            "priceCents": 15014
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "32x71",
+              "material": "13oz_matte_vinyl_banner"
+            },
+            "priceCents": 9650
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "32x71",
+              "material": "double_white_popup"
+            },
+            "priceCents": 18612
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "32x71",
+              "material": "double_white_popup"
+            },
+            "priceCents": 13246
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/x-banner-stand.webp",
+    "imageAlt": "X Banner Stand with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": "Printed graphic and display hardware",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
+  },
+  {
+    "slug": "tabletop-banner-stand",
+    "name": "Tabletop Banner Stand",
+    "category": "stands",
+    "visual": "retractable",
+    "eyebrow": "Small space, strong message",
+    "summary": "A miniature retractable display for counters and tables.",
+    "description": "Put a compact graphic at eye level on a registration desk, counter or event table.",
+    "features": [
+      "Mini retractable hardware",
+      "Stay-flat printed graphic",
+      "Counter-friendly size",
+      "Choose print, hardware and accessories below"
+    ],
+    "variants": [
+      {
+        "label": "11.5 × 17.5 in",
+        "priceCents": 10871,
+        "widthIn": 11.5,
+        "heightIn": 17.5,
+        "id": "tabletop-banner-stand-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "tabletop-banner-stand-1-front"
+          }
+        ],
+        "supplierProfile": "table-top-banner-stand",
+        "supplierFixed": {
+          "size": "11.5x17.5"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "size": "11.5x17.5",
+          "material": "double_white_popup",
+          "lamination": "UV"
+        },
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/table-top-banner-stand"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "size": "11.5x17.5",
+              "material": "double_white_popup",
+              "lamination": "UV"
+            },
+            "priceCents": 10871
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/tabletop-banner-stand.webp",
+    "imageAlt": "Tabletop Banner Stand with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": "Printed graphic and display hardware",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
+  },
+  {
+    "slug": "tension-fabric-stand",
+    "name": "Tension Fabric Stand",
+    "category": "stands",
+    "visual": "backdrop",
+    "eyebrow": "Fabric presentation",
+    "summary": "A portable fabric display with a smooth, polished look.",
+    "description": "Dye-sublimated washable fabric wraps over heavy-duty portable hardware.",
+    "features": [
+      "Frame and steel base",
+      "Carry case included",
+      "Choose print, hardware and accessories below"
+    ],
+    "variants": [
+      {
+        "label": "36 × 90 in",
+        "priceCents": 45771,
+        "widthIn": 36,
+        "heightIn": 90,
+        "id": "tension-fabric-stand-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "36-x90-download"
+          }
+        ],
+        "supplierProfile": "tension-fabric-stand",
+        "supplierFixed": {
+          "size": "36x90"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "2"
+            },
+            "append": [
+              {
+                "id": "back",
+                "label": "Back",
+                "templateId": "36-x90-download"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "36x90",
+          "sides": "1",
+          "tradeshow_led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -28742
+          },
+          "sides": {
+            "2": 0
+          },
+          "tradeshow_led": {
+            "2": 31853
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/tension-fabric-stand"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "sides": [
+            "2"
+          ],
+          "tradeshow_led": [
+            "2"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "36x90",
+              "sides": "1",
+              "tradeshow_led": "0"
+            },
+            "priceCents": 45771
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "36x90",
+              "sides": "2",
+              "tradeshow_led": "0"
+            },
+            "priceCents": 45771
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "36x90",
+              "sides": "2",
+              "tradeshow_led": "0"
+            },
+            "priceCents": 17029
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "36x90",
+              "sides": "1",
+              "tradeshow_led": "0"
+            },
+            "priceCents": 17029
+          }
+        ]
+      },
+      {
+        "label": "48 × 90 in",
+        "priceCents": 57755,
+        "widthIn": 48,
+        "heightIn": 90,
+        "id": "tension-fabric-stand-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "48-x90-download"
+          }
+        ],
+        "supplierProfile": "tension-fabric-stand",
+        "supplierFixed": {
+          "size": "48x90"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "2"
+            },
+            "append": [
+              {
+                "id": "back",
+                "label": "Back",
+                "templateId": "48-x90-download"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "48x90",
+          "sides": "1",
+          "tradeshow_led": "0"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -38675
+          },
+          "sides": {
+            "2": 0
+          },
+          "tradeshow_led": {
+            "2": 31853
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/tension-fabric-stand"
+          ]
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ],
+          "sides": [
+            "2"
+          ],
+          "tradeshow_led": [
+            "2"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "48x90",
+              "sides": "1",
+              "tradeshow_led": "0"
+            },
+            "priceCents": 19080
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "48x90",
+              "sides": "1",
+              "tradeshow_led": "0"
+            },
+            "priceCents": 57755
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "48x90",
+              "sides": "2",
+              "tradeshow_led": "0"
+            },
+            "priceCents": 57755
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "48x90",
+              "sides": "2",
+              "tradeshow_led": "2"
+            },
+            "priceCents": 89609
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "48x90",
+              "sides": "2",
+              "tradeshow_led": "0"
+            },
+            "priceCents": 19080
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/tension-fabric-stand.webp",
+    "imageAlt": "Tension Fabric Stand with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": "Printed graphic and display hardware",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
+  },
+  {
+    "slug": "step-and-repeat-backdrop",
+    "name": "Step & Repeat Backdrop",
+    "category": "stands",
+    "visual": "backdrop",
+    "eyebrow": "Photo-ready branding",
+    "summary": "A wide fabric backdrop for photos, stages and sponsor walls.",
+    "description": "A printed fabric graphic on a portable, heavy-duty tube frame.",
+    "features": [
+      "9 oz. printed fabric graphic",
+      "Telescoping aluminum frame and carry bag",
+      "3-inch pole pockets at top and bottom",
+      "Choose print, hardware and accessories below"
+    ],
+    "variants": [
+      {
+        "label": "8 × 8 ft",
+        "priceCents": 48846,
+        "widthIn": 96,
+        "heightIn": 96,
+        "id": "step-and-repeat-backdrop-8x8",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "step-and-repeat-backdrop-8x8-front"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/tension-fabric-displays.html",
+          "checkedAt": "2026-10-12",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        },
+        "supplierProfile": "step-repeat-backdrop",
+        "supplierFixed": {
+          "size": "96x96"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "96x96",
+          "material": "9oz_wrinklefree_fabric"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -22376
+          }
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ]
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/step-repeat-backdrop"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "p",
+              "size": "96x96",
+              "material": "9oz_wrinklefree_fabric"
+            },
+            "priceCents": 26470
+          },
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "96x96",
+              "material": "9oz_wrinklefree_fabric"
+            },
+            "priceCents": 48846
+          }
+        ]
+      },
+      {
+        "label": "10 × 8 ft",
+        "priceCents": 50900,
+        "widthIn": 120,
+        "heightIn": 96,
+        "id": "step-and-repeat-backdrop-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "step-and-repeat-backdrop-1-front"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/tension-fabric-displays.html",
+          "checkedAt": "2026-10-12",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        },
+        "supplierProfile": "step-repeat-backdrop",
+        "supplierFixed": {
+          "size": "120x96"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "ph",
+          "size": "120x96",
+          "material": "9oz_wrinklefree_fabric"
+        },
+        "optionPrices": {
+          "hardware": {
+            "p": -19132
+          }
+        },
+        "proposedOptionPrices": {
+          "hardware": [
+            "p"
+          ]
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/step-repeat-backdrop"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "hardware": "ph",
+              "size": "120x96",
+              "material": "9oz_wrinklefree_fabric"
+            },
+            "priceCents": 50900
+          },
+          {
+            "options": {
+              "hardware": "p",
+              "size": "120x96",
+              "material": "9oz_wrinklefree_fabric"
+            },
+            "priceCents": 31768
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/step-and-repeat-backdrop.webp",
+    "imageAlt": "Step & Repeat Backdrop with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": "9 oz. wrinkle-resistant fabric · frame and carry bag",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
+  },
+  {
+    "slug": "feather-flags",
+    "name": "Feather Flags",
+    "category": "flags",
+    "visual": "flag",
+    "eyebrow": "Storefront favorite",
+    "summary": "A tall outdoor display in angled or convex shapes.",
+    "description": "A printed flag with pole hardware and a ground spike for outdoor installation. Select the assembled height below; the artwork template shows the separate graphic dimensions.",
+    "features": [
+      "Product-specific artwork template",
+      "Choose print, hardware and accessories below"
+    ],
+    "variants": [
+      {
+        "label": "Angled · 9 ft",
+        "priceCents": 20849,
+        "id": "feather-flags-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "angled-small"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/feather-flags.html",
+          "checkedAt": "2026-10-12",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        },
+        "supplierProfile": "feather-angled-flag",
+        "supplierFixed": {
+          "size": "small"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "feather-angled-flag-small-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "feather-angled-flag-small-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "small",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {
+          "sides": {
+            "1": 0,
+            "2": 6772,
+            "-1": 0
+          },
+          "flaghardware": {
+            "0": 0,
+            "PG": 0,
+            "PB": 2084,
+            "PBG": 6396,
+            "PBW": 2750,
+            "PBS": 13830
+          },
+          "carrybag": {
+            "0": 0,
+            "1": 3919
+          },
+          "flag_pole_tab": {
+            "0": -7310
+          }
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1"
+          ],
+          "flaghardware": [
+            "0"
+          ]
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/feather-angled-flag"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20849
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 27621
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "small",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20312
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13539
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PB",
+              "carrybag": "0"
+            },
+            "priceCents": 22933
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PBG",
+              "carrybag": "0"
+            },
+            "priceCents": 27245
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PBW",
+              "carrybag": "0"
+            },
+            "priceCents": 23599
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PBS",
+              "carrybag": "0"
+            },
+            "priceCents": 34679
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "1"
+            },
+            "priceCents": 24768
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "-1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20849
+          }
+        ]
+      },
+      {
+        "label": "Angled · 10.5 ft",
+        "priceCents": 20849,
+        "id": "feather-flags-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "angled-medium"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/feather-flags.html",
+          "checkedAt": "2026-10-12",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        },
+        "supplierProfile": "feather-angled-flag",
+        "supplierFixed": {
+          "size": "medium"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "feather-angled-flag-medium-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "feather-angled-flag-medium-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "medium",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {
+          "sides": {
+            "1": 0,
+            "2": 7100,
+            "-1": 0
+          },
+          "flaghardware": {
+            "0": 0,
+            "PG": 0,
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
+          },
+          "carrybag": {
+            "0": 0,
+            "1": 3920
+          },
+          "flag_pole_tab": {
+            "0": -7310
+          }
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1"
+          ],
+          "flaghardware": [
+            "0"
+          ]
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/feather-angled-flag"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "medium",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13539
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "medium",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20849
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "medium",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 27949
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "medium",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20312
+          }
+        ]
+      },
+      {
+        "label": "Angled · 14 ft",
+        "priceCents": 21224,
+        "id": "feather-flags-3",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "angled-large"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/feather-flags.html",
+          "checkedAt": "2026-10-12",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        },
+        "supplierProfile": "feather-angled-flag",
+        "supplierFixed": {
+          "size": "large"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "feather-angled-flag-large-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "feather-angled-flag-large-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "large",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {
+          "sides": {
+            "1": 0,
+            "2": 7183,
+            "-1": 0
+          },
+          "flaghardware": {
+            "0": 0,
+            "PG": 0,
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
+          },
+          "carrybag": {
+            "0": 0,
+            "1": 3920
+          },
+          "flag_pole_tab": {
+            "0": -7274
+          }
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1"
+          ],
+          "flaghardware": [
+            "0"
+          ]
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/feather-angled-flag"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13950
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 21224
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 28407
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "large",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 21132
+          }
+        ]
+      },
+      {
+        "label": "Angled · 18 ft",
+        "priceCents": 24820,
+        "id": "feather-flags-4",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "angled-x-large"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/feather-flags.html",
+          "checkedAt": "2026-10-12",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        },
+        "supplierProfile": "feather-angled-flag",
+        "supplierFixed": {
+          "size": "xlarge"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "feather-angled-flag-x-large-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "feather-angled-flag-x-large-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "xlarge",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {
+          "sides": {
+            "1": 0,
+            "2": 9729,
+            "-1": 0
+          },
+          "flaghardware": {
+            "0": 0,
+            "PG": 0,
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
+          },
+          "carrybag": {
+            "0": 0,
+            "1": 3920
+          },
+          "flag_pole_tab": {
+            "0": -8408
+          }
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1"
+          ],
+          "flaghardware": [
+            "0"
+          ]
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/feather-angled-flag"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "xlarge",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 16412
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "xlarge",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 24820
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "xlarge",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 34549
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "xlarge",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 26058
+          }
+        ]
+      },
+      {
+        "label": "Convex · 9 ft",
+        "priceCents": 20479,
+        "id": "feather-flags-5",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "convex-small"
+          }
+        ],
+        "supplierProfile": "convex-flag",
+        "supplierFixed": {
+          "Size": "small"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "convex-flag-small-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "convex-flag-small-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "Size": "small",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -6940
+          },
+          "sides": {
+            "2": 7142,
+            "-1": 0
+          },
+          "flaghardware": {
+            "0": 0,
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
+          },
+          "carrybag": {
+            "1": 3920
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/convex-flag"
+          ]
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ],
+          "carrybag": [
+            "1"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "Size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13539
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "Size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20479
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "Size": "small",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 27621
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "Size": "small",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20312
+          }
+        ]
+      },
+      {
+        "label": "Convex · 10.5 ft",
+        "priceCents": 20849,
+        "id": "feather-flags-6",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "convex-medium"
+          }
+        ],
+        "supplierProfile": "convex-flag",
+        "supplierFixed": {
+          "Size": "medium"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "convex-flag-medium-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "convex-flag-medium-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "Size": "medium",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -7310
+          },
+          "sides": {
+            "2": 6772,
+            "-1": 0
+          },
+          "flaghardware": {
+            "0": 0,
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
+          },
+          "carrybag": {
+            "1": 3920
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/convex-flag"
+          ]
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ],
+          "carrybag": [
+            "1"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "Size": "medium",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13539
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "Size": "medium",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20849
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "Size": "medium",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 27621
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "Size": "medium",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20312
+          }
+        ]
+      },
+      {
+        "label": "Convex · 14 ft",
+        "priceCents": 20926,
+        "id": "feather-flags-7",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "convex-large"
+          }
+        ],
+        "supplierProfile": "convex-flag",
+        "supplierFixed": {
+          "Size": "large"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "convex-flag-large-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "convex-flag-large-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "Size": "large",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -6976
+          },
+          "sides": {
+            "2": 7481,
+            "-1": 0
+          },
+          "flaghardware": {
+            "0": 0,
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
+          },
+          "carrybag": {
+            "1": 3920
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/convex-flag"
+          ]
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ],
+          "carrybag": [
+            "1"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "Size": "large",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13950
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "Size": "large",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20926
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "Size": "large",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 28407
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "Size": "large",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 21132
+          }
+        ]
+      },
+      {
+        "label": "Convex · 18 ft",
+        "priceCents": 24570,
+        "id": "feather-flags-8",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "convex-x-large"
+          }
+        ],
+        "supplierProfile": "convex-flag",
+        "supplierFixed": {
+          "Size": "xlarge"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "convex-flag-x-large-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "convex-flag-x-large-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "Size": "xlarge",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -8158
+          },
+          "sides": {
+            "2": 9894,
+            "-1": 0
+          },
+          "flaghardware": {
+            "0": 0,
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
+          },
+          "carrybag": {
+            "1": 3920
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/convex-flag"
+          ]
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ],
+          "carrybag": [
+            "1"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "Size": "xlarge",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 16412
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "Size": "xlarge",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 24570
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "Size": "xlarge",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 34464
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "Size": "xlarge",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 26058
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/feather-flags.webp",
+    "imageAlt": "Feather Flags with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": "Printed polyester flag fabric",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
+  },
+  {
+    "slug": "teardrop-flags",
+    "name": "Teardrop Flags",
+    "category": "flags",
+    "visual": "flag",
+    "eyebrow": "Wind-friendly shape",
+    "summary": "A curved flag that keeps its message visible at outdoor events.",
+    "description": "A printed flag with pole hardware and a ground spike for outdoor installation. Select the assembled height below; the artwork template shows the separate graphic dimensions.",
+    "features": [
+      "Product-specific artwork template",
+      "Choose print, hardware and accessories below"
+    ],
+    "variants": [
+      {
+        "label": "7 ft",
+        "priceCents": 20849,
+        "id": "teardrop-flags-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "teardrop-small"
+          }
+        ],
+        "supplierProfile": "teardrop-flag",
+        "supplierFixed": {
+          "size": "small"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "teardrop-flag-small-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "teardrop-flag-small-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "small",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -7310
+          },
+          "sides": {
+            "2": 6772,
+            "-1": 0
+          },
+          "flaghardware": {
+            "0": 0,
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
+          },
+          "carrybag": {
+            "1": 3920
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/teardrop-flag"
+          ]
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ],
+          "carrybag": [
+            "1"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13539
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20849
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 27621
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "small",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20312
+          }
+        ]
+      },
+      {
+        "label": "9 ft",
+        "priceCents": 20849,
+        "id": "teardrop-flags-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "teardrop-medium"
+          }
+        ],
+        "supplierProfile": "teardrop-flag",
+        "supplierFixed": {
+          "size": "medium"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "teardrop-flag-medium-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "teardrop-flag-medium-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "medium",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -7310
+          },
+          "sides": {
+            "2": 7100,
+            "-1": 0
+          },
+          "flaghardware": {
+            "0": 0,
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
+          },
+          "carrybag": {
+            "1": 3920
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/teardrop-flag"
+          ]
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ],
+          "carrybag": [
+            "1"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "medium",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13539
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "medium",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20849
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "medium",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 27949
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "medium",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 20312
+          }
+        ]
+      },
+      {
+        "label": "11.2 ft",
+        "priceCents": 21224,
+        "id": "teardrop-flags-3",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "teardrop-large"
+          }
+        ],
+        "supplierProfile": "teardrop-flag",
+        "supplierFixed": {
+          "size": "large"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "teardrop-flag-large-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "teardrop-flag-large-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "large",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -7274
+          },
+          "sides": {
+            "2": 7183,
+            "-1": 0
+          },
+          "flaghardware": {
+            "0": 0,
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
+          },
+          "carrybag": {
+            "1": 3920
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/teardrop-flag"
+          ]
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ],
+          "carrybag": [
+            "1"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 13950
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 21224
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 28407
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "large",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 21132
+          }
+        ]
+      },
+      {
+        "label": "13.5 ft",
+        "priceCents": 24820,
+        "id": "teardrop-flags-4",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "teardrop-x-large"
+          }
+        ],
+        "supplierProfile": "teardrop-flag",
+        "supplierFixed": {
+          "size": "xlarge"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "teardrop-flag-x-large-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "teardrop-flag-x-large-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "xlarge",
+          "sides": "1",
+          "flaghardware": "PG",
+          "carrybag": "0"
+        },
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -8408
+          },
+          "sides": {
+            "2": 9644,
+            "-1": 0
+          },
+          "flaghardware": {
+            "0": 0,
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
+          },
+          "carrybag": {
+            "1": 3920
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/teardrop-flag"
+          ]
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ],
+          "carrybag": [
+            "1"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "xlarge",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 16412
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "xlarge",
+              "sides": "1",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 24820
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "xlarge",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 34464
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "xlarge",
+              "sides": "2",
+              "flaghardware": "PG",
+              "carrybag": "0"
+            },
+            "priceCents": 26058
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/teardrop-flags.webp",
+    "imageAlt": "Teardrop Flags with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": "Printed polyester flag fabric",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
+  },
+  {
+    "slug": "rectangle-flags",
+    "name": "Rectangle Flags",
+    "category": "flags",
+    "visual": "flag",
+    "eyebrow": "More room for your message",
+    "summary": "A straight-sided flag with a broad print area.",
+    "description": "A printed flag with pole hardware and a ground spike for outdoor installation. Select the assembled height below; the artwork template shows the separate graphic dimensions.",
+    "features": [
+      "Product-specific artwork template",
+      "Choose print, hardware and accessories below"
+    ],
+    "variants": [
+      {
+        "label": "8.5 ft",
+        "priceCents": 40576,
+        "id": "rectangle-flags-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "rectangle-small"
+          }
+        ],
+        "supplierProfile": "rectangle-flag",
+        "supplierFixed": {
+          "size": "small"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "rectangle-flag-small-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "rectangle-flag-small-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "small",
+          "sides": "1",
+          "flaghardware": "PG",
+          "pole": "1"
+        },
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -24575
+          },
+          "sides": {
+            "2": 9236,
+            "-1": 0
+          },
+          "flaghardware": {
+            "0": 0,
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/rectangle-flag"
+          ]
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 16001
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "1",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 40576
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "small",
+              "sides": "2",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 49812
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "small",
+              "sides": "2",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 25237
+          }
+        ]
+      },
+      {
+        "label": "11.8 ft",
+        "priceCents": 42711,
+        "id": "rectangle-flags-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "rectangle-medium"
+          }
+        ],
+        "supplierProfile": "rectangle-flag",
+        "supplierFixed": {
+          "size": "medium"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "rectangle-flag-medium-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "rectangle-flag-medium-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "medium",
+          "sides": "1",
+          "flaghardware": "PG",
+          "pole": "1"
+        },
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -25682
+          },
+          "sides": {
+            "2": 10260,
+            "-1": 0
+          },
+          "flaghardware": {
+            "0": 0,
+            "PB": 3140,
+            "PBG": 6465,
+            "PBW": 4063,
+            "PBS": 15660
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/rectangle-flag"
+          ]
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "medium",
+              "sides": "1",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 17029
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "medium",
+              "sides": "1",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 42711
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "medium",
+              "sides": "2",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 52971
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "medium",
+              "sides": "2",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 27289
+          }
+        ]
+      },
+      {
+        "label": "15 ft",
+        "priceCents": 44845,
+        "id": "rectangle-flags-3",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "rectangle-large"
+          }
+        ],
+        "supplierProfile": "rectangle-flag",
+        "supplierFixed": {
+          "size": "large"
+        },
+        "panelRules": [
+          {
+            "when": {
+              "sides": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "rectangle-flag-large-single-sided-print-thru-reverse"
+              }
+            ]
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "replace": [
+              {
+                "id": "both-sides",
+                "label": "Front & back print layout",
+                "templateId": "rectangle-flag-large-double-sided"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole_tab": "1",
+          "size": "large",
+          "sides": "1",
+          "flaghardware": "PG",
+          "pole": "1"
+        },
+        "optionPrices": {
+          "flag_pole_tab": {
+            "0": -26791
+          },
+          "sides": {
+            "2": 11287,
+            "-1": 0
+          },
+          "flaghardware": {
+            "0": 0,
+            "PB": 3141,
+            "PBG": 6464,
+            "PBW": 4064,
+            "PBS": 15660
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/rectangle-flag"
+          ]
+        },
+        "proposedOptionPrices": {
+          "flag_pole_tab": [
+            "0"
+          ],
+          "sides": [
+            "-1",
+            "2"
+          ],
+          "flaghardware": [
+            "PB",
+            "PBG",
+            "PBW",
+            "PBS",
+            "0"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 18054
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 44845
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "2",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 56132
+          },
+          {
+            "options": {
+              "flag_pole_tab": "0",
+              "size": "large",
+              "sides": "2",
+              "flaghardware": "PG",
+              "pole": "1"
+            },
+            "priceCents": 29341
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PB",
+              "pole": "1"
+            },
+            "priceCents": 47986
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PBG",
+              "pole": "1"
+            },
+            "priceCents": 51309
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PBW",
+              "pole": "1"
+            },
+            "priceCents": 48909
+          },
+          {
+            "options": {
+              "flag_pole_tab": "1",
+              "size": "large",
+              "sides": "1",
+              "flaghardware": "PBS",
+              "pole": "1"
+            },
+            "priceCents": 60505
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/rectangle-flags.webp",
+    "imageAlt": "Rectangle Flags with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": "Printed polyester flag fabric",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
+  },
+  {
+    "slug": "economy-feather-flag",
+    "name": "Economy Feather Flag",
+    "category": "flags",
+    "visual": "flag",
+    "eyebrow": "Simple outdoor setup",
+    "summary": "A single-sided flag with a ground spike included.",
+    "description": "A printed flag with pole hardware and a ground spike for outdoor installation. Select the assembled height below; the artwork template shows the separate graphic dimensions.",
+    "features": [
+      "Product-specific artwork template",
+      "Choose print, hardware and accessories below"
+    ],
+    "variants": [
+      {
+        "label": "16 ft",
+        "priceCents": 35530,
+        "id": "economy-feather-flag-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "econo-medium"
+          }
+        ],
+        "supplierProfile": "econo-feather-flag",
+        "supplierFixed": {},
+        "panelRules": [
+          {
+            "when": {
+              "graphic": "-1"
+            },
+            "replace": [
+              {
+                "id": "reverse",
+                "label": "Reverse print",
+                "templateId": "econo-feather-flag-single-sided-print-thru-single-sided-print-thru-reverse-single-sided-print-thru"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "flag_pole": "flag_pole",
+          "graphic": "1",
+          "base": "PG",
+          "material": "flag_polyster"
+        },
+        "optionPrices": {
+          "flag_pole": {
+            "fo": -22606
+          },
+          "graphic": {
+            "-1": 0
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/econo-feather-flag"
+          ]
+        },
+        "proposedOptionPrices": {
+          "flag_pole": [
+            "fo"
+          ],
+          "graphic": [
+            "-1"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "flag_pole": "flag_pole",
+              "graphic": "1",
+              "base": "PG",
+              "material": "flag_polyster"
+            },
+            "priceCents": 35530
+          },
+          {
+            "options": {
+              "flag_pole": "fo",
+              "graphic": "1",
+              "base": "PG",
+              "material": "flag_polyster"
+            },
+            "priceCents": 12924
+          },
+          {
+            "options": {
+              "flag_pole": "fo",
+              "graphic": "-1",
+              "base": "PG",
+              "material": "flag_polyster"
+            },
+            "priceCents": 12924
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/economy-feather-flag.webp",
+    "imageAlt": "Economy Feather Flag with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": "Printed polyester flag fabric",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
+  },
+  {
+    "slug": "standard-table-throws",
+    "name": "Standard Table Throws",
+    "category": "events",
+    "visual": "table",
+    "eyebrow": "Dress the whole table",
+    "summary": "Full-color fabric table covers in open or closed back styles.",
+    "description": "A dye-sublimated table cover for a coordinated event setup.",
+    "features": [
+      "Full-color print",
+      "3-sided open back or 4-sided closed back",
+      "4, 6 and 8 ft tables"
+    ],
+    "variants": [
+      {
+        "label": "4 ft · open back",
+        "priceCents": 18570,
+        "widthIn": 48,
+        "id": "standard-table-throws-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full table cover",
+            "templateId": "4ft-table-cover-3-sided-open-back"
+          }
+        ],
+        "supplierProfile": "4ft-table-cover",
+        "supplierFixed": {
+          "sides": "3sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "sides": "3sided"
+        },
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/4ft-table-cover"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "sides": "3sided"
+            },
+            "priceCents": 18570
+          }
+        ]
+      },
+      {
+        "label": "4 ft · closed back",
+        "priceCents": 22366,
+        "widthIn": 48,
+        "id": "standard-table-throws-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full table cover",
+            "templateId": "4ft-table-cover-4-sided-close-back"
+          }
+        ],
+        "supplierProfile": "4ft-table-cover",
+        "supplierFixed": {
+          "sides": "4sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "sides": "4sided"
+        },
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/4ft-table-cover"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "sides": "4sided"
+            },
+            "priceCents": 22366
+          }
+        ]
+      },
+      {
+        "label": "6 ft · open back",
+        "priceCents": 21475,
+        "widthIn": 72,
+        "id": "standard-table-throws-3",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full table cover",
+            "templateId": "6ft-table-cover-3-sided-open-back"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/table-throws.html",
+          "checkedAt": "2026-10-12",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        },
+        "supplierProfile": "6ft-table-cover",
+        "supplierFixed": {
+          "sides": "3sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "sides": "3sided"
+        },
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/6ft-table-cover"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "sides": "3sided"
+            },
+            "priceCents": 21475
+          }
+        ]
+      },
+      {
+        "label": "6 ft · closed back",
+        "priceCents": 26279,
+        "widthIn": 72,
+        "id": "standard-table-throws-4",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full table cover",
+            "templateId": "6ft-table-cover-4-sided-close-back"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/table-throws.html",
+          "checkedAt": "2026-10-12",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        },
+        "supplierProfile": "6ft-table-cover",
+        "supplierFixed": {
+          "sides": "4sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "sides": "4sided"
+        },
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/6ft-table-cover"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "sides": "4sided"
+            },
+            "priceCents": 26279
+          }
+        ]
+      },
+      {
+        "label": "8 ft · open back",
+        "priceCents": 24264,
+        "widthIn": 96,
+        "id": "standard-table-throws-5",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full table cover",
+            "templateId": "8ft-table-cover-3-sided-open-back"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/table-throws.html",
+          "checkedAt": "2026-10-12",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        },
+        "supplierProfile": "8ft-table-cover",
+        "supplierFixed": {
+          "sides": "3sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "sides": "3sided"
+        },
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/8ft-table-cover"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "sides": "3sided"
+            },
+            "priceCents": 24264
+          }
+        ]
+      },
+      {
+        "label": "8 ft · closed back",
+        "priceCents": 30191,
+        "widthIn": 96,
+        "id": "standard-table-throws-6",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full table cover",
+            "templateId": "8ft-table-cover-4-sided-close-back"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/table-throws.html",
+          "checkedAt": "2026-10-12",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        },
+        "supplierProfile": "8ft-table-cover",
+        "supplierFixed": {
+          "sides": "4sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "sides": "4sided"
+        },
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/8ft-table-cover"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "sides": "4sided"
+            },
+            "priceCents": 30191
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/standard-table-throws.webp",
+    "imageAlt": "Standard Table Throws with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": "Dye-sublimated fabric",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
+  },
+  {
+    "slug": "fitted-table-throws",
+    "name": "Fitted Table Throws",
+    "category": "events",
+    "visual": "table",
+    "eyebrow": "Tailored look",
+    "summary": "A box-style table cover for a clean, fitted setup.",
+    "description": "Full-color printed fabric shaped to fit a standard event table.",
+    "features": [
+      "Full-color print",
+      "Open or closed back",
+      "6 and 8 ft tables"
+    ],
+    "variants": [
+      {
+        "label": "6 ft · open back",
+        "priceCents": 21692,
+        "widthIn": 72,
+        "id": "fitted-table-throws-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full fitted cover",
+            "templateId": "fitted-6-open"
+          }
+        ],
+        "supplierProfile": "Fitted-Table-Cover",
+        "supplierFixed": {
+          "size": "6ft",
+          "backside": "3sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "size": "6ft",
+          "backside": "3sided"
+        },
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/Fitted-Table-Cover"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "size": "6ft",
+              "backside": "3sided"
+            },
+            "priceCents": 21692
+          }
+        ]
+      },
+      {
+        "label": "6 ft · closed back",
+        "priceCents": 21692,
+        "widthIn": 72,
+        "id": "fitted-table-throws-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full fitted cover",
+            "templateId": "fitted-6-closed"
+          }
+        ],
+        "supplierProfile": "Fitted-Table-Cover",
+        "supplierFixed": {
+          "size": "6ft",
+          "backside": "4sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "size": "6ft",
+          "backside": "4sided"
+        },
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/Fitted-Table-Cover"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "size": "6ft",
+              "backside": "4sided"
+            },
+            "priceCents": 21692
+          }
+        ]
+      },
+      {
+        "label": "8 ft · open back",
+        "priceCents": 23558,
+        "widthIn": 96,
+        "id": "fitted-table-throws-3",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full fitted cover",
+            "templateId": "fitted-8-open"
+          }
+        ],
+        "supplierProfile": "Fitted-Table-Cover",
+        "supplierFixed": {
+          "size": "8ft",
+          "backside": "3sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "size": "8ft",
+          "backside": "3sided"
+        },
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/Fitted-Table-Cover"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "size": "8ft",
+              "backside": "3sided"
+            },
+            "priceCents": 23558
+          }
+        ]
+      },
+      {
+        "label": "8 ft · closed back",
+        "priceCents": 23558,
+        "widthIn": 96,
+        "id": "fitted-table-throws-4",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full fitted cover",
+            "templateId": "fitted-8-closed"
+          }
+        ],
+        "supplierProfile": "Fitted-Table-Cover",
+        "supplierFixed": {
+          "size": "8ft",
+          "backside": "4sided"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "size": "8ft",
+          "backside": "4sided"
+        },
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/Fitted-Table-Cover"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "size": "8ft",
+              "backside": "4sided"
+            },
+            "priceCents": 23558
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/fitted-table-throws.webp",
+    "imageAlt": "Fitted Table Throws with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": "Dye-sublimated fabric",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
+  },
+  {
+    "slug": "stretch-table-throws",
+    "name": "Stretch Table Throws",
+    "category": "events",
+    "visual": "table",
+    "eyebrow": "Modern fitted shape",
+    "summary": "A taut stretch cover for a sleek booth presentation.",
+    "description": "Full-color dye-sublimated fabric with a fitted silhouette.",
+    "features": [
+      "Stretch fit",
+      "Full-color print",
+      "6 and 8 ft tables"
+    ],
+    "variants": [
+      {
+        "label": "6 ft",
+        "priceCents": 33180,
+        "widthIn": 72,
+        "id": "stretch-table-throws-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full stretch cover",
+            "templateId": "6ft-stretch-table-throw-download"
+          }
+        ],
+        "supplierProfile": "stretch-table-cover",
+        "supplierFixed": {
+          "size": "6ft"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "size": "6ft"
+        },
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/stretch-table-cover"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "size": "6ft"
+            },
+            "priceCents": 33180
+          }
+        ]
+      },
+      {
+        "label": "8 ft",
+        "priceCents": 38516,
+        "widthIn": 96,
+        "id": "stretch-table-throws-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Full stretch cover",
+            "templateId": "8ft-stretch-table-throw-download"
+          }
+        ],
+        "supplierProfile": "stretch-table-cover",
+        "supplierFixed": {
+          "size": "8ft"
+        },
+        "panelRules": [],
+        "baselineOptions": {
+          "size": "8ft"
+        },
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/stretch-table-cover"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "size": "8ft"
+            },
+            "priceCents": 38516
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/stretch-table-throws.webp",
+    "imageAlt": "Stretch Table Throws with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": "Dye-sublimated fabric",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
+  },
+  {
+    "slug": "custom-event-tents",
+    "name": "Custom Event Tents",
+    "category": "events",
+    "visual": "tent",
+    "eyebrow": "A whole branded space",
+    "summary": "Printed canopy and aluminum frame in three event sizes.",
+    "description": "Create a branded outdoor footprint. The listed set includes the canopy, frame and carry bag; walls and flags are not included.",
+    "features": [
+      "Printed weather-resistant canopy",
+      "Aluminum frame and carry bag",
+      "10 × 10, 10 × 15 and 10 × 20 ft",
+      "Choose print, hardware and accessories below"
+    ],
+    "variants": [
+      {
+        "label": "10 × 10 ft",
+        "priceCents": 104007,
+        "widthIn": 120,
+        "heightIn": 120,
+        "id": "custom-event-tents-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front canopy",
+            "templateId": "10ft-event-tent-canopy"
+          },
+          {
+            "id": "right",
+            "label": "Right canopy",
+            "templateId": "10ft-event-tent-canopy"
+          },
+          {
+            "id": "back",
+            "label": "Back canopy",
+            "templateId": "10ft-event-tent-canopy"
+          },
+          {
+            "id": "left",
+            "label": "Left canopy",
+            "templateId": "10ft-event-tent-canopy"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/canopy-tents.html",
+          "checkedAt": "2026-10-12",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        },
+        "supplierProfile": "event-tent-canopy-graphic",
+        "supplierFixed": {},
+        "panelRules": [
+          {
+            "when": {
+              "tent_full_wall": "A"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall-1-1",
+                "label": "Full wall 1",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall": "AB"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall-1-1",
+                "label": "Full wall 1",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              },
+              {
+                "id": "tent_full_wall-2-1",
+                "label": "Full wall 2",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall": "ABC"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall-1-1",
+                "label": "Full wall 1",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              },
+              {
+                "id": "tent_full_wall-2-1",
+                "label": "Full wall 2",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              },
+              {
+                "id": "tent_full_wall-3-1",
+                "label": "Full wall 3",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall": "ABCD"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall-1-1",
+                "label": "Full wall 1",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              },
+              {
+                "id": "tent_full_wall-2-1",
+                "label": "Full wall 2",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              },
+              {
+                "id": "tent_full_wall-3-1",
+                "label": "Full wall 3",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              },
+              {
+                "id": "tent_full_wall-4-1",
+                "label": "Full wall 4",
+                "templateId": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "1x1"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "2x1"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "3x1"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-3-1",
+                "label": "Half wall 3",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "4x1"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-3-1",
+                "label": "Half wall 3",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-4-1",
+                "label": "Half wall 4",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "1x2"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-1-2",
+                "label": "Half wall 1 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "2x2"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-1-2",
+                "label": "Half wall 1 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-2",
+                "label": "Half wall 2 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "3x2"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-1-2",
+                "label": "Half wall 1 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-2",
+                "label": "Half wall 2 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-3-1",
+                "label": "Half wall 3 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-3-2",
+                "label": "Half wall 3 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "4x2"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-1-2",
+                "label": "Half wall 1 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-2",
+                "label": "Half wall 2 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-3-1",
+                "label": "Half wall 3 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-3-2",
+                "label": "Half wall 3 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-4-1",
+                "label": "Half wall 4 · front",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              },
+              {
+                "id": "tent_half_wall-4-2",
+                "label": "Half wall 4 · back",
+                "templateId": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "tent_hardware": "1",
+          "tent_sewing_thread": "white",
+          "tent_carrybag": "s",
+          "mesh_sidewall": "0",
+          "tent_sandbag": "0",
+          "tent_full_wall": "0",
+          "tent_half_wall": "0"
+        },
+        "optionPrices": {
+          "tent_sewing_thread": {
+            "white": 0,
+            "black": 0
+          },
+          "tent_sandbag": {
+            "0": 0,
+            "1": 9298
+          },
+          "tent_hardware": {
+            "0": -44125
+          },
+          "tent_carrybag": {
+            "w": 10967
+          },
+          "mesh_sidewall": {
+            "1": 26927
+          },
+          "tent_full_wall": {
+            "A": 34269,
+            "AB": 68538,
+            "ABC": 102807,
+            "ABCD": 137076
+          },
+          "tent_half_wall": {
+            "1x1": 45192,
+            "1x2": 61404,
+            "2x1": 90384,
+            "2x2": 122808,
+            "3x1": 135576,
+            "3x2": 184212,
+            "4x1": 180768,
+            "4x2": 245616
+          }
+        },
+        "proposedOptionPrices": {
+          "tent_hardware": [
+            "0"
+          ],
+          "tent_carrybag": [
+            "w"
+          ],
+          "mesh_sidewall": [
+            "1"
+          ],
+          "tent_full_wall": [
+            "A",
+            "AB",
+            "ABC",
+            "ABCD"
+          ],
+          "tent_half_wall": [
+            "1x1",
+            "1x2",
+            "2x1",
+            "2x2",
+            "3x1",
+            "3x2",
+            "4x1",
+            "4x2"
+          ]
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/event-tent-canopy-graphic"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "mesh_sidewall": "0",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 104007
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "w",
+              "mesh_sidewall": "0",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 114974
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "mesh_sidewall": "0",
+              "tent_sandbag": "1",
+              "tent_full_wall": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 113305
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "mesh_sidewall": "1",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 130934
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "mesh_sidewall": "0",
+              "tent_sandbag": "0",
+              "tent_full_wall": "A",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 138276
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "mesh_sidewall": "0",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_half_wall": "1x1"
+            },
+            "priceCents": 149199
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "mesh_sidewall": "0",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_half_wall": "1x2"
+            },
+            "priceCents": 165411
+          },
+          {
+            "options": {
+              "tent_hardware": "0",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "mesh_sidewall": "0",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 59882
+          }
+        ]
+      },
+      {
+        "label": "10 × 15 ft",
+        "priceCents": 160162,
+        "widthIn": 180,
+        "heightIn": 120,
+        "id": "custom-event-tents-2",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front canopy",
+            "templateId": "15ft-event-tent-canopy-long-side"
+          },
+          {
+            "id": "right",
+            "label": "Right canopy",
+            "templateId": "15ft-event-tent-canopy-short-side"
+          },
+          {
+            "id": "back",
+            "label": "Back canopy",
+            "templateId": "15ft-event-tent-canopy-long-side"
+          },
+          {
+            "id": "left",
+            "label": "Left canopy",
+            "templateId": "15ft-event-tent-canopy-short-side"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/canopy-tents.html",
+          "checkedAt": "2026-10-12",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        },
+        "supplierProfile": "10x15-event-tent",
+        "supplierFixed": {},
+        "panelRules": [
+          {
+            "when": {
+              "tent_full_wall": "S1"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall-1-1",
+                "label": "Full wall 1",
+                "templateId": "10x15-event-tent-15ft-tent-full-wall-short-side-full-wall-short-side"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall": "S2"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall-1-1",
+                "label": "Full wall 1",
+                "templateId": "10x15-event-tent-15ft-tent-full-wall-short-side-full-wall-short-side"
+              },
+              {
+                "id": "tent_full_wall-2-1",
+                "label": "Full wall 2",
+                "templateId": "10x15-event-tent-15ft-tent-full-wall-short-side-full-wall-short-side"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall_long": "L1"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall_long-1-1",
+                "label": "Long full wall 1",
+                "templateId": "10x15-event-tent-15ft-tent-full-wall-long-side-full-wall-long-side"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall_long": "L2"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall_long-1-1",
+                "label": "Long full wall 1",
+                "templateId": "10x15-event-tent-15ft-tent-full-wall-long-side-full-wall-long-side"
+              },
+              {
+                "id": "tent_full_wall_long-2-1",
+                "label": "Long full wall 2",
+                "templateId": "10x15-event-tent-15ft-tent-full-wall-long-side-full-wall-long-side"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "1x1"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "1x2"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1 · front",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-1-2",
+                "label": "Half wall 1 · back",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "2x1"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "2x2"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1 · front",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-1-2",
+                "label": "Half wall 1 · back",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2 · front",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-2",
+                "label": "Half wall 2 · back",
+                "templateId": "10x15-event-tent-15ft-tent-half-wall-half-wall"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "tent_hardware": "1",
+          "tent_sewing_thread": "white",
+          "tent_carrybag": "s",
+          "tent_sandbag": "0",
+          "tent_full_wall": "0",
+          "tent_full_wall_long": "0",
+          "tent_half_wall": "0"
+        },
+        "optionPrices": {
+          "tent_sewing_thread": {
+            "white": 0,
+            "black": 0
+          },
+          "tent_sandbag": {
+            "0": 0,
+            "1": 10352
+          },
+          "tent_hardware": {
+            "0": -93949
+          },
+          "tent_carrybag": {
+            "w": 16081
+          },
+          "tent_full_wall": {
+            "S1": 34842,
+            "S2": 69684
+          },
+          "tent_full_wall_long": {
+            "L1": 50513,
+            "L2": 101026
+          },
+          "tent_half_wall": {
+            "1x1": 45189,
+            "1x2": 61404,
+            "2x1": 90378,
+            "2x2": 122808
+          }
+        },
+        "proposedOptionPrices": {
+          "tent_hardware": [
+            "0"
+          ],
+          "tent_carrybag": [
+            "w"
+          ],
+          "tent_full_wall": [
+            "S1",
+            "S2"
+          ],
+          "tent_full_wall_long": [
+            "L1",
+            "L2"
+          ],
+          "tent_half_wall": [
+            "1x1",
+            "1x2",
+            "2x1",
+            "2x2"
+          ]
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/10x15-event-tent"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 160162
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "L1",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 210675
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "0",
+              "tent_full_wall": "S1",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 195004
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "1x1"
+            },
+            "priceCents": 205351
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "1x2"
+            },
+            "priceCents": 221566
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "w",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 176243
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "1",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 170514
+          },
+          {
+            "options": {
+              "tent_hardware": "0",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "0",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 66213
+          }
+        ]
+      },
+      {
+        "label": "10 × 20 ft",
+        "priceCents": 190149,
+        "widthIn": 240,
+        "heightIn": 120,
+        "id": "custom-event-tents-3",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front canopy",
+            "templateId": "20ft-event-tent-canopy-long-side"
+          },
+          {
+            "id": "right",
+            "label": "Right canopy",
+            "templateId": "20ft-event-tent-canopy-short-side"
+          },
+          {
+            "id": "back",
+            "label": "Back canopy",
+            "templateId": "20ft-event-tent-canopy-long-side"
+          },
+          {
+            "id": "left",
+            "label": "Left canopy",
+            "templateId": "20ft-event-tent-canopy-short-side"
+          }
+        ],
+        "priceMatch": {
+          "sourceUrl": "https://www.lexingtonsign.com/canopy-tents.html",
+          "checkedAt": "2026-10-12",
+          "shippingPolicy": "free_overnight_after_production",
+          "status": "exact_configuration"
+        },
+        "supplierProfile": "10x20-event-tent",
+        "supplierFixed": {},
+        "panelRules": [
+          {
+            "when": {
+              "tent_full_wall": "S1"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall-1-1",
+                "label": "Full wall 1",
+                "templateId": "10x20-event-tent-20ft-tent-full-wall-short-side-full-wall-short-side"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall": "S2"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall-1-1",
+                "label": "Full wall 1",
+                "templateId": "10x20-event-tent-20ft-tent-full-wall-short-side-full-wall-short-side"
+              },
+              {
+                "id": "tent_full_wall-2-1",
+                "label": "Full wall 2",
+                "templateId": "10x20-event-tent-20ft-tent-full-wall-short-side-full-wall-short-side"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall_long": "L1"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall_long-1-1",
+                "label": "Long full wall 1",
+                "templateId": "10x20-event-tent-20ft-tent-full-wall-long-side-full-wall-long-side"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_full_wall_long": "L2"
+            },
+            "append": [
+              {
+                "id": "tent_full_wall_long-1-1",
+                "label": "Long full wall 1",
+                "templateId": "10x20-event-tent-20ft-tent-full-wall-long-side-full-wall-long-side"
+              },
+              {
+                "id": "tent_full_wall_long-2-1",
+                "label": "Long full wall 2",
+                "templateId": "10x20-event-tent-20ft-tent-full-wall-long-side-full-wall-long-side"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "1x1"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "1x2"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1 · front",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-1-2",
+                "label": "Half wall 1 · back",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "2x1"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              }
+            ]
+          },
+          {
+            "when": {
+              "tent_half_wall": "2x2"
+            },
+            "append": [
+              {
+                "id": "tent_half_wall-1-1",
+                "label": "Half wall 1 · front",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-1-2",
+                "label": "Half wall 1 · back",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-1",
+                "label": "Half wall 2 · front",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              },
+              {
+                "id": "tent_half_wall-2-2",
+                "label": "Half wall 2 · back",
+                "templateId": "10x20-event-tent-20ft-tent-half-wall-half-wall"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "tent_hardware": "1",
+          "tent_sewing_thread": "white",
+          "tent_carrybag": "s",
+          "tent_sandbag": "2",
+          "tent_full_wall": "0",
+          "tent_full_wall_long": "0",
+          "tent_half_wall": "0"
+        },
+        "optionPrices": {
+          "tent_sewing_thread": {
+            "white": 0,
+            "black": 0
+          },
+          "tent_sandbag": {
+            "1": 13737,
+            "2": 0
+          },
+          "tent_hardware": {
+            "0": -103756
+          },
+          "tent_carrybag": {
+            "w": 20122
+          },
+          "tent_full_wall": {
+            "S1": 34351,
+            "S2": 68702
+          },
+          "tent_full_wall_long": {
+            "L1": 67513,
+            "L2": 135026
+          },
+          "tent_half_wall": {
+            "1x1": 45189,
+            "1x2": 61401,
+            "2x1": 90378,
+            "2x2": 122802
+          }
+        },
+        "proposedOptionPrices": {
+          "tent_hardware": [
+            "0"
+          ],
+          "tent_carrybag": [
+            "w"
+          ],
+          "tent_full_wall": [
+            "S1",
+            "S2"
+          ],
+          "tent_full_wall_long": [
+            "L1",
+            "L2"
+          ],
+          "tent_half_wall": [
+            "1x1",
+            "1x2",
+            "2x1",
+            "2x2"
+          ]
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation.",
+          "sourceUrls": [
+            "https://www.b2sign.com/10x20-event-tent"
+          ]
+        },
+        "configurationPrices": [
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "2",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 190149
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "2",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "L1",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 257662
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "2",
+              "tent_full_wall": "S1",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 224500
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "2",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "1x1"
+            },
+            "priceCents": 235338
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "2",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "1x2"
+            },
+            "priceCents": 251550
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "w",
+              "tent_sandbag": "2",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 210271
+          },
+          {
+            "options": {
+              "tent_hardware": "1",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "1",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 203886
+          },
+          {
+            "options": {
+              "tent_hardware": "0",
+              "tent_sewing_thread": "white",
+              "tent_carrybag": "s",
+              "tent_sandbag": "2",
+              "tent_full_wall": "0",
+              "tent_full_wall_long": "0",
+              "tent_half_wall": "0"
+            },
+            "priceCents": 86393
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/custom-event-tents.webp",
+    "imageAlt": "Custom Event Tents with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": "Dye-sublimated fabric",
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign"
+  },
+  {
+    "slug": "acrylic-signs",
+    "name": "Acrylic Signs",
+    "category": "signs",
+    "visual": "sign",
+    "eyebrow": "Clean, modern finish",
+    "summary": "Clear acrylic graphics for offices, lobbies and retail walls.",
+    "description": "A polished acrylic sign for offices, lobbies and retail walls. Your design is printed on the back of 3 mm acrylic with a white underbase for clear, vibrant color. Wall standoffs create a floating display.",
+    "features": [
+      "3 mm acrylic",
+      "Back-printed color with a white underbase",
+      "Wall standoffs available",
+      "Free Next Day Air shipping after production"
+    ],
+    "priceUnit": "sqft",
+    "variants": [
+      {
+        "label": "Back print with white underbase",
+        "priceCents": 4000,
+        "id": "acrylic-signs-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "acrylic-signs-1-front"
+          }
+        ],
+        "supplierProfile": "signs365-acrylic",
+        "supplierFixed": {},
+        "panelRules": [],
+        "baselineOptions": {
+          "hardware": "acrylic+standoff"
+        },
+        "optionPrices": {
+          "hardware": {
+            "acrylic": -3500
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "Supplier cost and shipping TBD. Existing provisional retail retained; 30% margin cannot be verified.",
+          "sourceUrls": [
+            "https://www.signs365.com/portal/static/managed/catalog/SignageCatalog9-23-HQ.pdf"
+          ]
+        },
+        "baseAddCents": 3500,
+        "proposedOptionPrices": {
+          "hardware": [
+            "acrylic"
+          ]
+        }
+      }
+    ],
+    "image": "/images/products/gallery/acrylic-signs-1.webp",
+    "imageAlt": "Willow & Stone acrylic wall sign with back-printed artwork and aluminum standoffs",
+    "shippingClass": "specialty",
+    "materialLabel": "3 mm acrylic · back print with white underbase",
+    "sizeLimits": {
+      "min": 6,
+      "maxShort": 38,
+      "maxLong": 48
+    },
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "Signs365",
+    "minOrderCents": 8500
+  },
+  {
+    "slug": "aluminum-signs",
+    "name": "Solid Aluminum Signs",
+    "category": "signs",
+    "visual": "sign",
+    "eyebrow": "Built for outdoors",
+    "summary": "Durable .040-inch aluminum for real estate, directions and street-style signage.",
+    "description": "A durable rectangular printed panel for indoor and outdoor use. The listed configuration has square corners and no mounting holes.",
+    "features": [
+      "Custom dimensions",
+      "Choose print, hardware and accessories below"
+    ],
+    "priceUnit": "sqft",
+    "variants": [
+      {
+        "label": "Single-sided print · square corners",
+        "priceCents": 1231,
+        "id": "aluminum-signs-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "aluminum-signs-1-front"
+          }
+        ],
+        "supplierProfile": "aluminum-sign",
+        "supplierFixed": {},
+        "panelRules": [
+          {
+            "when": {
+              "sides": "2"
+            },
+            "append": [
+              {
+                "id": "back",
+                "label": "Back",
+                "templateId": "aluminum-signs-1-front"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "size": "custom_size",
+          "sides": "1",
+          "cornerstyle": "S",
+          "holespunch": "0",
+          "lamination": "UV"
+        },
+        "optionPrices": {
+          "holespunch": {
+            "TL;TR;BL;BR": 103,
+            "TL;TR": 103,
+            "TC;BC": 925,
+            "custom": 3701
+          },
+          "cornerstyle": {
+            "1": 1388,
+            "1_4": 1388,
+            "1_2": 1388,
+            "R": 0
+          },
+          "size": {
+            "12x18": 0,
+            "18x24": 0,
+            "24x36": 0,
+            "18x12": 0,
+            "24x18": 0,
+            "36x24": 0
+          }
+        },
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation. Custom dimensions use extrapolated area rates and require a fresh supplier/freight quote.",
+          "sourceUrls": [
+            "https://www.b2sign.com/aluminum-sign"
+          ]
+        },
+        "proposedOptionPrices": {
+          "holespunch": [
+            "TL;TR;BL;BR",
+            "TL;TR",
+            "TC;BC",
+            "custom"
+          ],
+          "cornerstyle": [
+            "1_4",
+            "1_2",
+            "R",
+            "1"
+          ],
+          "size": [
+            "12x18",
+            "18x24",
+            "24x36",
+            "18x12",
+            "24x18",
+            "36x24"
+          ],
+          "sides": [
+            "2"
+          ]
+        },
+        "areaOptionPrices": {
+          "sides": {
+            "2": {
+              "perSqFtCents": 903,
+              "minimumCents": 925
+            }
+          }
+        },
+        "baseAddCents": 6769,
+        "configurationPrices": [
+          {
+            "widthIn": 18,
+            "heightIn": 24,
+            "options": {
+              "size": "custom_size",
+              "sides": "1",
+              "cornerstyle": "S",
+              "holespunch": "0",
+              "lamination": "UV"
+            },
+            "priceCents": 10463
+          },
+          {
+            "widthIn": 18,
+            "heightIn": 24,
+            "options": {
+              "size": "custom_size",
+              "sides": "2",
+              "cornerstyle": "S",
+              "holespunch": "0",
+              "lamination": "UV"
+            },
+            "priceCents": 13171
+          },
+          {
+            "widthIn": 18,
+            "heightIn": 24,
+            "options": {
+              "size": "custom_size",
+              "sides": "1",
+              "cornerstyle": "S",
+              "holespunch": "TL;TR",
+              "lamination": "UV"
+            },
+            "priceCents": 10566
+          },
+          {
+            "widthIn": 18,
+            "heightIn": 24,
+            "options": {
+              "size": "custom_size",
+              "sides": "1",
+              "cornerstyle": "S",
+              "holespunch": "TL;TR;BL;BR",
+              "lamination": "UV"
+            },
+            "priceCents": 10566
+          },
+          {
+            "widthIn": 18,
+            "heightIn": 24,
+            "options": {
+              "size": "custom_size",
+              "sides": "1",
+              "cornerstyle": "R",
+              "holespunch": "0",
+              "lamination": "UV"
+            },
+            "priceCents": 10463
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/aluminum-signs.webp",
+    "imageAlt": "Solid Aluminum Signs with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": ".040-inch aluminum · single sided",
+    "sizeLimits": {
+      "min": 6,
+      "maxShort": 38,
+      "maxLong": 48
+    },
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign",
+    "minOrderCents": 2313
+  },
+  {
+    "slug": "aluminum-composite-signs",
+    "name": "Aluminum Composite Signs",
+    "category": "signs",
+    "visual": "sign",
+    "eyebrow": "Lightweight durability",
+    "summary": "Aluminum faces bonded around a rigid core for polished indoor or outdoor signs.",
+    "description": "A durable rectangular printed panel for indoor and outdoor use. The listed configuration has square corners and no mounting holes.",
+    "features": [
+      "Custom dimensions",
+      "Choose print, hardware and accessories below"
+    ],
+    "priceUnit": "sqft",
+    "variants": [
+      {
+        "label": "Single-sided print · square corners",
+        "priceCents": 1875,
+        "id": "aluminum-composite-signs-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "aluminum-composite-signs-1-front"
+          }
+        ],
+        "supplierProfile": "signs365-acm",
+        "supplierFixed": {},
+        "panelRules": [
+          {
+            "when": {
+              "sides": "2"
+            },
+            "append": [
+              {
+                "id": "back",
+                "label": "Back",
+                "templateId": "aluminum-composite-signs-1-front"
+              }
+            ]
+          }
+        ],
+        "baselineOptions": {
+          "sides": "1",
+          "holespunch": "0",
+          "cornerstyle": "S",
+          "material": "1/8in_aluminum",
+          "lamination": "UV"
+        },
+        "optionPrices": {
+          "holespunch": {
+            "TL;TR;BL;BR": 1000,
+            "TL;TR": 1000,
+            "TC;BC": 1000,
+            "custom1": 4000,
+            "custom2": 5000
+          },
+          "cornerstyle": {
+            "1": 1500,
+            "R": 1500,
+            "1_2": 1500,
+            "3_4": 1500
+          }
+        },
+        "dimensionOptionPrices": [
+          {
+            "when": {
+              "sides": "2"
+            },
+            "widthIn": 18,
+            "heightIn": 24,
+            "addCents": 1250
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "widthIn": 24,
+            "heightIn": 36,
+            "addCents": 2500
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "widthIn": 6,
+            "heightIn": 24,
+            "addCents": 250
+          },
+          {
+            "when": {
+              "sides": "2"
+            },
+            "widthIn": 6,
+            "heightIn": 36,
+            "addCents": 750
+          }
+        ],
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "Supplier cost and shipping TBD. Existing provisional retail retained; 30% margin cannot be verified.",
+          "sourceUrls": [
+            "https://www.signs365.com/portal/static/managed/catalog/SignageCatalog9-23-HQ.pdf"
+          ]
+        },
+        "proposedOptionPrices": {
+          "holespunch": [
+            "TL;TR;BL;BR",
+            "TL;TR",
+            "TC;BC",
+            "custom1",
+            "custom2"
+          ],
+          "cornerstyle": [
+            "R",
+            "1_2",
+            "3_4",
+            "1"
+          ],
+          "sides": [
+            "2"
+          ]
+        },
+        "areaOptionPrices": {
+          "sides": {
+            "2": {
+              "perSqFtCents": 438,
+              "minimumCents": 500
+            }
+          }
+        }
+      }
+    ],
+    "image": "/images/products/aluminum-composite-signs.webp",
+    "imageAlt": "Aluminum Composite Signs with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": "3 mm aluminum composite · single sided",
+    "sizeLimits": {
+      "min": 6,
+      "maxShort": 38,
+      "maxLong": 48
+    },
+    "priceMatches": [
+      {
+        "widthIn": 18,
+        "heightIn": 24,
+        "priceCents": 4800,
+        "sourceUrl": "https://www.lexingtonsign.com/realtor-signs.html",
+        "checkedAt": "2026-10-12",
+        "shippingPolicy": "free_overnight_after_production",
+        "status": "exact_configuration"
+      },
+      {
+        "widthIn": 24,
+        "heightIn": 36,
+        "priceCents": 9000,
+        "sourceUrl": "https://www.lexingtonsign.com/realtor-signs.html",
+        "checkedAt": "2026-10-12",
+        "shippingPolicy": "free_overnight_after_production",
+        "status": "exact_configuration"
+      },
+      {
+        "widthIn": 6,
+        "heightIn": 24,
+        "priceCents": 2600,
+        "sourceUrl": "https://www.lexingtonsign.com/realtor-signs.html",
+        "checkedAt": "2026-10-12",
+        "shippingPolicy": "free_overnight_after_production",
+        "status": "exact_configuration"
+      },
+      {
+        "widthIn": 6,
+        "heightIn": 36,
+        "priceCents": 3600,
+        "sourceUrl": "https://www.lexingtonsign.com/realtor-signs.html",
+        "checkedAt": "2026-10-12",
+        "shippingPolicy": "free_overnight_after_production",
+        "status": "exact_configuration"
+      }
+    ],
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "Signs365",
+    "minOrderCents": 3500,
+    "retailPriceOverrides": [
+      {
+        "widthIn": 18,
+        "heightIn": 24,
+        "priceCents": 6000
+      },
+      {
+        "widthIn": 24,
+        "heightIn": 36,
+        "priceCents": 11500
+      },
+      {
+        "widthIn": 6,
+        "heightIn": 24,
+        "priceCents": 3500
+      },
+      {
+        "widthIn": 6,
+        "heightIn": 36,
+        "priceCents": 4500
+      }
+    ]
+  },
+  {
+    "slug": "display-posters",
+    "name": "Durable Display Posters",
+    "category": "signs",
+    "visual": "poster",
+    "eyebrow": "Smooth, lay-flat graphics",
+    "summary": "A flexible 14 mil PVC poster for displays and inserts.",
+    "description": "These are durable PVC display graphics rather than conventional paper posters. Choose your finished dimensions below.",
+    "features": [
+      "Lay-flat PVC material",
+      "Matte UV print",
+      "Custom size",
+      "Choose print, hardware and accessories below"
+    ],
+    "priceUnit": "sqft",
+    "variants": [
+      {
+        "label": "Single-sided print · square corners",
+        "priceCents": 339,
+        "id": "display-posters-1",
+        "panels": [
+          {
+            "id": "front",
+            "label": "Front",
+            "templateId": "display-posters-1-front"
+          }
+        ],
+        "supplierProfile": "posters",
+        "supplierFixed": {},
+        "panelRules": [],
+        "baselineOptions": {
+          "material": "double_white_popup",
+          "lamination": "UV",
+          "lam": "no"
+        },
+        "optionPrices": {},
+        "priceProposal": {
+          "status": "pending_john_approval",
+          "revision": "margin-30-after-20-v1",
+          "proposedAt": "2026-10-14",
+          "basis": "30% contribution after 20% off and estimated processing. Quoted configurations use exact retail totals; other combinations are estimates pending cost confirmation. Custom dimensions use extrapolated area rates and require a fresh supplier/freight quote.",
+          "sourceUrls": [
+            "https://www.b2sign.com/posters"
+          ]
+        },
+        "baseAddCents": 6769,
+        "configurationPrices": [
+          {
+            "widthIn": 24,
+            "heightIn": 36,
+            "options": {
+              "material": "double_white_popup",
+              "lamination": "UV",
+              "lam": "no"
+            },
+            "priceCents": 8800
+          },
+          {
+            "widthIn": 18,
+            "heightIn": 24,
+            "options": {
+              "material": "double_white_popup",
+              "lamination": "UV",
+              "lam": "no"
+            },
+            "priceCents": 8261
+          }
+        ]
+      }
+    ],
+    "image": "/images/products/display-posters.webp",
+    "imageAlt": "Durable Display Posters with a fictional business design; example appearance",
+    "shippingClass": "specialty",
+    "materialLabel": "14 mil PVC · single sided",
+    "sizeLimits": {
+      "min": 6,
+      "maxShort": 52,
+      "maxLong": 1908
+    },
+    "shippingPolicy": "free_overnight_after_production",
+    "fulfillmentSupplier": "B2Sign",
+    "minOrderCents": 1493
+  }
+]

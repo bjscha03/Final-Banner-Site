@@ -1,0 +1,29 @@
+{
+  "categories": {
+    "stands": true,
+    "flags": true,
+    "events": true,
+    "signs": true
+  },
+  "products": {
+    "standard-retractable-banner": true,
+    "deluxe-retractable-banner": true,
+    "premium-retractable-banner": true,
+    "x-banner-stand": true,
+    "tabletop-banner-stand": true,
+    "tension-fabric-stand": true,
+    "step-and-repeat-backdrop": true,
+    "feather-flags": true,
+    "teardrop-flags": true,
+    "rectangle-flags": true,
+    "economy-feather-flag": true,
+    "standard-table-throws": true,
+    "fitted-table-throws": true,
+    "stretch-table-throws": true,
+    "custom-event-tents": true,
+    "acrylic-signs": true,
+    "aluminum-signs": true,
+    "aluminum-composite-signs": true,
+    "display-posters": true
+  }
+}

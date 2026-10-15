@@ -28,6 +28,21 @@ exports.handler = async (event) => {
 
   for (const item of items) {
     try {
+      let saved;try{saved=typeof item.canvas_state_json==='string'?JSON.parse(item.canvas_state_json):item.canvas_state_json;}catch{}
+      if(saved?.kind==='specialty'){
+        const {assertReadyPlacementPreview}=require('../preview-artifact.cjs');
+        const panels=saved.configuration?.panels;
+        if(!Array.isArray(panels)||!panels.length)throw new Error('Saved product print panels are missing.');
+        for(const panel of panels){
+          assertReadyPlacementPreview(panel.preview,'specialty panel');
+          const {isStoredOriginalUrl}=require('../original-artwork-url.cjs');
+          if(!panel.productionFileKey||!(/^https:\/\/res\.cloudinary\.com\//.test(panel.productionUrl||'')||isStoredOriginalUrl(panel.productionUrl)))throw new Error('A product print panel is not saved permanently.');
+        }
+        // Specialty panels are already exported at the supplier PDF scale.
+        // Never send a flag, table throw or multi-panel tent to the banner renderer.
+        await sql`UPDATE order_items SET production_pdf_status='generated',production_pdf_error=NULL WHERE id=${item.id}`;
+        continue;
+      }
       await sql`
         UPDATE order_items
            SET production_pdf_status = 'generating', production_pdf_error = NULL

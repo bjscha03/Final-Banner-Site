@@ -3,7 +3,7 @@ const { neon } = require('@neondatabase/serverless');
 const { Resend } = require('resend');
 const { v2: cloudinary } = require('cloudinary');
 
-const PRODUCT_LABELS = { banner: 'Banner', yard_sign: 'Yard Sign', magnet: 'Magnet' };
+const PRODUCT_LABELS = { banner: 'Banner', yard_sign: 'Yard Sign', magnet: 'Magnet', specialty: 'Displays & Signs' };
 const VALID_PRODUCTS = Object.keys(PRODUCT_LABELS);
 const VALID_UNITS = ['inches', 'feet', 'cm'];
 const MAX_FILES = 8;
@@ -133,9 +133,11 @@ async function parseRequest(event) {
 
 function parseProductOptions(raw) {
   if (!raw) return {};
-  if (typeof raw === 'object') return raw;
+  if (typeof raw === 'object') return raw && !Array.isArray(raw) ? raw : {};
   try {
-    return JSON.parse(raw);
+    const options = JSON.parse(raw);
+    if (!options || typeof options !== 'object' || Array.isArray(options)) throw new Error('Invalid productOptions JSON');
+    return options;
   } catch {
     throw new Error('Invalid productOptions JSON');
   }
@@ -149,8 +151,8 @@ function normalizeSubmission(data) {
     email: String(data.email || '').trim(),
     phone: String(data.phone || '').trim(),
     productType: String(data.productType || '').trim(),
-    width: Number(data.width),
-    height: Number(data.height),
+    width: data.width === '' || data.width == null ? 0 : Number(data.width),
+    height: data.height === '' || data.height == null ? 0 : Number(data.height),
     unit: String(data.unit || '').trim(),
     quantity: Number.parseInt(String(data.quantity || ''), 10),
     materialSpecs: String(data.materialSpecs || '').trim() || null,
@@ -169,8 +171,16 @@ function normalizeSubmission(data) {
   if (!/^\S+@\S+\.\S+$/.test(normalized.email)) throw new Error('Please provide a valid email address');
   if (!VALID_PRODUCTS.includes(normalized.productType)) throw new Error('Invalid product type');
   if (!VALID_UNITS.includes(normalized.unit)) throw new Error('Invalid unit of measurement');
-  if (!Number.isFinite(normalized.width) || normalized.width <= 0) throw new Error('Width must be a positive number');
-  if (!Number.isFinite(normalized.height) || normalized.height <= 0) throw new Error('Height must be a positive number');
+  if (normalized.productType === 'specialty') {
+    if ((normalized.width || normalized.height) && (!Number.isFinite(normalized.width) || normalized.width <= 0 || !Number.isFinite(normalized.height) || normalized.height <= 0)) throw new Error('Provide both positive dimensions or leave both blank');
+    for (const key of ['shipping_address', 'shipping_city', 'shipping_state', 'shipping_location_type']) {
+      if (!String(productOptions[key] || '').trim()) throw new Error(`${key.replace(/_/g, ' ')} is required`);
+    }
+    if (!['commercial', 'residential'].includes(productOptions.shipping_location_type)) throw new Error('Invalid delivery location type');
+  } else {
+    if (!Number.isFinite(normalized.width) || normalized.width <= 0) throw new Error('Width must be a positive number');
+    if (!Number.isFinite(normalized.height) || normalized.height <= 0) throw new Error('Height must be a positive number');
+  }
   if (!Number.isInteger(normalized.quantity) || normalized.quantity <= 0) throw new Error('Quantity must be a positive whole number');
   if (normalized.neededByDate && !/^\d{4}-\d{2}-\d{2}$/.test(normalized.neededByDate)) throw new Error('Needed-by date must be YYYY-MM-DD');
 
@@ -279,7 +289,8 @@ async function sendEmails(submission, quoteNumber, createdAt, files) {
   const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
   const product = PRODUCT_LABELS[submission.productType];
   const submitted = new Date(createdAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/New_York' });
-  const summary = `<table style="width:100%;border-collapse:collapse;margin:16px 0;"><tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280;">Product</td><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:600;">${escapeHtml(product)}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280;">Size</td><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:600;">${escapeHtml(`${submission.width} × ${submission.height} ${submission.unit}`)}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280;">Quantity</td><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:600;">${submission.quantity}</td></tr>${optionRows(submission.productOptions)}</table>`;
+  const size = submission.productType === 'specialty' && !submission.width && !submission.height ? 'See selected configuration' : `${submission.width} × ${submission.height} ${submission.unit}`;
+  const summary = `<table style="width:100%;border-collapse:collapse;margin:16px 0;"><tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280;">Product</td><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:600;">${escapeHtml(product)}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280;">Size</td><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:600;">${escapeHtml(size)}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280;">Quantity</td><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:600;">${submission.quantity}</td></tr>${optionRows(submission.productOptions)}</table>`;
   const base = (title, body) => `<!doctype html><html><body style="margin:0;background:#f3f4f6;font-family:Arial,sans-serif;color:#111827;"><div style="max-width:680px;margin:0 auto;padding:24px;"><div style="background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e5e7eb;"><div style="text-align:center;padding:22px;"><img src="${logoUrl}" alt="Banners On The Fly" style="height:54px;"></div><div style="background:#18448D;color:white;padding:24px;text-align:center;"><h1 style="margin:0;font-size:24px;">${title}</h1><p style="margin:8px 0 0;color:#dbeafe;">${quoteNumber}</p></div><div style="padding:26px;">${body}</div></div></div></body></html>`;
 
   try {
@@ -379,4 +390,6 @@ exports.handler = async (event) => {
     return fail(statusCode, safeErrorMessage(error), stage);
   }
 };
+
+exports.normalizeSubmission = normalizeSubmission;
 

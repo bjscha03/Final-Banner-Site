@@ -1,7 +1,6 @@
-import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-// City-specific landing pages are retired; the three product hubs remain live.
+// Retired city pages stay unpublished; former product hubs open the active designer.
 for (const product of ['vinyl-banners', 'yard-signs', 'car-magnets']) {
   test(`${product} city pages are no longer published`, async ({ page }) => {
     await page.goto(`/${product}/louisville-ky/`, { waitUntil: 'domcontentloaded' });
@@ -10,19 +9,30 @@ for (const product of ['vinyl-banners', 'yard-signs', 'car-magnets']) {
   });
 }
 
-test('product hub exposes real buying content and an indexable canonical', async ({ page }) => {
-  await page.goto('/vinyl-banners/', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('heading', { level: 1, name: 'Custom Vinyl Banners' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'See how size changes the starting point.' })).toBeVisible();
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'index, follow');
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://bannersonthefly.com/vinyl-banners');
-});
+for (const [path, product, headline] of [
+  ['vinyl-banners', 'banner', 'Build Your Banner'],
+  ['yard-signs', 'yard-signs', 'Build Your Yard Sign Order'],
+  ['car-magnets', 'car-magnets', 'Design Your Custom Car Magnets'],
+]) {
+  test(`${path} opens its active product designer`, async ({ page }) => {
+    await page.goto(`/${path}/`, { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(new RegExp(`/design\\?product=${product}`));
+    await expect(page.locator('#builder-start')).toHaveText(headline);
+    await expect(page.locator('#order-builder')).toBeVisible();
+    // The banner landing page sets robots explicitly; the shared yard-sign and
+    // car-magnet designer keeps the existing default indexing behavior.
+    if (product === 'banner') {
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  });
+}
 
 test('mobile navigation stays usable after opening from a scrolled page', async ({ page }, testInfo) => {
   const viewportWidth = testInfo.project.use.viewport?.width || 0;
   test.skip(viewportWidth >= 1024, 'Desktop navigation does not use the mobile drawer.');
 
-  await page.goto('/yard-signs/', { waitUntil: 'domcontentloaded' });
+  await page.goto('/products', { waitUntil: 'domcontentloaded' });
   const navigationTrigger = page.getByRole('button', { name: 'Open navigation menu' });
   await expect(navigationTrigger).toBeVisible();
   const scrollBefore = await page.evaluate(() => {
@@ -74,22 +84,21 @@ test('mobile navigation stays usable after opening from a scrolled page', async 
   expect(await page.evaluate(() => window.scrollY)).toBe(scrollBefore);
 });
 
-test('yard-sign hub presents one fixed format without multi-size mockups', async ({ page }) => {
-  await page.goto('/yard-signs/', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('heading', { level: 1, name: 'Custom Yard Signs' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'One 24 × 18-inch size. Clear pricing choices.' })).toBeVisible();
-  await expect(page.locator('[data-yard-sign-fixed-offer]')).toHaveCount(1);
-  await expect(page.locator('[data-size-snapshot]')).toHaveCount(0);
-  await expect(page).toHaveTitle(/24×18 Size, Options & Pricing/);
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  expect(overflow).toBeLessThanOrEqual(1);
+test('specialty catalog exposes every family with an indexable canonical', async ({ page }) => {
+  await page.goto('/products', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { level: 1, name: 'Make the entire space yours.' })).toBeVisible();
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'index, follow');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://bannersonthefly.com/products');
+  await expect(page.locator('a[href^="/products/"]').filter({ has: page.locator('h3') })).toHaveCount(19);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
 });
 
-test('campaign product cards keep every full mockup inside a responsive stage', async ({ page }) => {
+test('campaign product photographs load inside their responsive stages', async ({ page }) => {
   await page.goto('/political-signs', { waitUntil: 'domcontentloaded' });
   const stages = page.locator('#choose-product [data-selector-product-stage]');
   await expect(stages).toHaveCount(3);
 
+  for (const image of await stages.locator('img').all()) await image.evaluate((img: HTMLImageElement) => img.decode());
   const states = await stages.evaluateAll((elements) => elements.map((stage) => {
     const stageRect = stage.getBoundingClientRect();
     const subject = stage.querySelector<HTMLElement>('[data-selector-product-subject]');
@@ -111,41 +120,31 @@ test('campaign product cards keep every full mockup inside a responsive stage', 
   for (const state of states) {
     expect(state.stageInsideCard).toBe(true);
     expect(state.targetInsideStage).toBe(true);
-    if (state.objectFit) expect(state.objectFit).toBe('contain');
+    if (state.objectFit) expect(state.objectFit).toBe('cover');
   }
 });
 
-test('size comparison diagrams never exceed their bounded stages', async ({ page }) => {
-  await page.goto('/vinyl-banners/', { waitUntil: 'domcontentloaded' });
-  const stages = page.locator('[data-size-snapshot-stage]');
-  await expect(stages).toHaveCount(3);
-  const states = await stages.evaluateAll((elements) => elements.map((stage) => {
-    const subject = stage.querySelector<HTMLElement>('[data-size-snapshot-subject]');
-    if (!subject) throw new Error('Size snapshot subject is missing.');
-    const stageRect = stage.getBoundingClientRect();
-    const subjectRect = subject.getBoundingClientRect();
-    return {
-      left: subjectRect.left - stageRect.left,
-      right: stageRect.right - subjectRect.right,
-      top: subjectRect.top - stageRect.top,
-      bottom: stageRect.bottom - subjectRect.bottom,
-    };
-  }));
-  for (const state of states) {
-    expect(Math.min(state.left, state.right, state.top, state.bottom)).toBeGreaterThanOrEqual(8);
+test('homepage exposes the four specialty categories alongside existing products', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  const section = page.locator('[aria-labelledby="product-selection-heading"]');
+  await expect(section.getByRole('heading', { name: 'Build your entire display.' })).toBeVisible();
+  for (const category of ['stands', 'flags', 'events', 'signs']) {
+    const link = section.locator(`a[href="/products#${category}"]`);
+    await link.scrollIntoViewIfNeeded();
+    await expect(link).toBeVisible();
+    await expect(link.locator('img')).toBeVisible();
+    await link.locator('img').evaluate((image: HTMLImageElement) => image.decode());
+    expect(await link.locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth > 0)).toBe(true);
   }
-  await expect(page.locator('[data-size-snapshot-hardware="grommet"]')).toHaveCount(12);
-  await expect(page.locator('[data-shipping-included]')).toHaveCount(3);
-
-  await page.goto('/car-magnets/', { waitUntil: 'domcontentloaded' });
-  await expect(page.locator('[data-size-snapshot-product="car-magnets"]')).toHaveCount(5);
-  await expect(page.locator('[data-size-snapshot-hardware="grommet"]')).toHaveCount(0);
-  await expect(page.locator('[data-shipping-included]')).toHaveCount(5);
+  await expect(section.getByRole('heading', { name: 'Vinyl banners', exact: true })).toBeVisible();
+  await expect(section.getByRole('heading', { name: 'Yard signs', exact: true })).toBeVisible();
+  await expect(section.getByRole('heading', { name: 'Car magnets', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
 });
 
 test('footer uses the brand mark and blog exposes one featured label', async ({ page }) => {
   await page.goto('/blog', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByText('Featured article', { exact: true })).toHaveCount(1);
+  await expect(page.getByText('Featured guide', { exact: true })).toHaveCount(1);
 
   const footer = page.locator('footer');
   await expect(footer.locator('img[alt="Banners On The Fly"]')).toBeVisible();

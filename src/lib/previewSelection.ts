@@ -2,6 +2,7 @@ import { dedupePreviewImageSources } from './previewImageCache';
 import { registerPreviewSourceCandidates } from './previewSourceRegistry';
 import { isReadyPlacementPreview } from './previewLifecycle';
 import type { PlacementPreviewManifest } from '@/types/artwork';
+import type {SpecialtyConfiguration} from './specialtyArtwork';
 
 const CLOUDINARY_CLOUD_NAME = 'dtrxl120u';
 
@@ -62,6 +63,7 @@ type YardSignDesignLike = {
 };
 
 export type PreviewableItem = {
+  specialty_config?: SpecialtyConfiguration | null;
   product_type?: string | null;
   width_in?: number | null;
   height_in?: number | null;
@@ -274,6 +276,15 @@ function getYardSignCandidates(item: PreviewableItem): Candidate[] {
 }
 
 function buildCandidates(item: PreviewableItem): Candidate[] {
+  if(item.product_type==='specialty') {
+    const configuration=item.specialty_config, panel=configuration?.panels?.[0];
+    const preview=panel?.preview;
+    if(!panel||!configuration||!isReadyPlacementPreview(preview)
+      ||preview.productType!==`specialty:${configuration.productSlug}:${configuration.variantId}:${panel.id}`
+      ||preview.widthIn!==panel.composition.widthIn||preview.heightIn!==panel.composition.heightIn
+      ||preview.compositionRevision!==panel.composition.revision) return [];
+    return [{url:normalizeUrl(preview.url),source:'placement_preview',exactComposition:true,lowResolution:false,immutableExactArtifact:true}];
+  }
   const manifest = item.artwork_manifest || null;
   const reconstructed = buildCloudinaryUrlFromFileKey(
     item.file_key || manifest?.publicId,

@@ -1,5 +1,8 @@
+import SavedSpecialtyPreview from '@/components/specialty/SavedSpecialtyPreview';
+import {specialtyItemHasIncludedShipping, specialtyItemHasVerifiedPrice} from '@/lib/specialtyProducts';
 import { cartEditUrl } from '@/lib/cartEditUrl';
 import CartLinePrice from '@/components/cart/CartLinePrice';
+import SpecialtyPendingPrice from '@/components/specialty/SpecialtyPendingPrice';
 import { getCartDisplayPrices } from '@/lib/cartDisplayPricing';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -118,6 +121,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
 
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
+  const specialtyInCart=items.some(item=>item.product_type==='specialty');
+  const pricingPending=items.some(item=>!specialtyItemHasVerifiedPrice(item));
   const dominantProductType = getDominantProductType(items);
   const productCopy = getProductCopy(dominantProductType);
 
@@ -134,7 +139,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const bannerRawSubtotalCents = useMemo(
     () => items.reduce((sum, it) => {
       const type = (it as any).product_type || 'banner';
-      if (type === 'yard_sign' || type === 'car_magnet') return sum;
+      if (type !== 'banner') return sum;
       return sum + (it.line_total_cents || 0);
     }, 0),
     [items],
@@ -381,7 +386,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                   return (
                     <div key={item.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-lg transition-shadow hover:shadow-xl">
                       <div className="mb-4 flex justify-center">
-                        <ThumbnailPreviewWrapper
+                        {item.product_type === 'specialty' && item.specialty_config ? <SavedSpecialtyPreview configuration={item.specialty_config} /> : <ThumbnailPreviewWrapper
                           title={getItemDisplayName(item)}
                           widthIn={item.width_in}
                           heightIn={item.height_in}
@@ -448,12 +453,12 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             isFinalizedSnapshot={smallPreview.isExactComposition}
                             compositionSignature={compositionSignature}
                           />
-                        </ThumbnailPreviewWrapper>
+                        </ThumbnailPreviewWrapper>}
                       </div>
 
                       <div className="mb-3 flex items-start justify-between">
                         <h3 className="text-base font-semibold text-gray-900">{getItemDisplayName(item)}</h3>
-                        <CartLinePrice {...displayPrice} quantity={item.quantity} />
+                        {specialtyItemHasVerifiedPrice(item) ? <CartLinePrice {...displayPrice} quantity={item.quantity} /> : <SpecialtyPendingPrice item={item}/>}
                       </div>
 
                       <dl className="mb-3 grid grid-cols-2 gap-2">
@@ -503,6 +508,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             <span className="w-8 text-center text-sm font-semibold text-gray-900">{item.quantity}</span>
                             <button
                               onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              disabled={item.product_type === 'specialty' && item.quantity >= 100}
                               className="flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:bg-white"
                               aria-label="Increase quantity"
                             >
@@ -530,12 +536,12 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
 
           {items.length > 0 && (
             <div className="cart-modal__footer space-y-2.5 border-t border-gray-200 bg-white p-4 shadow-lg sm:space-y-3 sm:p-6">
-              <SameDayHitServiceCard variant="compact" />
+              {!specialtyInCart&&<SameDayHitServiceCard variant="compact" />}
               <div className="flex justify-between text-gray-700">
                 <span className="font-medium">Subtotal:</span>
-                <span className="font-semibold">{usd(subtotalCents / 100)}</span>
+                <span className="font-semibold">{pricingPending?'Pending':usd(subtotalCents / 100)}</span>
               </div>
-              {resolvedDiscount.appliedDiscountAmountCents > 0 && (
+              {!pricingPending&&resolvedDiscount.appliedDiscountAmountCents > 0 && (
                 <div className="space-y-1">
                   <div className="flex justify-between text-green-600">
                     <span className="flex items-center gap-1 font-medium"><Tag className="h-4 w-4" />{resolvedDiscount.appliedDiscountLabel}</span>
@@ -546,7 +552,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
               )}
               <div className={`flex justify-between font-semibold ${hasSameDayFee ? 'text-slate-700' : 'text-green-600'}`}>
                 <span>Shipping:</span>
-                <span>{hasSameDayFee ? 'Next-Day Air Included' : 'FREE'}</span>
+                <span>{items.some(item => !specialtyItemHasIncludedShipping(item)) ? 'Awaiting confirmation' : hasSameDayFee ? 'Next-Day Air Included' : 'FREE'}</span>
               </div>
               {sameDayFeeCents > 0 && (
                 <div className="flex justify-between text-gray-700">
@@ -563,13 +569,13 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
               <div className="space-y-0.5">
                 <div className="flex justify-between text-gray-700">
                   <span className="font-medium">Estimated tax:</span>
-                  <span className="font-semibold">{usd(taxCents / 100)}</span>
+                  <span className="font-semibold">{pricingPending?'Pending':usd(taxCents / 100)}</span>
                 </div>
                 <p className="text-[11px] text-slate-500">Final tax is confirmed from the shipping address at checkout.</p>
               </div>
               <div className="flex justify-between border-t border-gray-300 pt-3 text-xl font-bold">
                 <span className="text-gray-900">Total:</span>
-                <span className="text-[#18448D]">{usd(totalCents / 100)}</span>
+                <span className="text-[#18448D]">{pricingPending?'Price pending':usd(totalCents / 100)}</span>
               </div>
 
               <button
