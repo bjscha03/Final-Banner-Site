@@ -16,6 +16,8 @@ const {
   promoSubtotalForItems,
 } = require('./recovery-discount-policy.cjs');
 
+const { capSpecialtyPromotion } = require('../../../shared/specialty-discount-policy.cjs');
+
 const getFeatureFlags = () => ({
   freeShipping: process.env.FEATURE_FREE_SHIPPING === '1',
   minOrderFloor: process.env.FEATURE_MIN_ORDER_FLOOR === '1',
@@ -191,12 +193,13 @@ const computeTotals = (items, taxRate, opts, promoDiscount = null) => {
   const raw = items.reduce((sum, i) => sum + (i.line_total_cents || 0), 0);
   const adjusted = Math.max(raw, opts.minFloorCents || 0);
   const minAdj = Math.max(0, adjusted - raw);
+  promoDiscount = capSpecialtyPromotion(items, adjusted, promoDiscount);
 
   // Only BANNER items count toward quantity discount tiers; yard signs
   // and car magnets use flat pricing with NO quantity discounts.
   const isBanner = (i) => {
     const t = i.product_type || 'banner';
-    return t !== 'yard_sign' && t !== 'car_magnet';
+    return t === 'banner';
   };
   const bannerItems = items.filter(isBanner);
   const bannerQuantity = bannerItems.reduce((sum, i) => sum + (i.quantity || 1), 0);

@@ -4,9 +4,10 @@ import { base64ToFile } from '@/utils/base64ToFile';
 import { uploadArtworkFile } from '@/utils/uploadArtworkFile';
 import { preloadPreviewImage } from '@/lib/previewImageCache';
 
-export type ArtworkFitProduct = 'banner' | 'yard_sign' | 'car_magnet';
+export type ArtworkFitProduct = 'banner' | 'yard_sign' | 'car_magnet' | `specialty:${string}`;
 
 export type ArtworkFitResult = {
+  productType?: ArtworkFitProduct;
   id: string; sourceHash: string; imageBase64: string; mimeType: string;
   widthIn: number; heightIn: number; widthPx: number; heightPx: number;
   verification: { passed: boolean; canApply?: boolean; blockingIssues?: string[]; originalText: string[]; detectedText: string[]; missing: string[]; added: string[]; issues: string[]; confidence: number };

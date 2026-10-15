@@ -1,3 +1,4 @@
+import type { SpecialtyConfiguration } from './specialtyArtwork';
 /**
  * Product Display Utilities
  * 
@@ -13,6 +14,7 @@ const YARD_SIGN_SIZE = '24" × 18"';
 
 export type NormalizableOrderItem = {
   id?: string;
+  specialty_config?: SpecialtyConfiguration;
   product_type?: string;
   width_in?: number;
   height_in?: number;
@@ -55,8 +57,8 @@ export type NormalizableOrderItem = {
 };
 
 export type NormalizedOrderItemDisplay = {
-  productType: 'banner' | 'yard-sign' | 'car-magnet';
-  productLabel: 'Banner' | 'Double-Sided Banner' | 'Yard Sign' | 'Car Magnets';
+  productType: 'banner' | 'yard-sign' | 'car-magnet' | 'specialty';
+  productLabel: string;
   displayName: string;
   sizeDisplay: string;
   materialDisplay: string;
@@ -86,7 +88,8 @@ function toTitleCase(value: string): string {
     .replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
-export function getDisplayMaterial(item: { product_type?: string; material?: string }): string {
+export function getDisplayMaterial(item: { product_type?: string; material?: string; specialty_config?: SpecialtyConfiguration }): string {
+  if (item.product_type === 'specialty') return item.specialty_config?.materialLabel || 'Custom printed product';
   if (item.product_type === 'yard_sign') return 'Corrugated Plastic';
   if (item.product_type === 'car_magnet') return 'Premium Magnetic Material';
   const raw = String(item.material || '').trim().toLowerCase();
@@ -99,10 +102,12 @@ export function getDisplayMaterial(item: { product_type?: string; material?: str
 }
 
 export function getDisplaySize(item: {
+  specialty_config?: SpecialtyConfiguration;
   product_type?: string;
   width_in?: number;
   height_in?: number;
 }): string {
+  if (item.product_type === 'specialty') return item.specialty_config?.variantLabel || '';
   if (item.product_type === 'yard_sign') return YARD_SIGN_SIZE;
   if (item.width_in == null || item.height_in == null) return '';
   return `${item.width_in}" × ${item.height_in}"`;
@@ -174,10 +179,12 @@ export function getDisplayPlacement(value?: string | null): string {
  */
 export function getItemDisplayName(item: {
   material?: string;
+  specialty_config?: SpecialtyConfiguration;
   product_type?: string;
   width_in?: number;
   height_in?: number;
 }): string {
+  if (item.product_type === 'specialty') return item.specialty_config?.productName || 'Custom display';
   if (item.product_type === 'yard_sign') {
     return `Custom Yard Sign ${YARD_SIGN_SIZE}`;
   }
@@ -191,6 +198,7 @@ export function getItemDisplayName(item: {
  * Get a short product label (no dimensions).
  */
 export function getProductLabel(productType?: string): string {
+  if (productType === 'specialty') return 'Displays & event gear';
   if (productType === 'yard_sign') return 'Yard Sign';
   if (productType === 'car_magnet') return 'Car Magnets';
   return 'Banner';
@@ -200,6 +208,7 @@ export function getProductLabel(productType?: string): string {
  * Get the product category name for analytics.
  */
 export function getProductCategory(productType?: string): string {
+  if (productType === 'specialty') return 'Displays & event gear';
   if (productType === 'yard_sign') return 'Yard Signs';
   if (productType === 'car_magnet') return 'Car Magnets';
   return 'Banner';
@@ -209,6 +218,7 @@ export function getProductCategory(productType?: string): string {
  * Get the full product type name for display.
  */
 export function getProductTypeName(productType?: string): string {
+  if (productType === 'specialty') return 'Displays & event gear';
   if (productType === 'yard_sign') return 'Custom Yard Signs';
   if (productType === 'car_magnet') return 'Car Magnets';
   return 'Custom Banner';
@@ -239,6 +249,8 @@ export function isYardSignItem(item: { product_type?: string }): boolean {
  * Get the formatted item name for email payloads (no special characters issues).
  */
 export function getEmailItemName(item: {
+  material?: string;
+  specialty_config?: SpecialtyConfiguration;
   product_type?: string;
   width_in?: number;
   height_in?: number;
@@ -258,6 +270,9 @@ export function getEmailItemName(item: {
  * Banners show material, grommets, rope, pole pockets.
  */
 export function getEmailItemOptions(item: {
+  rounded_corners?: string;
+  rope_placement?: string;
+  specialty_config?: SpecialtyConfiguration;
   product_type?: string;
   material?: string;
   grommets?: string;
@@ -272,6 +287,7 @@ export function getEmailItemOptions(item: {
   yard_sign_step_stakes_qty?: number;
   yard_sign_design_count?: number;
 }): string {
+  if(item.product_type==='specialty')return [item.specialty_config?.variantLabel,...(item.specialty_config?.optionSummary||[]).map(o=>`${o.label}: ${o.value}`)].filter(Boolean).join(' • ');
   if (item.product_type === 'yard_sign') {
     const parts: string[] = [
       `Size: ${getDisplaySize(item)}`,
@@ -325,6 +341,14 @@ export function getEmailItemOptions(item: {
 }
 
 export function normalizeOrderItemDisplay(item: NormalizableOrderItem): NormalizedOrderItemDisplay {
+  if (item.product_type === 'specialty') return {
+    productType: 'specialty', productLabel: 'Custom display', displayName: getItemDisplayName(item),
+    sizeDisplay: getDisplaySize(item), materialDisplay: getDisplayMaterial(item),
+    printDisplay: `${item.specialty_config?.panels.length || 0} approved artwork panel(s)`,
+    qtyDisplay: String(item.quantity || 0), unitPriceCents: Number(item.unit_price_cents || 0), lineTotalCents: Number(item.line_total_cents || 0),
+    thumbnailUrl: item.specialty_config?.panels[0]?.preview.url || '', finalizedPreviewUrl: item.specialty_config?.panels[0]?.preview.url || '',
+    printFileUrl: item.specialty_config?.panels[0]?.productionUrl || '',
+  };
   const isYardSign = item.product_type === 'yard_sign';
   const isCarMagnet = item.product_type === 'car_magnet';
   const productType: NormalizedOrderItemDisplay['productType'] = isYardSign ? 'yard-sign' : (isCarMagnet ? 'car-magnet' : 'banner');

@@ -28,6 +28,8 @@ import { useAuth } from '@/lib/auth';
 import { loadDraft, saveDraft } from './draftStore';
 import { collectVersions } from './versions';
 import { getPrintReview } from './printReview';
+import {aiProductContext,sameAIProduct} from './productContext';
+import SpecialtyPreview, {SpecialtyTemplateGuide} from '@/components/specialty/SpecialtyPreview';
 import { fetchAIRequest } from './jobRequest';
 import { AIJobFailedError, forgetPendingJob, resumeBackgroundJob, runBackgroundJob, type PendingAIJob } from './backgroundJob';
 import LayerControls from './LayerControls';
@@ -177,6 +179,16 @@ function formatDuration(milliseconds: number) {
 }
 
 export default function AIWorkspace(props: Props) {
+  const specialty=props.productType.startsWith('specialty:');
+  const initialSession=!specialty||sameAIProduct(props.initialSession?.brief,props)?props.initialSession:null;
+  // Existing banner/yard-sign/magnet resizing retains its editable draft.
+  // A specialty size can change the physical template and required faces.
+  const sessionKey=specialty?`${props.productType}:${props.widthIn}:${props.heightIn}`:props.productType;
+  return <AIWorkspaceSession key={sessionKey} {...props} initialSession={initialSession}/>;
+}
+
+function AIWorkspaceSession(props: Props) {
+  const context=aiProductContext(props);
   const { user } = useAuth();
   const access = useAIDesignerAccess(true);
   const [brief, setBrief] = useState<CreativeBrief>(() => props.initialSession?.brief || makeBrief(props));
@@ -230,7 +242,8 @@ export default function AIWorkspace(props: Props) {
     let active = true;
     if (!access.authorized || !access.sessionKey) return;
     loadDraft<{ versionGallery?: boolean; editInstruction?: string; brief: CreativeBrief; concepts: AIConcept[]; selectedId: string; history: AIConcept[]; redo: AIConcept[]; logoImage: string | null; referenceImage: string | null; photoImages?: string[]; pendingImageJob?: PendingImageJob; progressPreview?: string }>(draftKey).then(draft => {
-      if (!active || !draft) return;
+      if (!active || !draft || !sameAIProduct(draft.brief,props)) return;
+      if (draft.concepts.some(item=>!sameAIProduct(item.brief||{...item,productType:draft.brief.productType},props))) return;
       // Reopening Edit with AI must recover newer work from this same artwork,
       // but never replace a different banner with an unrelated saved draft.
       if (props.initialSession && !draft.concepts.some(item => item.versionId === props.initialSession!.selectedConcept.versionId)) return;
@@ -402,6 +415,10 @@ export default function AIWorkspace(props: Props) {
   };
 
   const acceptImageResult = (body: Record<string, any>, context: ImageJobContext) => {
+    const returned=body.concept?[body.concept]:body.concepts;
+    if (Array.isArray(returned)&&returned.some(item=>!sameAIProduct(item.brief||{...item,productType:body.brief?.productType},props))) {
+      throw new Error('The returned design does not match this product and size. Your current artwork is unchanged.');
+    }
     if (context.sourceVersionId) {
       const source = concepts.find(item => item.versionId === context.sourceVersionId);
       if (!body?.usedOriginalImage || !body?.concept) throw new Error('The server did not confirm use of the current artwork.');
@@ -420,7 +437,7 @@ export default function AIWorkspace(props: Props) {
       setBriefReviewed(true);
       setEditInstruction('');
       setRevealResult(value => value + 1);
-      setSaveNotice('Your updated design is selected. Keep editing, choose an earlier version, or use this banner.');
+      setSaveNotice('Your updated design is selected. Keep editing, choose an earlier version, or use this design.');
       trackAIEvent('ai_edit_succeeded', { validation_passed: edited.validation.passed, version_id: edited.versionId, version_number: concepts.length + 1 });
       if (getPrintReview(body.concept.validation).requiresConfirmation) trackAIEvent('ai_validation_failed', { count: 1 });
     } else {
@@ -475,7 +492,7 @@ export default function AIWorkspace(props: Props) {
       // Plan and generate in one worker, so customers do not wait for a second
       // round of queue creation, worker startup and result polling.
       const readyBrief = { ...brief, logoRendering: brief.logoRendering || 'integrated' as const, structured: briefReviewed && brief.structured && brief.directionOverrides !== undefined && (!logoImage || Array.isArray(brief.logoWording)) };
-      setStage('Creating your banner');
+      setStage(`Creating your ${context.noun}`);
       const body = await runBackgroundJob(
         '/.netlify/functions/ai-designer-generate',
         { brief: readyBrief, conceptCount, referenceImage, logoImage, photoImages },
@@ -599,16 +616,19 @@ export default function AIWorkspace(props: Props) {
     setLogoImage(null); setReferenceImage(null); setPhotoImages([]);
     setEditInstruction(''); setPromptBeforeImprovement(null); setProgressPreview(null);
     setFullPreview(false); setError(''); setConfirmNewDesign(false);
-    setSaveNotice('Fresh start. Describe your new banner.');
+    setSaveNotice(`Fresh start. Describe your new ${context.noun}.`);
     try { await saveDraft(draftKey, emptyDraft); }
     catch { setSaveNotice('The new draft could not be saved. Keep this window open.'); }
   };
 
   const apply = async (validationOverride = false) => {
     if (!selected || (getPrintReview(selected.validation).requiresConfirmation && !validationOverride) || hasUnappliedChanges || stage || controllerRef.current) return;
+    if (!sameAIProduct(brief,props)||!sameAIProduct(selected.brief||{...selected,productType:brief.productType},props)) {
+      setError('This artwork belongs to a different product or size. Create a design for the current selection.'); return;
+    }
     setConfirmValidationOverride(false);
     setError('');
-    setStage('Preparing your artwork for the banner designer');
+    setStage('Preparing your artwork for the product designer');
     const session: AIDesignSession = {
       generationId: selected.generationId || generationId,
       brief,
@@ -679,7 +699,7 @@ export default function AIWorkspace(props: Props) {
       </div>
 
       <div className="ai-studio-intro">
-        <div><h2>Big ideas. <span>Bold banners.</span></h2><p>Describe it. Create it. Make it yours.</p></div>
+        <div><h2>{props.productType==='banner'?<>Big ideas. <span>Bold banners.</span></>:<>Your product. <span>Your design.</span></>}</h2><p>Describe it. Create it. Make it yours.</p></div>
         <ol className="ai-studio-steps" aria-label="Design progress">
           {['Describe', 'Create', 'Finish'].map((label, index) => {
             const current = selected ? 2 : stage || pendingImageJob ? 1 : 0;
@@ -773,21 +793,21 @@ export default function AIWorkspace(props: Props) {
             {(referenceImage || logoImage) && <div className="mt-2 flex flex-wrap items-center gap-2">{referenceImage && <button type="button" onClick={() => removeImage('reference')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove reference</button>}{logoImage && <><label className="text-sm font-semibold text-slate-700">Logo treatment<select aria-label="Logo treatment" value={brief.logoRendering || 'integrated'} onChange={event => updateBrief('logoRendering', event.target.value as CreativeBrief['logoRendering'])} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"><option value="integrated">Blend into design</option><option value="original">Keep original logo</option></select></label>{brief.logoRendering === 'original' && <label className="text-sm font-semibold text-slate-700">Logo position<select value={brief.logoPosition} onChange={(event) => updateBrief('logoPosition', event.target.value as CreativeBrief['logoPosition'])} className="ml-2 min-h-11 rounded-lg border border-slate-300 bg-white px-3"><option value="upper-left">Upper left</option><option value="upper-right">Upper right</option><option value="lower-left">Lower left</option><option value="lower-right">Lower right</option></select></label>}<p className="w-full text-xs text-slate-500">{brief.logoRendering !== 'original' ? 'AI recreates your logo as part of the artwork. Check its lettering and details before ordering. Your original file stays saved.' : 'Places your original logo unchanged, including its background.'}{selected && ' Treatment applies to your next new design.'}</p><button type="button" onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove uploaded logo</button></>}</div>}
           </div>
 
-          <button type="button" onClick={() => void generate()} disabled={!access.ready || !recoveryReady || !requirementsMet || Boolean(stage) || Boolean(pendingImageJob)} className="ai-studio-create inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-bold text-white hover:bg-orange-700 disabled:opacity-50"><Sparkles className="h-5 w-5" />{concepts.length ? 'Create another design' : 'Create my banner'}</button>
+          <button type="button" onClick={() => void generate()} disabled={!access.ready || !recoveryReady || !requirementsMet || Boolean(stage) || Boolean(pendingImageJob)} className="ai-studio-create inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-bold text-white hover:bg-orange-700 disabled:opacity-50"><Sparkles className="h-5 w-5" />{concepts.length ? 'Create another design' : `Create my ${context.noun}`}</button>
           <p className="ai-studio-helper">You can refine your design after creating.</p>
           <details className="text-sm text-slate-600"><summary className="cursor-pointer py-2">Review wording before creating (optional)</summary><button type="button" onClick={() => void reviewBrief()} disabled={!requirementsMet || !access.ready || Boolean(stage)} className="min-h-11 underline">Extract wording from my description</button></details>
         </section>
 
         <section className="ai-studio-workspace min-w-0 space-y-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <div><h3 className="text-lg font-black text-[#0b1f3a]">Your banner</h3><p className="text-sm text-slate-600">Preview your banner, make changes, then use it in your order.</p></div>
+            <div><h3 className="text-lg font-black text-[#0b1f3a]">{context.product?context.label:`Your ${context.noun}`}</h3><p className="text-sm text-slate-600">Preview your {context.noun}, make changes, then use it in your order.</p></div>
             <button type="button" onClick={() => setConfirmNewDesign(true)} disabled={Boolean(stage) || !recoveryReady} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40"><Trash2 className="h-4 w-4" /> Delete &amp; start new</button>
 
           </div>
 
           {confirmNewDesign && <div className="rounded-xl border border-slate-300 bg-white p-4">
             <p className="font-semibold text-[#0b1f3a]">Start with a blank design?</p>
-            <p className="mt-1 text-sm text-slate-600">This clears this draft’s artwork, prompt, uploads and edit history. Your banner size stays the same.</p>
+            <p className="mt-1 text-sm text-slate-600">This clears this draft’s artwork, prompt, uploads and edit history. Your selected product and size stay the same.</p>
             <div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => void startNewDesign()} disabled={Boolean(stage)} className="min-h-11 rounded-lg bg-[#0b1f3a] px-4 text-sm font-bold text-white disabled:opacity-40">Delete draft &amp; start new</button><button type="button" onClick={() => setConfirmNewDesign(false)} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold">Keep this design</button></div>
           </div>}
           {stage && !improvingPrompt && <div role="status" aria-live="polite" className="flex min-h-52 flex-col items-center justify-center rounded-xl bg-[#0b1f3a] px-6 py-8 text-center text-white">
@@ -808,7 +828,7 @@ export default function AIWorkspace(props: Props) {
           </div>}
 
           {!concepts.length && !stage && !pendingImageJob && !progressPreview && <div className="ai-studio-empty">
-            <img
+            {props.productType==='banner'?<img
               className="ai-studio-banner-showcase"
               src="/images/ai-studio-banner-showcase-1774.webp"
               srcSet="/images/ai-studio-banner-showcase-960.webp 960w, /images/ai-studio-banner-showcase-1774.webp 1774w"
@@ -817,8 +837,8 @@ export default function AIWorkspace(props: Props) {
               height={887}
               decoding="async"
               alt="Crosby Cougars volleyball and Anderson Construction designs displayed as finished vinyl banners with metal grommets and reinforced hems. A little imagination. A big impression."
-            />
-            <p>Tell us what you have in mind.<br />We’ll turn your idea into a banner made for you.</p>
+            />:context.product&&context.template?<div className="w-full max-w-xl p-6" data-testid="ai-product-example"><SpecialtyPreview product={context.product} variant={context.variant} template={context.template}/><p className="mt-4 font-bold text-white">{context.label}</p><p className="mt-1 text-sm text-slate-300">{formatDimension(brief.widthIn)} × {formatDimension(brief.heightIn)} print panel</p></div>:<div className="p-10 text-2xl font-bold">Your {context.noun} · {formatDimension(brief.widthIn)} × {formatDimension(brief.heightIn)}</div>}
+            <p>Tell us what you have in mind.<br />We’ll create artwork for your selected {context.noun}.</p>
             <span className="ai-studio-empty-hint"><ArrowLeft className="h-4 w-4" /> Start with your description</span>
           </div>}
 
@@ -828,9 +848,9 @@ export default function AIWorkspace(props: Props) {
             <div className="ai-studio-artwork">
               <div className="ai-studio-width">{formatDimension(brief.widthIn)}</div>
               <div className="ai-studio-height">{formatDimension(brief.heightIn)}</div>
-              <div className="ai-studio-artwork-image"><img src={imageSrc(selected)} alt="Complete selected flat print artwork" className="h-full w-full object-contain" /></div>
+              <div className="ai-studio-artwork-image"><div className="relative" style={{width:Math.min(850,460*ratio),maxWidth:'100%',aspectRatio:ratio}}><img src={imageSrc(selected)} alt="Complete selected flat print artwork" className="block h-full w-full object-contain" />{context.template&&<SpecialtyTemplateGuide template={context.template}/>}</div></div>
             </div>
-            <p className="ai-studio-canvas-caption">Complete artwork · Nothing cropped from your preview</p>
+            <p className="ai-studio-canvas-caption">{context.template?'Exact print panel · Guides are for review and are not printed':'Complete artwork · Nothing cropped from your preview'}</p>
             </div>
             <div className="ai-studio-result-controls">
             <div className="ai-studio-edit grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto]">
@@ -884,7 +904,7 @@ export default function AIWorkspace(props: Props) {
 
             </div>
           </div>}
-          <div className="ai-studio-benefits"><div><PackageCheck /><span><strong>24-hour production</strong><small>Printed fast. Made to impress.</small></span></div><div><Truck /><span><strong>Free Next-Day Air shipping</strong><small>Orders $20+</small></span></div></div>
+          {!context.product&&<div className="ai-studio-benefits"><div><PackageCheck /><span><strong>24-hour production</strong><small>Printed fast. Made to impress.</small></span></div><div><Truck /><span><strong>Free Next-Day Air shipping</strong><small>Orders $20+</small></span></div></div>}
         </section>
       </div>
 
@@ -907,7 +927,7 @@ export default function AIWorkspace(props: Props) {
       <Dialog open={fullPreview && Boolean(selected)} onOpenChange={setFullPreview}>
         <DialogContent className="z-[10020] w-[96vw] max-w-[96vw] border-0 bg-slate-950 p-4 pt-12 text-white [&>button]:text-white">
           <DialogTitle className="sr-only">Full artwork preview</DialogTitle>
-          <DialogDescription className="sr-only">Complete banner artwork at the selected proportions.</DialogDescription>
+          <DialogDescription className="sr-only">Complete print artwork at the selected proportions.</DialogDescription>
           {selected && <img src={imageSrc(selected)} alt="Full-size flat print artwork" className="max-h-[82dvh] w-full object-contain" />}
         </DialogContent>
       </Dialog>

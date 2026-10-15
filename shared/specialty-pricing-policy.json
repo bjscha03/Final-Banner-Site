@@ -1,0 +1,12 @@
+{
+  "revision": "margin-30-after-20-v1",
+  "updatedAt": "2026-10-14",
+  "maximumDiscountPercent": 20,
+  "targetContributionMarginPercent": 30,
+  "estimatedProcessingPercent": 3,
+  "estimatedProcessingFixedCents": 30,
+  "approvalStatus": "margin_target_approved_cost_exceptions_pending",
+  "shippingBasis": "Quantity-one B2Sign Next Day quotes to Louisville KY 40241; other destinations and unquoted combinations need approval.",
+  "profitDefinition": "Selling price less supplier cost, shipping and estimated processing; excludes advertising, labor, overhead, reprints and taxes. Not net profit.",
+  "rounding": "Choose cent-rounded retail closest to 30% after separately rounding discount and estimated fees; not an upward floor."
+}

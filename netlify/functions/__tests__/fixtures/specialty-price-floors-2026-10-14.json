@@ -1,0 +1,2552 @@
+[
+  {
+    "label": "Standard Retractable 23x66 kit",
+    "slug": "standard-retractable-banner",
+    "variantId": "standard-retractable-banner-1",
+    "width": 23,
+    "height": 66,
+    "options": {
+      "hardware": "ph",
+      "size": "23x66",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 20570
+  },
+  {
+    "label": "Standard Retractable 24x81 kit",
+    "slug": "standard-retractable-banner",
+    "variantId": "standard-retractable-banner-2",
+    "width": 24,
+    "height": 81,
+    "options": {
+      "hardware": "ph",
+      "size": "24x81",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 21084
+  },
+  {
+    "label": "Standard Retractable 24x81 insert",
+    "slug": "standard-retractable-banner",
+    "variantId": "standard-retractable-banner-2",
+    "width": 24,
+    "height": 81,
+    "options": {
+      "hardware": "p",
+      "size": "24x81",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 11076
+  },
+  {
+    "label": "Standard Retractable 23x66 insert",
+    "slug": "standard-retractable-banner",
+    "variantId": "standard-retractable-banner-1",
+    "width": 23,
+    "height": 66,
+    "options": {
+      "hardware": "p",
+      "size": "23x66",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 10050
+  },
+  {
+    "label": "Standard Retractable 33x81 insert",
+    "slug": "standard-retractable-banner",
+    "variantId": "standard-retractable-banner-3",
+    "width": 33,
+    "height": 81,
+    "options": {
+      "hardware": "p",
+      "size": "33x81",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 12924
+  },
+  {
+    "label": "Standard Retractable 33x81 kit",
+    "slug": "standard-retractable-banner",
+    "variantId": "standard-retractable-banner-3",
+    "width": 33,
+    "height": 81,
+    "options": {
+      "hardware": "ph",
+      "size": "33x81",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 17634
+  },
+  {
+    "label": "Standard Retractable 33x81 black insert",
+    "slug": "standard-retractable-banner",
+    "variantId": "standard-retractable-black",
+    "width": 33,
+    "height": 81,
+    "options": {
+      "hardware": "p",
+      "size": "33x81b",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 12924
+  },
+  {
+    "label": "Standard Retractable 33x81 black kit",
+    "slug": "standard-retractable-banner",
+    "variantId": "standard-retractable-black",
+    "width": 33,
+    "height": 81,
+    "options": {
+      "hardware": "ph",
+      "size": "33x81b",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 24817
+  },
+  {
+    "label": "Standard Retractable 47x81 insert",
+    "slug": "standard-retractable-banner",
+    "variantId": "standard-retractable-banner-4",
+    "width": 47,
+    "height": 81,
+    "options": {
+      "hardware": "p",
+      "size": "47x81",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 14975
+  },
+  {
+    "label": "Standard Retractable 47x81 kit",
+    "slug": "standard-retractable-banner",
+    "variantId": "standard-retractable-banner-4",
+    "width": 47,
+    "height": 81,
+    "options": {
+      "hardware": "ph",
+      "size": "47x81",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 41175
+  },
+  {
+    "label": "Standard Retractable 47x81 kit + 2 LED",
+    "slug": "standard-retractable-banner",
+    "variantId": "standard-retractable-banner-4",
+    "width": 47,
+    "height": 81,
+    "options": {
+      "hardware": "ph",
+      "size": "47x81",
+      "material": "9oz_premium_fabric",
+      "led": "2"
+    },
+    "expectedListCents": 62250
+  },
+  {
+    "label": "Standard Retractable 47x81 matte + 2 LED",
+    "slug": "standard-retractable-banner",
+    "variantId": "standard-retractable-banner-4",
+    "width": 47,
+    "height": 81,
+    "options": {
+      "hardware": "ph",
+      "size": "47x81",
+      "material": "13oz_matte_vinyl_banner",
+      "led": "2"
+    },
+    "expectedListCents": 62250
+  },
+  {
+    "label": "Standard Retractable 33x81 matte kit + 1 LED",
+    "slug": "standard-retractable-banner",
+    "variantId": "standard-retractable-banner-3",
+    "width": 33,
+    "height": 81,
+    "options": {
+      "hardware": "ph",
+      "size": "33x81",
+      "material": "13oz_matte_vinyl_banner",
+      "led": "1"
+    },
+    "expectedListCents": 34196
+  },
+  {
+    "label": "Standard Retractable 33x81 matte kit",
+    "slug": "standard-retractable-banner",
+    "variantId": "standard-retractable-banner-3",
+    "width": 33,
+    "height": 81,
+    "options": {
+      "hardware": "ph",
+      "size": "33x81",
+      "material": "13oz_matte_vinyl_banner",
+      "led": "0"
+    },
+    "expectedListCents": 20301
+  },
+  {
+    "label": "Standard Retractable 33x81 kit + 1 LED",
+    "slug": "standard-retractable-banner",
+    "variantId": "standard-retractable-banner-3",
+    "width": 33,
+    "height": 81,
+    "options": {
+      "hardware": "ph",
+      "size": "33x81",
+      "material": "9oz_premium_fabric",
+      "led": "1"
+    },
+    "expectedListCents": 31529
+  },
+  {
+    "label": "Deluxe Retractable 33x81 single kit",
+    "slug": "deluxe-retractable-banner",
+    "variantId": "deluxe-retractable-banner-1",
+    "width": 33,
+    "height": 81,
+    "options": {
+      "hardware": "ph",
+      "size": "33x81",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 25034
+  },
+  {
+    "label": "Deluxe Retractable 33x81 single insert",
+    "slug": "deluxe-retractable-banner",
+    "variantId": "deluxe-retractable-banner-1",
+    "width": 33,
+    "height": 81,
+    "options": {
+      "hardware": "p",
+      "size": "33x81",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 12924
+  },
+  {
+    "label": "Deluxe Retractable 33x81 double inserts set",
+    "slug": "deluxe-retractable-banner",
+    "variantId": "deluxe-retractable-banner-2",
+    "width": 33,
+    "height": 81,
+    "options": {
+      "hardware": "p",
+      "size": "33x81d",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 19624
+  },
+  {
+    "label": "Deluxe Retractable 33x81 double kit",
+    "slug": "deluxe-retractable-banner",
+    "variantId": "deluxe-retractable-banner-2",
+    "width": 33,
+    "height": 81,
+    "options": {
+      "hardware": "ph",
+      "size": "33x81d",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 48821
+  },
+  {
+    "label": "Premium Retractable 36x92 kit",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-banner-1",
+    "width": 36,
+    "height": 92,
+    "options": {
+      "hardware": "ph",
+      "size": "36x92",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 31354
+  },
+  {
+    "label": "Premium Retractable 36x69 kit",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-36x69",
+    "width": 36,
+    "height": 69,
+    "options": {
+      "hardware": "ph",
+      "size": "36x69",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 30942
+  },
+  {
+    "label": "Premium Retractable 36x69 insert",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-36x69",
+    "width": 36,
+    "height": 69,
+    "options": {
+      "hardware": "p",
+      "size": "36x69",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 12308
+  },
+  {
+    "label": "Premium Retractable 36x80 insert",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-36x80",
+    "width": 36,
+    "height": 80,
+    "options": {
+      "hardware": "p",
+      "size": "36x80",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 13192
+  },
+  {
+    "label": "Premium Retractable 36x80 kit",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-36x80",
+    "width": 36,
+    "height": 80,
+    "options": {
+      "hardware": "ph",
+      "size": "36x80",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 31150
+  },
+  {
+    "label": "Premium Retractable 36x92 insert",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-banner-1",
+    "width": 36,
+    "height": 92,
+    "options": {
+      "hardware": "p",
+      "size": "36x92",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 14155
+  },
+  {
+    "label": "Premium Retractable 48x69 insert",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-48x69",
+    "width": 48,
+    "height": 69,
+    "options": {
+      "hardware": "p",
+      "size": "48x69",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 14463
+  },
+  {
+    "label": "Premium Retractable 48x69 kit",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-48x69",
+    "width": 48,
+    "height": 69,
+    "options": {
+      "hardware": "ph",
+      "size": "48x69",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 45934
+  },
+  {
+    "label": "Premium Retractable 48x80 insert",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-48x80",
+    "width": 48,
+    "height": 80,
+    "options": {
+      "hardware": "p",
+      "size": "48x80",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 15691
+  },
+  {
+    "label": "Premium Retractable 48x80 kit",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-48x80",
+    "width": 48,
+    "height": 80,
+    "options": {
+      "hardware": "ph",
+      "size": "48x80",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 47064
+  },
+  {
+    "label": "Premium Retractable 48x92 insert",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-banner-2",
+    "width": 48,
+    "height": 92,
+    "options": {
+      "hardware": "p",
+      "size": "48x92",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 17029
+  },
+  {
+    "label": "Premium Retractable 48x92 kit",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-banner-2",
+    "width": 48,
+    "height": 92,
+    "options": {
+      "hardware": "ph",
+      "size": "48x92",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 48295
+  },
+  {
+    "label": "Premium Retractable 60x69 insert",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-60x69",
+    "width": 60,
+    "height": 69,
+    "options": {
+      "hardware": "p",
+      "size": "60x69",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 29495
+  },
+  {
+    "label": "Premium Retractable 60x69 kit",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-60x69",
+    "width": 60,
+    "height": 69,
+    "options": {
+      "hardware": "ph",
+      "size": "60x69",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 54191
+  },
+  {
+    "label": "Premium Retractable 60x80 insert",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-60x80",
+    "width": 60,
+    "height": 80,
+    "options": {
+      "hardware": "p",
+      "size": "60x80",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 30966
+  },
+  {
+    "label": "Premium Retractable 60x80 kit",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-60x80",
+    "width": 60,
+    "height": 80,
+    "options": {
+      "hardware": "ph",
+      "size": "60x80",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 55600
+  },
+  {
+    "label": "Premium Retractable 60x92 insert",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-banner-3",
+    "width": 60,
+    "height": 92,
+    "options": {
+      "hardware": "p",
+      "size": "60x92",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 32574
+  },
+  {
+    "label": "Premium Retractable 60x92 kit",
+    "slug": "premium-retractable-banner",
+    "variantId": "premium-retractable-banner-3",
+    "width": 60,
+    "height": 92,
+    "options": {
+      "hardware": "ph",
+      "size": "60x92",
+      "material": "9oz_premium_fabric",
+      "led": "0"
+    },
+    "expectedListCents": 57139
+  },
+  {
+    "label": "X Stand 24x63 kit",
+    "slug": "x-banner-stand",
+    "variantId": "x-banner-stand-1",
+    "width": 24,
+    "height": 63,
+    "options": {
+      "hardware": "ph",
+      "size": "24x63",
+      "material": "13oz_matte_vinyl_banner"
+    },
+    "expectedListCents": 13532
+  },
+  {
+    "label": "X Stand 32x71 kit",
+    "slug": "x-banner-stand",
+    "variantId": "x-banner-stand-2",
+    "width": 32,
+    "height": 71,
+    "options": {
+      "hardware": "ph",
+      "size": "32x71",
+      "material": "13oz_matte_vinyl_banner"
+    },
+    "expectedListCents": 15014
+  },
+  {
+    "label": "X Stand 32x71 graphic",
+    "slug": "x-banner-stand",
+    "variantId": "x-banner-stand-2",
+    "width": 32,
+    "height": 71,
+    "options": {
+      "hardware": "p",
+      "size": "32x71",
+      "material": "13oz_matte_vinyl_banner"
+    },
+    "expectedListCents": 9650
+  },
+  {
+    "label": "X Stand 24x63 graphic",
+    "slug": "x-banner-stand",
+    "variantId": "x-banner-stand-1",
+    "width": 24,
+    "height": 63,
+    "options": {
+      "hardware": "p",
+      "size": "24x63",
+      "material": "13oz_matte_vinyl_banner"
+    },
+    "expectedListCents": 8821
+  },
+  {
+    "label": "X Stand 24x63 popup graphic",
+    "slug": "x-banner-stand",
+    "variantId": "x-banner-stand-1",
+    "width": 24,
+    "height": 63,
+    "options": {
+      "hardware": "p",
+      "size": "24x63",
+      "material": "double_white_popup"
+    },
+    "expectedListCents": 11079
+  },
+  {
+    "label": "X Stand 24x63 popup kit",
+    "slug": "x-banner-stand",
+    "variantId": "x-banner-stand-1",
+    "width": 24,
+    "height": 63,
+    "options": {
+      "hardware": "ph",
+      "size": "24x63",
+      "material": "double_white_popup"
+    },
+    "expectedListCents": 15789
+  },
+  {
+    "label": "X Stand 32x71 popup kit",
+    "slug": "x-banner-stand",
+    "variantId": "x-banner-stand-2",
+    "width": 32,
+    "height": 71,
+    "options": {
+      "hardware": "ph",
+      "size": "32x71",
+      "material": "double_white_popup"
+    },
+    "expectedListCents": 18612
+  },
+  {
+    "label": "X Stand 32x71 popup graphic",
+    "slug": "x-banner-stand",
+    "variantId": "x-banner-stand-2",
+    "width": 32,
+    "height": 71,
+    "options": {
+      "hardware": "p",
+      "size": "32x71",
+      "material": "double_white_popup"
+    },
+    "expectedListCents": 13246
+  },
+  {
+    "label": "Tabletop Stand 11.5x17.5 kit",
+    "slug": "tabletop-banner-stand",
+    "variantId": "tabletop-banner-stand-1",
+    "width": 11.5,
+    "height": 17.5,
+    "options": {
+      "size": "11.5x17.5",
+      "material": "double_white_popup",
+      "lamination": "UV"
+    },
+    "expectedListCents": 10871
+  },
+  {
+    "label": "Tension Fabric Stand 36x90 single kit",
+    "slug": "tension-fabric-stand",
+    "variantId": "tension-fabric-stand-1",
+    "width": 36,
+    "height": 90,
+    "options": {
+      "hardware": "ph",
+      "size": "36x90",
+      "sides": "1",
+      "tradeshow_led": "0"
+    },
+    "expectedListCents": 45771
+  },
+  {
+    "label": "Tension Fabric Stand 36x90 double kit",
+    "slug": "tension-fabric-stand",
+    "variantId": "tension-fabric-stand-1",
+    "width": 36,
+    "height": 90,
+    "options": {
+      "hardware": "ph",
+      "size": "36x90",
+      "sides": "2",
+      "tradeshow_led": "0"
+    },
+    "expectedListCents": 45771
+  },
+  {
+    "label": "Tension Fabric Stand 36x90 double graphic",
+    "slug": "tension-fabric-stand",
+    "variantId": "tension-fabric-stand-1",
+    "width": 36,
+    "height": 90,
+    "options": {
+      "hardware": "p",
+      "size": "36x90",
+      "sides": "2",
+      "tradeshow_led": "0"
+    },
+    "expectedListCents": 17029
+  },
+  {
+    "label": "Tension Fabric Stand 36x90 single graphic",
+    "slug": "tension-fabric-stand",
+    "variantId": "tension-fabric-stand-1",
+    "width": 36,
+    "height": 90,
+    "options": {
+      "hardware": "p",
+      "size": "36x90",
+      "sides": "1",
+      "tradeshow_led": "0"
+    },
+    "expectedListCents": 17029
+  },
+  {
+    "label": "Tension Fabric Stand 48x90 single graphic",
+    "slug": "tension-fabric-stand",
+    "variantId": "tension-fabric-stand-2",
+    "width": 48,
+    "height": 90,
+    "options": {
+      "hardware": "p",
+      "size": "48x90",
+      "sides": "1",
+      "tradeshow_led": "0"
+    },
+    "expectedListCents": 19080
+  },
+  {
+    "label": "Tension Fabric Stand 48x90 single kit",
+    "slug": "tension-fabric-stand",
+    "variantId": "tension-fabric-stand-2",
+    "width": 48,
+    "height": 90,
+    "options": {
+      "hardware": "ph",
+      "size": "48x90",
+      "sides": "1",
+      "tradeshow_led": "0"
+    },
+    "expectedListCents": 57755
+  },
+  {
+    "label": "Tension Fabric Stand 48x90 double kit",
+    "slug": "tension-fabric-stand",
+    "variantId": "tension-fabric-stand-2",
+    "width": 48,
+    "height": 90,
+    "options": {
+      "hardware": "ph",
+      "size": "48x90",
+      "sides": "2",
+      "tradeshow_led": "0"
+    },
+    "expectedListCents": 57755
+  },
+  {
+    "label": "Tension Fabric Stand 48x90 double kit + 2 LED",
+    "slug": "tension-fabric-stand",
+    "variantId": "tension-fabric-stand-2",
+    "width": 48,
+    "height": 90,
+    "options": {
+      "hardware": "ph",
+      "size": "48x90",
+      "sides": "2",
+      "tradeshow_led": "2"
+    },
+    "expectedListCents": 89609
+  },
+  {
+    "label": "Tension Fabric Stand 48x90 double graphic",
+    "slug": "tension-fabric-stand",
+    "variantId": "tension-fabric-stand-2",
+    "width": 48,
+    "height": 90,
+    "options": {
+      "hardware": "p",
+      "size": "48x90",
+      "sides": "2",
+      "tradeshow_led": "0"
+    },
+    "expectedListCents": 19080
+  },
+  {
+    "label": "Step and Repeat 10x8 kit",
+    "slug": "step-and-repeat-backdrop",
+    "variantId": "step-and-repeat-backdrop-1",
+    "width": 120,
+    "height": 96,
+    "options": {
+      "hardware": "ph",
+      "size": "120x96",
+      "material": "9oz_wrinklefree_fabric"
+    },
+    "expectedListCents": 50900
+  },
+  {
+    "label": "Step and Repeat 10x8 graphic",
+    "slug": "step-and-repeat-backdrop",
+    "variantId": "step-and-repeat-backdrop-1",
+    "width": 120,
+    "height": 96,
+    "options": {
+      "hardware": "p",
+      "size": "120x96",
+      "material": "9oz_wrinklefree_fabric"
+    },
+    "expectedListCents": 31768
+  },
+  {
+    "label": "Step and Repeat 8x8 graphic",
+    "slug": "step-and-repeat-backdrop",
+    "variantId": "step-and-repeat-backdrop-8x8",
+    "width": 96,
+    "height": 96,
+    "options": {
+      "hardware": "p",
+      "size": "96x96",
+      "material": "9oz_wrinklefree_fabric"
+    },
+    "expectedListCents": 26470
+  },
+  {
+    "label": "Step and Repeat 8x8 kit",
+    "slug": "step-and-repeat-backdrop",
+    "variantId": "step-and-repeat-backdrop-8x8",
+    "width": 96,
+    "height": 96,
+    "options": {
+      "hardware": "ph",
+      "size": "96x96",
+      "material": "9oz_wrinklefree_fabric"
+    },
+    "expectedListCents": 48846
+  },
+  {
+    "label": "Standard Table Throw 4ft open",
+    "slug": "standard-table-throws",
+    "variantId": "standard-table-throws-1",
+    "width": 48,
+    "height": 18,
+    "options": {
+      "sides": "3sided"
+    },
+    "expectedListCents": 18570
+  },
+  {
+    "label": "Standard Table Throw 4ft closed",
+    "slug": "standard-table-throws",
+    "variantId": "standard-table-throws-2",
+    "width": 48,
+    "height": 18,
+    "options": {
+      "sides": "4sided"
+    },
+    "expectedListCents": 22366
+  },
+  {
+    "label": "Standard Table Throw 6ft open",
+    "slug": "standard-table-throws",
+    "variantId": "standard-table-throws-3",
+    "width": 72,
+    "height": 18,
+    "options": {
+      "sides": "3sided"
+    },
+    "expectedListCents": 21475
+  },
+  {
+    "label": "Standard Table Throw 6ft closed",
+    "slug": "standard-table-throws",
+    "variantId": "standard-table-throws-4",
+    "width": 72,
+    "height": 18,
+    "options": {
+      "sides": "4sided"
+    },
+    "expectedListCents": 26279
+  },
+  {
+    "label": "Standard Table Throw 8ft open",
+    "slug": "standard-table-throws",
+    "variantId": "standard-table-throws-5",
+    "width": 96,
+    "height": 18,
+    "options": {
+      "sides": "3sided"
+    },
+    "expectedListCents": 24264
+  },
+  {
+    "label": "Standard Table Throw 8ft closed",
+    "slug": "standard-table-throws",
+    "variantId": "standard-table-throws-6",
+    "width": 96,
+    "height": 18,
+    "options": {
+      "sides": "4sided"
+    },
+    "expectedListCents": 30191
+  },
+  {
+    "label": "Fitted Table Throw 6ft closed",
+    "slug": "fitted-table-throws",
+    "variantId": "fitted-table-throws-2",
+    "width": 72,
+    "height": 18,
+    "options": {
+      "size": "6ft",
+      "backside": "4sided"
+    },
+    "expectedListCents": 21692
+  },
+  {
+    "label": "Fitted Table Throw 6ft open",
+    "slug": "fitted-table-throws",
+    "variantId": "fitted-table-throws-1",
+    "width": 72,
+    "height": 18,
+    "options": {
+      "size": "6ft",
+      "backside": "3sided"
+    },
+    "expectedListCents": 21692
+  },
+  {
+    "label": "Fitted Table Throw 8ft open",
+    "slug": "fitted-table-throws",
+    "variantId": "fitted-table-throws-3",
+    "width": 96,
+    "height": 18,
+    "options": {
+      "size": "8ft",
+      "backside": "3sided"
+    },
+    "expectedListCents": 23558
+  },
+  {
+    "label": "Fitted Table Throw 8ft closed",
+    "slug": "fitted-table-throws",
+    "variantId": "fitted-table-throws-4",
+    "width": 96,
+    "height": 18,
+    "options": {
+      "size": "8ft",
+      "backside": "4sided"
+    },
+    "expectedListCents": 23558
+  },
+  {
+    "label": "Stretch Table Throw 6ft",
+    "slug": "stretch-table-throws",
+    "variantId": "stretch-table-throws-1",
+    "width": 72,
+    "height": 18,
+    "options": {
+      "size": "6ft"
+    },
+    "expectedListCents": 33180
+  },
+  {
+    "label": "Stretch Table Throw 8ft",
+    "slug": "stretch-table-throws",
+    "variantId": "stretch-table-throws-2",
+    "width": 96,
+    "height": 18,
+    "options": {
+      "size": "8ft"
+    },
+    "expectedListCents": 38516
+  },
+  {
+    "label": "Angled Flag 9ft single kit",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "small",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 20849
+  },
+  {
+    "label": "Angled Flag 9ft double kit",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "small",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 27621
+  },
+  {
+    "label": "Angled Flag 9ft double graphic",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "small",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 20312
+  },
+  {
+    "label": "Angled Flag 9ft single graphic",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "small",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 13539
+  },
+  {
+    "label": "Angled Flag 10.5ft single graphic",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-2",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "medium",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 13539
+  },
+  {
+    "label": "Angled Flag 10.5ft single kit",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-2",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "medium",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 20849
+  },
+  {
+    "label": "Angled Flag 10.5ft double kit",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-2",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "medium",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 27949
+  },
+  {
+    "label": "Angled Flag 10.5ft double graphic",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-2",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "medium",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 20312
+  },
+  {
+    "label": "Angled Flag 14ft single graphic",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-3",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "large",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 13950
+  },
+  {
+    "label": "Angled Flag 14ft single kit",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-3",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "large",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 21224
+  },
+  {
+    "label": "Angled Flag 14ft double kit",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-3",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "large",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 28407
+  },
+  {
+    "label": "Angled Flag 14ft double graphic",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-3",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "large",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 21132
+  },
+  {
+    "label": "Angled Flag 18ft single graphic",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-4",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "xlarge",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 16412
+  },
+  {
+    "label": "Angled Flag 18ft single kit",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-4",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "xlarge",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 24820
+  },
+  {
+    "label": "Angled Flag 18ft double kit",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-4",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "xlarge",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 34549
+  },
+  {
+    "label": "Angled Flag 18ft double graphic",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-4",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "xlarge",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 26058
+  },
+  {
+    "label": "Convex Flag 9ft single graphic",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-5",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "Size": "small",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 13539
+  },
+  {
+    "label": "Convex Flag 9ft single kit",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-5",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "Size": "small",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 20479
+  },
+  {
+    "label": "Convex Flag 9ft double kit",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-5",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "Size": "small",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 27621
+  },
+  {
+    "label": "Convex Flag 9ft double graphic",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-5",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "Size": "small",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 20312
+  },
+  {
+    "label": "Convex Flag 10.5ft single graphic",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-6",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "Size": "medium",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 13539
+  },
+  {
+    "label": "Convex Flag 10.5ft single kit",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-6",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "Size": "medium",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 20849
+  },
+  {
+    "label": "Convex Flag 10.5ft double kit",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-6",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "Size": "medium",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 27621
+  },
+  {
+    "label": "Convex Flag 10.5ft double graphic",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-6",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "Size": "medium",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 20312
+  },
+  {
+    "label": "Convex Flag 14ft single graphic",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-7",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "Size": "large",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 13950
+  },
+  {
+    "label": "Convex Flag 14ft single kit",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-7",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "Size": "large",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 20926
+  },
+  {
+    "label": "Convex Flag 14ft double kit",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-7",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "Size": "large",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 28407
+  },
+  {
+    "label": "Convex Flag 14ft double graphic",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-7",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "Size": "large",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 21132
+  },
+  {
+    "label": "Convex Flag 18ft single graphic",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-8",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "Size": "xlarge",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 16412
+  },
+  {
+    "label": "Convex Flag 18ft single kit",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-8",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "Size": "xlarge",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 24570
+  },
+  {
+    "label": "Convex Flag 18ft double kit",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-8",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "Size": "xlarge",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 34464
+  },
+  {
+    "label": "Convex Flag 18ft double graphic",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-8",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "Size": "xlarge",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 26058
+  },
+  {
+    "label": "Teardrop Flag 7ft single graphic",
+    "slug": "teardrop-flags",
+    "variantId": "teardrop-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "small",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 13539
+  },
+  {
+    "label": "Teardrop Flag 7ft single kit",
+    "slug": "teardrop-flags",
+    "variantId": "teardrop-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "small",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 20849
+  },
+  {
+    "label": "Teardrop Flag 7ft double kit",
+    "slug": "teardrop-flags",
+    "variantId": "teardrop-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "small",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 27621
+  },
+  {
+    "label": "Teardrop Flag 7ft double graphic",
+    "slug": "teardrop-flags",
+    "variantId": "teardrop-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "small",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 20312
+  },
+  {
+    "label": "Teardrop Flag 9ft single graphic",
+    "slug": "teardrop-flags",
+    "variantId": "teardrop-flags-2",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "medium",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 13539
+  },
+  {
+    "label": "Teardrop Flag 9ft single kit",
+    "slug": "teardrop-flags",
+    "variantId": "teardrop-flags-2",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "medium",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 20849
+  },
+  {
+    "label": "Teardrop Flag 9ft double kit",
+    "slug": "teardrop-flags",
+    "variantId": "teardrop-flags-2",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "medium",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 27949
+  },
+  {
+    "label": "Teardrop Flag 9ft double graphic",
+    "slug": "teardrop-flags",
+    "variantId": "teardrop-flags-2",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "medium",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 20312
+  },
+  {
+    "label": "Teardrop Flag 11.2ft single graphic",
+    "slug": "teardrop-flags",
+    "variantId": "teardrop-flags-3",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "large",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 13950
+  },
+  {
+    "label": "Teardrop Flag 11.2ft single kit",
+    "slug": "teardrop-flags",
+    "variantId": "teardrop-flags-3",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "large",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 21224
+  },
+  {
+    "label": "Teardrop Flag 11.2ft double kit",
+    "slug": "teardrop-flags",
+    "variantId": "teardrop-flags-3",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "large",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 28407
+  },
+  {
+    "label": "Teardrop Flag 11.2ft double graphic",
+    "slug": "teardrop-flags",
+    "variantId": "teardrop-flags-3",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "large",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 21132
+  },
+  {
+    "label": "Teardrop Flag 13.5ft single graphic",
+    "slug": "teardrop-flags",
+    "variantId": "teardrop-flags-4",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "xlarge",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 16412
+  },
+  {
+    "label": "Teardrop Flag 13.5ft single kit",
+    "slug": "teardrop-flags",
+    "variantId": "teardrop-flags-4",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "xlarge",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 24820
+  },
+  {
+    "label": "Teardrop Flag 13.5ft double kit",
+    "slug": "teardrop-flags",
+    "variantId": "teardrop-flags-4",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "xlarge",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 34464
+  },
+  {
+    "label": "Teardrop Flag 13.5ft double graphic",
+    "slug": "teardrop-flags",
+    "variantId": "teardrop-flags-4",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "xlarge",
+      "sides": "2",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 26058
+  },
+  {
+    "label": "Rectangle Flag 8.5ft single graphic",
+    "slug": "rectangle-flags",
+    "variantId": "rectangle-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "small",
+      "sides": "1",
+      "flaghardware": "PG",
+      "pole": "1"
+    },
+    "expectedListCents": 16001
+  },
+  {
+    "label": "Rectangle Flag 8.5ft single kit",
+    "slug": "rectangle-flags",
+    "variantId": "rectangle-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "small",
+      "sides": "1",
+      "flaghardware": "PG",
+      "pole": "1"
+    },
+    "expectedListCents": 40576
+  },
+  {
+    "label": "Rectangle Flag 8.5ft double kit",
+    "slug": "rectangle-flags",
+    "variantId": "rectangle-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "small",
+      "sides": "2",
+      "flaghardware": "PG",
+      "pole": "1"
+    },
+    "expectedListCents": 49812
+  },
+  {
+    "label": "Rectangle Flag 8.5ft double graphic",
+    "slug": "rectangle-flags",
+    "variantId": "rectangle-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "small",
+      "sides": "2",
+      "flaghardware": "PG",
+      "pole": "1"
+    },
+    "expectedListCents": 25237
+  },
+  {
+    "label": "Rectangle Flag 11.8ft single graphic",
+    "slug": "rectangle-flags",
+    "variantId": "rectangle-flags-2",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "medium",
+      "sides": "1",
+      "flaghardware": "PG",
+      "pole": "1"
+    },
+    "expectedListCents": 17029
+  },
+  {
+    "label": "Rectangle Flag 11.8ft single kit",
+    "slug": "rectangle-flags",
+    "variantId": "rectangle-flags-2",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "medium",
+      "sides": "1",
+      "flaghardware": "PG",
+      "pole": "1"
+    },
+    "expectedListCents": 42711
+  },
+  {
+    "label": "Rectangle Flag 11.8ft double kit",
+    "slug": "rectangle-flags",
+    "variantId": "rectangle-flags-2",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "medium",
+      "sides": "2",
+      "flaghardware": "PG",
+      "pole": "1"
+    },
+    "expectedListCents": 52971
+  },
+  {
+    "label": "Rectangle Flag 11.8ft double graphic",
+    "slug": "rectangle-flags",
+    "variantId": "rectangle-flags-2",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "medium",
+      "sides": "2",
+      "flaghardware": "PG",
+      "pole": "1"
+    },
+    "expectedListCents": 27289
+  },
+  {
+    "label": "Rectangle Flag 15ft single graphic",
+    "slug": "rectangle-flags",
+    "variantId": "rectangle-flags-3",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "large",
+      "sides": "1",
+      "flaghardware": "PG",
+      "pole": "1"
+    },
+    "expectedListCents": 18054
+  },
+  {
+    "label": "Rectangle Flag 15ft single kit",
+    "slug": "rectangle-flags",
+    "variantId": "rectangle-flags-3",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "large",
+      "sides": "1",
+      "flaghardware": "PG",
+      "pole": "1"
+    },
+    "expectedListCents": 44845
+  },
+  {
+    "label": "Rectangle Flag 15ft double kit",
+    "slug": "rectangle-flags",
+    "variantId": "rectangle-flags-3",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "large",
+      "sides": "2",
+      "flaghardware": "PG",
+      "pole": "1"
+    },
+    "expectedListCents": 56132
+  },
+  {
+    "label": "Rectangle Flag 15ft double graphic",
+    "slug": "rectangle-flags",
+    "variantId": "rectangle-flags-3",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "0",
+      "size": "large",
+      "sides": "2",
+      "flaghardware": "PG",
+      "pole": "1"
+    },
+    "expectedListCents": 29341
+  },
+  {
+    "label": "Rectangle Flag 15ft single kit + cross base",
+    "slug": "rectangle-flags",
+    "variantId": "rectangle-flags-3",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "large",
+      "sides": "1",
+      "flaghardware": "PB",
+      "pole": "1"
+    },
+    "expectedListCents": 47986
+  },
+  {
+    "label": "Rectangle Flag 15ft single kit + cross + stake",
+    "slug": "rectangle-flags",
+    "variantId": "rectangle-flags-3",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "large",
+      "sides": "1",
+      "flaghardware": "PBG",
+      "pole": "1"
+    },
+    "expectedListCents": 51309
+  },
+  {
+    "label": "Rectangle Flag 15ft single kit + cross + water",
+    "slug": "rectangle-flags",
+    "variantId": "rectangle-flags-3",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "large",
+      "sides": "1",
+      "flaghardware": "PBW",
+      "pole": "1"
+    },
+    "expectedListCents": 48909
+  },
+  {
+    "label": "Rectangle Flag 15ft single kit + square base",
+    "slug": "rectangle-flags",
+    "variantId": "rectangle-flags-3",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "large",
+      "sides": "1",
+      "flaghardware": "PBS",
+      "pole": "1"
+    },
+    "expectedListCents": 60505
+  },
+  {
+    "label": "Economy Flag 16ft single kit",
+    "slug": "economy-feather-flag",
+    "variantId": "economy-feather-flag-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole": "flag_pole",
+      "graphic": "1",
+      "base": "PG",
+      "material": "flag_polyster"
+    },
+    "expectedListCents": 35530
+  },
+  {
+    "label": "Economy Flag 16ft single graphic",
+    "slug": "economy-feather-flag",
+    "variantId": "economy-feather-flag-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole": "fo",
+      "graphic": "1",
+      "base": "PG",
+      "material": "flag_polyster"
+    },
+    "expectedListCents": 12924
+  },
+  {
+    "label": "Economy Flag 16ft reverse graphic",
+    "slug": "economy-feather-flag",
+    "variantId": "economy-feather-flag-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole": "fo",
+      "graphic": "-1",
+      "base": "PG",
+      "material": "flag_polyster"
+    },
+    "expectedListCents": 12924
+  },
+  {
+    "label": "Angled Flag 9ft single kit + cross base",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "small",
+      "sides": "1",
+      "flaghardware": "PB",
+      "carrybag": "0"
+    },
+    "expectedListCents": 22933
+  },
+  {
+    "label": "Angled Flag 9ft single kit + cross + stake",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "small",
+      "sides": "1",
+      "flaghardware": "PBG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 27245
+  },
+  {
+    "label": "Angled Flag 9ft single kit + cross + water",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "small",
+      "sides": "1",
+      "flaghardware": "PBW",
+      "carrybag": "0"
+    },
+    "expectedListCents": 23599
+  },
+  {
+    "label": "Angled Flag 9ft single kit + square base",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "small",
+      "sides": "1",
+      "flaghardware": "PBS",
+      "carrybag": "0"
+    },
+    "expectedListCents": 34679
+  },
+  {
+    "label": "Angled Flag 9ft single kit + bag",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "small",
+      "sides": "1",
+      "flaghardware": "PG",
+      "carrybag": "1"
+    },
+    "expectedListCents": 24768
+  },
+  {
+    "label": "Angled Flag 9ft reverse kit",
+    "slug": "feather-flags",
+    "variantId": "feather-flags-1",
+    "width": 24,
+    "height": 18,
+    "options": {
+      "flag_pole_tab": "1",
+      "size": "small",
+      "sides": "-1",
+      "flaghardware": "PG",
+      "carrybag": "0"
+    },
+    "expectedListCents": 20849
+  },
+  {
+    "label": "Tent 10x10 kit",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-1",
+    "width": 120,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "mesh_sidewall": "0",
+      "tent_sandbag": "0",
+      "tent_full_wall": "0",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 104007
+  },
+  {
+    "label": "Tent 10x10 kit + wheeled bag",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-1",
+    "width": 120,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "w",
+      "mesh_sidewall": "0",
+      "tent_sandbag": "0",
+      "tent_full_wall": "0",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 114974
+  },
+  {
+    "label": "Tent 10x10 kit + 4 sandbags",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-1",
+    "width": 120,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "mesh_sidewall": "0",
+      "tent_sandbag": "1",
+      "tent_full_wall": "0",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 113305
+  },
+  {
+    "label": "Tent 10x10 kit + mesh wall",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-1",
+    "width": 120,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "mesh_sidewall": "1",
+      "tent_sandbag": "0",
+      "tent_full_wall": "0",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 130934
+  },
+  {
+    "label": "Tent 10x10 kit + 1 full wall",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-1",
+    "width": 120,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "mesh_sidewall": "0",
+      "tent_sandbag": "0",
+      "tent_full_wall": "A",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 138276
+  },
+  {
+    "label": "Tent 10x10 kit + 1 half wall single",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-1",
+    "width": 120,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "mesh_sidewall": "0",
+      "tent_sandbag": "0",
+      "tent_full_wall": "0",
+      "tent_half_wall": "1x1"
+    },
+    "expectedListCents": 149199
+  },
+  {
+    "label": "Tent 10x10 kit + 1 half wall double",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-1",
+    "width": 120,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "mesh_sidewall": "0",
+      "tent_sandbag": "0",
+      "tent_full_wall": "0",
+      "tent_half_wall": "1x2"
+    },
+    "expectedListCents": 165411
+  },
+  {
+    "label": "Tent 10x10 canopy",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-1",
+    "width": 120,
+    "height": 120,
+    "options": {
+      "tent_hardware": "0",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "mesh_sidewall": "0",
+      "tent_sandbag": "0",
+      "tent_full_wall": "0",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 59882
+  },
+  {
+    "label": "Tent 10x15 kit",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-2",
+    "width": 180,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "tent_sandbag": "0",
+      "tent_full_wall": "0",
+      "tent_full_wall_long": "0",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 160162
+  },
+  {
+    "label": "Tent 10x15 kit + 1 long full wall",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-2",
+    "width": 180,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "tent_sandbag": "0",
+      "tent_full_wall": "0",
+      "tent_full_wall_long": "L1",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 210675
+  },
+  {
+    "label": "Tent 10x15 kit + 1 short full wall",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-2",
+    "width": 180,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "tent_sandbag": "0",
+      "tent_full_wall": "S1",
+      "tent_full_wall_long": "0",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 195004
+  },
+  {
+    "label": "Tent 10x15 kit + 1 half wall single",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-2",
+    "width": 180,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "tent_sandbag": "0",
+      "tent_full_wall": "0",
+      "tent_full_wall_long": "0",
+      "tent_half_wall": "1x1"
+    },
+    "expectedListCents": 205351
+  },
+  {
+    "label": "Tent 10x15 kit + 1 half wall double",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-2",
+    "width": 180,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "tent_sandbag": "0",
+      "tent_full_wall": "0",
+      "tent_full_wall_long": "0",
+      "tent_half_wall": "1x2"
+    },
+    "expectedListCents": 221566
+  },
+  {
+    "label": "Tent 10x15 kit wheeled bag",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-2",
+    "width": 180,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "w",
+      "tent_sandbag": "0",
+      "tent_full_wall": "0",
+      "tent_full_wall_long": "0",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 176243
+  },
+  {
+    "label": "Tent 10x15 kit + 4 sandbags",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-2",
+    "width": 180,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "tent_sandbag": "1",
+      "tent_full_wall": "0",
+      "tent_full_wall_long": "0",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 170514
+  },
+  {
+    "label": "Tent 10x15 canopy",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-2",
+    "width": 180,
+    "height": 120,
+    "options": {
+      "tent_hardware": "0",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "tent_sandbag": "0",
+      "tent_full_wall": "0",
+      "tent_full_wall_long": "0",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 66213
+  },
+  {
+    "label": "Tent 10x20 kit",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-3",
+    "width": 240,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "tent_sandbag": "2",
+      "tent_full_wall": "0",
+      "tent_full_wall_long": "0",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 190149
+  },
+  {
+    "label": "Tent 10x20 kit + 1 long full wall",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-3",
+    "width": 240,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "tent_sandbag": "2",
+      "tent_full_wall": "0",
+      "tent_full_wall_long": "L1",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 257662
+  },
+  {
+    "label": "Tent 10x20 kit + 1 short full wall",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-3",
+    "width": 240,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "tent_sandbag": "2",
+      "tent_full_wall": "S1",
+      "tent_full_wall_long": "0",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 224500
+  },
+  {
+    "label": "Tent 10x20 kit + 1 half wall single",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-3",
+    "width": 240,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "tent_sandbag": "2",
+      "tent_full_wall": "0",
+      "tent_full_wall_long": "0",
+      "tent_half_wall": "1x1"
+    },
+    "expectedListCents": 235338
+  },
+  {
+    "label": "Tent 10x20 kit + 1 half wall double",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-3",
+    "width": 240,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "tent_sandbag": "2",
+      "tent_full_wall": "0",
+      "tent_full_wall_long": "0",
+      "tent_half_wall": "1x2"
+    },
+    "expectedListCents": 251550
+  },
+  {
+    "label": "Tent 10x20 kit wheeled bag",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-3",
+    "width": 240,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "w",
+      "tent_sandbag": "2",
+      "tent_full_wall": "0",
+      "tent_full_wall_long": "0",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 210271
+  },
+  {
+    "label": "Tent 10x20 kit + 6 sandbags",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-3",
+    "width": 240,
+    "height": 120,
+    "options": {
+      "tent_hardware": "1",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "tent_sandbag": "1",
+      "tent_full_wall": "0",
+      "tent_full_wall_long": "0",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 203886
+  },
+  {
+    "label": "Tent 10x20 canopy",
+    "slug": "custom-event-tents",
+    "variantId": "custom-event-tents-3",
+    "width": 240,
+    "height": 120,
+    "options": {
+      "tent_hardware": "0",
+      "tent_sewing_thread": "white",
+      "tent_carrybag": "s",
+      "tent_sandbag": "2",
+      "tent_full_wall": "0",
+      "tent_full_wall_long": "0",
+      "tent_half_wall": "0"
+    },
+    "expectedListCents": 86393
+  },
+  {
+    "label": "Aluminum 18x24 single",
+    "slug": "aluminum-signs",
+    "variantId": "aluminum-signs-1",
+    "width": 18,
+    "height": 24,
+    "options": {
+      "size": "custom_size",
+      "sides": "1",
+      "cornerstyle": "S",
+      "holespunch": "0",
+      "lamination": "UV"
+    },
+    "expectedListCents": 10463
+  },
+  {
+    "label": "Aluminum 18x24 double",
+    "slug": "aluminum-signs",
+    "variantId": "aluminum-signs-1",
+    "width": 18,
+    "height": 24,
+    "options": {
+      "size": "custom_size",
+      "sides": "2",
+      "cornerstyle": "S",
+      "holespunch": "0",
+      "lamination": "UV"
+    },
+    "expectedListCents": 13171
+  },
+  {
+    "label": "Aluminum 18x24 single 2 holes",
+    "slug": "aluminum-signs",
+    "variantId": "aluminum-signs-1",
+    "width": 18,
+    "height": 24,
+    "options": {
+      "size": "custom_size",
+      "sides": "1",
+      "cornerstyle": "S",
+      "holespunch": "TL;TR",
+      "lamination": "UV"
+    },
+    "expectedListCents": 10566
+  },
+  {
+    "label": "Aluminum 18x24 single 4 holes",
+    "slug": "aluminum-signs",
+    "variantId": "aluminum-signs-1",
+    "width": 18,
+    "height": 24,
+    "options": {
+      "size": "custom_size",
+      "sides": "1",
+      "cornerstyle": "S",
+      "holespunch": "TL;TR;BL;BR",
+      "lamination": "UV"
+    },
+    "expectedListCents": 10566
+  },
+  {
+    "label": "Aluminum 18x24 single rounded",
+    "slug": "aluminum-signs",
+    "variantId": "aluminum-signs-1",
+    "width": 18,
+    "height": 24,
+    "options": {
+      "size": "custom_size",
+      "sides": "1",
+      "cornerstyle": "R",
+      "holespunch": "0",
+      "lamination": "UV"
+    },
+    "expectedListCents": 10463
+  },
+  {
+    "label": "PVC poster 24x36",
+    "slug": "display-posters",
+    "variantId": "display-posters-1",
+    "width": 24,
+    "height": 36,
+    "options": {
+      "material": "double_white_popup",
+      "lamination": "UV",
+      "lam": "no"
+    },
+    "expectedListCents": 8800
+  },
+  {
+    "label": "PVC poster 18x24",
+    "slug": "display-posters",
+    "variantId": "display-posters-1",
+    "width": 18,
+    "height": 24,
+    "options": {
+      "material": "double_white_popup",
+      "lamination": "UV",
+      "lam": "no"
+    },
+    "expectedListCents": 8261
+  }
+]

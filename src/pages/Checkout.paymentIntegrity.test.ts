@@ -24,7 +24,7 @@ describe('provider-neutral checkout integrity', () => {
 
   it('locks cart and provider mutations during an unresolved authorization', () => {
     expect(checkout).toContain('disabled={checkoutLocked || item.quantity <= 1}');
-    expect(checkout).toContain('disabled={checkoutLocked || item.quantity >= 999}');
+    expect(checkout).toContain("disabled={checkoutLocked || item.quantity >= (item.product_type === 'specialty' ? 100 : 999)}");
     expect(checkout).toContain('<SameDayHitServiceCard disabled={checkoutLocked} />');
     expect(checkout).toContain('disabled={checkoutLocked}');
     expect(checkout).toContain('if (!checkoutLocked) setPaymentProvider');

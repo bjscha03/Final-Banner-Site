@@ -1,17 +1,22 @@
 'use strict';
 
 const crypto = require('crypto');
+const { resolveSpecialtyTemplate, specialtyPrompt } = require('../specialty-products.cjs');
+const {layoutContext,cropForRatio,layoutGuide,guideInstruction,visibleArtwork}=require('./specialty-layout.cjs');
 const FIT_MODEL = 'gpt-image-2.5-sunburst-2026-09-08';
 const FIT_INSPECTION_MODEL = 'gpt-6-astra';
 
 function validateFitRequest(body) {
   const productType = body.productType ?? 'banner';
-  if (!['banner', 'yard_sign', 'car_magnet'].includes(productType)) {
+  const specialty = String(productType).startsWith('specialty:');
+  if (specialty) throw Object.assign(new Error('Upload print-ready artwork for this product. AI design and fitting are not available for its print template.'), {code:'SPECIALTY_AI_UNAVAILABLE',statusCode:409});
+  if (specialty) resolveSpecialtyTemplate(productType, Number(body.widthIn), Number(body.heightIn));
+  if (!specialty && !['banner', 'yard_sign', 'car_magnet'].includes(productType)) {
     throw Object.assign(new Error('Choose a supported print product.'), { code: 'INVALID_REQUEST' });
   }
   const widthIn = Number(body.widthIn), heightIn = Number(body.heightIn);
-  if (![widthIn, heightIn].every(n => Number.isFinite(n) && n >= 6 && n <= 1200)
-    || widthIn / heightIn > 20 || heightIn / widthIn > 20) {
+  if (!specialty && (![widthIn, heightIn].every(n => Number.isFinite(n) && n >= 6 && n <= 1200)
+    || widthIn / heightIn > 20 || heightIn / widthIn > 20)) {
     throw Object.assign(new Error('Choose artwork dimensions from 6 to 1200 inches, up to a 20:1 ratio.'), { code: 'INVALID_DIMENSIONS' });
   }
   if (typeof body.sourceImage !== 'string' || !/^data:image\/(?:png|jpeg|webp);base64,/.test(body.sourceImage)) {
@@ -44,8 +49,9 @@ function compareWording(expected, detected) {
 }
 
 function buildFitPrompt({ widthIn, heightIn, plan, source, productType = 'banner' }) {
-  const product = { banner: 'banner', yard_sign: 'yard sign', car_magnet: 'car magnet' }[productType];
+  const product = String(productType).startsWith('specialty:') ? resolveSpecialtyTemplate(productType,widthIn,heightIn).product.name : { banner: 'banner', yard_sign: 'yard sign', car_magnet: 'car magnet' }[productType];
   return [
+    specialtyPrompt(productType,widthIn,heightIn),
     `Recompose the supplied customer artwork for a different ${product} shape. This is a faithful layout adaptation of THIS design, not a new creative concept.`,
     `The final ${product} is ${widthIn} inches wide by ${heightIn} inches high (width:height ${widthIn / heightIn}:1).`,
     'Move, proportionally resize and reflow existing elements into a balanced, readable layout. Keep the same visual style, colors, typography character, exact logos, photos, subjects and decorative elements. Preserve recognizable faces and products. Do not stretch anything. Do not replace photographs with different people or objects.',
@@ -157,8 +163,11 @@ async function runFitRequest(body, session, jobId, report = async () => {}, depe
     });
   }
   await report('Rearranging your design for the selected size');
+  const context=layoutContext(productType,widthIn,heightIn);
+  const templateReference=await layoutGuide(context,plan);
   const result = await edit({
-    prompt: buildFitPrompt({ widthIn, heightIn, plan, source, productType }), size: plan.providerSize,
+    prompt: buildFitPrompt({ widthIn, heightIn, plan, source, productType }) + '\n' + guideInstruction(context), size: plan.providerSize,
+    ...(templateReference ? {referenceImage:templateReference} : {}),
     currentImage: original.buffer, currentMime: original.mimeType, user,
     model: FIT_MODEL, quality: 'high', idempotencyKey: key('layout'),
   });
@@ -167,22 +176,22 @@ async function runFitRequest(body, session, jobId, report = async () => {}, depe
   const meta = await sharp(result.buffer, { limitInputPixels: 40_000_000 }).metadata();
   if (!meta.width || !meta.height) throw Object.assign(new Error('Invalid generated image.'), { code: 'PROVIDER_EMPTY_RESPONSE' });
   const ratio = widthIn / heightIn;
-  const cropWidth = Math.min(meta.width, Math.round(meta.height * ratio));
-  const cropHeight = Math.min(meta.height, Math.round(meta.width / ratio));
-  let output = await sharp(result.buffer).extract({
-    left: Math.floor((meta.width - cropWidth) / 2), top: Math.floor((meta.height - cropHeight) / 2),
-    width: cropWidth, height: cropHeight,
-  }).flatten({ background: '#ffffff' }).jpeg({ quality: 96, chromaSubsampling: '4:4:4' }).toBuffer();
+  const crop=cropForRatio(meta.width,meta.height,ratio),cropWidth=crop.width,cropHeight=crop.height;
+  let output = await sharp(result.buffer).extract(crop)
+    .flatten({ background: '#ffffff' }).jpeg({ quality: 96, chromaSubsampling: '4:4:4' }).toBuffer();
   await report('Checking the new wording, logos and design elements');
-  const inspectCandidate = (buffer, stage) => inspect({ original, candidate: { buffer, mimeType: 'image/jpeg' }, expected: source.lines,
+  const inspectCandidate = async (buffer, stage) => {
+    buffer=await visibleArtwork(buffer,context);
+    return inspect({ original, candidate: { buffer, mimeType: 'image/jpeg' }, expected: source.lines,
     sourceContext: { artworkType: source.artworkType, incidentalText: source.incidentalText || [], elements: source.elements },
     user, idempotencyKey: key(stage) });
+  };
   let checked = await inspectCandidate(output, 'verify');
   let edgeRecovery = false;
   let outputWidth = cropWidth, outputHeight = cropHeight;
   // If trimming caused a rejection, first verify the complete generated image.
   // Recover only a faithful untrimmed layout, never restore already-bad text.
-  if (!fitCheckPasses(source, checked) && (cropWidth < meta.width || cropHeight < meta.height)) {
+  if (!String(productType).startsWith('specialty:') && !fitCheckPasses(source, checked) && (cropWidth < meta.width || cropHeight < meta.height)) {
     await report('Checking the complete layout before adjusting its edges');
     const fullImage = await sharp(result.buffer).flatten({ background: '#ffffff' }).jpeg({ quality: 96, chromaSubsampling: '4:4:4' }).toBuffer();
     const fullCheck = await inspectCandidate(fullImage, 'verify-untrimmed');
@@ -212,7 +221,7 @@ async function runFitRequest(body, session, jobId, report = async () => {}, depe
   return {
     ok: true, fit: {
       id: crypto.randomUUID(), sourceHash: crypto.createHash('sha256').update(original.buffer).digest('hex'),
-      widthIn, heightIn, widthPx: outputWidth, heightPx: outputHeight,
+      productType, widthIn, heightIn, widthPx: outputWidth, heightPx: outputHeight,
       imageBase64: output.toString('base64'), mimeType: 'image/jpeg',
       verification: { passed, canApply, blockingIssues, originalText: source.lines, detectedText: checked.lines, missing: wording.missing, added: wording.added, issues: checked.issues, confidence: checked.confidence },
       diagnostics: { model: result.model, inspectionModel: FIT_INSPECTION_MODEL, artworkType: source.artworkType, incidentalTextRegions: (source.incidentalText || []).length, sourceReads, sourceConfidence: source.confidence, providerRequestId: result.requestId, durationMs: Date.now() - startedAt, strategy: plan.strategy, edgeRecovery },

@@ -1,6 +1,7 @@
 import type { AdminBusinessMetrics } from '../admin-business-metrics';
 import type { AdminOrderOverview } from '../admin-order-overview';
 import type { PlacementPreviewManifest } from '@/types/artwork';
+import type {SpecialtyConfiguration} from '../specialtyArtwork';
 
 export type MaterialKey = '13oz' | '15oz' | '18oz' | '18oz_double' | 'mesh' | 'corrugated' | 'magnetic' | 'aluminum_040' | 'aluminum_063';
 export type OrderStatus = 'paid' | 'pending' | 'failed' | 'refunded' | 'shipped' | 'delivered' | 'fulfilled' | 'in_production';
@@ -15,6 +16,7 @@ export interface DesignServiceAsset {
 }
 
 export interface OrderItem {
+  specialty_config?: SpecialtyConfiguration;
   product_type?: string;       // Product type slug (default: 'banner')
   width_in: number;
   height_in: number;

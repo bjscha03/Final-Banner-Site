@@ -45,7 +45,8 @@ interface BreakdownRow {
   icon?: React.ReactNode;
 }
 
-const productTypeOf = (item: CartItem): 'banner' | 'yard_sign' | 'car_magnet' => {
+const productTypeOf = (item: CartItem): 'banner' | 'yard_sign' | 'car_magnet' | 'specialty' => {
+  if(item.product_type==='specialty')return 'specialty';
   if (isYardSignItem(item)) return 'yard_sign';
   if ((item.product_type || 'banner') === 'car_magnet') return 'car_magnet';
   return 'banner';
@@ -84,7 +85,7 @@ const buildRows = (
         : '';
       rows.push({ label: `Step stakes${qtyLabel}`, amountCents: stakesSubtotal });
     }
-  } else if (productType === 'car_magnet') {
+  } else if (productType === 'car_magnet'||productType === 'specialty') {
     rows.push({ label: 'Base price', amountCents: lineTotalRaw });
   } else {
     const rope = item.rope_cost_cents || 0;
@@ -164,6 +165,7 @@ const CartItemBreakdown: React.FC<CartItemBreakdownProps> = ({
   className = '',
   displayDiscountCents,
 }) => {
+  if(item.product_type==='specialty'&&!item.specialty_config?.priceVerified)return <p className="text-sm text-amber-800">Pricing for the selected configuration is pending confirmation.</p>;
   const { rows, baseSubtotalCents, lineTotalCents } = buildRows(
     item,
     resolvedDiscount,

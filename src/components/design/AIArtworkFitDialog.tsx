@@ -7,6 +7,8 @@ import { fetchAIJson } from './ai/jobRequest';
 import { AIRequestRateLimitError, runBackgroundJob } from './ai/backgroundJob';
 import { artworkFitIdentity, canApplyArtworkFit, prepareArtworkFitSource, saveFittedArtwork, type ArtworkFitResult, type ArtworkFitProduct } from './ai/artworkFit';
 import { logUx } from '@/lib/uxAnalytics';
+import {aiProductContext} from './ai/productContext';
+import {SpecialtyTemplateGuide} from '@/components/specialty/SpecialtyPreview';
 
 export function ArtworkFitButton({ onClick, disabled, onRestore }: { onClick: () => void; disabled?: boolean; onRestore?: () => void }) {
   return <div className="mt-3 border-t border-slate-100 pt-3">
@@ -26,6 +28,7 @@ type Props = {
 };
 
 export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthIn, heightIn, productType = 'banner', onApply }: Props) {
+  const productContext=aiProductContext({productType,widthIn,heightIn});
   const identity = artworkFitIdentity(artwork, widthIn, heightIn, productType);
   const identityRef = useRef(identity); identityRef.current = identity;
   const [source, setSource] = useState('');
@@ -100,6 +103,10 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
         sourceImage: source, widthIn, heightIn, productType, attempt: nextAttempt,
       }, activeController.signal, 'Preparing your design', setStage, undefined, undefined, requestIdentity);
       if (activeController.signal.aborted || requestIdentity !== identityRef.current) return;
+      if (Math.abs(response.fit?.widthIn-widthIn)>.001 || Math.abs(response.fit?.heightIn-heightIn)>.001
+        || (productType.startsWith('specialty:')&&response.fit?.productType!==productType)) {
+        throw new Error('The fitted result does not match your selected product and size. Your original is unchanged.');
+      }
       setResult(response.fit);
       savedResult.current = null; setRetryPending(false); setRetryAt(0);
       logUx('ai_fit_complete', { widthIn, heightIn, checksPassed: response.fit.verification.passed });
@@ -141,9 +148,10 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
         <figure className="min-w-0"><figcaption className="mb-2 text-sm font-bold">Original artwork</figcaption><div className="flex min-h-40 items-center justify-center rounded-xl border bg-slate-100 p-3"><img src={source} alt="Your original design, unchanged" className="max-h-72 max-w-full object-contain" /></div></figure>
         <figure className="min-w-0"><figcaption className="mb-2 text-sm font-bold">{result ? 'Proposed layout' : 'Your selected product shape'}</figcaption>
           <div className="flex min-h-40 items-center justify-center rounded-xl border bg-slate-100 p-3">
-            <div className="relative w-full overflow-hidden bg-white shadow-sm" style={{ aspectRatio: `${widthIn} / ${heightIn}`, maxHeight: 400 }}>
+            <div className="relative overflow-hidden bg-white shadow-sm" style={{ aspectRatio: `${widthIn} / ${heightIn}`, width:Math.min(900,400*widthIn/heightIn),maxWidth:'100%' }}>
               {proposed ? <button type="button" onClick={() => setZoom(true)} aria-label="Enlarge proposed layout" className="block h-full w-full"><img src={proposed} alt="AI layout at your selected product dimensions" className="h-full w-full object-contain" /></button>
                 : <img src={source} alt="Original artwork fitted proportionally within your selected size" className="absolute inset-0 h-full w-full object-contain opacity-65" />}
+              {productContext.template&&<SpecialtyTemplateGuide template={productContext.template}/>}
             </div>
           </div>
           {result && <button type="button" onClick={() => setZoom(true)} className="min-h-11 text-sm font-semibold text-blue-800 underline">Enlarge to check details</button>}

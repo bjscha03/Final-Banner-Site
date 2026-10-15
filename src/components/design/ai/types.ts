@@ -1,4 +1,4 @@
-export type CreateWithAIProductType = 'banner' | 'yard_sign' | 'car_magnet';
+export type CreateWithAIProductType = 'banner' | 'yard_sign' | 'car_magnet' | `specialty:${string}`;
 
 export type ExactCopy = {
   headline: string;

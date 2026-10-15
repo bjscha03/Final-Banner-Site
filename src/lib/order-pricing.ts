@@ -197,7 +197,7 @@ export function calculateOrderTotals(
 
   const bannerEntries = pricedItems.filter(({ item }) => {
     const productType = String(item.product_type || DEFAULT_PRODUCT_TYPE).trim().toLowerCase();
-    return productType !== 'yard_sign' && productType !== 'car_magnet';
+    return productType !== 'yard_sign' && productType !== 'car_magnet' && productType !== 'specialty';
   });
   const bannerQuantity = bannerEntries.reduce((sum, entry) => sum + entry.item.quantity, 0);
   const bannerSubtotalCents = bannerEntries.reduce(

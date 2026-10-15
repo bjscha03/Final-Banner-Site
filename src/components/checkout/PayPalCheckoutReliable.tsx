@@ -179,6 +179,7 @@ export const buildCheckoutIdentitySignature = ({
   items: items.map((item) => ({
     id: item.id,
     product_type: item.product_type || 'banner',
+    specialty_config: item.specialty_config || null,
     width_in: item.width_in,
     height_in: item.height_in,
     quantity: item.quantity,

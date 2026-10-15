@@ -3,6 +3,9 @@ import path from 'node:path';
 import sharp from 'sharp';
 
 const distDir = path.join(process.cwd(), 'dist');
+const catalog = JSON.parse(await readFile('shared/specialty-catalog.json','utf8'));
+const release = JSON.parse(await readFile('shared/specialty-release.json','utf8'));
+const available = catalog.filter(p=>release.categories[p.category]!==false&&release.products[p.slug]!==false);
 const manifest = JSON.parse(await readFile(path.join(distDir, 'local-page-manifest.json'), 'utf8'));
 const sitemap = await readFile(path.join(distDir, 'sitemap.xml'), 'utf8');
 const sitemapUrls = new Set([...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1].replace(/\/$/, '')));
@@ -38,6 +41,7 @@ function schemaNodes(html) {
 
 const localEntries = manifest.filter((entry) => /^\/(vinyl-banners|yard-signs|car-magnets)(?:\/[^/]+)?$/.test(entry.route));
 const tradeShowEntries = manifest.filter((entry) => entry.route === '/trade-shows' || /^\/trade-shows\/[^/]+$/.test(entry.route));
+const specialtyEntries = manifest.filter((entry) => /^\/products(?:\/[^/]+)?$/.test(entry.route));
 assert(localEntries.length === 0, `Expected no product detail routes; found ${localEntries.length}.`);
 assert(!manifest.some((entry) => /^\/(vinyl-banners|yard-signs|car-magnets)\/[^/]+/.test(entry.route)), 'Retired city routes must not be prerendered.');
 assert(![...sitemapUrls].some((url) => /^https:\/\/bannersonthefly\.com\/(vinyl-banners|yard-signs|car-magnets)\/[^/]+/.test(url)), 'Retired city URLs must not be in the sitemap.');
@@ -47,7 +51,8 @@ for (const route of ['/vinyl-banners', '/mesh-banners', '/yard-signs', '/car-mag
 }
 assert(tradeShowEntries.length === 0, 'Retired trade-show routes must not be prerendered.');
 assert(![...sitemapUrls].some((url) => url.includes('/trade-shows')), 'Retired trade-show URLs must not be in the sitemap.');
-assert(manifest.length === 0, `Expected no generated product detail routes; found ${manifest.length}.`);
+assert(specialtyEntries.length === (available.length ? available.length + 1 : 0), `Expected enabled specialty routes; found ${specialtyEntries.length}.`);
+assert(manifest.length === specialtyEntries.length, `Unexpected generated route count: ${manifest.length}.`);
 assert(new Set(manifest.map((entry) => entry.route)).size === manifest.length, 'Generated route manifest contains duplicates.');
 
 for (const entry of manifest) {
@@ -57,6 +62,14 @@ for (const entry of manifest) {
   const isLocal = /^\/(vinyl-banners|yard-signs|car-magnets)\/[^/]+$/.test(entry.route);
   const isTradeShowDirectory = entry.route === '/trade-shows';
   const isTradeShowDetail = /^\/trade-shows\/[^/]+$/.test(entry.route);
+  const isSpecialty = specialtyEntries.includes(entry);
+
+  // The account-installed Cloudinary plugin embeds image URLs in CSS selectors.
+  // A newline in a captured supplier URL crashes its post-build HTML pass.
+  for (const image of tags(html, 'img')) {
+    const src = attribute(image, 'src');
+    assert(!src || (src === src.trim() && !/[\r\n\f]/.test(src)), `${entry.route}: image URL contains whitespace that breaks deployment.`);
+  }
 
   assert(!/href=["']\/trade-shows(?:[\/"'])/.test(html), `${entry.route}: retired trade-show link remains.`);
   assert(html.includes('data-prerendered="true"'), `${entry.route}: missing prerender marker.`);
@@ -110,6 +123,12 @@ for (const entry of manifest) {
     assert(html.includes('does not represent a storefront or pickup location'), `${entry.route}: shipping-only disclosure missing.`);
   }
 
+  if (isSpecialty) {
+    assert(types.includes(entry.route === '/products' ? 'CollectionPage' : 'Product'), `${entry.route}: specialty page schema missing.`);
+    assert(!types.includes('Offer'), `${entry.route}: a draft awaiting verified delivery must not claim a final purchasable offer.`);
+    assert(/shipping|delivery/i.test(html), `${entry.route}: address-based delivery disclosure missing.`);
+  }
+
   if (isTradeShowDirectory) {
     assert(entry.indexable, `${entry.route}: the calendar must be indexable.`);
     assert(types.includes('CollectionPage') && JSON.stringify(nodes).includes('"@type":"ItemList"'), `${entry.route}: collection schema is incomplete.`);
@@ -158,7 +177,7 @@ assert(!/modulepreload[^>]+(?:pdf|pdfjs|pdfkit)/i.test(shell), 'PDF code must no
 
 const redirects = await readFile(path.join(distDir, '_redirects'), 'utf8');
 const fallbackPosition = redirects.indexOf('/*    /index.html   200');
-for (const namespace of ['/vinyl-banners/*', '/yard-signs/*', '/car-magnets/*', '/trade-shows/*']) {
+for (const namespace of ['/vinyl-banners/*', '/yard-signs/*', '/car-magnets/*', '/products/*', '/trade-shows/*']) {
   const rulePosition = redirects.indexOf(`${namespace}`);
   assert(rulePosition >= 0 && rulePosition < fallbackPosition, `${namespace}: true-404 rule must precede the SPA fallback.`);
 }

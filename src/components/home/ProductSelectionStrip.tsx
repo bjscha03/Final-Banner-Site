@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import SpecialtyCollectionStrip from './SpecialtyCollectionStrip';
 import ProductVisual from '@/components/product/ProductVisual';
 import { getConfiguratorUrl } from '@/lib/configurator';
 import type { CityProductSlug } from '@/lib/seo/cityData';
@@ -51,6 +52,7 @@ const ProductSelectionStrip: React.FC = () => {
           ))}
         </div>
         <p className="mt-5 text-sm text-slate-600">Free next-day air after production on orders $20 and up.</p>
+        <SpecialtyCollectionStrip/>
       </div>
     </section>
   );

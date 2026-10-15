@@ -1,0 +1,2444 @@
+{
+  "standard-retractable-banner-1-front": {
+    "id": "standard-retractable-banner-1-front",
+    "widthIn": 23,
+    "heightIn": 66,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      1,
+      0.5,
+      3,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "standard-retractable-banner-2-front": {
+    "id": "standard-retractable-banner-2-front",
+    "widthIn": 24,
+    "heightIn": 81,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      1,
+      0.5,
+      3,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "standard-retractable-banner-3-front": {
+    "id": "standard-retractable-banner-3-front",
+    "widthIn": 33,
+    "heightIn": 81,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      1,
+      0.5,
+      3,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "standard-retractable-banner-4-front": {
+    "id": "standard-retractable-banner-4-front",
+    "widthIn": 47,
+    "heightIn": 81,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      1,
+      0.5,
+      3,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "deluxe-retractable-banner-1-front": {
+    "id": "deluxe-retractable-banner-1-front",
+    "widthIn": 33,
+    "heightIn": 81,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      1,
+      0.5,
+      3,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "deluxe-retractable-banner-2-front": {
+    "id": "deluxe-retractable-banner-2-front",
+    "widthIn": 33,
+    "heightIn": 81,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      1,
+      0.5,
+      3,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "deluxe-retractable-banner-2-back": {
+    "id": "deluxe-retractable-banner-2-back",
+    "widthIn": 33,
+    "heightIn": 81,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      1,
+      0.5,
+      3,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "premium-retractable-banner-1-front": {
+    "id": "premium-retractable-banner-1-front",
+    "widthIn": 36,
+    "heightIn": 92,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      1,
+      0.5,
+      3,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "premium-retractable-banner-2-front": {
+    "id": "premium-retractable-banner-2-front",
+    "widthIn": 48,
+    "heightIn": 92,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      1,
+      0.5,
+      3,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "premium-retractable-banner-3-front": {
+    "id": "premium-retractable-banner-3-front",
+    "widthIn": 60,
+    "heightIn": 92,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      1,
+      0.5,
+      3,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "x-banner-stand-1-front": {
+    "id": "x-banner-stand-1-front",
+    "widthIn": 24,
+    "heightIn": 63,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      0.5,
+      0.5,
+      0.5,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "x-banner-stand-2-front": {
+    "id": "x-banner-stand-2-front",
+    "widthIn": 32,
+    "heightIn": 71,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      0.5,
+      0.5,
+      0.5,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "tabletop-banner-stand-1-front": {
+    "id": "tabletop-banner-stand-1-front",
+    "widthIn": 11.5,
+    "heightIn": 17.5,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      0.5,
+      0.5,
+      0.5,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "36-x90-download": {
+    "id": "36-x90-download",
+    "widthIn": 38.07555,
+    "heightIn": 91.11111,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/6720630bf5ec6747ab64875fb14be89dad3d21dc",
+    "sourceDate": "2026-10-12",
+    "outline": "M90.71650 8.81860 C90.71650 6.09085 85.42512 3.87957 78.89790 3.87957 L21.11804 3.87957 C14.59082 3.87957 9.29944 6.09085 9.29944 8.81860 L9.29954 10.09451 L9.29944 96.12043 L90.71650 96.12043 L90.70053 10.09230 L90.71650 8.81860",
+    "guides": [
+      {
+        "d": "M90.71650 8.81860 C90.71650 6.09085 85.42512 3.87957 78.89790 3.87957 L21.11804 3.87957 C14.59082 3.87957 9.29944 6.09085 9.29944 8.81860 L9.29954 10.09451 L9.29944 96.12043 L90.71650 96.12043 L90.70053 10.09230 L90.71650 8.81860",
+        "dashed": true,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M99.89276 7.34839 L99.89276 7.33922 L99.90151 7.32963 L99.90888 4.97713 C99.90888 2.24939 94.61751 0.03811 88.09027 0.03811 L11.90980 0.03811 C5.38257 0.03811 0.09119 2.24939 0.09119 4.97713 L0.09962 7.32963 L0.09119 7.33922 L0.09119 7.34839 L0.09119 98.27155 L0.10721 99.96188 L2.73356 99.96188 L97.28238 99.96188 L99.90874 99.96188 L99.89276 98.27155 L99.89276 7.34839",
+        "dashed": false,
+        "color": "#0284c7"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded."
+  },
+  "48-x90-download": {
+    "id": "48-x90-download",
+    "widthIn": 50.56944,
+    "heightIn": 91.11111,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/dc721f79eab1114de3fc349efa8eafe2f5268f11",
+    "sourceDate": "2026-10-12",
+    "outline": "M90.05768 0.03811 L9.96979 0.03811 C4.50912 0.03811 0.08239 2.49508 0.08239 5.52591 L0.08209 7.33119 L0.06866 7.33922 L0.06866 7.34840 L0.06866 98.86605 L0.06866 99.96189 L2.11346 99.96189 L21.79212 99.96189 L23.81079 99.96189 L76.29637 99.96189 L78.31505 99.96189 L97.93878 99.96189 L99.93134 99.96189 L99.93134 98.86605 L99.93134 7.34840 L99.93134 7.33922 L99.93134 7.33232 L99.93134 5.52591 C99.93134 2.49508 95.51835 0.03811 90.05768 0.03811",
+    "guides": [
+      {
+        "d": "M90.05768 0.03811 L9.96979 0.03811 C4.50912 0.03811 0.08239 2.49508 0.08239 5.52591 L0.08209 7.33119 L0.06866 7.33922 L0.06866 7.34840 L0.06866 98.86605 L0.06866 99.96189 L2.11346 99.96189 L21.79212 99.96189 L23.81079 99.96189 L76.29637 99.96189 L78.31505 99.96189 L97.93878 99.96189 L99.93134 99.96189 L99.93134 98.86605 L99.93134 7.34840 L99.93134 7.33922 L99.93134 7.33232 L99.93134 5.52591 C99.93134 2.49508 95.51835 0.03811 90.05768 0.03811",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M92.94150 96.12043 L71.25491 96.12043 L28.71499 96.12043 L6.93491 96.12043 L6.93491 10.09146 L6.93491 9.36738 C6.93491 6.33654 11.36163 3.87957 16.82230 3.87957 L83.06784 3.87957 C88.52851 3.87957 92.94837 6.33654 92.94837 9.36738 L92.94150 96.12043",
+        "dashed": true,
+        "color": "#0284c7"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded."
+  },
+  "step-and-repeat-backdrop-1-front": {
+    "id": "step-and-repeat-backdrop-1-front",
+    "widthIn": 120,
+    "heightIn": 96,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      4,
+      1,
+      4,
+      1
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "angled-small": {
+    "id": "angled-small",
+    "widthIn": 25.0,
+    "heightIn": 80.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/b05721223e326aa074d7d922c42616644e9990cf",
+    "sourceDate": "2026-10-12",
+    "outline": "M98.22645 1.22251 C98.22645 1.22251 79.26890 0.85793 66.24068 1.82145 C64.15290 2.05579 44.77773 3.56614 30.74746 9.19086 C28.74312 9.89397 18.23912 14.41293 12.89401 19.86431 C11.55768 21.14904 6.10118 27.08654 4.43084 33.26709 C4.31951 34.10042 3.73823 36.91293 3.73823 36.91293 L4.65351 99.55900 L98.22645 86.46951 C98.19345 82.47645 98.22645 1.22251 98.22645 1.22251 Z",
+    "guides": [
+      {
+        "d": "M98.22645 1.22251 C98.22645 1.22251 79.26890 0.85793 66.24068 1.82145 C64.15290 2.05579 44.77773 3.56614 30.74746 9.19086 C28.74312 9.89397 18.23912 14.41293 12.89401 19.86431 C11.55768 21.14904 6.10118 27.08654 4.43084 33.26709 C4.31951 34.10042 3.73823 36.91293 3.73823 36.91293 L4.65351 99.55900 L98.22645 86.46951 C98.19345 82.47645 98.22645 1.22251 98.22645 1.22251 M0.00001 -0.00001 L100.00001 -0.00001 L100.00001 99.99999 L0.00001 99.99999 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded.",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "polePath": "M98.22645 1.22251 C98.22645 1.22251 79.26890 0.85793 66.24068 1.82145 C64.15290 2.05579 44.77773 3.56614 30.74746 9.19086 C28.74312 9.89397 18.23912 14.41293 12.89401 19.86431 C11.55768 21.14904 6.10118 27.08654 4.43084 33.26709 C4.31951 34.10042 3.73823 36.91293 3.73823 36.91293 L4.65351 99.55900"
+  },
+  "angled-medium": {
+    "id": "angled-medium",
+    "widthIn": 25.5,
+    "heightIn": 105.5,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/2ce3c8dbd2d62796db863de839e3a8178fc15f48",
+    "sourceDate": "2026-10-12",
+    "outline": "M96.89617 86.67506 L2.77852 99.76254 L2.77852 40.96194 C2.77852 40.96194 2.27934 22.56120 26.49579 12.21572 C51.14154 1.68676 96.89617 1.18435 96.89617 1.18435 L96.89617 86.67506 Z",
+    "guides": [
+      {
+        "d": "M96.89617 86.67506 L2.77852 99.76254 L2.77852 40.96194 C2.77852 40.96194 2.27934 22.56120 26.49579 12.21572 C51.14154 1.68676 96.89617 1.18435 96.89617 1.18435 L96.89617 86.67506 M-0.00002 0.00000 L99.99998 0.00000 L99.99998 100.00000 L-0.00002 100.00000 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded.",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "polePath": "M96.89617 86.67506 L2.77852 99.76254"
+  },
+  "angled-large": {
+    "id": "angled-large",
+    "widthIn": 29.5,
+    "heightIn": 139.5,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/0895772a89dad1c9c0c5a194d797edb447f86907",
+    "sourceDate": "2026-10-12",
+    "outline": "M99.21309 88.31184 L4.29784 99.81988 L4.29784 36.73247 C4.29784 36.73247 0.91342 21.77096 29.98051 10.84637 C56.45773 0.89515 99.21309 0.89515 99.21309 0.89515 L99.21309 88.31184 Z ",
+    "guides": [
+      {
+        "d": "M99.21309 88.31184 L4.29784 99.81988 L4.29784 36.73247 C4.29784 36.73247 0.91342 21.77096 29.98051 10.84637 C56.45773 0.89515 99.21309 0.89515 99.21309 0.89515 L99.21309 88.31184 M0.00001 0.00000 L100.00001 0.00000 L100.00001 100.00000 L0.00001 100.00000 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded.",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "polePath": "M99.21309 88.31184 L4.29784 99.81988"
+  },
+  "angled-x-large": {
+    "id": "angled-x-large",
+    "widthIn": 27.0,
+    "heightIn": 187.5,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/05d61c344c0791c66f81e1b743cc47f6ac449095",
+    "sourceDate": "2026-10-12",
+    "outline": "M95.29326 91.68592 L95.29326 91.63315 L6.48271 98.98816 L7.32078 16.42135 C7.32078 16.42135 10.87171 4.34206 95.77644 1.02442 L95.29326 91.68592 Z ",
+    "guides": [
+      {
+        "d": "M95.29326 91.68592 L95.29326 91.63315 L6.48271 98.98816 L7.32078 16.42135 C7.32078 16.42135 10.87171 4.34206 95.77644 1.02442 L95.29326 91.68592 M0.00000 0.00000 L100.00000 0.00000 L100.00000 100.00000 L0.00000 100.00000 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded.",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "polePath": "M95.29326 91.68592 L95.29326 91.63315"
+  },
+  "convex-small": {
+    "id": "convex-small",
+    "widthIn": 24.25,
+    "heightIn": 79.5,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/cf6c0df3aaee29f3e3215d8e153f81f69127e593",
+    "sourceDate": "2026-10-12",
+    "outline": "M99.72054 55.32491 L99.72157 55.27543 C99.72420 30.36565 99.73612 0.87103 99.73612 0.87103 C99.73612 0.87103 80.19219 0.50417 66.76109 1.47370 C64.60868 1.70953 44.63434 3.22938 30.17014 8.88948 C28.10382 9.59699 17.27495 14.14440 11.76458 19.63010 C10.38686 20.92290 4.76166 26.89774 3.03961 33.11715 C2.92484 33.95573 2.32558 36.78592 2.32558 36.78592 L3.26922 99.82600 L3.28136 99.82600 C3.28136 99.82600 44.56120 98.36846 73.14436 89.02461 C93.39528 82.40459 98.60169 73.77400 99.73154 68.43501 L99.72054 63.29283 L99.72054 55.32491 Z",
+    "guides": [
+      {
+        "d": "M99.72054 55.32491 L99.72157 55.27543 C99.72420 30.36565 99.73612 0.87103 99.73612 0.87103 C99.73612 0.87103 80.19219 0.50417 66.76109 1.47370 C64.60868 1.70953 44.63434 3.22938 30.17014 8.88948 C28.10382 9.59699 17.27495 14.14440 11.76458 19.63010 C10.38686 20.92290 4.76166 26.89774 3.03961 33.11715 C2.92484 33.95573 2.32558 36.78592 2.32558 36.78592 L3.26922 99.82600 L3.28136 99.82600 C3.28136 99.82600 44.56120 98.36846 73.14436 89.02461 C93.39528 82.40459 98.60169 73.77400 99.73154 68.43501 L99.72054 63.29283 L99.72054 55.32491 M-0.00002 -0.00000 L99.99998 -0.00000 L99.99998 100.00000 L-0.00002 100.00000 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded.",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "polePath": "M4 100 L4 37 C4 15 30 2 67 1.5 L98 1.5"
+  },
+  "convex-medium": {
+    "id": "convex-medium",
+    "widthIn": 25.5,
+    "heightIn": 105.5,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/6ea5cee610f23bc85aa3637fbd579742dc02303c",
+    "sourceDate": "2026-10-12",
+    "outline": "M71.78155 90.50816 C45.91020 97.53061 4.75578 99.76254 4.75578 99.76254 L4.75578 40.96194 C4.75578 40.96194 4.25660 22.56120 28.47299 12.21572 C53.11886 1.68676 98.87343 1.18435 98.87343 1.18435 L98.87343 70.76093 C98.87343 70.76093 100.00001 82.84863 71.78155 90.50816 Z ",
+    "guides": [
+      {
+        "d": "M71.78155 90.50816 C45.91020 97.53061 4.75578 99.76254 4.75578 99.76254 L4.75578 40.96194 C4.75578 40.96194 4.25660 22.56120 28.47299 12.21572 C53.11886 1.68676 98.87343 1.18435 98.87343 1.18435 L98.87343 70.76093 C98.87343 70.76093 100.00001 82.84863 71.78155 90.50816 M0.00001 0.00000 L100.00001 0.00000 L100.00001 100.00000 L0.00001 100.00000 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded.",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "polePath": "M4 100 L4 37 C4 15 30 2 67 1.5 L98 1.5"
+  },
+  "convex-large": {
+    "id": "convex-large",
+    "widthIn": 29.5,
+    "heightIn": 139.5,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/525e9fb1f98ae62fa6661f8f4e0087c1c94c492a",
+    "sourceDate": "2026-10-12",
+    "outline": "M99.21309 73.08841 C99.21309 73.08841 97.32817 84.93227 65.54850 91.65270 C38.45137 97.38292 4.29784 99.81988 4.29784 99.81988 L4.29784 36.73247 C4.29784 36.73247 0.91342 21.77096 29.98051 10.84637 C56.45773 0.89515 99.21309 0.89515 99.21309 0.89515 L99.21309 73.08841 Z ",
+    "guides": [
+      {
+        "d": "M99.21309 73.08841 C99.21309 73.08841 97.32817 84.93227 65.54850 91.65270 C38.45137 97.38292 4.29784 99.81988 4.29784 99.81988 L4.29784 36.73247 C4.29784 36.73247 0.91342 21.77096 29.98051 10.84637 C56.45773 0.89515 99.21309 0.89515 99.21309 0.89515 L99.21309 73.08841 M0.00001 0.00000 L100.00001 0.00000 L100.00001 100.00000 L0.00001 100.00000 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded.",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "polePath": "M4 100 L4 37 C4 15 30 2 67 1.5 L98 1.5"
+  },
+  "convex-x-large": {
+    "id": "convex-x-large",
+    "widthIn": 27.0,
+    "heightIn": 191.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/537bfff142807bb959265089fb0362b04da3f49d",
+    "sourceDate": "2026-10-12",
+    "outline": "M95.293310 84.578294 L95.293260 84.592113 L95.293260 84.579828 C95.269593 85.053389 94.381067 89.686813 68.971246 92.950791 C38.362649 96.882577 6.482712 97.117720 6.482712 97.117720 L7.320778 16.063921 C7.320778 16.063921 10.871705 4.205972 95.776436 0.949130 L95.293518 84.544492 C95.293825 84.550131 95.294133 84.561464 95.293310 84.578294 Z",
+    "guides": [
+      {
+        "d": "M95.293310 84.578294 L95.293260 84.592113 L95.293260 84.579828 C95.269593 85.053389 94.381067 89.686813 68.971246 92.950791 C38.362649 96.882577 6.482712 97.117720 6.482712 97.117720 L7.320778 16.063921 C7.320778 16.063921 10.871705 4.205972 95.776436 0.949130 L95.293518 84.544492 C95.293825 84.550131 95.294133 84.561464 95.293310 84.578294 Z",
+        "color": "#0284c7",
+        "dashed": false
+      }
+    ],
+    "fitNotes": "Keep critical content inside the template boundary and away from seams and pole pockets. Extend background through the print area. Use the manufacturer\u2019s template for final file setup.",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "polePath": "M4 100 L4 37 C4 15 30 2 67 1.5 L98 1.5",
+    "geometrySource": "Exact inner boundary of the gray compound path in the manufacturer PDF; page coordinates normalized to 0\u2013100.",
+    "sourceSha256": "9b8f72e1554ea3ac32bd0c766df376d8be9909e25f8762b7128310726c4fdda5"
+  },
+  "teardrop-small": {
+    "id": "teardrop-small",
+    "widthIn": 24.22,
+    "heightIn": 65.48,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/5ebfd4884e1719c1e666040b8ca515ffdb35142b",
+    "sourceDate": "2026-10-12",
+    "outline": "M4.37861 99.57265 C5.05069 99.03884 1.81897 61.56703 4.72951 38.37729 C6.03685 27.96080 16.66799 19.87875 22.27504 15.85880 C33.28322 7.96648 54.78267 0.82681 72.71636 2.94504 C103.60979 6.59399 94.53872 20.79587 94.53872 20.79587 L99.14344 21.45654 L4.37861 99.57265 Z",
+    "guides": [
+      {
+        "d": "M4.37861 99.57265 C5.05069 99.03884 1.81897 61.56703 4.72951 38.37729 C6.03685 27.96080 16.66799 19.87875 22.27504 15.85880 C33.28322 7.96648 54.78267 0.82681 72.71636 2.94504 C103.60979 6.59399 94.53872 20.79587 94.53872 20.79587 L99.14344 21.45654 L4.37861 99.57265 M0.00000 -0.00003 L100.00000 -0.00003 L100.00000 99.99999 L0.00000 99.99999 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded.",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "polePath": "M4.37861 99.57265 C5.05069 99.03884 1.81897 61.56703 4.72951 38.37729 C6.03685 27.96080 16.66799 19.87875 22.27504 15.85880 C33.28322 7.96648 54.78267 0.82681 72.71636 2.94504 C103.60979 6.59399 94.53872 20.79587 94.53872 20.79587"
+  },
+  "teardrop-medium": {
+    "id": "teardrop-medium",
+    "widthIn": 34.385,
+    "heightIn": 81.59,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/56db908cb128160ad3f37a6bc9241495e9ea2375",
+    "sourceDate": "2026-10-12",
+    "outline": "M6.45417 98.97863 C7.06405 98.47201 2.29711 74.60119 4.28736 51.47828 C5.63861 35.77922 7.28185 33.14586 9.69125 27.78329 C16.95475 11.61711 50.15511 -1.59663 76.66384 3.83859 C99.57952 8.53711 95.38167 21.33673 95.38167 21.33673 L98.41953 21.97585 L6.45417 98.97863 Z",
+    "guides": [
+      {
+        "d": "M6.45417 98.97863 C7.06405 98.47201 2.29711 74.60119 4.28736 51.47828 C5.63861 35.77922 7.28185 33.14586 9.69125 27.78329 C16.95475 11.61711 50.15511 -1.59663 76.66384 3.83859 C99.57952 8.53711 95.38167 21.33673 95.38167 21.33673 L98.41953 21.97585 L6.45417 98.97863 M0.00000 0.00002 L99.99992 0.00002 L99.99992 100.00000 L0.00000 100.00000 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded.",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "polePath": "M6.45417 98.97863 C7.06405 98.47201 2.29711 74.60119 4.28736 51.47828 C5.63861 35.77922 7.28185 33.14586 9.69125 27.78329 C16.95475 11.61711 50.15511 -1.59663 76.66384 3.83859 C99.57952 8.53711 95.38167 21.33673 95.38167 21.33673"
+  },
+  "teardrop-large": {
+    "id": "teardrop-large",
+    "widthIn": 42.26,
+    "heightIn": 103.4557,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/cdcae6006b1c40f41a83690854a73cf0bbb24cba",
+    "sourceDate": "2026-10-12",
+    "outline": "M3.54910 99.51178 L3.38468 99.51176 L3.38461 99.50703 L3.39852 94.67060 L3.53826 45.55522 L3.24576 40.30258 C3.00683 28.19887 9.59567 19.47797 19.45671 11.99065 C19.45671 11.99065 39.34254 -3.97358 77.27728 3.08107 C77.27728 3.08107 103.39260 7.46992 96.12999 20.41411 L98.78373 20.95281 L3.54910 99.51178 Z",
+    "guides": [
+      {
+        "d": "M3.54910 99.51178 L3.38468 99.51176 L3.38461 99.50703 L3.39852 94.67060 L3.53826 45.55522 L3.24576 40.30258 C3.00683 28.19887 9.59567 19.47797 19.45671 11.99065 C19.45671 11.99065 39.34254 -3.97358 77.27728 3.08107 C77.27728 3.08107 103.39260 7.46992 96.12999 20.41411 L98.78373 20.95281 L3.54910 99.51178 M0.00001 0.00003 L99.99998 0.00003 L99.99998 100.00000 L0.00001 100.00000 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded.",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "polePath": "M3.54910 99.51178"
+  },
+  "teardrop-x-large": {
+    "id": "teardrop-x-large",
+    "widthIn": 47.98,
+    "heightIn": 145.25,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/10d30487ca63ad3758f3c406c47d8f428a4f4781",
+    "sourceDate": "2026-10-12",
+    "outline": "M3.81598 99.15550 L3.85957 95.36152 L3.47764 72.84241 L3.90250 35.85171 C3.69996 28.23714 9.84725 18.69281 20.39826 12.79806 C25.90930 9.71875 45.91801 2.09600 64.67035 2.26050 C83.91567 2.42936 92.10930 5.81235 94.83110 8.60632 C98.20174 12.06617 97.69699 15.75070 94.19961 18.94477 L93.59296 19.45648 L97.16410 19.86361 L3.81598 99.15550 Z ",
+    "guides": [
+      {
+        "d": "M3.81598 99.15550 L3.85957 95.36152 L3.47764 72.84241 L3.90250 35.85171 C3.69996 28.23714 9.84725 18.69281 20.39826 12.79806 C25.90930 9.71875 45.91801 2.09600 64.67035 2.26050 C83.91567 2.42936 92.10930 5.81235 94.83110 8.60632 C98.20174 12.06617 97.69699 15.75070 94.19961 18.94477 L93.59296 19.45648 L97.16410 19.86361 L3.81598 99.15550 M0.00001 0.00000 L100.00004 0.00000 L100.00004 100.00000 L0.00001 100.00000 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded.",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "polePath": "M3.81598 99.15550"
+  },
+  "rectangle-small": {
+    "id": "rectangle-small",
+    "widthIn": 34.0,
+    "heightIn": 95.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/fdf01b15dcabb8936062d0f2d10f778538a803ed",
+    "sourceDate": "2026-10-12",
+    "outline": "M98.25445 99.23861 L7.07798 99.17063 L7.06618 9.14161 L21.73534 3.89159 L98.25445 3.89118 L98.25445 99.23861 Z",
+    "guides": [
+      {
+        "d": "M98.25445 99.23861 L7.07798 99.17063 L7.06618 9.14161 L21.73534 3.89159 L98.25445 3.89118 L98.25445 99.23861 M-0.00004 0.00000 L99.99996 0.00000 L99.99996 100.00000 L-0.00004 100.00000 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded.",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "polePath": "M7 100 L7 9 L22 4 L98 4"
+  },
+  "rectangle-medium": {
+    "id": "rectangle-medium",
+    "widthIn": 34.0,
+    "heightIn": 118.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/05f05889cd6521a629a1f3fd142420fb128461d6",
+    "sourceDate": "2026-10-12",
+    "outline": "M97.89624 99.66694 L6.71977 99.61220 L6.70796 7.14956 L21.41377 2.91226 L97.89624 2.92252 L97.89624 99.66694 Z ",
+    "guides": [
+      {
+        "d": "M97.89624 99.66694 L6.71977 99.61220 L6.70796 7.14956 L21.41377 2.91226 L97.89624 2.92252 L97.89624 99.66694 M0.00000 0.00000 L100.00000 0.00000 L100.00000 100.00000 L0.00000 100.00000 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded.",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "polePath": "M7 100 L7 9 L22 4 L98 4"
+  },
+  "rectangle-large": {
+    "id": "rectangle-large",
+    "widthIn": 34.0,
+    "heightIn": 156.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/be6ef15449ff57628f697e32e62b209dd3388be1",
+    "sourceDate": "2026-10-12",
+    "outline": "M97.97794 99.57006 L6.80147 99.56425 L6.78966 5.62342 L21.49547 2.41829 L97.97794 2.42604 L97.97794 99.57006 Z ",
+    "guides": [
+      {
+        "d": "M97.97794 99.57006 L6.80147 99.56425 L6.78966 5.62342 L21.49547 2.41829 L97.97794 2.42604 L97.97794 99.57006 M0.00000 0.00000 L100.00000 0.00000 L100.00000 100.00000 L0.00000 100.00000 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded.",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "polePath": "M7 100 L7 9 L22 4 L98 4"
+  },
+  "econo-medium": {
+    "id": "econo-medium",
+    "widthIn": 32.0,
+    "heightIn": 138.99444,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/3f96de608d6183d6b0ad534450cf70eff9c147e4",
+    "sourceDate": "2026-10-12",
+    "outline": "M99.31361 94.44406 L3.20736 99.85040 C3.20736 99.85040 3.21044 27.01950 3.21127 20.87890 C3.21209 14.73831 19.38080 8.63761 19.38080 8.63761 C22.67151 7.20214 41.66556 0.77479 41.66556 0.77479 L99.33817 0.74923 L99.31361 94.44406 Z",
+    "guides": [
+      {
+        "d": "M99.31361 94.44406 L3.20736 99.85040 C3.20736 99.85040 3.21044 27.01950 3.21127 20.87890 C3.21209 14.73831 19.38080 8.63761 19.38080 8.63761 C22.67151 7.20214 41.66556 0.77479 41.66556 0.77479 L99.33817 0.74923 L99.31361 94.44406 M-0.00002 0.00044 L99.99998 0.00044 L99.99998 100.00000 L-0.00002 100.00000 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded.",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "polePath": "M4 100 L4 37 C4 15 30 2 67 1.5 L98 1.5"
+  },
+  "4ft-table-cover-3-sided-open-back": {
+    "id": "4ft-table-cover-3-sided-open-back",
+    "widthIn": 104.51389,
+    "heightIn": 65.01389,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/598c5997967510e60f1682b24c459b42949ce8e0",
+    "sourceDate": "2026-10-12",
+    "outline": "M99.00080 55.83396 C99.00080 55.83396 98.69481 76.41454 90.99193 87.52901 C83.28903 98.64345 74.46511 98.21408 70.37209 98.21942 C68.94204 98.22125 60.44804 98.22241 50.00078 98.22314 L50.00078 98.22410 C37.54937 98.22437 27.28231 98.22431 27.28231 98.22431 C27.28231 98.22431 15.71981 99.34029 8.62734 87.15681 C1.53488 74.97330 0.97939 60.44649 0.98271 51.30314 C0.98603 42.15979 0.98603 10.78464 0.98603 10.78464 L26.93139 10.78705 L26.92782 1.77528 L50.00078 1.77955 L50.00078 1.78378 L73.07210 1.78806 L73.07218 10.79049 L99.01559 10.78161 L99.00080 55.83396 Z  M50.00078 0.01068 L0.00664 0.01068 L0.00664 99.98932 L50.00078 99.98932 L99.99335 99.98932 L99.99335 0.01068 L50.00078 0.01068 Z",
+    "guides": [
+      {
+        "d": "M99.00080 55.83396 C99.00080 55.83396 98.69481 76.41454 90.99193 87.52901 C83.28903 98.64345 74.46511 98.21408 70.37209 98.21942 C68.94204 98.22125 60.44804 98.22241 50.00078 98.22314 L50.00078 98.22410 C37.54937 98.22437 27.28231 98.22431 27.28231 98.22431 C27.28231 98.22431 15.71981 99.34029 8.62734 87.15681 C1.53488 74.97330 0.97939 60.44649 0.98271 51.30314 C0.98603 42.15979 0.98603 10.78464 0.98603 10.78464 L26.93139 10.78705 L26.92782 1.77528 L50.00078 1.77955 L50.00078 1.78378 L73.07210 1.78806 L73.07218 10.79049 L99.01559 10.78161 L99.00080 55.83396 M50.00078 0.01068 L0.00664 0.01068 L0.00664 99.98932 L50.00078 99.98932 L99.99335 99.98932 L99.99335 0.01068 L50.00078 0.01068",
+        "dashed": true,
+        "color": "#e11d48"
+      },
+      {
+        "d": "M99.00080 55.83396 C99.00080 55.83396 98.69481 76.41454 90.99193 87.52901 C83.28903 98.64345 74.46511 98.21408 70.37209 98.21942 C68.94204 98.22125 60.44804 98.22241 50.00078 98.22314 L50.00078 98.22410 C37.54937 98.22437 27.28231 98.22431 27.28231 98.22431 C27.28231 98.22431 15.71981 99.34029 8.62734 87.15681 C1.53488 74.97330 0.97939 60.44649 0.98271 51.30314 C0.98603 42.15979 0.98603 10.78464 0.98603 10.78464 L26.93139 10.78705 L26.92782 1.77528 L50.00078 1.77955 L50.00078 1.78378 L73.07210 1.78806 L73.07218 10.79049 L99.01559 10.78161 L99.00080 55.83396 M50.00078 0.01068 L0.00664 0.01068 L0.00664 99.98932 L50.00078 99.98932 L99.99335 99.98932 L99.99335 0.01068 L50.00078 0.01068",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "faces": {
+      "top": [
+        0.269314,
+        0.107871,
+        0.461408,
+        0.446794
+      ],
+      "front": [
+        0.269314,
+        0.554664,
+        0.461408,
+        0.445336
+      ],
+      "side": [
+        0.730722,
+        0.107871,
+        0.269278,
+        0.446794
+      ]
+    },
+    "fitNotes": "Place the main message in the FRONT face; keep all words and logos inside its safe zone. The top and side faces fold onto other surfaces. Extend background over all printable faces. Never place a single stretched logo across the entire template.",
+    "geometrySource": "Vector fold lines and panel contours from the linked supplier PDF."
+  },
+  "4ft-table-cover-4-sided-close-back": {
+    "id": "4ft-table-cover-4-sided-close-back",
+    "widthIn": 103.51,
+    "heightIn": 85.01,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/b40453e1bf8ef3c802df23eacf7fda7cd9380b6e",
+    "sourceDate": "2026-10-12",
+    "outline": "M73.96091 99.37889 L49.99999 99.37889 L25.84136 99.37889 C-0.36064 98.33290 0.49105 66.95879 0.49105 66.95879 L0.49104 66.52540 L0.49104 33.94211 L0.49165 33.85702 C0.49165 33.85702 -0.19224 0.57847 27.41527 0.59408 L27.44324 0.59408 L49.99999 0.59408 L72.63549 0.59408 L72.78295 0.59408 C100.39044 0.57847 99.50894 33.87537 99.50894 33.87537 L99.50836 33.89573 L99.50829 66.97717 C99.50829 66.97721 100.16901 98.33321 73.96091 99.37889",
+    "guides": [
+      {
+        "d": "M73.96091 99.37889 L49.99999 99.37889 L25.84136 99.37889 C-0.36064 98.33290 0.49105 66.95879 0.49105 66.95879 L0.49104 66.52540 L0.49104 33.94211 L0.49165 33.85702 C0.49165 33.85702 -0.19224 0.57847 27.41527 0.59408 L27.44324 0.59408 L49.99999 0.59408 L72.63549 0.59408 L72.78295 0.59408 C100.39044 0.57847 99.50894 33.87537 99.50894 33.87537 L99.50836 33.89573 L99.50829 66.97717 C99.50829 66.97721 100.16901 98.33321 73.96091 99.37889",
+        "dashed": true,
+        "color": "#e11d48"
+      },
+      {
+        "d": "M73.96091 99.37889 L49.99999 99.37889 L25.84136 99.37889 C-0.36064 98.33290 0.49105 66.95879 0.49105 66.95879 L0.49104 66.52540 L0.49104 33.94211 L0.49165 33.85702 C0.49165 33.85702 -0.19224 0.57847 27.41527 0.59408 L27.44324 0.59408 L49.99999 0.59408 L72.63549 0.59408 L72.78295 0.59408 C100.39044 0.57847 99.50894 33.87537 99.50894 33.87537 L99.50836 33.89573 L99.50829 66.97717 C99.50829 66.97721 100.16901 98.33321 73.96091 99.37889 M49.99999 0.00001 L-0.00001 0.00001 L-0.00001 100.00002 L49.99999 100.00002 L100.00001 100.00002 L100.00001 0.00001 L49.99999 0.00001",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "faces": {
+      "top": [
+        0.268138,
+        0.332373,
+        0.463723,
+        0.336783
+      ],
+      "front": [
+        0.268138,
+        0.669155,
+        0.463723,
+        0.330845
+      ],
+      "side": [
+        0.731862,
+        0.332373,
+        0.268138,
+        0.336783
+      ]
+    },
+    "fitNotes": "Place the main message in the FRONT face; keep all words and logos inside its safe zone. The top and side faces fold onto other surfaces. Extend background over all printable faces. Never place a single stretched logo across the entire template.",
+    "geometrySource": "Vector fold lines and panel contours from the linked supplier PDF."
+  },
+  "6ft-table-cover-3-sided-open-back": {
+    "id": "6ft-table-cover-3-sided-open-back",
+    "widthIn": 128.5,
+    "heightIn": 65.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/954e80cb93b34652e42e006254fc5cbe57151b35",
+    "sourceDate": "2026-10-12",
+    "outline": "M99.19272 55.83521 C99.19272 55.83521 98.94384 76.42019 92.67880 87.53703 C86.41374 98.65385 79.23692 98.22436 75.90791 98.22970 C72.57890 98.23504 22.18432 98.23461 22.18432 98.23461 C22.18432 98.23461 12.78011 99.35084 7.01154 87.16474 C1.24297 74.97863 0.79115 60.44872 0.79385 51.30342 C0.79655 42.15812 0.79655 10.77626 0.79655 10.77626 L21.89891 10.77867 L21.89600 1.76498 L78.10393 1.77776 L78.10400 10.78211 L99.20475 10.77323 L99.19272 55.83521 Z ",
+    "guides": [
+      {
+        "d": "M99.19272 55.83521 C99.19272 55.83521 98.94384 76.42019 92.67880 87.53703 C86.41374 98.65385 79.23692 98.22436 75.90791 98.22970 C72.57890 98.23504 22.18432 98.23461 22.18432 98.23461 C22.18432 98.23461 12.78011 99.35084 7.01154 87.16474 C1.24297 74.97863 0.79115 60.44872 0.79385 51.30342 C0.79655 42.15812 0.79655 10.77626 0.79655 10.77626 L21.89891 10.77867 L21.89600 1.76498 L78.10393 1.77776 L78.10400 10.78211 L99.20475 10.77323 L99.19272 55.83521 M0.00000 0.00000 L100.00000 0.00000 L100.00000 100.00000 L0.00000 100.00000 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "faces": {
+      "top": [
+        0.218922,
+        0.107542,
+        0.562096,
+        0.43885
+      ],
+      "front": [
+        0.218922,
+        0.546392,
+        0.562096,
+        0.453608
+      ],
+      "side": [
+        0.781018,
+        0.107542,
+        0.218982,
+        0.43885
+      ]
+    },
+    "fitNotes": "Place the main message in the FRONT face; keep all words and logos inside its safe zone. The top and side faces fold onto other surfaces. Extend background over all printable faces. Never place a single stretched logo across the entire template.",
+    "geometrySource": "Vector fold lines and panel contours from the linked supplier PDF."
+  },
+  "6ft-table-cover-4-sided-close-back": {
+    "id": "6ft-table-cover-4-sided-close-back",
+    "widthIn": 127.51,
+    "heightIn": 85.01,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/ca2cfa04ffbe4e54f6ac2159922acc02ea584e9b",
+    "sourceDate": "2026-10-12",
+    "outline": "M78.86200 99.37889 L20.97748 99.37889 C-0.29275 98.33290 0.39863 66.95878 0.39863 66.95878 L0.39861 66.52540 L0.39861 33.94210 L0.39913 33.85702 C0.39913 33.85702 -0.15606 0.57847 22.25516 0.59406 L22.27786 0.59406 L77.78605 0.59406 L77.90575 0.59406 C100.31695 0.57847 99.60137 33.87535 99.60137 33.87535 L99.60089 33.89573 L99.60084 66.97716 C99.60084 66.97719 100.13721 98.33319 78.86200 99.37889 Z",
+    "guides": [
+      {
+        "d": "M78.86200 99.37889 L20.97748 99.37889 C-0.29275 98.33290 0.39863 66.95878 0.39863 66.95878 L0.39861 66.52540 L0.39861 33.94210 L0.39913 33.85702 C0.39913 33.85702 -0.15606 0.57847 22.25516 0.59406 L22.27786 0.59406 L77.78605 0.59406 L77.90575 0.59406 C100.31695 0.57847 99.60137 33.87535 99.60137 33.87535 L99.60089 33.89573 L99.60084 66.97716 C99.60084 66.97719 100.13721 98.33319 78.86200 99.37889 M-0.00001 0.00001 L99.99999 0.00001 L99.99999 100.00001 L-0.00001 100.00001 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "faces": {
+      "top": [
+        0.215372,
+        0.333102,
+        0.569846,
+        0.335418
+      ],
+      "front": [
+        0.215372,
+        0.668521,
+        0.569846,
+        0.331479
+      ],
+      "side": [
+        0.785218,
+        0.333102,
+        0.214782,
+        0.335418
+      ]
+    },
+    "fitNotes": "Place the main message in the FRONT face; keep all words and logos inside its safe zone. The top and side faces fold onto other surfaces. Extend background over all printable faces. Never place a single stretched logo across the entire template.",
+    "geometrySource": "Vector fold lines and panel contours from the linked supplier PDF."
+  },
+  "8ft-table-cover-3-sided-open-back": {
+    "id": "8ft-table-cover-3-sided-open-back",
+    "widthIn": 153.5,
+    "heightIn": 65.25,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/8460ad78f38ed8fb31d9baaa4248df22bf718824",
+    "sourceDate": "2026-10-12",
+    "outline": "M81.22078 98.62444 L18.71306 98.63819 C18.71306 98.63819 1.83009 99.49970 0.98293 55.55385 L1.00144 11.61034 L18.72788 11.59025 L18.73258 2.57305 L81.22362 2.57354 L81.22016 11.57237 L98.97729 11.58629 L98.97276 55.24293 C98.97276 55.24293 99.60198 98.14317 81.22078 98.62444 Z ",
+    "guides": [
+      {
+        "d": "M81.22078 98.62444 L18.71306 98.63819 C18.71306 98.63819 1.83009 99.49970 0.98293 55.55385 L1.00144 11.61034 L18.72788 11.59025 L18.73258 2.57305 L81.22362 2.57354 L81.22016 11.57237 L98.97729 11.58629 L98.97276 55.24293 C98.97276 55.24293 99.60198 98.14317 81.22078 98.62444 M0.00001 0.00000 L100.00003 0.00000 L100.00003 100.00000 L0.00001 100.00000 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "faces": {
+      "top": [
+        0.187365,
+        0.116991,
+        0.624877,
+        0.439892
+      ],
+      "front": [
+        0.187365,
+        0.556884,
+        0.624877,
+        0.443116
+      ],
+      "side": [
+        0.812241,
+        0.116991,
+        0.187759,
+        0.439892
+      ]
+    },
+    "fitNotes": "Place the main message in the FRONT face; keep all words and logos inside its safe zone. The top and side faces fold onto other surfaces. Extend background over all printable faces. Never place a single stretched logo across the entire template.",
+    "geometrySource": "Vector fold lines and panel contours from the linked supplier PDF."
+  },
+  "8ft-table-cover-4-sided-close-back": {
+    "id": "8ft-table-cover-4-sided-close-back",
+    "widthIn": 151.50972,
+    "heightIn": 85.01,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/95da508590afce460e03a8c0c120b02d2e3f4370",
+    "sourceDate": "2026-10-12",
+    "outline": "M82.28237 99.37721 L17.72073 99.37721 C-0.28998 98.28868 0.33596 66.46934 0.33596 66.46934 L0.33596 33.71291 C0.33596 33.71291 -0.30893 0.58075 18.63538 0.59650 L81.36371 0.59650 L81.36478 0.59650 C100.07630 0.26513 99.66420 33.69716 99.66420 33.69716 L99.66420 66.46870 C99.66420 66.46870 100.29298 98.28866 82.28237 99.37721 Z  M-0.00129 -0.00229 L100.00148 -0.00229 L100.00148 99.96536 L-0.00129 99.96536 Z Z",
+    "guides": [
+      {
+        "d": "M82.28237 99.37721 L17.72073 99.37721 C-0.28998 98.28868 0.33596 66.46934 0.33596 66.46934 L0.33596 33.71291 C0.33596 33.71291 -0.30893 0.58075 18.63538 0.59650 L81.36371 0.59650 L81.36478 0.59650 C100.07630 0.26513 99.66420 33.69716 99.66420 33.69716 L99.66420 66.46870 C99.66420 66.46870 100.29298 98.28866 82.28237 99.37721 M-0.00129 -0.00229 L100.00148 -0.00229 L100.00148 99.96536 L-0.00129 99.96536 Z",
+        "dashed": true,
+        "color": "#e11d48"
+      }
+    ],
+    "faces": {
+      "top": [
+        0.185141,
+        0.335094,
+        0.633806,
+        0.334122
+      ],
+      "front": [
+        0.185141,
+        0.669215,
+        0.633806,
+        0.330785
+      ],
+      "side": [
+        0.818947,
+        0.335094,
+        0.181053,
+        0.334122
+      ]
+    },
+    "fitNotes": "Place the main message in the FRONT face; keep all words and logos inside its safe zone. The top and side faces fold onto other surfaces. Extend background over all printable faces. Never place a single stretched logo across the entire template.",
+    "geometrySource": "Vector fold lines and panel contours from the linked supplier PDF."
+  },
+  "fitted-6-open": {
+    "id": "fitted-6-open",
+    "widthIn": 131.0,
+    "heightIn": 68.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/829b3bc88c2c290bc85fbc763b55cace9f83d290",
+    "sourceDate": "2026-10-12",
+    "outline": "M99.61833 56.61639 L99.61832 12.49874 L77.48268 12.49874 L77.48268 0.73530 L22.52085 0.73536 L22.52085 12.49874 L0.38168 12.49876 L0.38169 56.61641 L22.52085 56.61641 L22.52085 99.26472 L77.48268 99.26464 L77.48268 56.61639 L99.61833 56.61639",
+    "guides": [
+      {
+        "d": "M99.61833 56.61639 L99.61832 12.49874 L77.48268 12.49874 L77.48268 0.73530 L22.52085 0.73536 L22.52085 12.49874 L0.38168 12.49876 L0.38169 56.61641 L22.52085 56.61641 L22.52085 99.26472 L77.48268 99.26464 L77.48268 56.61639 L99.61833 56.61639",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M24.04757 53.67525 L1.90841 53.67525 L1.90839 15.43996 L24.04757 15.43996 L24.04757 3.67654 L75.95597 3.67648 L75.95597 15.43992 L98.09160 15.43990 L98.09160 53.67521 L75.95597 53.67521 L75.95597 96.32345 L24.04757 96.32354 L24.04757 53.67525",
+        "dashed": true,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M77.48268 99.25443 L22.52085 99.25451 L22.52084 56.60621 L0.38169 56.60621 L0.38167 12.48856 L22.52084 12.48856 L22.52084 0.72518 L77.48268 0.72510 L77.48268 12.48854 L99.61832 12.48854 L99.61833 56.60619 L77.48268 56.60619 L77.48268 99.25443 L22.52085 99.25451 L22.52084 56.60621 L0.38169 56.60621 L0.38167 12.48856 L22.52084 12.48856 L22.52084 0.72518 L77.48268 0.72510 L77.48268 12.48854 L99.61832 12.48854 L99.61833 56.60619 L77.48268 56.60619 L77.48268 99.25443 M0.00000 -0.01019 L100.00000 -0.01019 L100.00000 99.98981 L0.00000 99.98981 Z",
+        "dashed": false,
+        "color": "#0284c7"
+      }
+    ],
+    "faces": {
+      "top": [
+        0.225244,
+        0.124796,
+        0.549618,
+        0.441176
+      ],
+      "front": [
+        0.225244,
+        0.565972,
+        0.549618,
+        0.426675
+      ],
+      "side": [
+        0.774862,
+        0.124796,
+        0.221321,
+        0.441176
+      ]
+    },
+    "fitNotes": "Place the main message in the FRONT face; keep all words and logos inside its safe zone. The top and side faces fold onto other surfaces. Extend background over all printable faces. Never place a single stretched logo across the entire template.",
+    "geometrySource": "Vector fold lines and panel contours from the linked supplier PDF."
+  },
+  "fitted-6-closed": {
+    "id": "fitted-6-closed",
+    "widthIn": 131.0,
+    "heightIn": 89.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/a44c413b8b80f3cc00d619234aaaa37f8367e410",
+    "sourceDate": "2026-10-12",
+    "outline": "M77.48268 99.43814 L22.52085 99.43820 L22.52084 66.85299 L0.38168 66.85299 L0.38167 33.14511 L22.52084 33.14511 L22.52084 0.56960 L77.48268 0.56960 L77.48268 33.14510 L99.61832 33.14510 L99.61833 66.85296 L77.48268 66.85296 L77.48268 99.43814",
+    "guides": [
+      {
+        "d": "M24.04756 64.61360 L1.90841 64.61360 L1.90840 35.40012 L24.04756 35.40012 L24.04756 2.67635 L75.95596 2.67628 L75.95596 35.40009 L98.09160 35.40007 L98.09161 64.61357 L75.95596 64.61357 L75.95596 97.19874 L24.04756 97.19881 L24.04756 64.61360",
+        "dashed": true,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M77.48268 99.43814 L22.52085 99.43820 L22.52084 66.85299 L0.38168 66.85299 L0.38167 33.14511 L22.52084 33.14511 L22.52084 0.56960 L77.48268 0.56960 L77.48268 33.14510 L99.61832 33.14510 L99.61833 66.85296 L77.48268 66.85296 L77.48268 99.43814",
+        "dashed": false,
+        "color": "#0284c7"
+      }
+    ],
+    "faces": {
+      "top": [
+        0.225244,
+        0.331383,
+        0.549618,
+        0.337079
+      ],
+      "front": [
+        0.225244,
+        0.668461,
+        0.549618,
+        0.325921
+      ],
+      "side": [
+        0.774862,
+        0.331383,
+        0.221321,
+        0.337079
+      ]
+    },
+    "fitNotes": "Place the main message in the FRONT face; keep all words and logos inside its safe zone. The top and side faces fold onto other surfaces. Extend background over all printable faces. Never place a single stretched logo across the entire template.",
+    "geometrySource": "Vector fold lines and panel contours from the linked supplier PDF."
+  },
+  "fitted-8-open": {
+    "id": "fitted-8-open",
+    "widthIn": 155.0,
+    "heightIn": 68.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/ac9c31af59a970e60e5f9705180f28c50bb6c738",
+    "sourceDate": "2026-10-12",
+    "outline": "M80.96923 56.61639 L80.96923 99.26464 L19.03375 99.26472 L19.03375 56.61641 L0.32260 56.61641 L0.32258 12.49876 L19.03375 12.49876 L19.03375 0.73536 L80.96922 0.73530 L80.96923 12.49874 L99.67741 12.49874 L99.67742 56.61639 L80.96923 56.61639",
+    "guides": [
+      {
+        "d": "M80.96923 56.61639 L80.96923 99.26464 L19.03375 99.26472 L19.03375 56.61641 L0.32260 56.61641 L0.32258 12.49876 L19.03375 12.49876 L19.03375 0.73536 L80.96922 0.73530 L80.96923 12.49874 L99.67741 12.49874 L99.67742 56.61639 L80.96923 56.61639",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M20.32408 53.67525 L1.61291 53.67525 L1.61291 15.43996 L20.32407 15.43996 L20.32407 3.67656 L79.67891 3.67648 L79.67891 15.43992 L98.38709 15.43992 L98.38710 53.67521 L79.67891 53.67521 L79.67891 96.32343 L20.32408 96.32354 L20.32408 53.67525",
+        "dashed": true,
+        "color": "#0284c7"
+      }
+    ],
+    "faces": {
+      "top": [
+        0.190323,
+        0.124898,
+        0.619355,
+        0.441176
+      ],
+      "front": [
+        0.190323,
+        0.566075,
+        0.619355,
+        0.426573
+      ],
+      "side": [
+        0.809677,
+        0.124898,
+        0.187097,
+        0.441176
+      ]
+    },
+    "fitNotes": "Place the main message in the FRONT face; keep all words and logos inside its safe zone. The top and side faces fold onto other surfaces. Extend background over all printable faces. Never place a single stretched logo across the entire template.",
+    "geometrySource": "Vector fold lines and panel contours from the linked supplier PDF."
+  },
+  "fitted-8-closed": {
+    "id": "fitted-8-closed",
+    "widthIn": 155.0,
+    "heightIn": 89.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/68127ee9e053ea8b561275f268d23197f1e79890",
+    "sourceDate": "2026-10-12",
+    "outline": "M20.32408 64.57460 L1.61291 64.57460 L1.61290 35.36112 L20.32407 35.36112 L20.32407 2.58272 L79.67889 2.58264 L79.67891 35.36109 L98.38709 35.36109 L98.38710 64.57457 L79.67891 64.57457 L79.67891 97.15972 L20.32408 97.15981 L20.32408 64.57460",
+    "guides": [
+      {
+        "d": "M20.32408 64.57460 L1.61291 64.57460 L1.61290 35.36112 L20.32407 35.36112 L20.32407 2.58272 L79.67889 2.58264 L79.67891 35.36109 L98.38709 35.36109 L98.38710 64.57457 L79.67891 64.57457 L79.67891 97.15972 L20.32408 97.15981 L20.32408 64.57460",
+        "dashed": true,
+        "color": "#0284c7"
+      }
+    ],
+    "faces": {
+      "top": [
+        0.190323,
+        0.331071,
+        0.619355,
+        0.337079
+      ],
+      "front": [
+        0.190323,
+        0.668149,
+        0.619355,
+        0.326233
+      ],
+      "side": [
+        0.809677,
+        0.331071,
+        0.187097,
+        0.337079
+      ]
+    },
+    "fitNotes": "Place the main message in the FRONT face; keep all words and logos inside its safe zone. The top and side faces fold onto other surfaces. Extend background over all printable faces. Never place a single stretched logo across the entire template.",
+    "geometrySource": "Vector fold lines and panel contours from the linked supplier PDF."
+  },
+  "6ft-stretch-table-throw-download": {
+    "id": "6ft-stretch-table-throw-download",
+    "widthIn": 135.75,
+    "heightIn": 92.67722,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/e71203ac4a0f96a4679c373d9f60cec85fa26a86",
+    "sourceDate": "2026-10-12",
+    "outline": "M74.59273 33.01872 L74.59242 33.01872 L50.03913 33.01872 L49.95614 33.01872 L25.39388 33.01872 C24.81961 33.01872 24.29263 33.40647 23.88787 34.06944 L23.82474 34.16081 C23.36890 34.95869 23.07653 36.08959 23.07653 37.34961 L23.07653 43.45834 L23.07653 43.59322 L23.07653 56.57134 L23.07653 56.70622 L23.07653 62.64815 C23.07653 63.90815 23.36890 65.04759 23.82474 65.84548 L23.88571 65.95934 C24.29032 66.62117 24.82015 67.03763 25.39388 67.03763 L40.97293 67.03763 L41.05592 67.03763 L58.93934 67.03763 L59.02234 67.03763 L74.59242 67.03763 C75.19290 67.03763 75.74159 66.58281 76.15301 65.86504 L76.20581 65.75881 C76.63090 64.96673 76.89278 63.85883 76.89278 62.64815 L76.89278 50.05230 L76.89278 49.93242 L76.89278 37.34961 C76.89278 36.08959 76.60892 34.95017 76.15305 34.15228 L76.09566 34.06944 C75.69089 33.40647 75.16700 33.01872 74.59273 33.01872 Z  M76.89966 67.03763 L59.02233 67.03763 L58.93935 67.03763 L41.05591 67.03763 L40.97293 67.03763 L23.08556 67.03763 C23.08556 67.03763 24.83504 70.13842 26.31034 77.76491 L26.33635 77.89083 L26.35643 77.99125 C26.91754 80.92857 27.43557 84.53399 27.79785 88.86805 L27.80904 89.00079 C27.81033 89.01639 27.81159 89.03160 27.81288 89.04723 L27.82385 89.19973 C28.08244 92.38558 28.25686 95.97618 28.30328 99.97752 L71.68193 99.97752 C71.75810 93.41352 72.17868 87.97588 72.75074 83.54963 L72.76825 83.42368 C74.30218 71.67229 76.89966 67.03763 76.89966 67.03763 Z  M71.67991 0.04968 L69.97060 0.34543 C69.94398 0.52893 69.89460 0.83583 69.89460 0.83583 C69.77460 1.56108 69.53711 2.87045 69.14807 4.53172 C68.79371 6.04489 68.38563 7.54141 67.93513 8.98234 C67.37251 10.78203 66.74193 12.49633 66.06093 14.07894 C64.33303 18.09451 62.27466 21.29083 59.94301 23.57978 C59.27086 24.23962 58.56658 24.83164 57.84974 25.33971 C57.09544 25.87433 56.30632 26.33057 55.50429 26.69589 C54.66271 27.07925 53.78344 27.37307 52.89088 27.56928 C51.95649 27.77468 50.98142 27.87882 49.99274 27.87882 L49.99193 27.87924 C49.67961 27.87924 49.36058 27.86862 49.04292 27.84810 C48.00449 27.78107 46.98710 27.61565 46.01861 27.35666 C45.09361 27.10932 44.18885 26.76988 43.32927 26.34790 C42.51043 25.94592 41.71098 25.45827 40.95305 24.89854 C40.23314 24.36692 39.53178 23.75624 38.86842 23.08351 C36.56911 20.75171 34.61311 17.57665 33.05470 13.64656 C32.44024 12.09697 31.88683 10.42479 31.40984 8.67644 C31.02760 7.27535 30.69330 5.82252 30.41625 4.35835 C30.10823 2.73056 29.93999 1.44769 29.85979 0.74726 C29.84371 0.62517 29.81132 0.25354 29.81132 0.25354 L28.30530 0.04968 C28.02523 24.16264 23.08758 33.01872 23.08758 33.01872 L49.92501 33.01872 L50.00801 33.01872 L76.89763 33.01872 C76.89763 33.01872 71.95998 24.16264 71.67991 0.04968 Z  M21.61346 36.78777 L21.61346 43.45834 L21.61346 43.59322 L21.61346 56.57135 L21.61346 56.70623 L21.61346 63.22096 C21.51115 63.18912 21.40501 63.15635 21.29432 63.12280 C20.05791 62.74811 18.07982 62.19603 15.67445 61.69377 L15.67440 61.69369 L15.67419 61.69362 L15.58199 61.67442 C12.97055 61.13171 10.36366 60.75333 7.83361 60.54979 L7.83283 60.54973 L7.83202 60.54965 L7.73971 60.54238 L7.73002 60.54162 C6.32649 60.43153 4.93292 60.37574 3.59071 60.37574 C2.88750 60.37574 2.19460 60.39105 1.49887 60.42149 L1.49887 39.56592 C2.19460 39.59636 2.88766 39.61170 3.59075 39.61170 C6.01704 39.61170 8.57033 39.43030 11.17834 39.07256 C13.26115 38.78683 15.38494 38.38852 17.49005 37.88868 C19.19115 37.48477 20.59582 37.09282 21.61465 36.77743 Z  M78.38788 36.77746 C79.40666 37.09286 80.81293 37.48993 82.51400 37.89384 C84.61903 38.39368 86.74281 38.78941 88.82566 39.07512 C91.43371 39.43288 93.98526 39.61298 96.41176 39.61298 C97.11487 39.61298 97.81563 39.59637 98.50113 39.56593 L98.50113 60.42145 C97.81563 60.39104 97.11598 60.37571 96.41326 60.37571 C93.83810 60.37571 91.12515 60.57989 88.34801 60.98260 L88.25509 60.99601 L88.25389 60.99621 L88.25261 60.99642 C86.70916 61.22259 85.13564 61.51181 83.57569 61.85600 C82.32756 62.13138 81.08357 62.44246 79.88084 62.78062 C79.31840 62.93876 78.82648 63.08762 78.38654 63.22089 L78.38654 50.05232 L78.38654 49.93242 L78.38654 36.78777 Z",
+    "guides": [
+      {
+        "d": "M74.59273 33.01872 L74.59242 33.01872 L50.03913 33.01872 L49.95614 33.01872 L25.39388 33.01872 C24.81961 33.01872 24.29263 33.40647 23.88787 34.06944 L23.82474 34.16081 C23.36890 34.95869 23.07653 36.08959 23.07653 37.34961 L23.07653 43.45834 L23.07653 43.59322 L23.07653 56.57134 L23.07653 56.70622 L23.07653 62.64815 C23.07653 63.90815 23.36890 65.04759 23.82474 65.84548 L23.88571 65.95934 C24.29032 66.62117 24.82015 67.03763 25.39388 67.03763 L40.97293 67.03763 L41.05592 67.03763 L58.93934 67.03763 L59.02234 67.03763 L74.59242 67.03763 C75.19290 67.03763 75.74159 66.58281 76.15301 65.86504 L76.20581 65.75881 C76.63090 64.96673 76.89278 63.85883 76.89278 62.64815 L76.89278 50.05230 L76.89278 49.93242 L76.89278 37.34961 C76.89278 36.08959 76.60892 34.95017 76.15305 34.15228 L76.09566 34.06944 C75.69089 33.40647 75.16700 33.01872 74.59273 33.01872",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M76.89966 67.03763 L59.02233 67.03763 L58.93935 67.03763 L41.05591 67.03763 L40.97293 67.03763 L23.08556 67.03763 C23.08556 67.03763 24.83504 70.13842 26.31034 77.76491 L26.33635 77.89083 L26.35643 77.99125 C26.91754 80.92857 27.43557 84.53399 27.79785 88.86805 L27.80904 89.00079 C27.81033 89.01639 27.81159 89.03160 27.81288 89.04723 L27.82385 89.19973 C28.08244 92.38558 28.25686 95.97618 28.30328 99.97752 L71.68193 99.97752 C71.75810 93.41352 72.17868 87.97588 72.75074 83.54963 L72.76825 83.42368 C74.30218 71.67229 76.89966 67.03763 76.89966 67.03763",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M71.67991 0.04968 L69.97060 0.34543 C69.94398 0.52893 69.89460 0.83583 69.89460 0.83583 C69.77460 1.56108 69.53711 2.87045 69.14807 4.53172 C68.79371 6.04489 68.38563 7.54141 67.93513 8.98234 C67.37251 10.78203 66.74193 12.49633 66.06093 14.07894 C64.33303 18.09451 62.27466 21.29083 59.94301 23.57978 C59.27086 24.23962 58.56658 24.83164 57.84974 25.33971 C57.09544 25.87433 56.30632 26.33057 55.50429 26.69589 C54.66271 27.07925 53.78344 27.37307 52.89088 27.56928 C51.95649 27.77468 50.98142 27.87882 49.99274 27.87882 L49.99193 27.87924 C49.67961 27.87924 49.36058 27.86862 49.04292 27.84810 C48.00449 27.78107 46.98710 27.61565 46.01861 27.35666 C45.09361 27.10932 44.18885 26.76988 43.32927 26.34790 C42.51043 25.94592 41.71098 25.45827 40.95305 24.89854 C40.23314 24.36692 39.53178 23.75624 38.86842 23.08351 C36.56911 20.75171 34.61311 17.57665 33.05470 13.64656 C32.44024 12.09697 31.88683 10.42479 31.40984 8.67644 C31.02760 7.27535 30.69330 5.82252 30.41625 4.35835 C30.10823 2.73056 29.93999 1.44769 29.85979 0.74726 C29.84371 0.62517 29.81132 0.25354 29.81132 0.25354 L28.30530 0.04968 C28.02523 24.16264 23.08758 33.01872 23.08758 33.01872 L49.92501 33.01872 L50.00801 33.01872 L76.89763 33.01872 C76.89763 33.01872 71.95998 24.16264 71.67991 0.04968",
+        "dashed": false,
+        "color": "#0284c7"
+      }
+    ],
+    "faces": {
+      "top": [
+        0.230765,
+        0.330187,
+        0.538162,
+        0.340189
+      ],
+      "front": [
+        0.230856,
+        0.670376,
+        0.538141,
+        0.329399
+      ],
+      "side": [
+        0.768928,
+        0.330187,
+        0.231072,
+        0.340189
+      ]
+    },
+    "fitNotes": "Place the main message in the FRONT face; keep all words and logos inside its safe zone. The top and side faces fold onto other surfaces. Extend background over all printable faces. Never place a single stretched logo across the entire template.",
+    "geometrySource": "Vector fold lines and panel contours from the linked supplier PDF."
+  },
+  "8ft-stretch-table-throw-download": {
+    "id": "8ft-stretch-table-throw-download",
+    "widthIn": 159.75,
+    "heightIn": 92.67264,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/5bac04c7fa34637bdbcd07ebb96f69d6fc5c0d7c",
+    "sourceDate": "2026-10-12",
+    "outline": "M78.43443 33.00042 L63.24579 33.00042 L57.64130 33.00042 L57.57102 33.00042 L42.45265 33.00042 L42.38238 33.00042 L36.77029 33.00042 L21.58165 33.00042 C21.09532 33.00042 20.64905 33.39391 20.30628 34.05689 L20.25238 34.15114 C19.86636 34.94905 19.61833 36.08287 19.61833 37.34295 L19.61833 43.45198 L19.61833 43.58687 L19.61833 56.56565 L19.61833 56.70053 L19.61833 62.64274 C19.61833 63.90281 19.86636 65.04230 20.25238 65.84023 L20.30424 65.94841 C20.64688 66.61025 21.09578 67.02101 21.58165 67.02101 L34.77489 67.02101 L34.84516 67.02101 L36.77029 67.02101 L49.96352 67.02101 L49.98988 67.02101 L50.03381 67.02101 L50.06016 67.02101 L63.24579 67.02101 L65.17851 67.02101 L65.24879 67.02101 L78.43443 67.02101 C78.94295 67.02101 79.40761 66.57189 79.75603 65.85408 L79.80032 65.75069 C80.16032 64.95859 80.38167 63.85348 80.38167 62.64274 L80.38167 50.04628 L80.38167 49.92639 L80.38167 37.34295 C80.38167 36.08287 80.14169 34.94339 79.75564 34.14546 L79.70725 34.05689 C79.36448 33.39391 78.92075 33.00042 78.43443 33.00042 Z  M24.05272 0.04157 C24.05265 0.04818 24.05259 0.06374 24.05252 0.07035 C23.81324 24.16951 19.63279 33.00042 19.63279 33.00042 L80.38210 33.00042 C80.38210 33.00042 76.20061 24.16467 75.96343 0.05052 L74.51589 0.35925 C74.49335 0.54274 74.45152 0.85357 74.45152 0.85357 C74.34991 1.57885 74.14879 2.89022 73.81933 4.55159 C73.51925 6.06484 73.17364 7.56239 72.79215 9.00342 C72.31568 10.80318 71.78167 12.51803 71.20496 14.10075 C69.74168 18.11652 67.99853 21.31324 66.02397 23.60230 C65.45474 24.26218 64.85832 24.85435 64.25126 25.36244 C63.61247 25.89710 62.94420 26.35341 62.26499 26.71875 C61.55231 27.10212 60.80768 27.39598 60.05181 27.59221 C59.26052 27.79762 58.43478 27.90031 57.59749 27.90031 L57.12522 27.90036 L57.12517 27.90087 L56.87349 27.90039 L51.81533 27.90087 L51.80553 27.89066 L41.61326 27.87107 C40.73386 27.80402 39.87227 27.63861 39.05210 27.37960 C38.26875 27.13226 37.50255 26.79282 36.77462 26.37079 C36.08117 25.96878 35.40415 25.48111 34.76229 24.92138 C34.15263 24.38972 33.55868 23.77901 32.99690 23.10624 C31.04972 20.77433 29.39327 17.59913 28.07351 13.66883 C27.55316 12.11917 27.08450 10.44690 26.68055 8.69848 C26.35685 7.29731 26.07375 5.84442 25.83912 4.38017 C25.57828 2.75231 25.43580 1.46936 25.36789 0.76891 C25.35426 0.64679 25.32683 0.27516 25.32683 0.27516 L24.05272 0.04157 Z  M80.38381 67.02101 L65.24426 67.02101 L65.20395 67.02101 L65.17399 67.02101 L50.06440 67.02101 L50.02928 67.02101 L49.99412 67.02101 L49.95901 67.02101 L34.84940 67.02101 L34.81095 67.02101 L34.77912 67.02101 L19.63109 67.02101 C19.63109 67.02101 21.11264 70.13382 22.36202 77.76068 L22.38403 77.89255 L22.40104 77.99595 C22.87622 80.93341 23.31493 84.54049 23.62173 88.87478 L23.63120 89.00823 C23.63228 89.02385 23.63335 89.03944 23.63444 89.05507 L23.64374 89.19589 C23.86273 92.38189 24.01044 95.96099 24.04976 99.96253 L39.22962 99.96253 L60.78526 99.96253 L75.96514 99.96253 C76.02964 93.39821 76.38582 87.97217 76.87028 83.54568 L76.88510 83.41382 C78.18412 71.66182 80.38381 67.02101 80.38381 67.02101 Z  M78.43443 35.15481 C78.57684 35.15481 78.70880 35.36328 78.77478 35.49090 L78.77852 35.49534 L78.78231 35.50111 L78.81185 35.55654 C78.90392 35.75458 78.97733 36.00363 79.03308 36.27996 C79.10009 36.61223 79.12972 36.96962 79.12972 37.34295 L79.12972 49.92639 L79.12972 50.04628 L79.12972 62.64274 C79.12972 63.31092 79.02186 63.94618 78.82571 64.39160 L78.79599 64.45694 L78.79591 64.45932 L78.79529 64.46920 C78.73893 64.58532 78.59144 64.86288 78.43443 64.86288 L65.24879 64.86288 L65.17851 64.86288 L63.24579 64.86288 L50.06016 64.86288 L50.03381 64.86288 L49.98988 64.86288 L49.96352 64.86288 L36.77029 64.86288 L34.84516 64.86288 L34.77489 64.86288 L21.58165 64.86288 C21.44524 64.86288 21.31725 64.65619 21.24847 64.52664 L21.21513 64.45534 C21.11881 64.25437 21.03315 63.99526 20.97548 63.70890 C20.90857 63.37658 20.87029 63.01664 20.87029 62.64274 L20.87029 56.70053 L20.87029 56.56565 L20.87029 43.58687 L20.87029 43.45198 L20.87029 37.34295 C20.87029 36.96940 20.90853 36.61182 20.97537 36.28017 C21.03224 35.99809 21.11438 35.74398 21.20918 35.54398 L21.24335 35.48599 C21.31045 35.35772 21.44141 35.15856 21.58165 35.15856 L36.77029 35.15856 L42.38238 35.15856 L42.45265 35.15856 L57.57102 35.15856 L57.64130 35.15856 L63.24579 35.15856 L78.43853 35.15856 Z  M74.85443 5.98436 C74.88885 6.86296 74.92899 7.72927 74.97478 8.58106 C75.10773 11.05436 75.29132 13.46063 75.52043 15.73301 C75.90883 19.58489 76.43416 23.13304 77.08186 26.27888 C77.33918 27.52865 77.61700 28.72639 77.90760 29.82401 C77.99918 30.16990 78.09220 30.51258 78.18623 30.84229 L21.82899 30.84229 C21.92281 30.51258 22.01560 30.17168 22.10698 29.82669 C22.39757 28.72969 22.67538 27.53637 22.93270 26.28731 C23.58040 23.14327 24.10583 19.59531 24.49442 15.74568 C24.72365 13.47461 24.90738 11.06886 25.04049 8.59704 C25.05953 8.24387 25.07757 7.88782 25.09464 7.52978 C25.22689 8.19374 25.36804 8.85051 25.51745 9.49722 C25.94384 11.34274 26.43927 13.10998 26.98999 14.75010 C28.40255 18.95683 30.18325 22.36455 32.28260 24.87869 C32.89187 25.60833 33.53601 26.27058 34.19716 26.84716 C34.89261 27.45361 35.62553 27.98156 36.37554 28.41637 C37.16014 28.87124 37.98478 29.23664 38.82651 29.50242 C39.70301 29.77921 40.62199 29.95575 41.55795 30.02710 L41.58490 30.02915 L41.61187 30.02920 L51.45602 30.04813 L51.46649 30.05904 L51.81540 30.05899 L56.87218 30.05853 L57.12380 30.05899 L58.23836 30.06063 L58.23980 30.03948 C58.92153 29.99906 59.59131 29.89421 60.23824 29.72626 C61.05706 29.51370 61.86444 29.19494 62.63790 28.77889 C63.37652 28.38160 64.10330 27.88530 64.79807 27.30376 C65.45751 26.75183 66.10502 26.10898 66.72262 25.39300 C68.84336 22.93450 70.70813 19.52138 72.26512 15.24844 C72.87116 13.58526 73.43168 11.78543 73.93112 9.89893 C74.26769 8.62756 74.57749 7.31395 74.85443 5.98436 Z",
+    "guides": [
+      {
+        "d": "M78.43443 33.00042 L63.24579 33.00042 L57.64130 33.00042 L57.57102 33.00042 L42.45265 33.00042 L42.38238 33.00042 L36.77029 33.00042 L21.58165 33.00042 C21.09532 33.00042 20.64905 33.39391 20.30628 34.05689 L20.25238 34.15114 C19.86636 34.94905 19.61833 36.08287 19.61833 37.34295 L19.61833 43.45198 L19.61833 43.58687 L19.61833 56.56565 L19.61833 56.70053 L19.61833 62.64274 C19.61833 63.90281 19.86636 65.04230 20.25238 65.84023 L20.30424 65.94841 C20.64688 66.61025 21.09578 67.02101 21.58165 67.02101 L34.77489 67.02101 L34.84516 67.02101 L36.77029 67.02101 L49.96352 67.02101 L49.98988 67.02101 L50.03381 67.02101 L50.06016 67.02101 L63.24579 67.02101 L65.17851 67.02101 L65.24879 67.02101 L78.43443 67.02101 C78.94295 67.02101 79.40761 66.57189 79.75603 65.85408 L79.80032 65.75069 C80.16032 64.95859 80.38167 63.85348 80.38167 62.64274 L80.38167 50.04628 L80.38167 49.92639 L80.38167 37.34295 C80.38167 36.08287 80.14169 34.94339 79.75564 34.14546 L79.70725 34.05689 C79.36448 33.39391 78.92075 33.00042 78.43443 33.00042",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M24.05272 0.04157 C24.05265 0.04818 24.05259 0.06374 24.05252 0.07035 C23.81324 24.16951 19.63279 33.00042 19.63279 33.00042 L80.38210 33.00042 C80.38210 33.00042 76.20061 24.16467 75.96343 0.05052 L74.51589 0.35925 C74.49335 0.54274 74.45152 0.85357 74.45152 0.85357 C74.34991 1.57885 74.14879 2.89022 73.81933 4.55159 C73.51925 6.06484 73.17364 7.56239 72.79215 9.00342 C72.31568 10.80318 71.78167 12.51803 71.20496 14.10075 C69.74168 18.11652 67.99853 21.31324 66.02397 23.60230 C65.45474 24.26218 64.85832 24.85435 64.25126 25.36244 C63.61247 25.89710 62.94420 26.35341 62.26499 26.71875 C61.55231 27.10212 60.80768 27.39598 60.05181 27.59221 C59.26052 27.79762 58.43478 27.90031 57.59749 27.90031 L57.12522 27.90036 L57.12517 27.90087 L56.87349 27.90039 L51.81533 27.90087 L51.80553 27.89066 L41.61326 27.87107 C40.73386 27.80402 39.87227 27.63861 39.05210 27.37960 C38.26875 27.13226 37.50255 26.79282 36.77462 26.37079 C36.08117 25.96878 35.40415 25.48111 34.76229 24.92138 C34.15263 24.38972 33.55868 23.77901 32.99690 23.10624 C31.04972 20.77433 29.39327 17.59913 28.07351 13.66883 C27.55316 12.11917 27.08450 10.44690 26.68055 8.69848 C26.35685 7.29731 26.07375 5.84442 25.83912 4.38017 C25.57828 2.75231 25.43580 1.46936 25.36789 0.76891 C25.35426 0.64679 25.32683 0.27516 25.32683 0.27516 L24.05272 0.04157",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M80.38381 67.02101 L65.24426 67.02101 L65.20395 67.02101 L65.17399 67.02101 L50.06440 67.02101 L50.02928 67.02101 L49.99412 67.02101 L49.95901 67.02101 L34.84940 67.02101 L34.81095 67.02101 L34.77912 67.02101 L19.63109 67.02101 C19.63109 67.02101 21.11264 70.13382 22.36202 77.76068 L22.38403 77.89255 L22.40104 77.99595 C22.87622 80.93341 23.31493 84.54049 23.62173 88.87478 L23.63120 89.00823 C23.63228 89.02385 23.63335 89.03944 23.63444 89.05507 L23.64374 89.19589 C23.86273 92.38189 24.01044 95.96099 24.04976 99.96253 L39.22962 99.96253 L60.78526 99.96253 L75.96514 99.96253 C76.02964 93.39821 76.38582 87.97217 76.87028 83.54568 L76.88510 83.41382 C78.18412 71.66182 80.38381 67.02101 80.38381 67.02101",
+        "dashed": false,
+        "color": "#0284c7"
+      }
+    ],
+    "faces": {
+      "top": [
+        0.196183,
+        0.330004,
+        0.607633,
+        0.340206
+      ],
+      "front": [
+        0.196311,
+        0.67021,
+        0.607527,
+        0.329415
+      ],
+      "side": [
+        0.803817,
+        0.330004,
+        0.196183,
+        0.340206
+      ]
+    },
+    "fitNotes": "Place the main message in the FRONT face; keep all words and logos inside its safe zone. The top and side faces fold onto other surfaces. Extend background over all printable faces. Never place a single stretched logo across the entire template.",
+    "geometrySource": "Vector fold lines and panel contours from the linked supplier PDF."
+  },
+  "10ft-event-tent-canopy": {
+    "id": "10ft-event-tent-canopy",
+    "widthIn": 119.0,
+    "heightIn": 84.275,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/678c62a2ccbc02e32a592e0057b0840e876884da",
+    "sourceDate": "2026-10-12",
+    "outline": "M99.57996 84.52856 C94.13391 77.86152 82.16580 58.64100 82.16580 58.64100 C78.65463 53.19192 73.02483 44.08296 68.49758 36.04723 C63.52496 27.22112 60.01130 19.67790 60.01130 19.67790 L59.97141 19.67626 L49.99737 0.00006 L40.02596 19.67496 L39.98738 19.67467 C39.98738 19.67467 36.47439 27.21433 31.50176 36.04046 C26.97451 44.07617 21.34505 53.17817 17.83388 58.62726 C17.83388 58.62726 5.86597 77.86155 0.41994 84.52859 L0.00000 100.00824 L49.99737 100.00824 L100.00000 100.00824 L99.57996 84.52856",
+    "guides": [
+      {
+        "d": "M99.57996 84.52856 C94.13391 77.86152 82.16580 58.64100 82.16580 58.64100 C78.65463 53.19192 73.02483 44.08296 68.49758 36.04723 C63.52496 27.22112 60.01130 19.67790 60.01130 19.67790 L59.97141 19.67626 L49.99737 0.00006 L40.02596 19.67496 L39.98738 19.67467 C39.98738 19.67467 36.47439 27.21433 31.50176 36.04046 C26.97451 44.07617 21.34505 53.17817 17.83388 58.62726 C17.83388 58.62726 5.86597 77.86155 0.41994 84.52859 L0.00000 100.00824 L49.99737 100.00824 L100.00000 100.00824 L99.57996 84.52856",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M97.89919 85.60535 C90.58088 75.99655 80.92221 60.24070 80.92221 60.24070 C77.44317 54.84147 71.75710 45.64677 67.18191 37.52598 C64.58925 32.92418 62.39899 28.71890 61.01814 25.96802 C60.17226 24.28291 59.52513 22.99514 59.11508 22.13816 L59.10796 22.13816 L58.60438 21.09955 L49.99736 4.09727 L41.39298 21.11036 L40.89204 22.13816 L40.88493 22.13816 C40.47487 22.99514 39.82773 24.27853 38.98186 25.96365 C37.60100 28.71452 35.41075 32.93702 32.81809 37.53882 C28.24290 45.65961 22.55683 54.83474 19.07779 60.23398 C19.07779 60.23398 9.41919 76.00194 2.10087 85.61076 L1.68076 97.65153 L49.99736 97.65153 L98.31924 97.65153 L97.89919 85.60535",
+        "dashed": true,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M99.57996 84.52856 C94.13391 77.86152 82.16580 58.64100 82.16580 58.64100 C78.65463 53.19192 73.02483 44.08296 68.49758 36.04723 C63.52496 27.22112 60.01130 19.67790 60.01130 19.67790 L59.97141 19.67626 L49.99737 0.00006 L40.02596 19.67496 L39.98738 19.67467 C39.98738 19.67467 36.47439 27.21433 31.50176 36.04046 C26.97451 44.07617 21.34505 53.17817 17.83388 58.62726 C17.83388 58.62726 5.86597 77.86155 0.41994 84.52859 L0.00000 100.00824 L49.99737 100.00824 L100.00000 100.00824 L99.57996 84.52856",
+        "dashed": false,
+        "color": "#0284c7"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded."
+  },
+  "15ft-event-tent-canopy-long-side": {
+    "id": "15ft-event-tent-canopy-long-side",
+    "widthIn": 182.0,
+    "heightIn": 82.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/5dcaf9afd28303911fd5bd5995fcbba8a9258608",
+    "sourceDate": "2026-10-12",
+    "outline": "M1.54472 99.62810 C1.55616 98.91448 1.73496 87.77669 1.81264 83.86375 C5.26049 76.98785 9.52868 66.92351 12.07918 60.90942 C13.01858 58.69429 13.69732 57.09382 13.95575 56.55300 C14.92821 54.45627 17.75597 46.97641 19.95695 41.07076 C22.34148 34.67260 24.52424 28.69311 24.54601 28.63347 L24.54651 28.63203 L33.77362 0.37190 L66.22637 0.37190 L75.45373 28.63276 L75.45399 28.63347 C75.47575 28.69311 77.65851 34.67260 80.04303 41.07076 C82.24400 46.97641 85.07175 54.45627 86.04405 56.55262 C86.30268 57.09387 86.98154 58.69462 87.92111 60.91015 C90.47154 66.92407 94.73961 76.98814 98.18735 83.86375 C98.26504 87.77669 98.44384 98.91448 98.45528 99.62810 L1.54472 99.62810",
+    "guides": [
+      {
+        "d": "M1.52891 99.66197 C1.52891 99.66197 1.71703 87.90429 1.79767 83.84809 C6.55457 74.36372 13.00467 58.49678 13.94528 56.52836 C15.82655 52.47214 24.53415 28.61214 24.53415 28.61214 L33.76582 0.33801 L66.23415 0.33801 L75.46585 28.61214 C75.46585 28.61214 84.17343 52.47214 86.05467 56.52836 C86.99532 58.49678 93.44541 74.36372 98.20231 83.84809 C98.28297 87.90429 98.47109 99.66197 98.47109 99.66197 L1.52891 99.66197",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M2.66793 97.22295 C2.72164 93.92046 2.81619 88.18061 2.87601 84.97171 C6.29312 78.06206 10.38875 68.40461 12.86827 62.55789 C13.75993 60.45530 14.46424 58.79455 14.69915 58.30293 L14.70510 58.29050 L14.71096 58.27784 C16.61731 54.16758 25.03084 31.12618 25.38807 30.14731 L25.40664 30.09641 L34.32657 2.77703 L65.67339 2.77703 L74.59337 30.09641 L74.61193 30.14731 C74.96915 31.12617 83.38265 54.16755 85.28899 58.27784 L85.29485 58.29050 L85.30083 58.30300 C85.53577 58.79465 86.24023 60.45574 87.13208 62.55879 C89.61153 68.40532 93.70700 78.06241 97.12397 84.97175 C97.18379 88.18071 97.27835 93.92049 97.33206 97.22295 L2.66793 97.22295",
+        "dashed": true,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M1.52891 99.66197 C1.52891 99.66197 1.71703 87.90429 1.79767 83.84809 C6.55457 74.36372 13.00467 58.49678 13.94528 56.52836 C15.82655 52.47214 24.53415 28.61214 24.53415 28.61214 L33.76582 0.33801 L66.23415 0.33801 L75.46585 28.61214 C75.46585 28.61214 84.17343 52.47214 86.05467 56.52836 C86.99532 58.49678 93.44541 74.36372 98.20231 83.84809 C98.28297 87.90429 98.47109 99.66197 98.47109 99.66197 L1.52891 99.66197 M0.00000 0.00000 L100.00000 0.00000 L100.00000 100.00000 L0.00000 100.00000 Z",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M1.52891 99.66197 C1.52891 99.66197 1.71703 87.90429 1.79767 83.84809 C6.55457 74.36372 13.00467 58.49678 13.94528 56.52836 C15.82655 52.47214 24.53415 28.61214 24.53415 28.61214 L33.76582 0.33801 L66.23415 0.33801 L75.46585 28.61214 C75.46585 28.61214 84.17343 52.47214 86.05467 56.52836 C86.99532 58.49678 93.44541 74.36372 98.20231 83.84809 C98.28297 87.90429 98.47109 99.66197 98.47109 99.66197 L1.52891 99.66197",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M1.54472 99.62810 C1.55616 98.91448 1.73496 87.77669 1.81264 83.86375 C5.26049 76.98785 9.52868 66.92351 12.07918 60.90942 C13.01858 58.69429 13.69732 57.09382 13.95575 56.55300 C14.92821 54.45627 17.75597 46.97641 19.95695 41.07076 C22.34148 34.67260 24.52424 28.69311 24.54601 28.63347 L24.54651 28.63203 L33.77362 0.37190 L66.22637 0.37190 L75.45373 28.63276 L75.45399 28.63347 C75.47575 28.69311 77.65851 34.67260 80.04303 41.07076 C82.24400 46.97641 85.07175 54.45627 86.04405 56.55262 C86.30268 57.09387 86.98154 58.69462 87.92111 60.91015 C90.47154 66.92407 94.73961 76.98814 98.18735 83.86375 C98.26504 87.77669 98.44384 98.91448 98.45528 99.62810 L1.54472 99.62810",
+        "dashed": false,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded."
+  },
+  "15ft-event-tent-canopy-short-side": {
+    "id": "15ft-event-tent-canopy-short-side",
+    "widthIn": 125.0,
+    "heightIn": 82.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/47a40ffe27fc6b0648541cb32c381833040d19a6",
+    "sourceDate": "2026-10-12",
+    "outline": "M2.54194 99.53808 C2.56993 98.67127 2.84425 90.13851 3.00412 83.79059 C5.76386 80.10363 10.14857 73.51125 12.02286 70.69330 C12.45270 70.04708 12.73664 69.62015 12.81253 69.51220 L12.81353 69.51078 L12.81449 69.50928 C13.58274 68.27269 14.32991 67.07239 15.05247 65.91158 C20.28827 57.50048 24.42383 50.85687 28.48150 43.43905 C33.48396 34.29410 36.94812 27.62724 39.71377 21.82227 C43.52211 13.62701 46.79168 6.99654 48.74519 3.03497 C49.28277 1.94476 49.71201 1.07432 49.99844 0.48241 C50.28502 1.07462 50.71456 1.94571 51.25252 3.03665 C53.20592 6.99803 56.47531 13.62817 60.28280 21.82164 C63.04883 27.62736 66.51298 34.29420 71.51539 43.43905 C75.57299 50.85675 79.70846 57.50021 84.94417 65.91115 C85.66683 67.07208 86.41409 68.27254 87.18244 69.50928 L87.18340 69.51078 L87.18440 69.51220 C87.26021 69.62007 87.54376 70.04637 87.97294 70.69165 C89.84739 73.50988 94.23245 80.10289 96.99274 83.79059 C97.15264 90.13851 97.42697 98.67127 97.45496 99.53808 L2.54194 99.53808",
+    "guides": [
+      {
+        "d": "M60.31908 21.78247 C63.25044 27.93527 66.85291 34.80984 71.54952 43.39565 C76.16971 51.84181 80.91471 59.32224 87.21471 69.46269 C87.61265 70.02868 93.62405 79.20309 97.03641 83.75884 C97.20601 90.49926 97.50165 99.60583 97.50165 99.60583 L49.99844 99.60583 L2.49524 99.60583 C2.49524 99.60583 2.79087 90.49926 2.96044 83.75884 C6.37284 79.20309 12.38422 70.02868 12.78221 69.46269 C19.08220 59.32224 23.82718 51.84181 28.44735 43.39565 C33.14396 34.80984 36.74644 27.93527 39.67782 21.78247 C44.62111 11.14480 48.75381 2.94665 49.99844 0.36819 C51.24303 2.94665 55.37575 11.14480 60.31908 21.78247",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M4.17456 97.16681 C4.26726 94.20750 4.42043 89.19263 4.53256 84.89442 C7.32790 81.08268 11.34074 75.04942 13.11517 72.38163 C13.48883 71.81979 13.81156 71.33460 13.87371 71.24604 L13.90991 71.19457 L13.94391 71.13983 C14.71157 69.90419 15.45840 68.70443 16.18067 67.54417 C21.43572 59.10209 25.58651 52.43404 29.67619 44.95766 C34.70165 35.77069 38.18554 29.06524 40.97242 23.21573 L40.97795 23.20408 L40.98342 23.19232 C44.77877 15.02498 48.04008 8.41127 49.98866 4.45972 C49.99192 4.45309 49.99518 4.44649 49.99843 4.43988 C50.00196 4.44705 50.00554 4.45428 50.00908 4.46147 C51.95755 8.41284 55.21868 15.02623 59.01347 23.19233 L59.01892 23.20408 L59.02447 23.21573 C61.81136 29.06524 65.29522 35.77069 70.32070 44.95768 C74.41031 52.43392 78.56101 59.10184 83.81599 67.54376 C84.53834 68.70414 85.28526 69.90406 86.05302 71.13983 L86.08702 71.19457 L86.12319 71.24601 C86.18520 71.33436 86.50743 71.81886 86.88058 72.37986 C88.65514 75.04793 92.66845 81.08195 95.46431 84.89442 C95.57644 89.19263 95.72963 94.20752 95.82233 97.16681 L4.17456 97.16681",
+        "dashed": true,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M60.31908 21.78247 C63.25044 27.93527 66.85291 34.80984 71.54952 43.39565 C76.16971 51.84181 80.91471 59.32224 87.21471 69.46269 C87.61265 70.02868 93.62405 79.20309 97.03641 83.75884 C97.20601 90.49926 97.50165 99.60583 97.50165 99.60583 L49.99844 99.60583 L2.49524 99.60583 C2.49524 99.60583 2.79087 90.49926 2.96044 83.75884 C6.37284 79.20309 12.38422 70.02868 12.78221 69.46269 C19.08220 59.32224 23.82718 51.84181 28.44735 43.39565 C33.14396 34.80984 36.74644 27.93527 39.67782 21.78247 C44.62111 11.14480 48.75381 2.94665 49.99844 0.36819 C51.24303 2.94665 55.37575 11.14480 60.31908 21.78247",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M2.54194 99.53808 C2.56993 98.67127 2.84425 90.13851 3.00412 83.79059 C5.76386 80.10363 10.14857 73.51125 12.02286 70.69330 C12.45270 70.04708 12.73664 69.62015 12.81253 69.51220 L12.81353 69.51078 L12.81449 69.50928 C13.58274 68.27269 14.32991 67.07239 15.05247 65.91158 C20.28827 57.50048 24.42383 50.85687 28.48150 43.43905 C33.48396 34.29410 36.94812 27.62724 39.71377 21.82227 C43.52211 13.62701 46.79168 6.99654 48.74519 3.03497 C49.28277 1.94476 49.71201 1.07432 49.99844 0.48241 C50.28502 1.07462 50.71456 1.94571 51.25252 3.03665 C53.20592 6.99803 56.47531 13.62817 60.28280 21.82164 C63.04883 27.62736 66.51298 34.29420 71.51539 43.43905 C75.57299 50.85675 79.70846 57.50021 84.94417 65.91115 C85.66683 67.07208 86.41409 68.27254 87.18244 69.50928 L87.18340 69.51078 L87.18440 69.51220 C87.26021 69.62007 87.54376 70.04637 87.97294 70.69165 C89.84739 73.50988 94.23245 80.10289 96.99274 83.79059 C97.15264 90.13851 97.42697 98.67127 97.45496 99.53808 L2.54194 99.53808",
+        "dashed": false,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded."
+  },
+  "20ft-event-tent-canopy-long-side": {
+    "id": "20ft-event-tent-canopy-long-side",
+    "widthIn": 248.0,
+    "heightIn": 84.0,
+    "exportScale": 0.25,
+    "sourceUrl": "https://www.b2sign.com/downloadable/36e5dd04a14874a54a0076fbfad885c64c8b0847",
+    "sourceDate": "2026-10-12",
+    "outline": "M2.42143 99.22301 L2.65082 83.80125 C2.77941 83.44656 6.32744 73.62374 12.11518 54.69365 C14.96160 45.38373 17.34238 36.82109 18.48653 32.70615 C18.80167 31.57261 19.02939 30.75370 19.15253 30.32949 C20.71637 24.94226 26.46187 1.56031 26.63037 0.87427 L73.39361 0.87427 C73.54675 1.51137 78.39148 21.64166 81.65479 32.95376 C81.69592 33.10436 81.75127 33.32744 81.82793 33.63624 C82.30306 35.55079 83.74898 41.37692 88.70275 57.41117 C92.72408 70.42725 97.25923 83.38657 97.40443 83.80092 L97.60102 99.22301 L2.42143 99.22301",
+    "guides": [
+      {
+        "d": "M2.40973 99.25608 L2.63984 83.78637 C2.63984 83.78637 6.17245 74.08135 12.10688 54.67149 C15.72796 42.82784 18.56822 32.29153 19.14403 30.30800 C20.74116 24.80601 26.62465 0.84120 26.62465 0.84120 L73.39940 0.84120 C73.39940 0.84120 78.32613 21.36402 81.66331 32.93234 C81.96846 34.04940 82.97819 38.83293 88.71101 57.38889 C92.82457 70.70350 97.41545 83.78637 97.41545 83.78637 L97.61266 99.25608 L2.40973 99.25608",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M3.25239 96.87513 L3.43119 84.85271 C4.32987 82.31937 7.68133 72.69967 12.70552 56.26686 C15.56439 46.91620 17.95315 38.32486 19.10113 34.19610 C19.41320 33.07368 19.63870 32.26270 19.75635 31.85747 C21.18966 26.91984 25.89672 7.84999 27.03576 3.22216 L72.98393 3.22216 C74.01907 7.49630 78.14188 24.39272 81.04116 34.44768 C81.07176 34.56184 81.12282 34.76759 81.18646 35.02400 C81.66782 36.96362 83.13272 42.86627 88.11518 58.99345 C91.67340 70.51051 95.63160 81.98148 96.62172 84.82943 L96.77528 96.87513 L3.25239 96.87513",
+        "dashed": true,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M2.40973 99.25608 L2.63984 83.78637 C2.63984 83.78637 6.17245 74.08135 12.10688 54.67149 C15.72796 42.82784 18.56822 32.29153 19.14403 30.30800 C20.74116 24.80601 26.62465 0.84120 26.62465 0.84120 L73.39940 0.84120 C73.39940 0.84120 78.32613 21.36402 81.66331 32.93234 C81.96846 34.04940 82.97819 38.83293 88.71101 57.38889 C92.82457 70.70350 97.41545 83.78637 97.41545 83.78637 L97.61266 99.25608 L2.40973 99.25608",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M2.40973 99.25608 L2.63984 83.78637 C2.63984 83.78637 6.17245 74.08135 12.10688 54.67149 C15.72796 42.82784 18.56822 32.29153 19.14403 30.30800 C20.74116 24.80601 26.62465 0.84120 26.62465 0.84120 L73.39940 0.84120 C73.39940 0.84120 78.32613 21.36402 81.66331 32.93234 C81.96846 34.04940 82.97819 38.83293 88.71101 57.38889 C92.82457 70.70350 97.41545 83.78637 97.41545 83.78637 L97.61266 99.25608 L2.40973 99.25608 M0.00001 0.00000 L100.00001 0.00000 L100.00001 100.00000 L0.00001 100.00000 Z",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M2.40973 99.25608 L2.63984 83.78637 C2.63984 83.78637 6.17245 74.08135 12.10688 54.67149 C15.72796 42.82784 18.56822 32.29153 19.14403 30.30800 C20.74116 24.80601 26.62465 0.84120 26.62465 0.84120 L73.39940 0.84120 C73.39940 0.84120 78.32613 21.36402 81.66331 32.93234 C81.96846 34.04940 82.97819 38.83293 88.71101 57.38889 C92.82457 70.70350 97.41545 83.78637 97.41545 83.78637 L97.61266 99.25608 L2.40973 99.25608",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M2.42143 99.22301 L2.65082 83.80125 C2.77941 83.44656 6.32744 73.62374 12.11518 54.69365 C14.96160 45.38373 17.34238 36.82109 18.48653 32.70615 C18.80167 31.57261 19.02939 30.75370 19.15253 30.32949 C20.71637 24.94226 26.46187 1.56031 26.63037 0.87427 L73.39361 0.87427 C73.54675 1.51137 78.39148 21.64166 81.65479 32.95376 C81.69592 33.10436 81.75127 33.32744 81.82793 33.63624 C82.30306 35.55079 83.74898 41.37692 88.70275 57.41117 C92.72408 70.42725 97.25923 83.38657 97.40443 83.80092 L97.60102 99.22301 L2.42143 99.22301",
+        "dashed": false,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded."
+  },
+  "20ft-event-tent-canopy-short-side": {
+    "id": "20ft-event-tent-canopy-short-side",
+    "widthIn": 128.0,
+    "heightIn": 86.0,
+    "exportScale": 0.25,
+    "sourceUrl": "https://www.b2sign.com/downloadable/3ad23d0f9dbfafd231d9cc3f89d014224ff772d9",
+    "sourceDate": "2026-10-12",
+    "outline": "M3.70006 98.74346 L4.06408 83.67325 C4.26248 83.37538 9.07862 76.13778 14.59694 67.36459 C20.85727 57.41162 27.73175 44.93771 31.42498 38.23636 C32.69742 35.92744 33.61682 34.25923 34.01504 33.59334 C36.56738 29.32576 49.44907 2.50426 50.00488 1.34637 L63.01790 28.17415 C63.16435 28.42098 63.70849 29.42324 64.53214 30.94043 C68.06530 37.44825 77.45046 54.73533 84.72481 66.22712 C86.99386 69.81174 89.17007 73.17105 91.09003 76.13488 C93.01383 79.10445 94.67563 81.66969 95.91999 83.67266 L96.32211 98.74346 L3.70006 98.74346",
+    "guides": [
+      {
+        "d": "M63.03550 28.15528 C63.81497 29.46768 75.79869 52.07880 84.74062 66.20502 C89.28316 73.38118 93.45364 79.65463 95.94131 83.65949 L96.34469 98.77576 L3.67755 98.77576 L4.04270 83.65949 C4.04270 83.65949 8.90881 76.36058 14.58111 67.34249 C22.98802 53.97680 32.43836 36.18112 33.99882 33.57188 C36.62369 29.18306 50.00477 1.29107 50.00477 1.29107 L63.03550 28.15528",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M5.29724 96.45018 L5.58230 84.64882 C6.89849 82.66103 11.06130 76.34133 15.72176 68.93190 C22.01646 58.92422 28.91169 46.41271 32.61607 39.69114 C33.87718 37.40283 34.78834 35.74947 35.16594 35.11808 C37.36008 31.44947 46.58825 12.37828 50.01021 5.27518 L61.81377 29.60955 L61.86482 29.69553 C61.98734 29.90180 62.58148 30.99618 63.33374 32.38171 C66.87688 38.90813 76.28886 56.24443 83.60336 67.79973 C85.87840 71.39378 88.05778 74.75800 89.98061 77.72622 C91.70522 80.38849 93.21859 82.72454 94.40305 84.61207 L94.71893 96.45018 L5.29724 96.45018",
+        "dashed": true,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M63.03550 28.15528 C63.81497 29.46768 75.79869 52.07880 84.74062 66.20502 C89.28316 73.38118 93.45364 79.65463 95.94131 83.65949 L96.34469 98.77576 L3.67755 98.77576 L4.04270 83.65949 C4.04270 83.65949 8.90881 76.36058 14.58111 67.34249 C22.98802 53.97680 32.43836 36.18112 33.99882 33.57188 C36.62369 29.18306 50.00477 1.29107 50.00477 1.29107 L63.03550 28.15528",
+        "dashed": false,
+        "color": "#0284c7"
+      },
+      {
+        "d": "M3.70006 98.74346 L4.06408 83.67325 C4.26248 83.37538 9.07862 76.13778 14.59694 67.36459 C20.85727 57.41162 27.73175 44.93771 31.42498 38.23636 C32.69742 35.92744 33.61682 34.25923 34.01504 33.59334 C36.56738 29.32576 49.44907 2.50426 50.00488 1.34637 L63.01790 28.17415 C63.16435 28.42098 63.70849 29.42324 64.53214 30.94043 C68.06530 37.44825 77.45046 54.73533 84.72481 66.22712 C86.99386 69.81174 89.17007 73.17105 91.09003 76.13488 C93.01383 79.10445 94.67563 81.66969 95.91999 83.67266 L96.32211 98.74346 L3.70006 98.74346",
+        "dashed": false,
+        "color": "#e11d48"
+      }
+    ],
+    "fitNotes": "Keep all essential content inside the safe outline, away from seams and pole pockets. Fill the printable area with background. The shape outside the outline will be discarded."
+  },
+  "acrylic-signs-1-front": {
+    "id": "acrylic-signs-1-front",
+    "widthIn": 24,
+    "heightIn": 18,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "fitNotes": "Back-printed on 3 mm acrylic with a white underbase. Keep important artwork inside the safe area. Final mounting-hole positions must be confirmed before production."
+  },
+  "aluminum-signs-1-front": {
+    "id": "aluminum-signs-1-front",
+    "widthIn": 24,
+    "heightIn": 18,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      0.5,
+      0.5,
+      0.5,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "aluminum-composite-signs-1-front": {
+    "id": "aluminum-composite-signs-1-front",
+    "widthIn": 24,
+    "heightIn": 18,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      0.5,
+      0.5,
+      0.5,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "display-posters-1-front": {
+    "id": "display-posters-1-front",
+    "widthIn": 24,
+    "heightIn": 18,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      0.5,
+      0.5,
+      0.5,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "step-and-repeat-backdrop-8x8-front": {
+    "id": "step-and-repeat-backdrop-8x8-front",
+    "widthIn": 96,
+    "heightIn": 96,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      4,
+      1,
+      4,
+      1
+    ],
+    "fitNotes": "Keep text and logos inside the safe area. Extend the background to all edges."
+  },
+  "standard-retractable-black-front": {
+    "id": "standard-retractable-black-front",
+    "widthIn": 33,
+    "heightIn": 81,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      1,
+      0.5,
+      3,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe margins. Extend the background to the edge. Do not include crop marks."
+  },
+  "premium-retractable-36x69-front": {
+    "id": "premium-retractable-36x69-front",
+    "widthIn": 36,
+    "heightIn": 69,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      1,
+      0.5,
+      3,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe margins. Extend the background to the edge. Do not include crop marks."
+  },
+  "premium-retractable-36x80-front": {
+    "id": "premium-retractable-36x80-front",
+    "widthIn": 36,
+    "heightIn": 80,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      1,
+      0.5,
+      3,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe margins. Extend the background to the edge. Do not include crop marks."
+  },
+  "premium-retractable-48x69-front": {
+    "id": "premium-retractable-48x69-front",
+    "widthIn": 48,
+    "heightIn": 69,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      1,
+      0.5,
+      3,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe margins. Extend the background to the edge. Do not include crop marks."
+  },
+  "premium-retractable-48x80-front": {
+    "id": "premium-retractable-48x80-front",
+    "widthIn": 48,
+    "heightIn": 80,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      1,
+      0.5,
+      3,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe margins. Extend the background to the edge. Do not include crop marks."
+  },
+  "premium-retractable-60x69-front": {
+    "id": "premium-retractable-60x69-front",
+    "widthIn": 60,
+    "heightIn": 69,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      1,
+      0.5,
+      3,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe margins. Extend the background to the edge. Do not include crop marks."
+  },
+  "premium-retractable-60x80-front": {
+    "id": "premium-retractable-60x80-front",
+    "widthIn": 60,
+    "heightIn": 80,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      1,
+      0.5,
+      3,
+      0.5
+    ],
+    "fitNotes": "Keep text and logos inside the safe margins. Extend the background to the edge. Do not include crop marks."
+  },
+  "step-and-repeat-9x8-front": {
+    "id": "step-and-repeat-9x8-front",
+    "widthIn": 108,
+    "heightIn": 96,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      4,
+      1,
+      4,
+      1
+    ],
+    "fitNotes": "Keep text and logos inside the safe margins. Extend the background to the edge. Do not include crop marks."
+  },
+  "step-and-repeat-custom-front": {
+    "id": "step-and-repeat-custom-front",
+    "widthIn": 96,
+    "heightIn": 96,
+    "exportScale": 1,
+    "safeInsetsIn": [
+      4,
+      1,
+      4,
+      1
+    ],
+    "fitNotes": "Keep text and logos inside the safe margins. Extend the background to the edge. Do not include crop marks."
+  },
+  "feather-angled-flag-x-large-single-sided-print-thru-reverse": {
+    "id": "feather-angled-flag-x-large-single-sided-print-thru-reverse",
+    "widthIn": 27.0,
+    "heightIn": 187.5,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/96d62c9a08fdcda0d180fe11d1d1c32346424473",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M4.22358 1.02442 C89.12831 4.34206 92.67919 16.42135 92.67919 16.42135 L93.51726 98.98815 L4.70676 91.63315 L4.70676 91.68592 L4.22358 1.02442",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M4.22358 1.02442 C89.12831 4.34206 92.67919 16.42135 92.67919 16.42135 L93.51726 98.98815 L4.70676 91.63315 L4.70676 91.68592 L4.22358 1.02442",
+    "polePath": "M95.29326 91.68592 L95.29326 91.63315",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": true
+  },
+  "feather-angled-flag-x-large-double-sided": {
+    "id": "feather-angled-flag-x-large-double-sided",
+    "widthIn": 54.13889,
+    "heightIn": 184.71944,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/10fe5352391918e4e5e18905a68e98d4321a8f32",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "This is the complete two-sided supplier print file. Design both flag faces in their outlined regions, with readable text on each face. Do not submit only one half of this template.",
+    "guides": [
+      {
+        "d": "M52.51561 92.44686 L52.51561 92.50042 L52.27464 0.47421 C94.61810 3.84178 96.38904 16.10291 96.38904 16.10291 L96.80697 99.91258 L52.51561 92.44686 M47.95194 92.50042 L47.95194 92.44686 L3.66061 99.91258 L4.07854 16.10291 C4.07854 16.10291 5.84945 3.84178 48.19291 0.47421 L47.95194 92.50042",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M52.51561 92.44686 L52.51561 92.50042 L52.27464 0.47421 C94.61810 3.84178 96.38904 16.10291 96.38904 16.10291 L96.80697 99.91258 L52.51561 92.44686 M47.95194 92.50042 L47.95194 92.44686 L3.66061 99.91258 L4.07854 16.10291 C4.07854 16.10291 5.84945 3.84178 48.19291 0.47421 L47.95194 92.50042",
+    "doubleFlag": true,
+    "polePath": "M95.29326 91.68592 L95.29326 91.63315",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": false
+  },
+  "feather-angled-flag-large-single-sided-print-thru-reverse": {
+    "id": "feather-angled-flag-large-single-sided-print-thru-reverse",
+    "widthIn": 29.5,
+    "heightIn": 139.5,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/1a41971ccadcb5258b87cc9f9ccec8f4e78cef66",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M0.78691 0.89515 C0.78691 0.89515 43.54228 0.89515 70.01949 10.84637 C99.08658 21.77096 95.70216 36.73247 95.70216 36.73247 L95.70216 99.81988 L0.78691 88.31184 L0.78691 0.89515",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M0.78691 0.89515 C0.78691 0.89515 43.54228 0.89515 70.01949 10.84637 C99.08658 21.77096 95.70216 36.73247 95.70216 36.73247 L95.70216 99.81988 L0.78691 88.31184 L0.78691 0.89515",
+    "polePath": "M99.21309 88.31184 L4.29784 99.81988",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": true
+  },
+  "feather-angled-flag-large-double-sided": {
+    "id": "feather-angled-flag-large-double-sided",
+    "widthIn": 59.0,
+    "heightIn": 139.5,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/83064dff6e0ce3f09d89c1641cb8400cb45b5cb1",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "This is the complete two-sided supplier print file. Design both flag faces in their outlined regions, with readable text on each face. Do not submit only one half of this template.",
+    "guides": [
+      {
+        "d": "M49.60655 88.31184 L2.14892 99.81988 L2.14892 36.73247 C2.14892 36.73247 0.45671 21.77096 14.99026 10.84637 C28.22886 0.89515 49.60655 0.89515 49.60655 0.89515 L49.60655 88.31184",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M50.39343 0.89515 C50.39343 0.89515 71.77114 0.89515 85.00972 10.84637 C99.54326 21.77096 97.85106 36.73247 97.85106 36.73247 L97.85106 99.81988 L50.39343 88.31184 L50.39343 0.89515",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M49.60655 88.31184 L2.14892 99.81988 L2.14892 36.73247 C2.14892 36.73247 0.45671 21.77096 14.99026 10.84637 C28.22886 0.89515 49.60655 0.89515 49.60655 0.89515 L49.60655 88.31184 M50.39343 0.89515 C50.39343 0.89515 71.77114 0.89515 85.00972 10.84637 C99.54326 21.77096 97.85106 36.73247 97.85106 36.73247 L97.85106 99.81988 L50.39343 88.31184 L50.39343 0.89515",
+    "doubleFlag": true,
+    "polePath": "M99.21309 88.31184 L4.29784 99.81988",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": false
+  },
+  "feather-angled-flag-medium-single-sided-print-thru-reverse": {
+    "id": "feather-angled-flag-medium-single-sided-print-thru-reverse",
+    "widthIn": 25.5,
+    "heightIn": 105.5,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/3e485796181f5bc2491002ed00b32dd073f1806e",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M3.10383 1.18435 C3.10383 1.18435 48.85846 1.68675 73.50421 12.21572 C97.72060 22.56120 97.22142 40.96194 97.22142 40.96194 L97.22142 99.76254 L3.10383 86.67506 L3.10383 1.18435",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M3.10383 1.18435 C3.10383 1.18435 48.85846 1.68675 73.50421 12.21572 C97.72060 22.56120 97.22142 40.96194 97.22142 40.96194 L97.22142 99.76254 L3.10383 86.67506 L3.10383 1.18435",
+    "polePath": "M96.89617 86.67506 L2.77852 99.76254",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": true
+  },
+  "feather-angled-flag-medium-double-sided": {
+    "id": "feather-angled-flag-medium-double-sided",
+    "widthIn": 51.0,
+    "heightIn": 105.5,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/3646e7132420d0f6146936e0159955d584476e05",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "This is the complete two-sided supplier print file. Design both flag faces in their outlined regions, with readable text on each face. Do not submit only one half of this template.",
+    "guides": [
+      {
+        "d": "M48.85776 86.67506 L1.79894 99.76254 L1.79894 40.96194 C1.79894 40.96194 1.54935 22.56120 13.65757 12.21572 C25.98045 1.68676 48.85776 1.18435 48.85776 1.18435 L48.85776 86.67506",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M51.55192 1.18435 C51.55192 1.18435 74.42923 1.68675 86.75211 12.21572 C98.86030 22.56120 98.61071 40.96194 98.61071 40.96194 L98.61071 99.76254 L51.55192 86.67506 L51.55192 1.18435",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M48.85776 86.67506 L1.79894 99.76254 L1.79894 40.96194 C1.79894 40.96194 1.54935 22.56120 13.65757 12.21572 C25.98045 1.68676 48.85776 1.18435 48.85776 1.18435 L48.85776 86.67506 M51.55192 1.18435 C51.55192 1.18435 74.42923 1.68675 86.75211 12.21572 C98.86030 22.56120 98.61071 40.96194 98.61071 40.96194 L98.61071 99.76254 L51.55192 86.67506 L51.55192 1.18435",
+    "doubleFlag": true,
+    "polePath": "M96.89617 86.67506 L2.77852 99.76254",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": false
+  },
+  "feather-angled-flag-small-single-sided-print-thru-reverse": {
+    "id": "feather-angled-flag-small-single-sided-print-thru-reverse",
+    "widthIn": 25.0,
+    "heightIn": 80.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/0c3bd7a2c96933d69420642470633479d9d0da6b",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M1.77354 86.46951 L95.34649 99.55900 L96.26177 36.91293 C96.26177 36.91293 95.68049 34.10043 95.56916 33.26709 C93.89882 27.08654 88.44232 21.14904 87.10599 19.86432 C81.76082 14.41293 71.25688 9.89397 69.25249 9.19086 C55.22221 3.56614 35.84710 2.05579 33.75932 1.82143 C20.73110 0.85793 1.77354 1.22251 1.77354 1.22251 C1.77354 1.22251 1.80654 82.47645 1.77354 86.46951",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M1.77354 86.46951 L95.34649 99.55900 L96.26177 36.91293 C96.26177 36.91293 95.68049 34.10043 95.56916 33.26709 C93.89882 27.08654 88.44232 21.14904 87.10599 19.86432 C81.76082 14.41293 71.25688 9.89397 69.25249 9.19086 C55.22221 3.56614 35.84710 2.05579 33.75932 1.82143 C20.73110 0.85793 1.77354 1.22251 1.77354 1.22251 C1.77354 1.22251 1.80654 82.47645 1.77354 86.46951",
+    "polePath": "M98.22645 1.22251 C98.22645 1.22251 79.26890 0.85793 66.24068 1.82145 C64.15290 2.05579 44.77773 3.56614 30.74746 9.19086 C28.74312 9.89397 18.23912 14.41293 12.89401 19.86431 C11.55768 21.14904 6.10118 27.08654 4.43084 33.26709 C4.31951 34.10042 3.73823 36.91293 3.73823 36.91293 L4.65351 99.55900",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": true
+  },
+  "feather-angled-flag-small-double-sided": {
+    "id": "feather-angled-flag-small-double-sided",
+    "widthIn": 50.0,
+    "heightIn": 80.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/8fb3636d3c59c7d6f4379917f07ac6a6086edb6f",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "This is the complete two-sided supplier print file. Design both flag faces in their outlined regions, with readable text on each face. Do not submit only one half of this template.",
+    "guides": [
+      {
+        "d": "M49.11323 1.22251 C49.11323 1.22251 39.63445 0.85793 33.12034 1.82145 C32.07645 2.05579 22.38887 3.56614 15.37373 9.19086 C14.37156 9.89397 9.11956 14.41293 6.44700 19.86431 C5.77884 21.14904 3.05059 27.08654 2.21542 33.26709 C2.15976 34.10042 1.86912 36.91293 1.86912 36.91293 L2.32676 99.55900 L49.11323 86.46951 C49.09673 82.47645 49.11323 1.22251 49.11323 1.22251",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M50.88677 86.46951 L97.67324 99.55900 L98.13089 36.91293 C98.13089 36.91293 97.84024 34.10043 97.78458 33.26709 C96.94941 27.08654 94.22116 21.14904 93.55299 19.86432 C90.88041 14.41293 85.62844 9.89397 84.62625 9.19086 C77.61110 3.56614 67.92355 2.05579 66.87967 1.82143 C60.36555 0.85793 50.88677 1.22251 50.88677 1.22251 C50.88677 1.22251 50.90327 82.47645 50.88677 86.46951",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M49.11323 1.22251 C49.11323 1.22251 39.63445 0.85793 33.12034 1.82145 C32.07645 2.05579 22.38887 3.56614 15.37373 9.19086 C14.37156 9.89397 9.11956 14.41293 6.44700 19.86431 C5.77884 21.14904 3.05059 27.08654 2.21542 33.26709 C2.15976 34.10042 1.86912 36.91293 1.86912 36.91293 L2.32676 99.55900 L49.11323 86.46951 C49.09673 82.47645 49.11323 1.22251 49.11323 1.22251 M50.88677 86.46951 L97.67324 99.55900 L98.13089 36.91293 C98.13089 36.91293 97.84024 34.10043 97.78458 33.26709 C96.94941 27.08654 94.22116 21.14904 93.55299 19.86432 C90.88041 14.41293 85.62844 9.89397 84.62625 9.19086 C77.61110 3.56614 67.92355 2.05579 66.87967 1.82143 C60.36555 0.85793 50.88677 1.22251 50.88677 1.22251 C50.88677 1.22251 50.90327 82.47645 50.88677 86.46951",
+    "doubleFlag": true,
+    "polePath": "M98.22645 1.22251 C98.22645 1.22251 79.26890 0.85793 66.24068 1.82145 C64.15290 2.05579 44.77773 3.56614 30.74746 9.19086 C28.74312 9.89397 18.23912 14.41293 12.89401 19.86431 C11.55768 21.14904 6.10118 27.08654 4.43084 33.26709 C4.31951 34.10042 3.73823 36.91293 3.73823 36.91293 L4.65351 99.55900",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": false
+  },
+  "convex-flag-x-large-single-sided-print-thru-reverse": {
+    "id": "convex-flag-x-large-single-sided-print-thru-reverse",
+    "widthIn": 27.0,
+    "heightIn": 191.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/6fe819dd2ae08937c89419d45d6d85f806c1ad02",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M4.70649 84.54449 L4.22356 0.94913 C89.12830 4.20597 92.67917 16.06392 92.67917 16.06392 L93.51724 97.11772 C93.51724 97.11772 61.63735 96.88258 31.02876 92.95079 C5.61894 89.68681 4.73041 85.05339 4.70674 84.57983 L4.70674 84.59211 L4.70669 84.57829 C4.70587 84.56146 4.70618 84.55013 4.70649 84.54449",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M4.70649 84.54449 L4.22356 0.94913 C89.12830 4.20597 92.67917 16.06392 92.67917 16.06392 L93.51724 97.11772 C93.51724 97.11772 61.63735 96.88258 31.02876 92.95079 C5.61894 89.68681 4.73041 85.05339 4.70674 84.57983 L4.70674 84.59211 L4.70669 84.57829 C4.70587 84.56146 4.70618 84.55013 4.70649 84.54449",
+    "polePath": "M4 100 L4 37 C4 15 30 2 67 1.5 L98 1.5",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": true
+  },
+  "convex-flag-x-large-double-sided": {
+    "id": "convex-flag-x-large-double-sided",
+    "widthIn": 54.62958,
+    "heightIn": 184.85973,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/6db11c22a91637c05dec4e557807dd2ea11131f0",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "This is the complete two-sided supplier print file. Design both flag faces in their outlined regions, with readable text on each face. Do not submit only one half of this template.",
+    "guides": [
+      {
+        "d": "M65.90069 95.58318 C53.34222 92.21078 52.90306 87.42345 52.89136 86.93416 L52.89136 86.94686 L52.89131 86.93258 C52.89093 86.91519 52.89108 86.90348 52.89121 86.89765 L52.65255 0.52560 C94.61568 3.89061 96.37067 16.14244 96.37067 16.14244 L96.78485 99.88851 C96.78485 99.88851 81.02861 99.64556 65.90069 95.58318 M47.78396 86.93258 L47.78393 86.94686 L47.78393 86.93416 C47.77224 87.42345 47.33309 92.21078 34.77460 95.58318 C19.64668 99.64556 3.89044 99.88851 3.89044 99.88851 L4.30461 16.14244 C4.30461 16.14244 6.05962 3.89061 48.02274 0.52560 L47.78406 86.89765 C47.78421 86.90348 47.78437 86.91519 47.78396 86.93258",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M65.90069 95.58318 C53.34222 92.21078 52.90306 87.42345 52.89136 86.93416 L52.89136 86.94686 L52.89131 86.93258 C52.89093 86.91519 52.89108 86.90348 52.89121 86.89765 L52.65255 0.52560 C94.61568 3.89061 96.37067 16.14244 96.37067 16.14244 L96.78485 99.88851 C96.78485 99.88851 81.02861 99.64556 65.90069 95.58318 M47.78396 86.93258 L47.78393 86.94686 L47.78393 86.93416 C47.77224 87.42345 47.33309 92.21078 34.77460 95.58318 C19.64668 99.64556 3.89044 99.88851 3.89044 99.88851 L4.30461 16.14244 C4.30461 16.14244 6.05962 3.89061 48.02274 0.52560 L47.78406 86.89765 C47.78421 86.90348 47.78437 86.91519 47.78396 86.93258",
+    "doubleFlag": true,
+    "polePath": "M4 100 L4 37 C4 15 30 2 67 1.5 L98 1.5",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": false
+  },
+  "convex-flag-large-single-sided-print-thru-reverse": {
+    "id": "convex-flag-large-single-sided-print-thru-reverse",
+    "widthIn": 29.5,
+    "heightIn": 139.5,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/529354332e435066ceba2688f857dfe9ed03e841",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M0.78691 0.89515 C0.78691 0.89515 43.54228 0.89515 70.01949 10.84637 C99.08658 21.77096 95.70216 36.73247 95.70216 36.73247 L95.70216 99.81988 C95.70216 99.81988 61.54863 97.38292 34.45150 91.65270 C2.67184 84.93227 0.78691 73.08841 0.78691 73.08841 L0.78691 0.89515",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M0.78691 0.89515 C0.78691 0.89515 43.54228 0.89515 70.01949 10.84637 C99.08658 21.77096 95.70216 36.73247 95.70216 36.73247 L95.70216 99.81988 C95.70216 99.81988 61.54863 97.38292 34.45150 91.65270 C2.67184 84.93227 0.78691 73.08841 0.78691 73.08841 L0.78691 0.89515",
+    "polePath": "M4 100 L4 37 C4 15 30 2 67 1.5 L98 1.5",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": true
+  },
+  "convex-flag-large-double-sided": {
+    "id": "convex-flag-large-double-sided",
+    "widthIn": 59.0,
+    "heightIn": 139.5,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/c728a8a593e5c8850adff05cdb80d80a85320e28",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "This is the complete two-sided supplier print file. Design both flag faces in their outlined regions, with readable text on each face. Do not submit only one half of this template.",
+    "guides": [
+      {
+        "d": "M49.60655 73.08841 C49.60655 73.08841 48.66408 84.93227 32.77425 91.65270 C19.22569 97.38292 2.14892 99.81988 2.14892 99.81988 L2.14892 36.73247 C2.14892 36.73247 0.45671 21.77096 14.99026 10.84637 C28.22886 0.89515 49.60655 0.89515 49.60655 0.89515 L49.60655 73.08841",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M50.39345 0.89515 C50.39345 0.89515 71.77114 0.89515 85.00974 10.84637 C99.54328 21.77096 97.85108 36.73247 97.85108 36.73247 L97.85108 99.81988 C97.85108 99.81988 80.77432 97.38292 67.22575 91.65270 C51.33592 84.93227 50.39345 73.08841 50.39345 73.08841 L50.39345 0.89515",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M49.60655 73.08841 C49.60655 73.08841 48.66408 84.93227 32.77425 91.65270 C19.22569 97.38292 2.14892 99.81988 2.14892 99.81988 L2.14892 36.73247 C2.14892 36.73247 0.45671 21.77096 14.99026 10.84637 C28.22886 0.89515 49.60655 0.89515 49.60655 0.89515 L49.60655 73.08841 M50.39345 0.89515 C50.39345 0.89515 71.77114 0.89515 85.00974 10.84637 C99.54328 21.77096 97.85108 36.73247 97.85108 36.73247 L97.85108 99.81988 C97.85108 99.81988 80.77432 97.38292 67.22575 91.65270 C51.33592 84.93227 50.39345 73.08841 50.39345 73.08841 L50.39345 0.89515",
+    "doubleFlag": true,
+    "polePath": "M4 100 L4 37 C4 15 30 2 67 1.5 L98 1.5",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": false
+  },
+  "convex-flag-medium-single-sided-print-thru-reverse": {
+    "id": "convex-flag-medium-single-sided-print-thru-reverse",
+    "widthIn": 25.5,
+    "heightIn": 105.5,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/0d99b3b85277eb2a8ce1c90904b34d2d13edb8cb",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M1.12656 70.76093 L1.12656 1.18435 C1.12656 1.18435 46.88119 1.68676 71.52699 12.21572 C95.74339 22.56120 95.24420 40.96194 95.24420 40.96194 L95.24420 99.76254 C95.24420 99.76254 54.08979 97.53061 28.21844 90.50816 C-0.00002 82.84863 1.12656 70.76093 1.12656 70.76093",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M1.12656 70.76093 L1.12656 1.18435 C1.12656 1.18435 46.88119 1.68676 71.52699 12.21572 C95.74339 22.56120 95.24420 40.96194 95.24420 40.96194 L95.24420 99.76254 C95.24420 99.76254 54.08979 97.53061 28.21844 90.50816 C-0.00002 82.84863 1.12656 70.76093 1.12656 70.76093",
+    "polePath": "M4 100 L4 37 C4 15 30 2 67 1.5 L98 1.5",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": true
+  },
+  "convex-flag-medium-double-sided": {
+    "id": "convex-flag-medium-double-sided",
+    "widthIn": 51.0,
+    "heightIn": 105.5,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/9d51b68ab9a87f3e8a9026a684a7507f361408b1",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "This is the complete two-sided supplier print file. Design both flag faces in their outlined regions, with readable text on each face. Do not submit only one half of this template.",
+    "guides": [
+      {
+        "d": "M35.91682 90.50816 C22.98115 97.53061 2.40394 99.76254 2.40394 99.76254 L2.40394 40.96194 C2.40394 40.96194 2.15435 22.56120 14.26255 12.21572 C26.58548 1.68676 49.46279 1.18435 49.46279 1.18435 L49.46279 70.76093 C49.46279 70.76093 50.02606 82.84863 35.91682 90.50816",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M50.58934 70.76093 L50.58934 1.18435 C50.58934 1.18435 73.46665 1.68676 85.78959 12.21572 C97.89778 22.56120 97.64817 40.96194 97.64817 40.96194 L97.64817 99.76254 C97.64817 99.76254 77.07099 97.53061 64.13531 90.50816 C50.02605 82.84863 50.58934 70.76093 50.58934 70.76093",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M35.91682 90.50816 C22.98115 97.53061 2.40394 99.76254 2.40394 99.76254 L2.40394 40.96194 C2.40394 40.96194 2.15435 22.56120 14.26255 12.21572 C26.58548 1.68676 49.46279 1.18435 49.46279 1.18435 L49.46279 70.76093 C49.46279 70.76093 50.02606 82.84863 35.91682 90.50816 M50.58934 70.76093 L50.58934 1.18435 C50.58934 1.18435 73.46665 1.68676 85.78959 12.21572 C97.89778 22.56120 97.64817 40.96194 97.64817 40.96194 L97.64817 99.76254 C97.64817 99.76254 77.07099 97.53061 64.13531 90.50816 C50.02605 82.84863 50.58934 70.76093 50.58934 70.76093",
+    "doubleFlag": true,
+    "polePath": "M4 100 L4 37 C4 15 30 2 67 1.5 L98 1.5",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": false
+  },
+  "convex-flag-small-single-sided-print-thru-reverse": {
+    "id": "convex-flag-small-single-sided-print-thru-reverse",
+    "widthIn": 24.25,
+    "heightIn": 79.5,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/0c8382a8bcb44e02fbdba55116a98aab091e6eb4",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M0.27940 63.29283 L0.26841 68.43501 C1.39825 73.77400 6.60466 82.40459 26.85558 89.02461 C55.43874 98.36846 96.71858 99.82600 96.71858 99.82600 L96.73072 99.82600 L97.67436 36.78592 C97.67436 36.78592 97.07511 33.95573 96.96033 33.11715 C95.23822 26.89775 89.61308 20.92290 88.23537 19.63010 C82.72500 14.14440 71.89613 9.59699 69.82980 8.88948 C55.36560 3.22938 35.39126 1.70953 33.23885 1.47370 C19.80775 0.50417 0.26383 0.87103 0.26383 0.87103 C0.26383 0.87103 0.27574 30.36565 0.27837 55.27543 L0.27940 55.32491 L0.27940 63.29283",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M0.27940 63.29283 L0.26841 68.43501 C1.39825 73.77400 6.60466 82.40459 26.85558 89.02461 C55.43874 98.36846 96.71858 99.82600 96.71858 99.82600 L96.73072 99.82600 L97.67436 36.78592 C97.67436 36.78592 97.07511 33.95573 96.96033 33.11715 C95.23822 26.89775 89.61308 20.92290 88.23537 19.63010 C82.72500 14.14440 71.89613 9.59699 69.82980 8.88948 C55.36560 3.22938 35.39126 1.70953 33.23885 1.47370 C19.80775 0.50417 0.26383 0.87103 0.26383 0.87103 C0.26383 0.87103 0.27574 30.36565 0.27837 55.27543 L0.27940 55.32491 L0.27940 63.29283",
+    "polePath": "M4 100 L4 37 C4 15 30 2 67 1.5 L98 1.5",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": true
+  },
+  "convex-flag-small-double-sided": {
+    "id": "convex-flag-small-double-sided",
+    "widthIn": 48.76069,
+    "heightIn": 79.5,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/d150604a07423fb592406e3fa7817094e888e8d7",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "This is the complete two-sided supplier print file. Design both flag faces in their outlined regions, with readable text on each face. Do not submit only one half of this template.",
+    "guides": [
+      {
+        "d": "M49.59370 55.32491 L49.59421 55.27543 C49.59552 30.36565 49.60144 0.87103 49.60144 0.87103 C49.60144 0.87103 39.88172 0.50417 33.20208 1.47370 C32.13163 1.70953 22.19785 3.22938 15.00442 8.88948 C13.97678 9.59699 8.59129 14.14440 5.85084 19.63010 C5.16566 20.92290 2.36810 26.89774 1.51168 33.11715 C1.45460 33.95573 1.15657 36.78592 1.15657 36.78592 L1.62587 99.82600 L1.63191 99.82600 C1.63191 99.82600 22.16148 98.36846 36.37665 89.02461 C46.44798 82.40459 49.03726 73.77400 49.59917 68.43501 L49.59370 63.29283 L49.59370 55.32491",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M49.94638 63.29244 L49.94091 68.43461 C50.50281 73.77361 53.09210 82.40420 63.16342 89.02422 C77.37859 98.36807 97.90817 99.82560 97.90817 99.82560 L97.91420 99.82560 L98.38350 36.78553 C98.38350 36.78553 98.08547 33.95534 98.02839 33.11676 C97.17197 26.89735 94.37441 20.92251 93.68923 19.62971 C90.94878 14.14401 85.56329 9.59660 84.53566 8.88909 C77.34222 3.22899 67.40844 1.70914 66.33799 1.47331 C59.65835 0.50378 49.93863 0.87064 49.93863 0.87064 C49.93863 0.87064 49.94456 30.36526 49.94587 55.27504 L49.94638 55.32452 L49.94638 63.29244",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M49.59370 55.32491 L49.59421 55.27543 C49.59552 30.36565 49.60144 0.87103 49.60144 0.87103 C49.60144 0.87103 39.88172 0.50417 33.20208 1.47370 C32.13163 1.70953 22.19785 3.22938 15.00442 8.88948 C13.97678 9.59699 8.59129 14.14440 5.85084 19.63010 C5.16566 20.92290 2.36810 26.89774 1.51168 33.11715 C1.45460 33.95573 1.15657 36.78592 1.15657 36.78592 L1.62587 99.82600 L1.63191 99.82600 C1.63191 99.82600 22.16148 98.36846 36.37665 89.02461 C46.44798 82.40459 49.03726 73.77400 49.59917 68.43501 L49.59370 63.29283 L49.59370 55.32491 M49.94638 63.29244 L49.94091 68.43461 C50.50281 73.77361 53.09210 82.40420 63.16342 89.02422 C77.37859 98.36807 97.90817 99.82560 97.90817 99.82560 L97.91420 99.82560 L98.38350 36.78553 C98.38350 36.78553 98.08547 33.95534 98.02839 33.11676 C97.17197 26.89735 94.37441 20.92251 93.68923 19.62971 C90.94878 14.14401 85.56329 9.59660 84.53566 8.88909 C77.34222 3.22899 67.40844 1.70914 66.33799 1.47331 C59.65835 0.50378 49.93863 0.87064 49.93863 0.87064 C49.93863 0.87064 49.94456 30.36526 49.94587 55.27504 L49.94638 55.32452 L49.94638 63.29244",
+    "doubleFlag": true,
+    "polePath": "M4 100 L4 37 C4 15 30 2 67 1.5 L98 1.5",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": false
+  },
+  "teardrop-flag-x-large-single-sided-print-thru-reverse": {
+    "id": "teardrop-flag-x-large-single-sided-print-thru-reverse",
+    "widthIn": 47.98,
+    "heightIn": 145.25,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/8edad7e3e8c3c64af213ebc1308ba01f67186e35",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M2.83593 19.86361 L6.40703 19.45648 L5.80039 18.94477 C2.30304 15.75070 1.79826 12.06617 5.16893 8.60632 C7.89072 5.81235 16.08436 2.42936 35.32967 2.26050 C54.08199 2.09599 74.09073 9.71875 79.60177 12.79806 C90.15278 18.69282 96.30004 28.23715 96.09750 35.85171 L96.52236 72.84241 L96.14045 95.36152 L96.18405 99.15550 L2.83593 19.86361",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M2.83593 19.86361 L6.40703 19.45648 L5.80039 18.94477 C2.30304 15.75070 1.79826 12.06617 5.16893 8.60632 C7.89072 5.81235 16.08436 2.42936 35.32967 2.26050 C54.08199 2.09599 74.09073 9.71875 79.60177 12.79806 C90.15278 18.69282 96.30004 28.23715 96.09750 35.85171 L96.52236 72.84241 L96.14045 95.36152 L96.18405 99.15550 L2.83593 19.86361",
+    "polePath": "M3.81598 99.15550",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": true
+  },
+  "teardrop-flag-x-large-double-sided": {
+    "id": "teardrop-flag-x-large-double-sided",
+    "widthIn": 96.46361,
+    "heightIn": 145.25,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/3e9af9819dc56dbc5685e7bef44010179ff85ef8",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "This is the complete two-sided supplier print file. Design both flag faces in their outlined regions, with readable text on each face. Do not submit only one half of this template.",
+    "guides": [
+      {
+        "d": "M98.07112 99.15550 L51.64073 19.86361 L53.41698 19.45648 L53.11525 18.94477 C51.37568 15.75070 51.12462 12.06617 52.80114 8.60632 C54.15494 5.81235 58.23037 2.42936 67.80279 2.26050 C77.13001 2.09600 87.08213 9.71875 89.82327 12.79806 C95.07123 18.69281 98.12883 28.23714 98.02809 35.85171 L98.23941 72.84241 L98.04944 95.36152 L98.07112 99.15550 M1.89803 99.15550 L1.91971 95.36152 L1.72976 72.84241 L1.94106 35.85171 C1.84032 28.23714 4.89792 18.69281 10.14588 12.79806 C12.88702 9.71875 22.83916 2.09600 32.16636 2.26050 C41.73878 2.42936 45.81421 5.81235 47.16800 8.60632 C48.84453 12.06617 48.59347 15.75070 46.85393 18.94477 L46.55217 19.45648 L48.32842 19.86361 L1.89803 99.15550",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M98.07112 99.15550 L51.64073 19.86361 L53.41698 19.45648 L53.11525 18.94477 C51.37568 15.75070 51.12462 12.06617 52.80114 8.60632 C54.15494 5.81235 58.23037 2.42936 67.80279 2.26050 C77.13001 2.09600 87.08213 9.71875 89.82327 12.79806 C95.07123 18.69281 98.12883 28.23714 98.02809 35.85171 L98.23941 72.84241 L98.04944 95.36152 L98.07112 99.15550 M1.89803 99.15550 L1.91971 95.36152 L1.72976 72.84241 L1.94106 35.85171 C1.84032 28.23714 4.89792 18.69281 10.14588 12.79806 C12.88702 9.71875 22.83916 2.09600 32.16636 2.26050 C41.73878 2.42936 45.81421 5.81235 47.16800 8.60632 C48.84453 12.06617 48.59347 15.75070 46.85393 18.94477 L46.55217 19.45648 L48.32842 19.86361 L1.89803 99.15550",
+    "doubleFlag": true,
+    "polePath": "M3.81598 99.15550",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": false
+  },
+  "teardrop-flag-large-single-sided-print-thru-reverse": {
+    "id": "teardrop-flag-large-single-sided-print-thru-reverse",
+    "widthIn": 42.26,
+    "heightIn": 103.4557,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/4831ff8869e770e16504300f65f4b294e7c6d9f3",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M96.61530 99.51176 L96.61536 99.50702 L96.60142 94.67060 L96.46171 45.55522 L96.75422 40.30258 C96.99318 28.19887 90.40434 19.47797 80.54326 11.99066 C80.54326 11.99066 60.65740 -3.97357 22.72269 3.08107 C22.72269 3.08107 -3.46414 7.48178 3.89947 20.46692",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M96.61530 99.51176 L96.45087 99.51178 L1.21624 20.95279 L3.95146 20.39757",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M1.21624 20.95280 L3.86999 20.41411 C-3.39263 7.46992 22.72269 3.08107 22.72269 3.08107 C60.65740 -3.97357 80.54326 11.99065 80.54326 11.99065 C90.40433 19.47797 96.99318 28.19887 96.75421 40.30259 L96.46171 45.55523 L96.60142 94.67059 L96.61536 99.50703 L96.61530 99.51177 L96.45087 99.51178 L1.21624 20.95280",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M1.21624 20.95280 L3.86999 20.41411 C-3.39263 7.46992 22.72269 3.08107 22.72269 3.08107 C60.65740 -3.97357 80.54326 11.99065 80.54326 11.99065 C90.40433 19.47797 96.99318 28.19887 96.75421 40.30259 L96.46171 45.55523 L96.60142 94.67059 L96.61536 99.50703 L96.61530 99.51177 L96.45087 99.51178 L1.21624 20.95280",
+    "polePath": "M3.54910 99.51178",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": true
+  },
+  "teardrop-flag-large-double-sided": {
+    "id": "teardrop-flag-large-double-sided",
+    "widthIn": 85.02195,
+    "heightIn": 103.4557,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/9d5985a9564bdc794eba015f40f7b2a83abfe56e",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "This is the complete two-sided supplier print file. Design both flag faces in their outlined regions, with readable text on each face. Do not submit only one half of this template.",
+    "guides": [
+      {
+        "d": "M1.68235 99.51176 L1.68232 99.50702 L1.68923 94.67060 L1.75868 45.55522 L1.61330 40.30258 C1.49452 28.19887 4.76951 19.47797 9.67092 11.99066 C9.67092 11.99066 19.55514 -3.97357 38.41053 3.08107 C38.41053 3.08107 51.42665 7.48178 47.76658 20.46692",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M1.68235 99.51176 L1.76408 99.51178 L49.10027 20.95279 L47.74073 20.39757",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M98.23397 99.51176 L98.23400 99.50702 L98.22710 94.67060 L98.15765 45.55522 L98.30304 40.30258 C98.42180 28.19887 95.14683 19.47797 90.24541 11.99066 C90.24541 11.99066 80.36118 -3.97357 61.50579 3.08107 C61.50579 3.08107 48.48967 7.48178 52.14976 20.46692",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M98.23397 99.51176 L98.15226 99.51178 L50.81605 20.95279 L52.17558 20.39757",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M98.30303 40.30258 L98.15766 45.55522 L98.22710 94.67060 L98.23399 99.50702 L98.23396 99.51176 L98.15227 99.51178 L50.81606 20.95280 L52.13510 20.41411 C48.52523 7.46992 61.50580 3.08107 61.50580 3.08107 C80.36120 -3.97358 90.24541 11.99065 90.24541 11.99065 C95.14682 19.47797 98.42181 28.19887 98.30303 40.30258 M1.76408 99.51178 L1.68236 99.51176 L1.68232 99.50702 L1.68923 94.67060 L1.75867 45.55522 L1.61331 40.30258 C1.49453 28.19887 4.76952 19.47797 9.67091 11.99065 C9.67091 11.99065 19.55514 -3.97358 38.41054 3.08107 C38.41054 3.08107 51.39111 7.46992 47.78124 20.41411 L49.10027 20.95280 L1.76408 99.51178",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M98.30303 40.30258 L98.15766 45.55522 L98.22710 94.67060 L98.23399 99.50702 L98.23396 99.51176 L98.15227 99.51178 L50.81606 20.95280 L52.13510 20.41411 C48.52523 7.46992 61.50580 3.08107 61.50580 3.08107 C80.36120 -3.97358 90.24541 11.99065 90.24541 11.99065 C95.14682 19.47797 98.42181 28.19887 98.30303 40.30258 M1.76408 99.51178 L1.68236 99.51176 L1.68232 99.50702 L1.68923 94.67060 L1.75867 45.55522 L1.61331 40.30258 C1.49453 28.19887 4.76952 19.47797 9.67091 11.99065 C9.67091 11.99065 19.55514 -3.97358 38.41054 3.08107 C38.41054 3.08107 51.39111 7.46992 47.78124 20.41411 L49.10027 20.95280 L1.76408 99.51178",
+    "doubleFlag": true,
+    "polePath": "M3.54910 99.51178",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": false
+  },
+  "teardrop-flag-medium-single-sided-print-thru-reverse": {
+    "id": "teardrop-flag-medium-single-sided-print-thru-reverse",
+    "widthIn": 34.385,
+    "heightIn": 81.59,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/5c675412822bb8969e414f71c44bf06bfa9210cd",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M1.58039 21.97585 L4.61825 21.33673 C4.61825 21.33673 0.42036 8.53711 23.33604 3.83858 C49.84481 -1.59664 83.04518 11.61711 90.30868 27.78329 C92.71808 33.14586 94.36132 35.77921 95.71252 51.47827 C97.70277 74.60118 92.93584 98.47201 93.54575 98.97863 L1.58039 21.97585",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M1.58039 21.97585 L4.61825 21.33673 C4.61825 21.33673 0.42036 8.53711 23.33604 3.83858 C49.84481 -1.59664 83.04518 11.61711 90.30868 27.78329 C92.71808 33.14586 94.36132 35.77921 95.71252 51.47827 C97.70277 74.60118 92.93584 98.47201 93.54575 98.97863 L1.58039 21.97585",
+    "polePath": "M6.45417 98.97863 C7.06405 98.47201 2.29711 74.60119 4.28736 51.47828 C5.63861 35.77922 7.28185 33.14586 9.69125 27.78329 C16.95475 11.61711 50.15511 -1.59663 76.66384 3.83859 C99.57952 8.53711 95.38167 21.33673 95.38167 21.33673",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": true
+  },
+  "teardrop-flag-medium-double-sided": {
+    "id": "teardrop-flag-medium-double-sided",
+    "widthIn": 68.82945,
+    "heightIn": 81.59,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/1b8b0bb71ea4e60a2f07872def1405e77a8d444c",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "This is the complete two-sided supplier print file. Design both flag faces in their outlined regions, with readable text on each face. Do not submit only one half of this template.",
+    "guides": [
+      {
+        "d": "M96.90867 98.97863 L50.96570 21.97585 L52.48332 21.33673 C52.48332 21.33673 50.38621 8.53711 61.83415 3.83859 C75.07707 -1.59663 91.66292 11.61711 95.29152 27.78329 C96.49520 33.14586 97.31609 35.77922 97.99114 51.47828 C98.98538 74.60119 96.60397 98.47201 96.90867 98.97863 M3.22431 98.97863 C3.52898 98.47201 1.14757 74.60119 2.14184 51.47828 C2.81688 35.77922 3.63776 33.14586 4.84142 27.78329 C8.47006 11.61711 25.05590 -1.59663 38.29882 3.83859 C49.74677 8.53711 47.64963 21.33673 47.64963 21.33673 L49.16725 21.97585 L3.22431 98.97863",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M96.90867 98.97863 L50.96570 21.97585 L52.48332 21.33673 C52.48332 21.33673 50.38621 8.53711 61.83415 3.83859 C75.07707 -1.59663 91.66292 11.61711 95.29152 27.78329 C96.49520 33.14586 97.31609 35.77922 97.99114 51.47828 C98.98538 74.60119 96.60397 98.47201 96.90867 98.97863 M3.22431 98.97863 C3.52898 98.47201 1.14757 74.60119 2.14184 51.47828 C2.81688 35.77922 3.63776 33.14586 4.84142 27.78329 C8.47006 11.61711 25.05590 -1.59663 38.29882 3.83859 C49.74677 8.53711 47.64963 21.33673 47.64963 21.33673 L49.16725 21.97585 L3.22431 98.97863",
+    "doubleFlag": true,
+    "polePath": "M6.45417 98.97863 C7.06405 98.47201 2.29711 74.60119 4.28736 51.47828 C5.63861 35.77922 7.28185 33.14586 9.69125 27.78329 C16.95475 11.61711 50.15511 -1.59663 76.66384 3.83859 C99.57952 8.53711 95.38167 21.33673 95.38167 21.33673",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": false
+  },
+  "teardrop-flag-small-single-sided-print-thru-reverse": {
+    "id": "teardrop-flag-small-single-sided-print-thru-reverse",
+    "widthIn": 24.22,
+    "heightIn": 65.48,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/cebd87365e7426235bf70cb6b154887bef541980",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M0.85653 21.45654 L5.46131 20.79586 C5.46131 20.79586 -3.60982 6.59399 27.28367 2.94504 C45.21731 0.82681 66.71676 7.96648 77.72494 15.85880 C83.33199 19.87875 93.96313 27.96080 95.27052 38.37729 C98.18106 61.56703 94.94928 99.03884 95.62136 99.57265 L0.85653 21.45654",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M0.85653 21.45654 L5.46131 20.79586 C5.46131 20.79586 -3.60982 6.59399 27.28367 2.94504 C45.21731 0.82681 66.71676 7.96648 77.72494 15.85880 C83.33199 19.87875 93.96313 27.96080 95.27052 38.37729 C98.18106 61.56703 94.94928 99.03884 95.62136 99.57265 L0.85653 21.45654",
+    "polePath": "M4.37861 99.57265 C5.05069 99.03884 1.81897 61.56703 4.72951 38.37729 C6.03685 27.96080 16.66799 19.87875 22.27504 15.85880 C33.28322 7.96648 54.78267 0.82681 72.71636 2.94504 C103.60979 6.59399 94.53872 20.79587 94.53872 20.79587",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": true
+  },
+  "teardrop-flag-small-double-sided": {
+    "id": "teardrop-flag-small-double-sided",
+    "widthIn": 48.55944,
+    "heightIn": 65.48,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/5fffd6aa6030929df5fb912009415acfc470c8d8",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "This is the complete two-sided supplier print file. Design both flag faces in their outlined regions, with readable text on each face. Do not submit only one half of this template.",
+    "guides": [
+      {
+        "d": "M98.00092 99.57265 L50.73506 21.45654 L53.03179 20.79587 C53.03179 20.79587 48.50738 6.59399 63.91613 2.94504 C72.86089 0.82681 83.58417 7.96648 89.07475 15.85880 C91.87135 19.87875 97.17387 27.96080 97.82594 38.37729 C99.27762 61.56703 97.66574 99.03884 98.00092 99.57265 M2.18391 99.57265 C2.51913 99.03884 0.90724 61.56703 2.35892 38.37729 C3.01099 27.96080 8.31348 19.87875 11.11011 15.85880 C16.60069 7.96648 27.32398 0.82681 36.26874 2.94504 C51.67746 6.59399 47.15308 20.79587 47.15308 20.79587 L49.44981 21.45654 L2.18391 99.57265",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M98.00092 99.57265 L50.73506 21.45654 L53.03179 20.79587 C53.03179 20.79587 48.50738 6.59399 63.91613 2.94504 C72.86089 0.82681 83.58417 7.96648 89.07475 15.85880 C91.87135 19.87875 97.17387 27.96080 97.82594 38.37729 C99.27762 61.56703 97.66574 99.03884 98.00092 99.57265 M2.18391 99.57265 C2.51913 99.03884 0.90724 61.56703 2.35892 38.37729 C3.01099 27.96080 8.31348 19.87875 11.11011 15.85880 C16.60069 7.96648 27.32398 0.82681 36.26874 2.94504 C51.67746 6.59399 47.15308 20.79587 47.15308 20.79587 L49.44981 21.45654 L2.18391 99.57265",
+    "doubleFlag": true,
+    "polePath": "M4.37861 99.57265 C5.05069 99.03884 1.81897 61.56703 4.72951 38.37729 C6.03685 27.96080 16.66799 19.87875 22.27504 15.85880 C33.28322 7.96648 54.78267 0.82681 72.71636 2.94504 C103.60979 6.59399 94.53872 20.79587 94.53872 20.79587",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": false
+  },
+  "rectangle-flag-large-single-sided-print-thru-reverse": {
+    "id": "rectangle-flag-large-single-sided-print-thru-reverse",
+    "widthIn": 34.0,
+    "heightIn": 156.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/c8ff5655a9250ef0e5b269d22e4ae3c23576bd0a",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M2.02206 2.42604 L78.50453 2.41829 L93.21034 5.62342 L93.19853 99.56425 L2.02206 99.57006 L2.02206 2.42604",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M2.02206 2.42604 L78.50453 2.41829 L93.21034 5.62342 L93.19853 99.56425 L2.02206 99.57006 L2.02206 2.42604",
+    "polePath": "M7 100 L7 9 L22 4 L98 4",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": true
+  },
+  "rectangle-flag-large-double-sided": {
+    "id": "rectangle-flag-large-double-sided",
+    "widthIn": 68.0,
+    "heightIn": 156.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/7d460d73a76c2a976696b86eb9698e7cf7807103",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "This is the complete two-sided supplier print file. Design both flag faces in their outlined regions, with readable text on each face. Do not submit only one half of this template.",
+    "guides": [
+      {
+        "d": "M48.98897 99.57006 L3.40074 99.56425 L3.39483 5.62342 L10.74773 2.41829 L48.98897 2.42604 L48.98897 99.57006",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M51.01103 2.42604 L89.25227 2.41829 L96.60517 5.62342 L96.59926 99.56425 L51.01103 99.57006 L51.01103 2.42604",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M48.98897 99.57006 L3.40074 99.56425 L3.39483 5.62342 L10.74773 2.41829 L48.98897 2.42604 L48.98897 99.57006 M51.01103 2.42604 L89.25227 2.41829 L96.60517 5.62342 L96.59926 99.56425 L51.01103 99.57006 L51.01103 2.42604",
+    "doubleFlag": true,
+    "polePath": "M7 100 L7 9 L22 4 L98 4",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": false
+  },
+  "rectangle-flag-medium-single-sided-print-thru-reverse": {
+    "id": "rectangle-flag-medium-single-sided-print-thru-reverse",
+    "widthIn": 34.0,
+    "heightIn": 118.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/a74d1e4de75ca2d74dbbb4f8267f4dcbaf9fe605",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M2.10376 2.92252 L78.58623 2.91226 L93.29204 7.14955 L93.28023 99.61220 L2.10376 99.66694 L2.10376 2.92252",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M2.10376 2.92252 L78.58623 2.91226 L93.29204 7.14955 L93.28023 99.61220 L2.10376 99.66694 L2.10376 2.92252",
+    "polePath": "M7 100 L7 9 L22 4 L98 4",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": true
+  },
+  "rectangle-flag-medium-double-sided": {
+    "id": "rectangle-flag-medium-double-sided",
+    "widthIn": 68.0,
+    "heightIn": 118.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/591e538becce3d6c3070abe1e32afcc9c71871c5",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "This is the complete two-sided supplier print file. Design both flag faces in their outlined regions, with readable text on each face. Do not submit only one half of this template.",
+    "guides": [
+      {
+        "d": "M49.03437 99.66694 L3.44613 99.61220 L3.44023 7.14956 L10.79313 2.91226 L49.03437 2.92252 L49.03437 99.66694",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M51.05188 2.92252 L89.29312 2.91226 L96.64602 7.14955 L96.64011 99.61220 L51.05188 99.66694 L51.05188 2.92252",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M49.03437 99.66694 L3.44613 99.61220 L3.44023 7.14956 L10.79313 2.91226 L49.03437 2.92252 L49.03437 99.66694 M51.05188 2.92252 L89.29312 2.91226 L96.64602 7.14955 L96.64011 99.61220 L51.05188 99.66694 L51.05188 2.92252",
+    "doubleFlag": true,
+    "polePath": "M7 100 L7 9 L22 4 L98 4",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": false
+  },
+  "rectangle-flag-small-single-sided-print-thru-reverse": {
+    "id": "rectangle-flag-small-single-sided-print-thru-reverse",
+    "widthIn": 34.0,
+    "heightIn": 95.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/243e142a4d3d87581b5492b5aac6153609ca668a",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M1.74551 3.89119 L78.26462 3.89158 L92.93378 9.14161 L92.92198 99.17061 L1.74551 99.23862 L1.74551 3.89119",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M1.74551 3.89119 L78.26462 3.89158 L92.93378 9.14161 L92.92198 99.17061 L1.74551 99.23862 L1.74551 3.89119",
+    "polePath": "M7 100 L7 9 L22 4 L98 4",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": true
+  },
+  "rectangle-flag-small-double-sided": {
+    "id": "rectangle-flag-small-double-sided",
+    "widthIn": 68.0,
+    "heightIn": 95.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/1d0bde4ae285f1ec0bd293a92184bf5823e8c4cb",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "This is the complete two-sided supplier print file. Design both flag faces in their outlined regions, with readable text on each face. Do not submit only one half of this template.",
+    "guides": [
+      {
+        "d": "M49.16232 99.23861 L3.57409 99.17063 L3.56818 9.14161 L10.90276 3.89159 L49.16232 3.89118 L49.16232 99.23861",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M50.90785 3.89119 L89.16741 3.89158 L96.50199 9.14161 L96.49608 99.17061 L50.90785 99.23862 L50.90785 3.89119",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M49.16232 99.23861 L3.57409 99.17063 L3.56818 9.14161 L10.90276 3.89159 L49.16232 3.89118 L49.16232 99.23861 M50.90785 3.89119 L89.16741 3.89158 L96.50199 9.14161 L96.49608 99.17061 L50.90785 99.23862 L50.90785 3.89119",
+    "doubleFlag": true,
+    "polePath": "M7 100 L7 9 L22 4 L98 4",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": false
+  },
+  "econo-feather-flag-single-sided-print-thru-single-sided-print-thru-reverse-single-sided-print-thru": {
+    "id": "econo-feather-flag-single-sided-print-thru-single-sided-print-thru-reverse-single-sided-print-thru",
+    "widthIn": 32.0,
+    "heightIn": 138.99444,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/3f96de608d6183d6b0ad534450cf70eff9c147e4",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M99.31361 94.44406 L3.20736 99.85040 C3.20736 99.85040 3.21044 27.01950 3.21127 20.87890 C3.21209 14.73831 19.38080 8.63761 19.38080 8.63761 C22.67151 7.20214 41.66556 0.77479 41.66556 0.77479 L99.33817 0.74923 L99.31361 94.44406",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M99.31361 94.44406 L3.20736 99.85040 C3.20736 99.85040 3.21044 27.01950 3.21127 20.87890 C3.21209 14.73831 19.38080 8.63761 19.38080 8.63761 C22.67151 7.20214 41.66556 0.77479 41.66556 0.77479 L99.33817 0.74923 L99.31361 94.44406",
+    "polePath": "M4 100 L4 37 C4 15 30 2 67 1.5 L98 1.5",
+    "poleBottom": [
+      4,
+      99.5
+    ],
+    "poleMirrored": true
+  },
+  "econo-feather-flag-single-sided-print-thru-single-sided-print-thru-reverse-single-sided-print-thru-reverse": {
+    "id": "econo-feather-flag-single-sided-print-thru-single-sided-print-thru-reverse-single-sided-print-thru-reverse",
+    "widthIn": 32.0,
+    "heightIn": 138.99444,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/3ab515a17c12ea4cbd107c53daf08446dc060220",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M0.66181 0.74923 L58.33442 0.77480 C58.33442 0.77480 77.32848 7.20214 80.61923 8.63761 C80.61923 8.63761 96.78794 14.73831 96.78876 20.87891 C96.78954 27.01949 96.79262 99.85040 96.79262 99.85040 L0.68637 94.44406 L0.66181 0.74923",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "outline": "M0.66181 0.74923 L58.33442 0.77480 C58.33442 0.77480 77.32848 7.20214 80.61923 8.63761 C80.61923 8.63761 96.78794 14.73831 96.78876 20.87891 C96.78954 27.01949 96.79262 99.85040 96.79262 99.85040 L0.68637 94.44406 L0.66181 0.74923"
+  },
+  "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall": {
+    "id": "event-tent-canopy-graphic-tent-full-wall-full-color-full-wall",
+    "widthIn": 115.06944,
+    "heightIn": 80.06944,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/a848616120e0e0e9840a56f1c933845ceafa84f4",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [],
+    "safeInsetsIn": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "surface": "wall"
+  },
+  "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall": {
+    "id": "event-tent-canopy-graphic-tent-half-wall-full-color-half-wall",
+    "widthIn": 115.06944,
+    "heightIn": 41.06944,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/3728b9387600be6e0da4bacb905dc518099df010",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M97.39891 8.57288 C96.44297 8.57288 95.66083 6.38147 95.66083 3.70308 L95.66083 1.30200 L95.66083 0.05073 L4.41159 0.05073 L4.41159 0.82854 L4.41159 3.70308 C4.41159 6.38147 3.62945 8.57288 2.67351 8.57288 L0.39228 8.57288 L0.06639 8.57288 L0.06639 99.88164 L100.00604 99.88164 L100.00604 8.57288 L99.37839 8.57288 L97.39891 8.57288",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M95.66083 13.44268 C94.70489 13.44268 93.92275 11.25127 93.92275 8.57288 L93.92275 5.96889 L93.92275 4.95435 L6.14967 4.95435 L6.14967 5.79980 L6.14967 8.57288 C6.14967 11.25127 5.36753 13.44268 4.41159 13.44268 L2.52867 13.44268 L1.79264 13.44268 L1.79240 13.44268 L1.79240 95.04565 L98.25588 95.04565 L98.25588 13.44268 L97.70066 13.44268 L95.66083 13.44268",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M95.66083 13.44268 C94.70489 13.44268 93.92275 11.25127 93.92275 8.57288 L93.92275 5.96889 L93.92275 4.95435 L6.14967 4.95435 L6.14967 5.79980 L6.14967 8.57288 C6.14967 11.25127 5.36753 13.44268 4.41159 13.44268 L2.52867 13.44268 L1.79264 13.44268 L1.79240 13.44268 L1.79240 95.04565 L98.25588 95.04565 L98.25588 13.44268 L97.70066 13.44268 L95.66083 13.44268",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "safeInsetsIn": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "surface": "wall"
+  },
+  "10x15-event-tent-15ft-tent-full-wall-short-side-full-wall-short-side": {
+    "id": "10x15-event-tent-15ft-tent-full-wall-short-side-full-wall-short-side",
+    "widthIn": 115.06944,
+    "heightIn": 80.06944,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/30f0a2c5156afe756a523f34c11110dec4e85ec3",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [],
+    "safeInsetsIn": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "surface": "wall"
+  },
+  "10x15-event-tent-15ft-tent-full-wall-long-side-full-wall-long-side": {
+    "id": "10x15-event-tent-15ft-tent-full-wall-long-side-full-wall-long-side",
+    "widthIn": 171.34306,
+    "heightIn": 80.0,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/2bbcb6c38a3fd1689b052fbca087d129c2376536",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [],
+    "safeInsetsIn": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "surface": "wall"
+  },
+  "10x15-event-tent-15ft-tent-half-wall-half-wall": {
+    "id": "10x15-event-tent-15ft-tent-half-wall-half-wall",
+    "widthIn": 115.06944,
+    "heightIn": 41.06944,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/3728b9387600be6e0da4bacb905dc518099df010",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M97.39891 8.57288 C96.44297 8.57288 95.66083 6.38147 95.66083 3.70308 L95.66083 1.30200 L95.66083 0.05073 L4.41159 0.05073 L4.41159 0.82854 L4.41159 3.70308 C4.41159 6.38147 3.62945 8.57288 2.67351 8.57288 L0.39228 8.57288 L0.06639 8.57288 L0.06639 99.88164 L100.00604 99.88164 L100.00604 8.57288 L99.37839 8.57288 L97.39891 8.57288",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M95.66083 13.44268 C94.70489 13.44268 93.92275 11.25127 93.92275 8.57288 L93.92275 5.96889 L93.92275 4.95435 L6.14967 4.95435 L6.14967 5.79980 L6.14967 8.57288 C6.14967 11.25127 5.36753 13.44268 4.41159 13.44268 L2.52867 13.44268 L1.79264 13.44268 L1.79240 13.44268 L1.79240 95.04565 L98.25588 95.04565 L98.25588 13.44268 L97.70066 13.44268 L95.66083 13.44268",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M95.66083 13.44268 C94.70489 13.44268 93.92275 11.25127 93.92275 8.57288 L93.92275 5.96889 L93.92275 4.95435 L6.14967 4.95435 L6.14967 5.79980 L6.14967 8.57288 C6.14967 11.25127 5.36753 13.44268 4.41159 13.44268 L2.52867 13.44268 L1.79264 13.44268 L1.79240 13.44268 L1.79240 95.04565 L98.25588 95.04565 L98.25588 13.44268 L97.70066 13.44268 L95.66083 13.44268",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "safeInsetsIn": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "surface": "wall"
+  },
+  "10x20-event-tent-20ft-tent-full-wall-short-side-full-wall-short-side": {
+    "id": "10x20-event-tent-20ft-tent-full-wall-short-side-full-wall-short-side",
+    "widthIn": 115.06944,
+    "heightIn": 80.06944,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/92160dd497560defdb52a6b41099d5ea993566cf",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [],
+    "safeInsetsIn": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "surface": "wall"
+  },
+  "10x20-event-tent-20ft-tent-full-wall-long-side-full-wall-long-side": {
+    "id": "10x20-event-tent-20ft-tent-full-wall-long-side-full-wall-long-side",
+    "widthIn": 230.1214,
+    "heightIn": 80.02778,
+    "exportScale": 0.5,
+    "sourceUrl": "https://www.b2sign.com/downloadable/23448ff7c64d91bac92d3c2852db17364eae3b25",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [],
+    "safeInsetsIn": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "surface": "wall"
+  },
+  "10x20-event-tent-20ft-tent-half-wall-half-wall": {
+    "id": "10x20-event-tent-20ft-tent-half-wall-half-wall",
+    "widthIn": 115.06944,
+    "heightIn": 41.06944,
+    "exportScale": 1.0,
+    "sourceUrl": "https://www.b2sign.com/downloadable/3728b9387600be6e0da4bacb905dc518099df010",
+    "sourceDate": "2026-10-12",
+    "fitNotes": "Use the complete supplier artboard. Keep essential wording inside each safe area and away from seams. Remove template labels and guides from the production file.",
+    "guides": [
+      {
+        "d": "M97.39891 8.57288 C96.44297 8.57288 95.66083 6.38147 95.66083 3.70308 L95.66083 1.30200 L95.66083 0.05073 L4.41159 0.05073 L4.41159 0.82854 L4.41159 3.70308 C4.41159 6.38147 3.62945 8.57288 2.67351 8.57288 L0.39228 8.57288 L0.06639 8.57288 L0.06639 99.88164 L100.00604 99.88164 L100.00604 8.57288 L99.37839 8.57288 L97.39891 8.57288",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M95.66083 13.44268 C94.70489 13.44268 93.92275 11.25127 93.92275 8.57288 L93.92275 5.96889 L93.92275 4.95435 L6.14967 4.95435 L6.14967 5.79980 L6.14967 8.57288 C6.14967 11.25127 5.36753 13.44268 4.41159 13.44268 L2.52867 13.44268 L1.79264 13.44268 L1.79240 13.44268 L1.79240 95.04565 L98.25588 95.04565 L98.25588 13.44268 L97.70066 13.44268 L95.66083 13.44268",
+        "color": "#0284c7",
+        "dashed": true
+      },
+      {
+        "d": "M95.66083 13.44268 C94.70489 13.44268 93.92275 11.25127 93.92275 8.57288 L93.92275 5.96889 L93.92275 4.95435 L6.14967 4.95435 L6.14967 5.79980 L6.14967 8.57288 C6.14967 11.25127 5.36753 13.44268 4.41159 13.44268 L2.52867 13.44268 L1.79264 13.44268 L1.79240 13.44268 L1.79240 95.04565 L98.25588 95.04565 L98.25588 13.44268 L97.70066 13.44268 L95.66083 13.44268",
+        "color": "#0284c7",
+        "dashed": true
+      }
+    ],
+    "safeInsetsIn": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "surface": "wall"
+  }
+}
