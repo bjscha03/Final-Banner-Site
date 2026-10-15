@@ -812,6 +812,12 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
                     paddingPct={`${(18 / 24) * 100}%`}
                     containerRef={previewCanvasRef}
                     mobileToolbarContainer={mobileToolbarEl}
+                    fitAssistance={{
+                      enabled: ENABLE_AI && !isUploading && !isSavingPreview && !aiModalOpen && Boolean(previewDesign.fileKey),
+                      fitDialogOpen: Boolean(fitDesign),
+                      onFit: () => setFitDesignId(previewDesign.id),
+                      widthIn: YARD_SIGN_WIDTH_IN, heightIn: YARD_SIGN_HEIGHT_IN, productLabel: 'yard sign',
+                    }}
                     fitControls={ENABLE_AI ? <ArtworkFitButton
                       onClick={() => setFitDesignId(previewDesign.id)}
                       disabled={isUploading || isSavingPreview}

@@ -12,6 +12,7 @@ export default defineConfig({
   testMatch: [
     'realistic-banner-preview.playwright.spec.ts',
     'artwork-canvas-controls.playwright.spec.ts',
+    'artwork-fit-help.playwright.spec.ts',
     'compact-banner-builder.playwright.spec.ts',
     'preview-handoff.playwright.spec.ts',
     'checkout-thumbnail-real-route.playwright.spec.ts',

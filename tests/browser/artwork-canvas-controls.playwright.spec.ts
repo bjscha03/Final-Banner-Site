@@ -32,6 +32,16 @@ async function upload(page: Page, scenario: string, artwork: Buffer, name = 'art
   await expect(image).toBeVisible();
   await expect(page.getByTestId('artwork-selection')).toBeVisible();
   await page.getByTestId('artwork-workspace').scrollIntoViewIfNeeded();
+  // A customer who has already opened AI fit should not be prompted during
+  // manual editing. Exercise that path before the exhaustive resize/undo loop;
+  // the dedicated fitting-help suite covers spontaneous prompts and dismissal.
+  await page.getByRole('button', { name: 'Fit my banner with AI', exact: true }).click();
+  const fitter = page.getByRole('dialog', { name: /Fit your design to/ });
+  await expect(fitter).toBeVisible();
+  await fitter.getByRole('button', { name: 'Keep original', exact: true }).click();
+  await expect(fitter).toHaveCount(0);
+  await page.locator('[data-artwork-image="true"]').first().click();
+  await expect(page.getByTestId('artwork-selection')).toBeVisible();
   return image;
 }
 async function patternedArtwork() {

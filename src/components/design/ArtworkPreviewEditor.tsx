@@ -4,6 +4,7 @@ import { Check, Crop, Maximize2, Minimize2, Undo2, Redo2, Trash2 } from 'lucide-
 import type { ArtworkCrop } from '@/types/artwork';
 import { artworkCropBox, artworkImageBox, artworkCenterGuides, repositionArtworkCrop, resizeArtwork, resizeCroppedImage, snapArtworkPosition, type ArtworkHandle } from '@/lib/artworkInteractions';
 import { getPreviewCrossOrigin, resolveArtworkPreviewImageSrc } from './artworkPreviewSource';
+import ArtworkFitHelp, { useArtworkFitHelp, type ArtworkFitAssistance } from './ArtworkFitHelp';
 import {
   PreviewLifecycleError,
   normalizedTransformFromPixels,
@@ -46,6 +47,7 @@ export interface ArtworkPreviewEditorProps {
   mobileToolbarContainer?: HTMLElement | null;
   primaryFitControl?: React.ReactNode;
   fitControls?: React.ReactNode;
+  fitAssistance?: ArtworkFitAssistance;
   productLabel?: string;
   imageCrossOrigin?: '' | 'anonymous' | 'use-credentials';
   onRetryPreview?: () => void | Promise<void>;
@@ -133,6 +135,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   mobileToolbarContainer,
   primaryFitControl,
   fitControls,
+  fitAssistance,
   imageCrossOrigin,
   onRetryPreview,
   onDelete,
@@ -183,15 +186,34 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   const [guides, setGuides] = useState({ x: false, y: false });
   const [activeHandle, setActiveHandle] = useState<ArtworkHandle | null>(null);
   const gestureStart = useRef<NormalizedArtworkGeometry | null>(null);
+  const fitHelp = useArtworkFitHelp(artworkKey, fitAssistance, () => {
+    const canvas = internalRef.current;
+    return Boolean(canvas && !gestureStart.current && !cropModeRef.current && !loading && !previewError
+      && document.visibilityState === 'visible' && isTopmostCanvas(canvas)
+      && !document.querySelector('[role="dialog"][data-state="open"]'));
+  });
+  const recordFitAdjustment = useCallback(() => {
+    const canvas = canvasSizeRef.current;
+    const natural = naturalSizeRef.current;
+    if (!canvas?.w || !canvas.h || !natural?.w || !natural.h) return;
+    const value = localValueRef.current;
+    const frame = artworkCropBox(artworkImageBox(value, canvas, natural), value.crop);
+    const needsHelp = Math.abs(frame.left) / canvas.w > 0.04 || Math.abs(frame.top) / canvas.h > 0.04
+      || Math.abs(frame.left + frame.width - canvas.w) / canvas.w > 0.04
+      || Math.abs(frame.top + frame.height - canvas.h) / canvas.h > 0.04
+      || Boolean(value.crop && (value.crop.width < 0.94 || value.crop.height < 0.94));
+    fitHelp.recordAdjustment(needsHelp);
+  }, [fitHelp.recordAdjustment]);
   const getHistory = useCallback(() => {
     if (!historyByArtwork.has(artworkKey)) historyByArtwork.set(artworkKey, { past: [], future: [] });
     return historyByArtwork.get(artworkKey)!;
   }, [artworkKey]);
   const beginHistory = useCallback(() => {
+    fitHelp.cancelPending();
     const canvas = canvasSizeRef.current;
     const natural = naturalSizeRef.current;
     if (!gestureStart.current && canvas && natural) gestureStart.current = captureNormalizedArtworkGeometry(localValueRef.current, canvas, natural);
-  }, []);
+  }, [fitHelp.cancelPending]);
   const finishHistory = useCallback(() => {
     const start = gestureStart.current;
     const current = normalizedCompositionByArtwork.get(artworkKey);
@@ -203,8 +225,9 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     history.past.push(start);
     if (history.past.length > 80) history.past.shift();
     history.future = [];
+    recordFitAdjustment();
     refresh(n => n + 1);
-  }, [artworkKey, getHistory]);
+  }, [artworkKey, getHistory, recordFitAdjustment]);
 
   const seedInitialNormalizedComposition = useCallback((canvas: Size, natural: Size): boolean => {
     const initial = initialNormalizedTransformRef.current;
@@ -472,9 +495,10 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     if (!next) return;
     to.push(captureNormalizedArtworkGeometry(localValueRef.current, canvas, natural));
     commitTransform(restoreArtworkTransformFromGeometry(next, canvas, natural, constrainRef.current));
+    recordFitAdjustment();
     setSelected(true);
     setGuides({ x: false, y: false });
-  }, [commitTransform, getHistory]);
+  }, [commitTransform, getHistory, recordFitAdjustment]);
 
   const startPointer = useCallback((event: React.PointerEvent) => {
     const target = event.target as HTMLElement;
@@ -581,7 +605,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
 
   useEffect(() => {
     const keyboard = (event: KeyboardEvent) => {
-      if (!selected || !internalRef.current || !isTopmostCanvas(internalRef.current)) return;
+      if (fitHelp.open || !selected || !internalRef.current || !isTopmostCanvas(internalRef.current)) return;
       const target = event.target as HTMLElement;
       if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); travelHistory(event.shiftKey); }
@@ -597,14 +621,14 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     };
     window.addEventListener('keydown', keyboard);
     return () => window.removeEventListener('keydown', keyboard);
-  }, [selected, onDelete, travelHistory, beginHistory, commitTransform, finishHistory]);
+  }, [fitHelp.open, selected, onDelete, travelHistory, beginHistory, commitTransform, finishHistory]);
 
   useEffect(() => {
     if (!selected) return;
     const outside = (event: MouseEvent) => {
       const node = internalRef.current;
       const target = event.target as HTMLElement | null;
-      if (!node || !target || node.contains(target) || target.closest('[data-artwork-toolbar="true"]')) return;
+      if (!node || !target || node.contains(target) || target.closest('[data-artwork-toolbar="true"], [data-testid="artwork-fit-help"]')) return;
       setSelected(false);
       setCropMode(false);
     };
@@ -679,6 +703,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     <div className={`w-full ${className || ''}`} data-testid="artwork-editor">
       <div
         ref={setContainerNode}
+        tabIndex={-1}
         className="relative w-full select-none"
         data-testid="artwork-canvas"
         data-crop-mode={cropMode}
@@ -770,6 +795,8 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       {!loading && !previewError && mobileToolbarContainer
         ? createPortal(<div className="flex w-full justify-center">{toolbar}</div>, mobileToolbarContainer)
         : null}
+      <ArtworkFitHelp open={fitHelp.open} onDismiss={fitHelp.dismiss} assistance={fitAssistance} imageSrc={imageSrc}
+        onReturnFocus={() => internalRef.current?.focus({ preventScroll: true })} />
     </div>
   );
 });

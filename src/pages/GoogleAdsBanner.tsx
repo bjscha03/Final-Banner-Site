@@ -3102,6 +3102,12 @@ const GoogleAdsBanner: React.FC = () => {
                   </div>
                 </ConfigCard>);
   const artworkFitDisabled = !hasCommittedBannerSize || isUploading || isProcessingUpsell || !hasPermanentArtwork(uploadedFile);
+  const artworkFitAssistance = {
+    enabled: !isYardSign && ENABLE_AI && Boolean(uploadedFile) && !artworkFitDisabled && !aiModalOpen && !aiEditModalOpen,
+    fitDialogOpen: fitModalOpen,
+    onFit: () => setFitModalOpen(true),
+    widthIn, heightIn, productLabel: isCarMagnet ? 'car magnet' : 'banner',
+  };
   const primaryArtworkFitControl = !isYardSign && !isCarMagnet && ENABLE_AI && uploadedFile ? (
     <button type="button" onClick={() => setFitModalOpen(true)} disabled={artworkFitDisabled}
       className="flex min-h-14 items-center justify-center gap-1.5 rounded-lg bg-orange-600 px-2 py-2 text-xs font-bold leading-snug text-white hover:bg-orange-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600 disabled:cursor-not-allowed disabled:opacity-50">
@@ -3224,6 +3230,7 @@ const GoogleAdsBanner: React.FC = () => {
                             mobileToolbarContainer={inlineMobileToolbarEl}
                             primaryFitControl={primaryArtworkFitControl}
                             fitControls={artworkFitControls}
+                            fitAssistance={artworkFitAssistance}
                             value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                             onChange={(v) => {
                               setImgPos({ x: v.x, y: v.y });
@@ -3734,6 +3741,7 @@ const GoogleAdsBanner: React.FC = () => {
                     mobileToolbarContainer={modalMobileToolbarEl}
                     primaryFitControl={primaryArtworkFitControl}
                     fitControls={artworkFitControls}
+                    fitAssistance={artworkFitAssistance}
                     value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                     onChange={(v) => {
                       setImgPos({ x: v.x, y: v.y });

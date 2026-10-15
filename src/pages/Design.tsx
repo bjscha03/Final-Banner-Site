@@ -2975,6 +2975,14 @@ const Design: React.FC = () => {
       onRestore={fitUndo?.appliedIdentity === uploadedFile.editorIdentity ? restoreArtworkBeforeFit : undefined} />
   ) : null;
 
+  const artworkFitAssistance = {
+    enabled: !isYardSign && ENABLE_AI && Boolean(uploadedFile) && hasCommittedBannerSize
+      && !isUploading && !isProcessingUpsell && hasPermanentArtwork(uploadedFile) && !aiModalOpen && !aiEditModalOpen,
+    fitDialogOpen: fitModalOpen,
+    onFit: () => setFitModalOpen(true),
+    widthIn, heightIn, productLabel: isCarMagnet ? 'car magnet' : 'banner',
+  };
+
   return (
     <Layout>
       <Helmet>
@@ -3443,6 +3451,7 @@ const Design: React.FC = () => {
                           containerRef={previewContainerRef}
                           mobileToolbarContainer={inlineMobileToolbarEl}
                           fitControls={artworkFitControls}
+                          fitAssistance={artworkFitAssistance}
                           value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                           onChange={(v) => {
                             setImgPos({ x: v.x, y: v.y });
@@ -3743,6 +3752,7 @@ const Design: React.FC = () => {
                     containerRef={previewContainerRef}
                     mobileToolbarContainer={modalMobileToolbarEl}
                     fitControls={artworkFitControls}
+                    fitAssistance={artworkFitAssistance}
                     value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                     onChange={(v) => {
                       setImgPos({ x: v.x, y: v.y });
