@@ -227,6 +227,12 @@ try{
     for(const panel of variant.panels){
      if(variant.panels.length>1)await page.getByRole('tab',{name:panel.label,exact:true}).click();
      await uploadArt();
+     const selectedToolbar=page.getByRole('toolbar',{name:'Selected artwork',exact:true});
+     if(await selectedToolbar.isVisible()){
+      const heading=await page.getByRole('heading',{name:'Artwork placement',exact:true}).boundingBox();
+      const controls=await selectedToolbar.boundingBox();
+      assert.ok(controls.y>=heading.y+heading.height,`${variant.id}/${panel.id}: selected-artwork controls must not cover the placement heading`);
+     }
      assert.equal(await page.getByRole('button',{name:'Crop artwork',exact:true}).count(),0);
      const editorImage=page.getByTestId('artwork-canvas').locator('img');await editorImage.evaluate(img=>img.decode());
      await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
