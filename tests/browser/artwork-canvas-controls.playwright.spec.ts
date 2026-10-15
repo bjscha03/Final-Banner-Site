@@ -22,11 +22,6 @@ async function drag(page: Page, target: Locator, dx: number, dy: number) {
   }
 }
 async function upload(page: Page, scenario: string, artwork: Buffer, name = 'artwork.png') {
-  // Repeated resize/undo checks can legitimately trigger fitting help. Continue
-  // through its customer-facing dismissal; dedicated help tests cover the CTA.
-  await page.addLocatorHandler(page.getByRole('dialog', { name: 'Having difficulty fitting your artwork?' }), async dialog => {
-    await dialog.getByRole('button', { name: 'Keep editing', exact: true }).click();
-  });
   await page.context().addCookies([{name:'compact_browser_scenario',value:scenario,url:'http://127.0.0.1:4175'}]);
   await page.goto('/google-ads-banner',{waitUntil:'domcontentloaded'});
   const chooser = page.waitForEvent('filechooser');
@@ -37,6 +32,16 @@ async function upload(page: Page, scenario: string, artwork: Buffer, name = 'art
   await expect(image).toBeVisible();
   await expect(page.getByTestId('artwork-selection')).toBeVisible();
   await page.getByTestId('artwork-workspace').scrollIntoViewIfNeeded();
+  // A customer who has already opened AI fit should not be prompted during
+  // manual editing. Exercise that path before the exhaustive resize/undo loop;
+  // the dedicated fitting-help suite covers spontaneous prompts and dismissal.
+  await page.getByRole('button', { name: 'Fit my banner with AI', exact: true }).click();
+  const fitter = page.getByRole('dialog', { name: /Fit your design to/ });
+  await expect(fitter).toBeVisible();
+  await fitter.getByRole('button', { name: 'Keep original', exact: true }).click();
+  await expect(fitter).toHaveCount(0);
+  await page.locator('[data-artwork-image="true"]').first().click();
+  await expect(page.getByTestId('artwork-selection')).toBeVisible();
   return image;
 }
 async function patternedArtwork() {
