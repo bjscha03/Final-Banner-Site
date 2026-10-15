@@ -5,7 +5,7 @@ async function uploadSquare(page: Page, path: string, scenario: string) {
   await page.context().addCookies([{ name: 'compact_browser_scenario', value: scenario, url: 'http://127.0.0.1:4175' }]);
   await page.goto(path, { waitUntil: 'domcontentloaded' });
   const mobile = (page.viewportSize()?.width ?? 1440) < 1024;
-  if (path === '/design' && !mobile) await page.getByRole('button', { name: "6' × 3' — Most popular", exact: true }).click();
+  if (path === '/design' && !mobile) await page.locator('#size-section').getByRole('button', { name: "6' × 3' — Everyday displays", exact: true }).click();
   const picker = page.waitForEvent('filechooser');
   if (mobile) await page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Upload artwork', exact: true }).click();
   else await page.locator('#upload-section').getByRole('button', { name: /Upload your artwork/ }).click();
@@ -54,8 +54,6 @@ for (const path of ['/design', '/google-ads-banner']) {
     await help.getByRole('button', { name: path === '/design' ? 'Keep editing' : 'Close fitting help', exact: true }).click();
     await expect(help).toHaveCount(0);
     await expect(image).toHaveAttribute('src', source!);
-    // A click outside the canvas deselects artwork; select it again without moving it.
-    await image.click();
     await expect(page.getByTestId('artwork-selection').first()).toHaveAttribute('style', placement!);
     await adjust(page); await adjust(page); await adjust(page);
     await page.waitForTimeout(1800); await expect(help).toHaveCount(0);

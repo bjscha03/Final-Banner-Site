@@ -603,7 +603,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
 
   useEffect(() => {
     const keyboard = (event: KeyboardEvent) => {
-      if (!selected || !internalRef.current || !isTopmostCanvas(internalRef.current)) return;
+      if (fitHelp.open || !selected || !internalRef.current || !isTopmostCanvas(internalRef.current)) return;
       const target = event.target as HTMLElement;
       if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); travelHistory(event.shiftKey); }
@@ -619,14 +619,14 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     };
     window.addEventListener('keydown', keyboard);
     return () => window.removeEventListener('keydown', keyboard);
-  }, [selected, onDelete, travelHistory, beginHistory, commitTransform, finishHistory]);
+  }, [fitHelp.open, selected, onDelete, travelHistory, beginHistory, commitTransform, finishHistory]);
 
   useEffect(() => {
     if (!selected) return;
     const outside = (event: MouseEvent) => {
       const node = internalRef.current;
       const target = event.target as HTMLElement | null;
-      if (!node || !target || node.contains(target) || target.closest('[data-artwork-toolbar="true"]')) return;
+      if (!node || !target || node.contains(target) || target.closest('[data-artwork-toolbar="true"], [data-testid="artwork-fit-help"]')) return;
       setSelected(false);
       setCropMode(false);
     };

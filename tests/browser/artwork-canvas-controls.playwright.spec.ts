@@ -22,6 +22,11 @@ async function drag(page: Page, target: Locator, dx: number, dy: number) {
   }
 }
 async function upload(page: Page, scenario: string, artwork: Buffer, name = 'artwork.png') {
+  // Repeated resize/undo checks can legitimately trigger fitting help. Continue
+  // through its customer-facing dismissal; dedicated help tests cover the CTA.
+  await page.addLocatorHandler(page.getByRole('dialog', { name: 'Having difficulty fitting your artwork?' }), async dialog => {
+    await dialog.getByRole('button', { name: 'Keep editing', exact: true }).click();
+  });
   await page.context().addCookies([{name:'compact_browser_scenario',value:scenario,url:'http://127.0.0.1:4175'}]);
   await page.goto('/google-ads-banner',{waitUntil:'domcontentloaded'});
   const chooser = page.waitForEvent('filechooser');
