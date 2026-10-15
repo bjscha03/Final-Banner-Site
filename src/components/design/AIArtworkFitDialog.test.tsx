@@ -151,6 +151,7 @@ it('shows the server cooldown and prevents repeated retry clicks until it expire
 
 it.each(['yard_sign', 'car_magnet'] as const)('fits %s using product dimensions and isolates its request identity', async productType => {
   props = { ...props, productType, widthIn: 24, heightIn: 18 };
+  vi.mocked(runBackgroundJob).mockResolvedValue({ fit: { ...success, productType, widthIn: 24, heightIn: 18 } });
   await render(); await click('Create fitted version');
   expect(runBackgroundJob).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ productType, widthIn: 24, heightIn: 18 }), expect.anything(), expect.anything(), expect.anything(), undefined, undefined, `original-1|24|18|${productType}`);
   await checkReview(); await click('Use this version');
