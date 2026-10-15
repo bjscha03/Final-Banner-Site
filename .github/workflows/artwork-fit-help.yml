@@ -1,0 +1,44 @@
+name: Artwork fit help
+on:
+  pull_request:
+    paths:
+      - 'src/components/design/ArtworkFitHelp*'
+      - 'src/components/design/ArtworkPreviewEditor.tsx'
+      - 'src/components/design/YardSignConfigurator.tsx'
+      - 'src/pages/Design.tsx'
+      - 'src/pages/GoogleAdsBanner.tsx'
+      - 'tests/browser/artwork-fit-help.playwright.spec.ts'
+      - '.github/workflows/artwork-fit-help.yml'
+permissions:
+  contents: read
+jobs:
+  fitting-help:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Check assistance lifecycle and existing AI fitting
+        run: >-
+          npx vitest run --config vitest.ai.config.ts
+          src/components/design/ArtworkFitHelp.test.tsx
+          src/components/design/AIArtworkFitDialog.test.tsx
+          src/components/design/ai/artworkFit.test.ts
+          src/components/design/YardSignConfigurator.fit.test.tsx
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - name: Check phone and desktop fitting help
+        run: >-
+          npx playwright test --config=playwright.preview.config.ts artwork-fit-help.playwright.spec.ts
+          --project=chromium-1440x900 --project=chromium-pixel8-portrait
+          --project=firefox-1280x800 --project=webkit-1280x800 --project=webkit-iphonese-portrait
+          --workers=2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: artwork-fit-help-browsers
+          path: test-results/
+          retention-days: 7
