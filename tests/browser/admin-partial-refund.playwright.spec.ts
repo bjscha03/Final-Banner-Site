@@ -22,7 +22,7 @@ test('admin records a partial refund, refreshes money metrics, and disables revi
   });
   await page.route('**/.netlify/functions/**', async route => {
     const url = new URL(route.request().url());
-    let body: any = { ok: true };
+    let body: any = { ok: true, issues: [] };
     if (url.pathname.endsWith('/get-orders')) body = { orders: [{ ...currentOrder(), item_count: 1, admin_detail_loaded: false }],
       pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1, hasPrevious: false, hasNext: false },
       metrics: { totalOrders: 1, grossSalesCents: 10600, averageOrderValueCents: 10600, recordedRefundsCents: refundCents, netSalesCents: 10600 - refundCents,
