@@ -54,6 +54,8 @@ for (const path of ['/design', '/google-ads-banner']) {
     await help.getByRole('button', { name: path === '/design' ? 'Keep editing' : 'Close fitting help', exact: true }).click();
     await expect(help).toHaveCount(0);
     await expect(image).toHaveAttribute('src', source!);
+    // A click outside the canvas deselects artwork; select it again without moving it.
+    await image.click();
     await expect(page.getByTestId('artwork-selection').first()).toHaveAttribute('style', placement!);
     await adjust(page); await adjust(page); await adjust(page);
     await page.waitForTimeout(1800); await expect(help).toHaveCount(0);
