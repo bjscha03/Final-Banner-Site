@@ -127,7 +127,7 @@ try{
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$411.40');
   assert.match(await page.getByTestId('specialty-price').innerText(),/Tax calculated separately/);
   assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next[- ]Day Air/);
-  await page.goto(origin+'/products');await page.getByRole('heading',{name:'Make the entire space yours.'}).waitFor();
+  await page.goto(origin+'/products');await page.locator('#catalog-hero-title').waitFor();
   for(const [slug,price] of [['standard-retractable-banner','$176.34'],['feather-flags','$204.79'],['standard-table-throws','$185.70'],['custom-event-tents','$1040.07'],['step-and-repeat-backdrop','$488.46'],['aluminum-composite-signs','$35.00']]){
    const card=page.locator(`a[href="/products/${slug}"]`).filter({has:page.locator('h3')});
    assert.ok((await card.innerText()).includes(price),slug);assert.match(await card.innerText(),/Free Next[- ]Day Air shipping/);
