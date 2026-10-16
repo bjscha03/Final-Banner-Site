@@ -121,19 +121,19 @@ try{
   await open('standard-retractable-banner');
   assert.equal(await page.locator('#specialty-variant').inputValue(),'standard-retractable-banner-3');
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$176.34');
-  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
+  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next[- ]Day Air/);
   await page.locator('#specialty-qty').fill('2');assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$352.68');
   await page.locator('#specialty-variant').selectOption('standard-retractable-banner-1');
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$411.40');
   assert.match(await page.getByTestId('specialty-price').innerText(),/Tax calculated separately/);
-  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
+  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next[- ]Day Air/);
   await page.goto(origin+'/products');await page.getByRole('heading',{name:'Make the entire space yours.'}).waitFor();
   for(const [slug,price] of [['standard-retractable-banner','$176.34'],['feather-flags','$204.79'],['standard-table-throws','$185.70'],['custom-event-tents','$1040.07'],['step-and-repeat-backdrop','$488.46'],['aluminum-composite-signs','$35.00']]){
    const card=page.locator(`a[href="/products/${slug}"]`).filter({has:page.locator('h3')});
-   assert.ok((await card.innerText()).includes(price),slug);assert.match(await card.innerText(),/Free Next Day Air shipping/);
+   assert.ok((await card.innerText()).includes(price),slug);assert.match(await card.innerText(),/Free Next[- ]Day Air shipping/);
   }
   const unpriced=page.locator('a[href="/products/acrylic-signs"]').filter({has:page.locator('h3')});
-  assert.match(await unpriced.innerText(),/\$120\.00/);assert.doesNotMatch(await unpriced.innerText(),/Price coming soon/);assert.match(await unpriced.innerText(),/Free Next Day Air/);
+  assert.match(await unpriced.innerText(),/\$120\.00/);assert.doesNotMatch(await unpriced.innerText(),/Price coming soon/);assert.match(await unpriced.innerText(),/Free Next[- ]Day Air/);
   await page.locator('#stands').screenshot({path:out+'/catalog-prices.png'});
  });
  await check('flag size, options and quantities update the price while shipping remains free',async()=>{
@@ -146,7 +146,7 @@ try{
   await page.locator('#option-carrybag').selectOption('1');
   assert.equal(await subtotal.innerText(),'$336.24');
   await page.locator('#specialty-qty').fill('3');assert.equal(await subtotal.innerText(),'$1008.72');
-  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
+  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next[- ]Day Air/);
   await page.locator('#specialty-variant').selectOption('feather-flags-2');
   assert.equal(await subtotal.innerText(),'$625.47');
  });
@@ -157,7 +157,7 @@ try{
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$1475.74');
   assert.match(await page.getByTestId('specialty-price').innerText(),/Tax calculated separately/);
   assert.doesNotMatch(await page.getByTestId('specialty-price').innerText(),/Price coming soon/);
-  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
+  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next[- ]Day Air/);
   await open('aluminum-composite-signs');await page.getByRole('button',{name:'24 × 36 in · $115.00',exact:true}).click();
   await page.locator('#option-sides').selectOption('2');await page.locator('#specialty-qty').fill('2');
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$280.00');
@@ -174,7 +174,7 @@ try{
   await page.setViewportSize({width:390,height:844});
   await open('standard-retractable-banner');await page.locator('#option-hardware').selectOption('p');
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$129.24');
-  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
+  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next[- ]Day Air/);
   await page.getByTestId('specialty-price').screenshot({path:out+'/proposed-mobile-price.png'});
   await open('aluminum-signs');await page.locator('#option-size').selectOption('12x18');
   assert.equal(await page.getByLabel('Width (in)',{exact:true}).inputValue(),'12');
@@ -231,7 +231,7 @@ try{
  });
  await check('product galleries load local branded images for every variant',async()=>{
   const catalog=JSON.parse(await readFile(root+'shared/specialty-catalog.json','utf8'));
-  for(const product of catalog){await open(product.slug);assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);for(const variant of product.variants){await page.locator('#specialty-variant').selectOption(variant.id);const hero=page.locator('button[aria-label^="Enlarge"] img').first();assert.match(await hero.getAttribute('src'),/^\/images\/products\//);await hero.evaluate(img=>img.decode());assert.equal(await page.locator('img[src*="b2sign.com"]').count(),0);}}
+  for(const product of catalog){await open(product.slug);assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next[- ]Day Air/);for(const variant of product.variants){await page.locator('#specialty-variant').selectOption(variant.id);const hero=page.locator('button[aria-label^="Enlarge"] img').first();assert.match(await hero.getAttribute('src'),/^\/images\/products\//);await hero.evaluate(img=>img.decode());assert.equal(await page.locator('img[src*="b2sign.com"]').count(),0);}}
  });
  await check('every variant and default print panel uses its registered artwork size with no AI actions',async()=>{
   const catalog=JSON.parse(await readFile(root+'shared/specialty-catalog.json','utf8'));
