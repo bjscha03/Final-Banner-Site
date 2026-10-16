@@ -17,13 +17,38 @@ export default function YardSignMockup({
       : design.previewThumbnailUrl || design.thumbnailUrl
   );
 
+  if (!design) {
+    return (
+      <div
+        className="relative isolate w-full overflow-hidden rounded-lg bg-[#e7e0d5]"
+        style={{ aspectRatio: '1 / 1' }}
+        data-yard-sign-mockup={withStakes ? 'with-stakes' : 'without-stakes'}
+        role="img"
+        aria-label={`Example yard sign ${withStakes ? 'with a wire H-stake' : 'without stakes'}`}
+      >
+        {/* Each half of the shared photo shows the same printed sign and its hardware option. */}
+        <img
+          src="/images/yard-sign-options/open-house-studio-v2.webp"
+          width={1600}
+          height={800}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          data-yard-sign-hardware={withStakes ? true : undefined}
+          className="absolute top-0 h-full w-[200%] max-w-none"
+          style={{ left: withStakes ? '0' : '-100%' }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       className="relative isolate w-full overflow-hidden rounded-lg bg-gradient-to-b from-slate-100 to-slate-200/70"
       style={{ aspectRatio: '1 / 1' }}
       data-yard-sign-mockup={withStakes ? 'with-stakes' : 'without-stakes'}
       role="img"
-      aria-label={`${design ? design.fileName : 'Example yard sign'} ${withStakes ? 'with a wire H-stake' : 'without stakes'}`}
+      aria-label={`${design.fileName} ${withStakes ? 'with a wire H-stake' : 'without stakes'}`}
     >
       <div className="absolute bottom-[8%] left-[20%] h-[3%] w-[60%] rounded-[50%] bg-slate-800/10 blur-sm" />
       {withStakes && (
@@ -35,7 +60,7 @@ export default function YardSignMockup({
         </div>
       )}
       <div className={`absolute left-[10%] z-10 w-[80%] overflow-hidden border border-black/10 bg-white shadow-md ${withStakes ? 'top-[9%]' : 'top-[20%]'}`} style={{ aspectRatio: '4 / 3' }}>
-        {previewUrl ? (
+        {previewUrl && (
           <StablePreviewImage
             key={`${design?.id}:${previewUrl}`}
             src={previewUrl}
@@ -43,17 +68,6 @@ export default function YardSignMockup({
             aria-hidden="true"
             className="absolute inset-0 h-full w-full object-contain"
           />
-        ) : (
-          <svg viewBox="0 0 240 180" className="h-full w-full" aria-hidden="true">
-            <rect width="240" height="180" fill="#f3f0e7" />
-            <g fill="none" stroke="#294c39" strokeWidth="1.5" strokeLinejoin="round">
-              <path d="M100 63V38l20-15 20 15v25M95 39l25-19 25 19M114 63V47h12v16M104 40h5v7h-5zm27 0h5v7h-5zM91 64h58" />
-              <path d="M91 60c-12-12-14-25-8-36m-2 16-6-6m8 17-8-5m72 14c12-12 14-25 8-36m2 16 6-6m-8 17 8-5" />
-            </g>
-            <text x="120" y="96" textAnchor="middle" fill="#294c39" fontFamily="Georgia, serif" fontSize="26">OPEN HOUSE</text>
-            <text x="120" y="120" textAnchor="middle" fill="#294c39" fontFamily="Arial, sans-serif" fontSize="10" letterSpacing="2">YOUR DESIGN HERE</text>
-            <path d="M48 146h140m-12-8 13 8-13 8" fill="none" stroke="#294c39" strokeWidth="3" />
-          </svg>
         )}
       </div>
     </div>
