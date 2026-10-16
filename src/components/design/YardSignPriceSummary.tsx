@@ -13,6 +13,7 @@ import {
 } from '@/lib/yard-sign-pricing';
 import { usd } from '@/lib/pricing';
 import PriceBreakdown from '@/components/pricing/PriceBreakdown';
+import YardSignOrderPreview from './YardSignOrderPreview';
 
 interface YardSignPriceSummaryProps {
   pricing: YardSignPricing;
@@ -29,7 +30,7 @@ interface YardSignPriceSummaryProps {
   taxCalculatedAtCheckout?: boolean;
 }
 
-const YardSignPriceSummary: React.FC<YardSignPriceSummaryProps> = ({
+const YardSignPriceBreakdown: React.FC<YardSignPriceSummaryProps> = ({
   pricing,
   designs,
   promoCode,
@@ -76,6 +77,7 @@ const YardSignPriceSummary: React.FC<YardSignPriceSummaryProps> = ({
   const detailRows = [
     { label: 'Print', value: pricing.sidedness === 'double' ? 'Double-Sided' : 'Single-Sided' },
     { label: 'Material', value: 'Corrugated Plastic' },
+    ...(!pricing.addStepStakes ? [{ label: 'Stakes', value: 'Not included' }] : []),
     ...(designs.length > 0 ? [{ label: 'Designs uploaded', value: String(designs.length) }] : []),
   ];
 
@@ -118,5 +120,12 @@ const YardSignPriceSummary: React.FC<YardSignPriceSummaryProps> = ({
     />
   );
 };
+
+const YardSignPriceSummary: React.FC<YardSignPriceSummaryProps> = (props) => (
+  <>
+    <YardSignOrderPreview designs={props.designs} withStakes={props.pricing.addStepStakes} />
+    <YardSignPriceBreakdown {...props} />
+  </>
+);
 
 export default YardSignPriceSummary;

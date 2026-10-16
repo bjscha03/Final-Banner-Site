@@ -504,3 +504,53 @@ for (const route of ['/google-ads-banner', '/design?product=vinyl-banners']) {
     }
   });
 }
+
+test('yard sign hardware stays clear through upload, quantity changes and checkout', async ({ page }, info) => {
+  await installUploadAndFunctionHarness(page, `yard-stakes-${info.project.name}`);
+  const artwork = await sharp({ create: { width: 1200, height: 900, channels: 3, background: '#f8fafc' } })
+    .composite([{ input: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900"><rect x="80" y="80" width="1040" height="740" fill="#18448d"/><circle cx="600" cy="450" r="220" fill="#ff6a00"/></svg>') }])
+    .png().toBuffer();
+  await page.goto('/design?product=yard-signs', { waitUntil: 'domcontentloaded' });
+  const setup = page.locator('#yard-finishing-section');
+  const preview = page.getByRole('region', { name: 'Yard sign product preview' });
+  await expect(setup.getByRole('heading')).toHaveText('Choose your setup');
+  await expect(setup.getByRole('radio', { name: 'Without stakes', exact: true })).toBeChecked();
+  await setup.getByText('With stakes', { exact: true }).click();
+  await expect(setup.getByRole('radio', { name: 'With stakes', exact: true })).toBeChecked();
+  await expect(preview.locator('[data-yard-sign-hardware]')).toHaveCount(1);
+  await setup.screenshot({ path: info.outputPath('yard-sign-stake-options.png') });
+  const chooser = page.waitForEvent('filechooser');
+  await page.locator('#yard-upload-section').getByRole('button', { name: /Upload your artwork/ }).click();
+  await (await chooser).setFiles({ name: 'yard-sign-check.png', mimeType: 'image/png', buffer: artwork });
+  await expect(page.getByRole('heading', { name: 'Yard Sign Preview', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Yard Sign Preview', exact: true })).toHaveCount(0);
+  await expect(setup).toContainText('10 signs = 10 stakes');
+  const upload = page.locator('#yard-upload-section');
+  await upload.getByRole('button', { name: '20', exact: true }).click();
+  await expect(setup).toContainText('20 signs = 20 stakes');
+  await setup.getByRole('button', { name: 'Adjust quantity', exact: true }).click();
+  await setup.getByRole('button', { name: 'Decrease stakes', exact: true }).click();
+  await upload.getByRole('button', { name: '30', exact: true }).click();
+  await expect(setup.getByRole('spinbutton', { name: 'Stakes', exact: true })).toHaveValue('19');
+  await setup.getByText('Without stakes', { exact: true }).click();
+  await expect(setup).toContainText('No stakes included.');
+  await expect(preview.locator('[data-yard-sign-hardware]')).toHaveCount(0);
+  await setup.getByText('With stakes', { exact: true }).click();
+  await setup.getByRole('button', { name: 'Adjust quantity', exact: true }).click();
+  await setup.getByRole('button', { name: 'Decrease stakes', exact: true }).click();
+  await expect(setup.getByRole('spinbutton', { name: 'Stakes', exact: true })).toHaveValue('29');
+  await page.locator('#yard-print-side-section').getByRole('button', { name: /Double-Sided/ }).click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  await expect(preview.locator('img[data-preview-image-state="ready"]')).toHaveCount(1);
+  const savedPreview = await preview.locator('img[data-preview-image-state="ready"]').getAttribute('src');
+  await preview.screenshot({ path: info.outputPath('yard-sign-selected-preview.png') });
+  await page.getByRole('button', { name: 'Checkout', exact: true }).filter({ visible: true }).first().click();
+  await expect(page).toHaveURL(/\/checkout/, { timeout: 60000 });
+  await expect(page.locator('[data-checkout-header]')).toContainText('Secure checkout');
+  const cart = await page.evaluate(() => JSON.parse(localStorage.getItem('cart-storage') || '{}').state.items);
+  expect(cart).toHaveLength(1);
+  expect(cart[0]).toMatchObject({ product_type: 'yard_sign', yard_sign_sidedness: 'double', yard_sign_step_stakes_enabled: true, yard_sign_step_stakes_qty: 29, yard_sign_signs_subtotal_cents: 42000, yard_sign_stakes_subtotal_cents: 4350 });
+  expect(cart[0].yard_sign_designs[0].quantity).toBe(30);
+  expect(cart[0].yard_sign_designs[0].placementPreview.previewUrl).toBe(savedPreview);
+});
