@@ -18,10 +18,10 @@ export default function SpecialtyOptions({product,variant,value,onChange,disable
               if(basePriced&&variant.priceProposal?.revision==='margin-30-after-20-v1') {
                 const next=specialtyOptions(variant,{...value,[group.key]:String(option.key)});
                 const size=group.key==='size'&&String(option.key).match(/^(\d+)x(\d+)$/);
-                try {const quote=specialtyConfigurationPrice(product,variant,size?Number(size[1]):width,size?Number(size[2]):height,next);priceLabel=quote.verified?`${formatSpecialtyPrice(quote.unitCents)} total`:'Price coming soon';}
+                try {const quote=specialtyConfigurationPrice(product,variant,size?Number(size[1]):width,size?Number(size[2]):height,next);const current=specialtyConfigurationPrice(product,variant,width,height,value);const delta=quote.unitCents-current.unitCents;priceLabel=quote.verified&&current.verified?(String(option.key)===value[group.key]?'Selected':delta===0?'No extra cost':`${delta>0?'Add':'Save'} ${formatSpecialtyPrice(Math.abs(delta))} each`):'Price coming soon';}
                 catch {priceLabel='Choose a valid size';}
               }
-              return <option key={option.key} value={option.key}>{option.label}{priceLabel?` · ${priceLabel}`:''}</option>;
+              return <option key={option.key} value={option.key}>{option.label==='Insert Only'?'Replacement graphic only (no stand)':option.label==='Stand + Insert'?'Printed graphic + stand':option.label}{priceLabel?` · ${priceLabel}`:''}</option>;
             })}
           </select>
           {image&&<a href={image} target="_blank" rel="noreferrer" className="shrink-0 rounded-lg border border-slate-200 bg-white p-1" aria-label={`View ${group.label.toLowerCase()} options`}><img src={image} alt={group.label} loading="lazy" className="h-14 w-14 object-contain"/></a>}

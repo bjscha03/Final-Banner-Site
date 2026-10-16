@@ -93,6 +93,23 @@ async function open(slug){
 }
 async function uploadArt(){await page.locator('#specialty-artwork input[type=file]').setInputFiles({name:'qa-market.png',mimeType:'image/png',buffer:fixture});await page.waitForFunction(()=>document.querySelector('#specialty-artwork input[type=file]').value==='');await page.getByRole('button',{name:'Replace artwork',exact:true}).waitFor();await page.getByLabel('I checked the', {exact:false}).waitFor({timeout:30000});await page.waitForFunction(()=>[...document.querySelectorAll('label')].find(el=>el.textContent.includes('I checked the'))?.querySelector('input')?.disabled===false);}
 try{
+ await check('finished preview is automatic and mobile ordering stays clear',async()=>{
+  await open('standard-retractable-banner');await uploadArt();
+  await page.getByRole('heading',{name:'Your finished product',exact:true}).waitFor();
+  await page.locator('[aria-label="Your artwork on Standard Retractable Banner"]').waitFor();
+  const resources=page.getByRole('region',{name:'Product specifications and downloads'});
+  assert.ok((await resources.boundingBox()).y>(await page.locator('#specialty-artwork').boundingBox()).y);
+  assert.equal(await page.locator('#option-hardware option:checked').innerText(),'Printed graphic + stand · Selected');
+  await page.setViewportSize({width:390,height:844});
+  const preview=await page.getByTestId('specialty-live-preview').boundingBox();
+  const editor=await page.getByRole('heading',{name:'Artwork placement',exact:true}).boundingBox();
+  assert.ok(preview.y+preview.height<=editor.y,'Mobile preview appears above the editing tools');
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  await page.locator('#specialty-artwork').screenshot({path:out+'/clarity-mobile.png'});
+  await page.setViewportSize({width:1280,height:900});
+  await page.locator('#specialty-artwork').screenshot({path:out+'/clarity-desktop.png'});
+  await page.setViewportSize(initialViewport);
+ });
  await check('all 19 product pages and 58 variants render valid supplier selections',async()=>{
   const catalog=JSON.parse(await readFile(root+'shared/specialty-catalog.json','utf8'));
   for(const product of catalog){await open(product.slug);for(const variant of product.variants){await page.locator('#specialty-variant').selectOption(variant.id);assert.equal(await page.locator('select').evaluateAll(els=>els.some(el=>!el.value||![...el.options].some(o=>o.value===el.value))),false,variant.id);assert.doesNotMatch(await page.getByTestId('specialty-price').innerText(),/Price coming soon/);assert.match(await page.getByTestId('specialty-subtotal').innerText(),/^\$[1-9]/);}}
@@ -104,32 +121,32 @@ try{
   await open('standard-retractable-banner');
   assert.equal(await page.locator('#specialty-variant').inputValue(),'standard-retractable-banner-3');
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$176.34');
-  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
+  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next[- ]Day Air/);
   await page.locator('#specialty-qty').fill('2');assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$352.68');
   await page.locator('#specialty-variant').selectOption('standard-retractable-banner-1');
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$411.40');
   assert.match(await page.getByTestId('specialty-price').innerText(),/Tax calculated separately/);
-  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
+  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next[- ]Day Air/);
   await page.goto(origin+'/products');await page.getByRole('heading',{name:'Make the entire space yours.'}).waitFor();
   for(const [slug,price] of [['standard-retractable-banner','$176.34'],['feather-flags','$204.79'],['standard-table-throws','$185.70'],['custom-event-tents','$1040.07'],['step-and-repeat-backdrop','$488.46'],['aluminum-composite-signs','$35.00']]){
    const card=page.locator(`a[href="/products/${slug}"]`).filter({has:page.locator('h3')});
-   assert.ok((await card.innerText()).includes(price),slug);assert.match(await card.innerText(),/Free Next Day Air shipping/);
+   assert.ok((await card.innerText()).includes(price),slug);assert.match(await card.innerText(),/Free Next[- ]Day Air shipping/);
   }
   const unpriced=page.locator('a[href="/products/acrylic-signs"]').filter({has:page.locator('h3')});
-  assert.match(await unpriced.innerText(),/\$120\.00/);assert.doesNotMatch(await unpriced.innerText(),/Price coming soon/);assert.match(await unpriced.innerText(),/Free Next Day Air/);
+  assert.match(await unpriced.innerText(),/\$120\.00/);assert.doesNotMatch(await unpriced.innerText(),/Price coming soon/);assert.match(await unpriced.innerText(),/Free Next[- ]Day Air/);
   await page.locator('#stands').screenshot({path:out+'/catalog-prices.png'});
  });
  await check('flag size, options and quantities update the price while shipping remains free',async()=>{
   await open('feather-flags');const subtotal=page.getByTestId('specialty-subtotal');
   assert.equal(await subtotal.innerText(),'$208.49');
-  assert.match(await page.locator('#option-sides option[value="2"]').innerText(),/\$276\.21 total/);
-  assert.match(await page.locator('#option-flaghardware option[value="PB"]').innerText(),/\$229\.33 total/);
+  assert.match(await page.locator('#option-sides option[value="2"]').innerText(),/Add \$67\.72 each/);
+  assert.match(await page.locator('#option-flaghardware option[value="PB"]').innerText(),/Add \$20\.84 each/);
   await page.locator('#option-sides').selectOption('2');
   await page.locator('#option-flaghardware').selectOption('PB');
   await page.locator('#option-carrybag').selectOption('1');
   assert.equal(await subtotal.innerText(),'$336.24');
   await page.locator('#specialty-qty').fill('3');assert.equal(await subtotal.innerText(),'$1008.72');
-  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
+  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next[- ]Day Air/);
   await page.locator('#specialty-variant').selectOption('feather-flags-2');
   assert.equal(await subtotal.innerText(),'$625.47');
  });
@@ -140,7 +157,7 @@ try{
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$1475.74');
   assert.match(await page.getByTestId('specialty-price').innerText(),/Tax calculated separately/);
   assert.doesNotMatch(await page.getByTestId('specialty-price').innerText(),/Price coming soon/);
-  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
+  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next[- ]Day Air/);
   await open('aluminum-composite-signs');await page.getByRole('button',{name:'24 × 36 in · $115.00',exact:true}).click();
   await page.locator('#option-sides').selectOption('2');await page.locator('#specialty-qty').fill('2');
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$280.00');
@@ -157,7 +174,7 @@ try{
   await page.setViewportSize({width:390,height:844});
   await open('standard-retractable-banner');await page.locator('#option-hardware').selectOption('p');
   assert.equal(await page.getByTestId('specialty-subtotal').innerText(),'$129.24');
-  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);
+  assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next[- ]Day Air/);
   await page.getByTestId('specialty-price').screenshot({path:out+'/proposed-mobile-price.png'});
   await open('aluminum-signs');await page.locator('#option-size').selectOption('12x18');
   assert.equal(await page.getByLabel('Width (in)',{exact:true}).inputValue(),'12');
@@ -173,7 +190,7 @@ try{
   await open('feather-flags');
   assert.equal(await page.getByRole('button',{name:'Create with AI',exact:true}).count(),0);
   await uploadArt();assert.equal(await page.getByRole('button',{name:'Fit my design with AI',exact:true}).count(),0);
-  await page.getByLabel('I checked the front artwork', {exact:false}).check();await page.getByRole('button',{name:'Add to cart',exact:true}).click();await page.waitForURL('**/checkout',{timeout:60000});await page.locator('[aria-label="Your artwork on Feather Flags"]').first().waitFor();await page.reload();await page.locator('[aria-label="Your artwork on Feather Flags"]').first().waitFor();await page.screenshot({path:out+'/flag-cart.png',fullPage:true});
+  await page.getByLabel('I checked the front artwork', {exact:false}).check();await page.getByRole('button',{name:'Add to cart',exact:true}).click();await page.waitForURL('**/checkout',{timeout:60000});await page.getByTestId('checkout-order-totals').waitFor();await page.locator('[aria-label="Your artwork on Feather Flags"]').first().waitFor();await page.reload();await page.locator('[aria-label="Your artwork on Feather Flags"]').first().waitFor();await page.screenshot({path:out+'/flag-cart.png',fullPage:true});
   const item=await page.evaluate(async()=>{const {useCartStore}=await import('/src/store/cart.ts');return useCartStore.getState().items.find(i=>i.product_type==='specialty')});assert.equal(item.specialty_config.panels[0].composition.widthIn,25);assert.equal(item.specialty_config.panels[0].artwork.name,'qa-market.png');assert.ok(item.specialty_config.panels[0].productionUrl.endsWith('.pdf'));assert.equal(aiRequests.length,0);
   const totals=page.getByTestId('checkout-order-totals');assert.match(await totals.innerText(),/\$208\.49/);assert.match(await totals.innerText(),/First-order savings · 20%/);assert.match(await totals.innerText(),/\$176\.80/);assert.match(await totals.innerText(),/FREE/);assert.doesNotMatch(await totals.innerText(),/Pending|Not yet calculated/);
   if(process.env.BOF_QA_TEST_CHECKOUT)assert.equal(await page.getByRole('button',{name:/^Place test order · \$/}).isEnabled(),true);
@@ -190,7 +207,7 @@ try{
   if(process.env.BOF_QA_TEST_CHECKOUT)assert.equal(await page.getByRole('button',{name:/^Place test order · \$/}).isDisabled(),true);
   await page.evaluate(async item=>{const {useCartStore}=await import('/src/store/cart.ts');useCartStore.getState().replaceItemsFromRecovery([item]);},original);
  });
- await check('tent wall options require the correct additional artwork panels',async()=>{await open('custom-event-tents');await page.locator('#option-tent_full_wall').selectOption('AB');await page.locator('#option-tent_half_wall').selectOption('2x2');assert.equal(await page.getByRole('tab').count(),10);assert.equal(await page.getByRole('button',{name:'Add to cart',exact:true}).isDisabled(),true);await page.locator('#specialty-variant').selectOption('custom-event-tents-3');assert.equal(await page.getByRole('tab').count(),4);await page.locator('#option-tent_full_wall_long').selectOption('L1');await page.getByRole('tab',{name:'Long full wall 1',exact:true}).click();assert.match(await page.locator('#specialty-artwork').innerText(),/230.12″ × 80.03″/);assert.match(await page.locator('#specialty-artwork').innerText(),/1:2 template scale/);});
+ await check('tent wall options require the correct additional artwork panels',async()=>{await open('custom-event-tents');await page.locator('#option-tent_full_wall').selectOption('AB');await page.locator('#option-tent_half_wall').selectOption('2x2');assert.equal(await page.getByRole('tab').count(),10);assert.equal(await page.getByRole('button',{name:'Add to cart',exact:true}).isDisabled(),true);await page.locator('#specialty-variant').selectOption('custom-event-tents-3');assert.equal(await page.getByRole('tab').count(),4);await page.locator('#option-tent_full_wall_long').selectOption('L1');await page.getByRole('tab',{name:'Long full wall 1',exact:true}).click();await page.getByText('Artwork size & safe-area guidance',{exact:true}).click();assert.match(await page.locator('#specialty-artwork').innerText(),/230.12″ × 80.03″/);assert.match(await page.locator('#specialty-artwork').innerText(),/1:2 template scale/);});
  await check('PDF upload preserves vectors, rejects extra pages and exports the selected dimensions',async()=>{
   await open('display-posters');const pdf=await PDFDocument.create();pdf.addPage([400,800]).drawText('VECTOR QA',{x:20,y:500,size:35,color:rgb(.1,.3,.35)});const bytes=await pdf.save();
   await page.locator('#specialty-artwork input[type=file]').setInputFiles({name:'qa-vector.pdf',mimeType:'application/pdf',buffer:Buffer.from(bytes)});
@@ -202,6 +219,7 @@ try{
   assert.equal(item.specialty_config.panels[0].artwork.isPdf,true);const printed=uploads.get(item.specialty_config.panels[0].productionFileKey),output=await PDFDocument.load(printed.bytes);assert.deepEqual(output.getPage(0).getSize(),{width:1728,height:1296});assert.match(output.getPage(0).node.Resources().toString(),/XObject/);
   await open('display-posters');pdf.addPage();await page.locator('#specialty-artwork input[type=file]').setInputFiles({name:'qa-multipage.pdf',mimeType:'application/pdf',buffer:Buffer.from(await pdf.save())});await page.getByRole('alert').filter({hasText:'separate single-page PDF'}).waitFor();assert.equal(await page.getByRole('button',{name:'Add to cart',exact:true}).isDisabled(),true);
   await open('acrylic-signs');await page.locator('#specialty-artwork input[type=file]').setInputFiles({name:'qa-clear-vector.pdf',mimeType:'application/pdf',buffer:Buffer.from(bytes)});
+  await page.getByRole('button',{name:'See flat artwork',exact:true}).click();
   const clearProof=page.getByAltText('Front flat artwork without guides',{exact:true});await clearProof.waitFor({timeout:60000});await clearProof.evaluate(img=>img.decode());
   assert.equal(await clearProof.evaluate(img=>{const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);return ctx.getImageData(Math.floor(c.width/2),Math.floor(c.height*.8),1,1).data[3];}),0,'Clear acrylic must preserve transparent regions inside the PDF page');
  });
@@ -214,7 +232,7 @@ try{
  });
  await check('product galleries load local branded images for every variant',async()=>{
   const catalog=JSON.parse(await readFile(root+'shared/specialty-catalog.json','utf8'));
-  for(const product of catalog){await open(product.slug);assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next Day Air/);for(const variant of product.variants){await page.locator('#specialty-variant').selectOption(variant.id);const hero=page.locator('button[aria-label^="Enlarge"] img').first();assert.match(await hero.getAttribute('src'),/^\/images\/products\//);await hero.evaluate(img=>img.decode());assert.equal(await page.locator('img[src*="b2sign.com"]').count(),0);}}
+  for(const product of catalog){await open(product.slug);assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next[- ]Day Air/);for(const variant of product.variants){await page.locator('#specialty-variant').selectOption(variant.id);const hero=page.locator('button[aria-label^="Enlarge"] img').first();assert.match(await hero.getAttribute('src'),/^\/images\/products\//);await hero.evaluate(img=>img.decode());assert.equal(await page.locator('img[src*="b2sign.com"]').count(),0);}}
  });
  await check('every variant and default print panel uses its registered artwork size with no AI actions',async()=>{
   const catalog=JSON.parse(await readFile(root+'shared/specialty-catalog.json','utf8'));
@@ -237,6 +255,7 @@ try{
      const editorImage=page.getByTestId('artwork-canvas').locator('img');await editorImage.evaluate(img=>img.decode());
      await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
      const painted=await sharp(await editorImage.screenshot()).stats();assert.ok(painted.channels.some(c=>c.min<100&&c.max>150),`${variant.id}/${panel.id}: artwork must be painted in the editor`);
+     if(!['tent','table'].includes(product.visual)){await page.locator(`[aria-label="Your artwork on ${product.name}"]`).waitFor();await page.getByRole('button',{name:'See flat artwork',exact:true}).click();}
      const proof=page.getByAltText(`${panel.label} flat artwork without guides`,{exact:true});await proof.waitFor();await proof.evaluate(img=>img.decode());
      if(product.slug==='acrylic-signs'){const alpha=await proof.evaluate(img=>{const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);return ctx.getImageData(1,Math.floor(c.height/2),1,1).data[3];});assert.equal(alpha,0,'Unprinted acrylic must stay transparent, not black');}
      const size=await proof.evaluate(img=>({w:img.naturalWidth,h:img.naturalHeight}));
@@ -246,7 +265,7 @@ try{
      if(!['tent','table'].includes(product.visual)){
       await page.getByRole('button',{name:'See product',exact:true}).click();
       await page.locator(`[aria-label="Your artwork on ${product.name}"]`).waitFor();
-      await page.getByRole('button',{name:'See flat artwork',exact:true}).click();
+      // Leave the finished-product preview visible for the next panel.
      } else assert.equal(await page.getByRole('button',{name:'See product',exact:true}).count(),0);
     }
    }
