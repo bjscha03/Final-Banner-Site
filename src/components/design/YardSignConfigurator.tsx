@@ -29,7 +29,6 @@ import {
   YARD_SIGN_INCREMENT,
   YARD_SIGN_SINGLE_SIDED_CENTS,
   YARD_SIGN_DOUBLE_SIDED_CENTS,
-  YARD_SIGN_STEP_STAKE_CENTS,
   YARD_SIGN_WIDTH_IN,
   YARD_SIGN_HEIGHT_IN,
   getTotalDesignQuantity,
@@ -59,6 +58,7 @@ import ArtworkPreviewEditor, {
   type ArtworkTransform,
 } from '@/components/design/ArtworkPreviewEditor';
 import ConfigCard from '@/components/design/layout/ConfigCard';
+import YardSignStakeOptions from './YardSignStakeOptions';
 import { logUx } from '@/lib/uxAnalytics';
 import { createStableCartItemId } from '@/lib/cartItemIdentity';
 import {
@@ -517,6 +517,15 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
         </p>
       </ConfigCard>
 
+      <YardSignStakeOptions
+        totalQuantity={totalQuantity}
+        enabled={addStepStakes}
+        quantity={stepStakeQuantity}
+        onEnabledChange={onStepStakesChange}
+        onQuantityChange={onStepStakeQuantityChange}
+        restorationKey={autoOpenDesignId}
+      />
+
       {/* Step 3 — Add Designs (upload + per-design quantity) */}
       <ConfigCard step={3} title="Add Designs" id="yard-upload-section" headerRight={<span className="text-xs font-normal text-gray-400">Up to {YARD_SIGN_MAX_DESIGNS} designs per order</span>}>
         <p className="text-xs text-gray-500 mb-2">
@@ -700,72 +709,6 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
             </p>
           </div>
         )}
-      </ConfigCard>
-
-      {/* Step 4 — Add Stakes (optional). Renamed from "Finishing options" so
-          the mobile sticky CTA can ask the user to review this step before
-          Add to Cart. */}
-      <ConfigCard step={4} title="Add Stakes" id="yard-finishing-section">
-        <p className="text-xs text-gray-500 mb-3">Optional wire H-stakes for ground mounting.</p>
-        <div
-          className={`border rounded-xl p-4 transition-all cursor-pointer ${
-            addStepStakes
-              ? 'border-orange-500 bg-orange-50'
-              : 'border-gray-200 hover:border-gray-400'
-          }`}
-          onClick={() => {
-            const next = !addStepStakes;
-            onStepStakesChange(next);
-            if (next && totalQuantity > 0) {
-              onStepStakeQuantityChange(totalQuantity);
-            }
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={addStepStakes}
-              onChange={() => {}}
-              className="accent-orange-500 w-4 h-4 flex-shrink-0"
-            />
-            <div className="flex-1">
-              <p className={`text-sm font-semibold ${addStepStakes ? 'text-orange-700' : 'text-gray-800'}`}>
-                Step Stakes
-              </p>
-              <p className="text-xs text-gray-500">
-                Wire H-stakes for ground mounting · {usd(YARD_SIGN_STEP_STAKE_CENTS / 100)} each
-              </p>
-            </div>
-          </div>
-          {addStepStakes && (
-            <div className="mt-3 ml-7" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-600">Qty:</span>
-                <button
-                  onClick={() => onStepStakeQuantityChange(Math.max(1, stepStakeQuantity - 1))}
-                  className="w-7 h-7 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors"
-                >
-                  <Minus className="h-3 w-3 text-gray-600" />
-                </button>
-                <input
-                  type="number"
-                  min={1}
-                  max={YARD_SIGN_MAX_QUANTITY}
-                  value={stepStakeQuantity}
-                  onChange={e => onStepStakeQuantityChange(Math.max(1, Math.min(YARD_SIGN_MAX_QUANTITY, +e.target.value || 1)))}
-                  className="w-14 border rounded-lg px-2 py-1 text-sm text-center"
-                />
-                <button
-                  onClick={() => onStepStakeQuantityChange(Math.min(YARD_SIGN_MAX_QUANTITY, stepStakeQuantity + 1))}
-                  className="w-7 h-7 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors"
-                >
-                  <Plus className="h-3 w-3 text-gray-600" />
-                </button>
-              </div>
-              <p className="text-xs text-gray-400 mt-1.5">Typically 1 stake per sign</p>
-            </div>
-          )}
-        </div>
       </ConfigCard>
 
       {/* Helper text */}
