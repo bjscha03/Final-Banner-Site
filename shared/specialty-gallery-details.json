@@ -1,0 +1,943 @@
+{
+  "standard-retractable": [
+    {
+      "url": "/images/products/details/standard-retractable-12.webp",
+      "label": "Silver base detail",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "visible": {
+        "size": [
+          "23x66",
+          "24x81",
+          "33x81",
+          "47x81"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240326/7hFNGsDZ-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/standard-retractable-11.webp",
+      "label": "Black base detail",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "visible": {
+        "size": [
+          "33x81b"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240326/k7MIq9TQ-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/standard-retractable-20.webp",
+      "label": "LED light",
+      "optionKey": "led",
+      "values": [
+        "1"
+      ],
+      "visible": {
+        "size": [
+          "23x66",
+          "24x81",
+          "33x81"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240326/vgjAVOhN-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/standard-retractable-19.webp",
+      "label": "LED light — black stand",
+      "optionKey": "led",
+      "values": [
+        "1"
+      ],
+      "visible": {
+        "size": [
+          "33x81b"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240326/uoeE839m-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/standard-retractable-21.webp",
+      "label": "Two LED lights",
+      "optionKey": "led",
+      "values": [
+        "2"
+      ],
+      "visible": {
+        "size": [
+          "47x81"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240326/F75K90M4-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/standard-retractable-24.webp",
+      "label": "Stand and carry bag",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "visible": {
+        "size": [
+          "24x81",
+          "33x81"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240326/WZQtUo3N-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/standard-retractable-22.webp",
+      "label": "Black stand and carry bag",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "visible": {
+        "size": [
+          "33x81b"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240326/zmhOtmSQ-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/standard-retractable-23.webp",
+      "label": "Stand and carry bag",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "visible": {
+        "size": [
+          "47x81"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240326/pi14iMhs-s1000.jpg"
+    }
+  ],
+  "deluxe-retractable": [
+    {
+      "url": "/images/products/details/deluxe-retractable-5.webp",
+      "label": "Single-sided base detail",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "visible": {
+        "size": [
+          "33x81"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240326/pALw0m7q-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/deluxe-retractable-6.webp",
+      "label": "Double-sided base detail",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "visible": {
+        "size": [
+          "33x81d"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240326/B7IZZPCj-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/deluxe-retractable-13.webp",
+      "label": "LED light",
+      "optionKey": "led",
+      "values": [
+        "1"
+      ],
+      "visible": {
+        "size": [
+          "33x81"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240325/OG8Qhy6D-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/deluxe-retractable-14.webp",
+      "label": "LED lighting detail",
+      "optionKey": "led",
+      "values": [
+        "2"
+      ],
+      "visible": {
+        "size": [
+          "33x81d"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240325/mC622nES-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/deluxe-retractable-9.webp",
+      "label": "Stand and carry bag",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "visible": {
+        "size": [
+          "33x81"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240326/LoPWc3sh-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/deluxe-retractable-10.webp",
+      "label": "Stand and carry bag",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "visible": {
+        "size": [
+          "33x81d"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240326/Q4cODrwK-s1000.jpg"
+    }
+  ],
+  "sd-retractable": [
+    {
+      "url": "/images/products/details/sd-retractable-19.webp",
+      "label": "Base detail",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240326/91uQJ8i2-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/sd-retractable-23.webp",
+      "label": "One LED light",
+      "optionKey": "led",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240327/YB7BtMPL-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/sd-retractable-24.webp",
+      "label": "Two LED lights",
+      "optionKey": "led",
+      "values": [
+        "2"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240327/9m0qBJcr-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/sd-retractable-25.webp",
+      "label": "Stand and carry bag — 36 in",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "visible": {
+        "size": [
+          "36x69",
+          "36x80",
+          "36x92"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250319/uLLUHbUs-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/sd-retractable-26.webp",
+      "label": "Stand and carry bag — wide sizes",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "visible": {
+        "size": [
+          "48x69",
+          "48x80",
+          "48x92",
+          "60x69",
+          "60x80",
+          "60x92"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250319/FuMhmoQf-s1000.jpg"
+    }
+  ],
+  "x-stand": [
+    {
+      "url": "/images/products/details/x-stand-5.webp",
+      "label": "X-frame hardware",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240408/89HOLbyx-s1000.jpg"
+    }
+  ],
+  "table-top-banner-stand": [
+    {
+      "url": "/images/products/details/table-top-banner-stand-2.webp",
+      "label": "Front and back",
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240314/DToc1Ity-s1000.jpg"
+    }
+  ],
+  "tension-fabric-stand": [
+    {
+      "url": "/images/products/details/tension-fabric-stand-6.webp",
+      "label": "Frame connections",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240326/5PTaJJ5M-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/tension-fabric-stand-7.webp",
+      "label": "Graphic zipper detail",
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240314/b35NMDzc-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/tension-fabric-stand-8.webp",
+      "label": "Frame and carry bag",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240326/fF21I6Do-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/tension-fabric-stand-9.webp",
+      "label": "Two LED lights",
+      "optionKey": "tradeshow_led",
+      "values": [
+        "2"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240314/1gcTCr9I-s1000.jpg"
+    }
+  ],
+  "step-repeat-backdrop": [
+    {
+      "url": "/images/products/details/step-repeat-backdrop-3.webp",
+      "label": "Printed fabric detail",
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240404/pvuo7xg3-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/step-repeat-backdrop-4.webp",
+      "label": "Adjustable frame",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240404/eXjGzY8L-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/step-repeat-backdrop-5.webp",
+      "label": "Frame connections",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240404/lDXMtMBO-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/step-repeat-backdrop-6.webp",
+      "label": "Frame and carry bag",
+      "optionKey": "hardware",
+      "values": [
+        "ph"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240404/fvPijfib-s1000.jpg"
+    }
+  ],
+  "feather-angled-flag": [
+    {
+      "url": "/images/products/details/feather-angled-flag-5.webp",
+      "label": "Single-sided print-through",
+      "optionKey": "sides",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240311/xuDAkfis-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/feather-angled-flag-6.webp",
+      "label": "Reverse print-through",
+      "optionKey": "sides",
+      "values": [
+        "-1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240311/kslB4CT0-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/feather-angled-flag-7.webp",
+      "label": "Double-sided printing",
+      "optionKey": "sides",
+      "values": [
+        "2"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240308/gOjjCRtu-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/feather-angled-flag-11.webp",
+      "label": "Base options",
+      "optionKey": "flaghardware",
+      "values": [
+        "PG",
+        "PB",
+        "PBG",
+        "PBW",
+        "PBS"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/251217/OL35DL8Y-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/feather-angled-flag-12.webp",
+      "label": "Carry bag",
+      "optionKey": "carrybag",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240327/DKbWcR65-s1000.jpg"
+    }
+  ],
+  "convex-flag": [
+    {
+      "url": "/images/products/details/convex-flag-5.webp",
+      "label": "Single-sided print-through",
+      "optionKey": "sides",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240311/dbDrPvzF-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/convex-flag-6.webp",
+      "label": "Reverse print-through",
+      "optionKey": "sides",
+      "values": [
+        "-1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240311/0orfAv2N-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/convex-flag-7.webp",
+      "label": "Double-sided printing",
+      "optionKey": "sides",
+      "values": [
+        "2"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240311/CLqxAS62-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/convex-flag-11.webp",
+      "label": "Base options",
+      "optionKey": "flaghardware",
+      "values": [
+        "PG",
+        "PB",
+        "PBG",
+        "PBW",
+        "PBS"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/251217/7mWDdVg1-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/convex-flag-12.webp",
+      "label": "Carry bag",
+      "optionKey": "carrybag",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240327/ePvg2v8P-s1000.jpg"
+    }
+  ],
+  "teardrop-flag": [
+    {
+      "url": "/images/products/details/teardrop-flag-5.webp",
+      "label": "Single-sided print-through",
+      "optionKey": "sides",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240312/kVlhX59f-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/teardrop-flag-6.webp",
+      "label": "Reverse print-through",
+      "optionKey": "sides",
+      "values": [
+        "-1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240312/m3bB2EDC-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/teardrop-flag-7.webp",
+      "label": "Double-sided printing",
+      "optionKey": "sides",
+      "values": [
+        "2"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240312/r305JAav-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/teardrop-flag-11.webp",
+      "label": "Base options",
+      "optionKey": "flaghardware",
+      "values": [
+        "PG",
+        "PB",
+        "PBG",
+        "PBW",
+        "PBS"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/251217/wC1xH7WA-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/teardrop-flag-12.webp",
+      "label": "Carry bag",
+      "optionKey": "carrybag",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240327/OAXEU137-s1000.jpg"
+    }
+  ],
+  "rectangle-flag": [
+    {
+      "url": "/images/products/details/rectangle-flag-4.webp",
+      "label": "Single-sided print-through",
+      "optionKey": "sides",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250630/XtmYtBL9-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/rectangle-flag-5.webp",
+      "label": "Reverse print-through",
+      "optionKey": "sides",
+      "values": [
+        "-1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240312/c5LAw0bf-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/rectangle-flag-6.webp",
+      "label": "Double-sided printing",
+      "optionKey": "sides",
+      "values": [
+        "2"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240312/nQhhbT87-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/rectangle-flag-11.webp",
+      "label": "Base options",
+      "optionKey": "flaghardware",
+      "values": [
+        "PG",
+        "PB",
+        "PBG",
+        "PBW",
+        "PBS"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/251217/2zyByqla-s1000.jpg"
+    }
+  ],
+  "econo-feather-flag": [
+    {
+      "url": "/images/products/details/econo-feather-flag-2.webp",
+      "label": "Single-sided print-through",
+      "optionKey": "graphic",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240314/p9qEtA5R-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/econo-feather-flag-3.webp",
+      "label": "Reverse print-through",
+      "optionKey": "graphic",
+      "values": [
+        "-1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240314/WVB2l5BH-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/econo-feather-flag-4.webp",
+      "label": "Pole and ground stake",
+      "optionKey": "flag_pole",
+      "values": [
+        "flag_pole"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240314/uO73V3KB-s1000.jpg"
+    }
+  ],
+  "4ft-table-cover": [
+    {
+      "url": "/images/products/details/4ft-table-cover-2.webp",
+      "label": "Open and closed back options",
+      "sourceUrl": "https://www.b2sign.com/image/thumb/260828/igrhVPvO-s1000.jpg"
+    }
+  ],
+  "6ft-table-cover": [
+    {
+      "url": "/images/products/details/6ft-table-cover-2.webp",
+      "label": "Open and closed back options",
+      "sourceUrl": "https://www.b2sign.com/image/thumb/260828/KYa1LVlm-s1000.jpg"
+    }
+  ],
+  "8ft-table-cover": [
+    {
+      "url": "/images/products/details/8ft-table-cover-2.webp",
+      "label": "Open and closed back options",
+      "sourceUrl": "https://www.b2sign.com/image/thumb/260828/TbqRT5tC-s1000.jpg"
+    }
+  ],
+  "Fitted-Table-Cover": [
+    {
+      "url": "/images/products/details/fitted-table-cover-3.webp",
+      "label": "Open back — 6 ft",
+      "optionKey": "backside",
+      "values": [
+        "3sided"
+      ],
+      "visible": {
+        "size": [
+          "6ft"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/260827/xrIlePPp-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/fitted-table-cover-4.webp",
+      "label": "Closed back — 6 ft",
+      "optionKey": "backside",
+      "values": [
+        "4sided"
+      ],
+      "visible": {
+        "size": [
+          "6ft"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/260827/GV1PW2Jn-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/fitted-table-cover-7.webp",
+      "label": "Open back — 8 ft",
+      "optionKey": "backside",
+      "values": [
+        "3sided"
+      ],
+      "visible": {
+        "size": [
+          "8ft"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/260827/6sYqhulB-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/fitted-table-cover-8.webp",
+      "label": "Closed back — 8 ft",
+      "optionKey": "backside",
+      "values": [
+        "4sided"
+      ],
+      "visible": {
+        "size": [
+          "8ft"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/260827/HaxpCakC-s1000.jpg"
+    }
+  ],
+  "stretch-table-cover": [
+    {
+      "url": "/images/products/details/stretch-table-cover-5.webp",
+      "label": "Front and open back — 6 ft",
+      "visible": {
+        "size": [
+          "6ft"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240319/582lRQxz-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/stretch-table-cover-6.webp",
+      "label": "Front and open back — 8 ft",
+      "visible": {
+        "size": [
+          "8ft"
+        ]
+      },
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240319/KmWrAJOV-s1000.jpg"
+    }
+  ],
+  "event-tent-canopy-graphic": [
+    {
+      "url": "/images/products/details/event-tent-canopy-graphic-3.webp",
+      "label": "Tent frame",
+      "optionKey": "tent_hardware",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240408/KUchpkL7-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/event-tent-canopy-graphic-4.webp",
+      "label": "Ropes and stakes",
+      "optionKey": "tent_hardware",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240408/a06Mlftd-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/event-tent-canopy-graphic-5.webp",
+      "label": "White and black reinforcement",
+      "optionKey": "tent_sewing_thread",
+      "values": [
+        "white",
+        "black"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240408/vpxiASlu-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/event-tent-canopy-graphic-6.webp",
+      "label": "Standard and wheeled bags",
+      "optionKey": "tent_carrybag",
+      "values": [
+        "s",
+        "w"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240408/WsuhmWIw-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/event-tent-canopy-graphic-7.webp",
+      "label": "Mesh sidewalls",
+      "optionKey": "mesh_sidewall",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/260828/kiBfx3E3-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/event-tent-canopy-graphic-8.webp",
+      "label": "Four empty sandbags",
+      "optionKey": "tent_sandbag",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240408/89vwaPWy-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/event-tent-canopy-graphic-tent_full_wall.webp",
+      "label": "Full Wall options",
+      "optionKey": "tent_full_wall",
+      "values": [
+        "A",
+        "AB",
+        "ABC",
+        "ABCD"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240408/7j1t4Wwf-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/event-tent-canopy-graphic-tent_half_wall.webp",
+      "label": "Half Wall options",
+      "optionKey": "tent_half_wall",
+      "values": [
+        "1x1",
+        "2x1",
+        "3x1",
+        "4x1",
+        "1x2",
+        "2x2",
+        "3x2",
+        "4x2"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240408/7j1t4Wwf-s1000.jpg"
+    }
+  ],
+  "10x15-event-tent": [
+    {
+      "url": "/images/products/details/10x15-event-tent-3.webp",
+      "label": "Tent frame",
+      "optionKey": "tent_hardware",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250702/Q7fhnRVk-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/10x15-event-tent-4.webp",
+      "label": "Ropes and stakes",
+      "optionKey": "tent_hardware",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250702/ljU9mQQw-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/10x15-event-tent-5.webp",
+      "label": "White and black reinforcement",
+      "optionKey": "tent_sewing_thread",
+      "values": [
+        "white",
+        "black"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250702/RVkr509i-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/10x15-event-tent-6.webp",
+      "label": "Standard and wheeled bags",
+      "optionKey": "tent_carrybag",
+      "values": [
+        "s",
+        "w"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250702/DerhBUwU-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/10x15-event-tent-7.webp",
+      "label": "Four empty sandbags",
+      "optionKey": "tent_sandbag",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250702/VxC4GL9F-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/10x15-event-tent-tent_full_wall.webp",
+      "label": "Full Wall (Short Side) options",
+      "optionKey": "tent_full_wall",
+      "values": [
+        "S1",
+        "S2"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250703/cqJG1ZcE-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/10x15-event-tent-tent_full_wall_long.webp",
+      "label": "Full Wall (Long Side) options",
+      "optionKey": "tent_full_wall_long",
+      "values": [
+        "L1",
+        "L2"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250703/mXb7yFmc-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/10x15-event-tent-tent_half_wall.webp",
+      "label": "Half Wall options",
+      "optionKey": "tent_half_wall",
+      "values": [
+        "1x1",
+        "1x2",
+        "2x1",
+        "2x2"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250703/O5XJwZOf-s1000.jpg"
+    }
+  ],
+  "10x20-event-tent": [
+    {
+      "url": "/images/products/details/10x20-event-tent-3.webp",
+      "label": "Tent frame",
+      "optionKey": "tent_hardware",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250703/7QbBfFk9-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/10x20-event-tent-4.webp",
+      "label": "Ropes and stakes",
+      "optionKey": "tent_hardware",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250703/VLfBiK1t-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/10x20-event-tent-5.webp",
+      "label": "White and black reinforcement",
+      "optionKey": "tent_sewing_thread",
+      "values": [
+        "white",
+        "black"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250703/NRXfzOLr-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/10x20-event-tent-6.webp",
+      "label": "Standard and wheeled bags",
+      "optionKey": "tent_carrybag",
+      "values": [
+        "s",
+        "w"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250703/XkGtHS8t-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/10x20-event-tent-7.webp",
+      "label": "Six empty sandbags",
+      "optionKey": "tent_sandbag",
+      "values": [
+        "1"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250703/Iw6Wsplc-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/10x20-event-tent-tent_full_wall.webp",
+      "label": "Full Wall (Short Side) options",
+      "optionKey": "tent_full_wall",
+      "values": [
+        "S1",
+        "S2"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250703/8lQ3IfJ6-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/10x20-event-tent-tent_full_wall_long.webp",
+      "label": "Full Wall (Long Side) options",
+      "optionKey": "tent_full_wall_long",
+      "values": [
+        "L1",
+        "L2"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250703/UOpHVzTv-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/10x20-event-tent-tent_half_wall.webp",
+      "label": "Half Wall options",
+      "optionKey": "tent_half_wall",
+      "values": [
+        "1x1",
+        "1x2",
+        "2x1",
+        "2x2"
+      ],
+      "sourceUrl": "https://www.b2sign.com/image/thumb/250703/TyxQkh3b-s1000.jpg"
+    }
+  ],
+  "aluminum-sign": [
+    {
+      "url": "/images/products/details/aluminum-sign-2.webp",
+      "label": "Square and rounded corners",
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240501/OP55MEgU-s1000.jpg"
+    },
+    {
+      "url": "/images/products/details/aluminum-sign-3.webp",
+      "label": "Solid aluminum material detail",
+      "sourceUrl": "https://www.b2sign.com/image/thumb/240501/ZQPjLM6G-s1000.jpg"
+    }
+  ]
+}
