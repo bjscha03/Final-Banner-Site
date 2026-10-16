@@ -37,12 +37,11 @@ export default function YardSignMockup({
       <div className={`absolute left-[10%] z-10 w-[80%] overflow-hidden border border-black/10 bg-white shadow-md ${withStakes ? 'top-[9%]' : 'top-[20%]'}`} style={{ aspectRatio: '4 / 3' }}>
         {previewUrl ? (
           <StablePreviewImage
-            key={design?.id}
+            key={`${design?.id}:${previewUrl}`}
             src={previewUrl}
             alt=""
             aria-hidden="true"
             className="absolute inset-0 h-full w-full object-contain"
-            retainPreviousWhileLoading={false}
           />
         ) : (
           <svg viewBox="0 0 240 180" className="h-full w-full" aria-hidden="true">
