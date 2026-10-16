@@ -80,7 +80,7 @@ export default function YardSignStakeOptions({ totalQuantity, enabled, quantity,
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-orange-50 px-3 py-3">
             <div aria-live="polite" className="min-w-0">
               <p className="text-sm font-semibold text-orange-900">{matched ? `${totalQuantity} signs = ${quantity} stakes` : `${quantity} wire H-${quantity === 1 ? 'stake' : 'stakes'}`}</p>
-              <p className="mt-0.5 text-xs text-slate-600">{totalQuantity === 0 ? 'Matches your sign quantity after upload' : matched ? 'Matched to your sign quantity' : `Custom quantity for ${totalQuantity} signs`}</p>
+              <p className="mt-0.5 text-xs text-slate-600">{totalQuantity === 0 ? quantity === YARD_SIGN_MIN_QUANTITY ? 'Matches your sign quantity after upload' : 'Custom stake quantity' : matched ? 'Matched to your sign quantity' : `Custom quantity for ${totalQuantity} signs`}</p>
             </div>
             <button type="button" aria-expanded={adjusting} aria-controls={`${groupName}-quantity`} onClick={() => setAdjusting(!adjusting)} className="min-h-11 text-xs font-semibold text-[#0B1F3A] underline underline-offset-2">{adjusting ? 'Done adjusting' : 'Adjust quantity'}</button>
           </div>
