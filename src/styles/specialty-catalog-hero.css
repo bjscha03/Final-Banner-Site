@@ -1,0 +1,17 @@
+.specialty-catalog-hero .product-hero-stage { grid-template-columns: 43% 57%; min-height: 0; }
+.specialty-catalog-hero .product-hero-copy { padding-block: 48px; }
+.specialty-catalog-hero h1 { font-size: clamp(44px, 5.2vw, 84px); font-weight: 800; }
+.specialty-catalog-hero .product-hero-media { align-self: center; aspect-ratio: 3 / 2; }
+.specialty-catalog-hero .product-hero-media::after { background: linear-gradient(90deg, #f8f6f1, rgba(248,246,241,.4) 4%, transparent 9%); }
+.catalog-hero-note { margin-top: 22px; font-size: 15px; line-height: 1.6; color: #3e4c5d; }
+@media (min-width: 768px) and (max-width: 1100px) {
+  .specialty-catalog-hero .product-hero-copy { padding: 32px 24px; }
+  .specialty-catalog-hero h1 { font-size: 44px; }
+  .specialty-catalog-hero .product-hero-description { font-size: 16px; }
+}
+@media (max-width: 767px) {
+  .specialty-catalog-hero .product-hero-copy { padding: 30px 22px 26px; }
+  .specialty-catalog-hero h1 { font-size: clamp(42px, 11vw, 62px); }
+  .specialty-catalog-hero .product-hero-media::after { display: none; }
+  .catalog-hero-note { margin-top: 16px; font-size: 13px; }
+}

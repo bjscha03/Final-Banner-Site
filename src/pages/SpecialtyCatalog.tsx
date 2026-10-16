@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ArrowRight, Package, Truck } from 'lucide-react';
+import { ArrowRight, Image, PencilLine, Truck } from 'lucide-react';
 import Layout from '@/components/Layout';
 import SEO from '@/components/SEO';
+import '@/styles/product-hero.css';
+import '@/styles/specialty-catalog-hero.css';
 import { formatSpecialtyPrice, specialtyCategories, availableSpecialtyProducts as specialtyProducts, specialtyStartingPrice, type SpecialtyCategory } from '@/lib/specialtyProducts';
 
 const groups = (Object.entries(specialtyCategories) as Array<[SpecialtyCategory, typeof specialtyCategories[SpecialtyCategory]]>).filter(([key])=>specialtyProducts.some(product=>product.category===key));
@@ -15,17 +17,24 @@ export default function SpecialtyCatalog() {
       { '@context': 'https://schema.org', '@type': 'WebPage', name: 'Displays, Event Gear & Signs', url: 'https://bannersonthefly.com/products', description: 'Portable displays, branded event gear and custom signs.' },
       { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Displays, Event Gear & Signs', url: 'https://bannersonthefly.com/products', mainEntity: { '@type': 'ItemList', itemListElement: specialtyProducts.map((product, index) => ({ '@type': 'ListItem', position: index + 1, name: product.name, url: `https://bannersonthefly.com/products/${product.slug}` })) } },
     ]} />
-    <section className="relative overflow-hidden bg-[#071b32] text-white">
-      <div className="absolute inset-0 opacity-25" style={{ backgroundImage: 'linear-gradient(120deg, transparent 50%, #28547d 50%, transparent 90%), radial-gradient(circle at 85% 15%, #f45b08 0, transparent 28%)' }} />
-      <div className="brand-shell relative py-16 sm:py-20 lg:py-24">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-[#ff9b65]">More ways to show up</p>
-        <h1 className="mt-4 max-w-4xl font-display text-5xl font-black leading-[1.02] tracking-[-0.05em] sm:text-6xl lg:text-7xl">Make the entire space yours.</h1>
-        <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-200">Portable displays, branded event gear and durable signs. Choose your product, customize your artwork and see it come to life. Your design stays with your cart from preview to checkout.</p>
-        <div className="mt-8 flex flex-wrap gap-3 text-sm font-semibold">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2"><Package className="h-4 w-4 text-[#ff8b4a]" /> Fast production options</span>
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2"><Truck className="h-4 w-4 text-[#ff8b4a]" /> Free Next Day Air shipping</span>
+    <section className="product-hero-light specialty-catalog-hero" aria-labelledby="catalog-hero-title">
+      <div className="product-hero-stage">
+        <div className="product-hero-copy">
+          <p className="product-hero-eyebrow">Displays &amp; Signs</p>
+          <h1 id="catalog-hero-title">Show up.<br />Stand out.</h1>
+          <p className="product-hero-description">Custom displays and signs that turn heads—at events, in-store, and everywhere you go.</p>
+          <div className="product-hero-actions"><a href="#shop-displays" className="product-hero-cta">Shop Displays &amp; Signs<ArrowRight aria-hidden="true" /></a></div>
+          <p className="catalog-hero-note">Your artwork. Your brand. Ready to be seen.</p>
+        </div>
+        <div className="product-hero-media">
+          <img src="/images/product-heroes/displays-fieldwork-1440.webp" srcSet="/images/product-heroes/displays-fieldwork-640.webp 640w, /images/product-heroes/displays-fieldwork-1440.webp 1440w" sizes="(min-width: 768px) 57vw, 100vw" width={1440} height={960} loading="eager" fetchPriority="high" alt="FIELDWORK retractable banner with mountain artwork, terracotta branded table cover and matching sidewalk sign outside a modern venue" />
         </div>
       </div>
+      <div className="product-hero-benefits"><ul aria-label="Product ordering benefits">
+        <li><Truck aria-hidden="true" /><span>Free Next-Day Air Shipping</span></li>
+        <li><PencilLine aria-hidden="true" /><span>Easy Online Customization</span></li>
+        <li><Image aria-hidden="true" /><span>Vibrant Full-Color Printing</span></li>
+      </ul></div>
     </section>
 
     <nav className="sticky top-[72px] z-30 border-b border-slate-200 bg-white/95 backdrop-blur" aria-label="Specialty product categories">
@@ -34,7 +43,8 @@ export default function SpecialtyCatalog() {
       </div>
     </nav>
 
-    <div className="bg-[#f7f8fa] pb-20">
+    <div id="shop-displays" className="scroll-mt-36 bg-[#f7f8fa] pb-20">
+      <div className="brand-shell pt-12 text-center"><h2 className="font-display text-3xl font-bold tracking-tight text-[#0B1F3A] sm:text-4xl">Find your perfect display.</h2></div>
       {groups.map(([key, group]) => <section key={key} id={key} className="brand-shell scroll-mt-36 pt-14 sm:pt-18" aria-labelledby={`${key}-heading`}>
         <div className="mb-7 flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-6">
           <div><p className="text-xs font-black uppercase tracking-[0.18em] text-[#c94e00]">Shop the collection</p><h2 id={`${key}-heading`} className="mt-2 font-display text-3xl font-black tracking-[-0.04em] text-[#0B1F3A] sm:text-4xl">{group.label}</h2><p className="mt-2 text-slate-600">{group.description}</p></div>

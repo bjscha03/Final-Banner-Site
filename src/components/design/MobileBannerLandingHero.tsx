@@ -24,7 +24,7 @@ export default function MobileBannerLandingHero({ redesigned = false }: { redesi
         <p className="mt-2 text-xs font-medium text-slate-600">Fast printing. Next-day air. Real results.</p>
         </div>
         <picture>
-          <img src="/images/product-heroes/vinyl-banners-640.webp" srcSet="/images/product-heroes/vinyl-banners-640.webp 640w, /images/product-heroes/vinyl-banners-1440.webp 1440w" sizes="(max-width: 576px) 100vw, 576px" alt="Meadow & Stem flower market vinyl banner with botanical artwork and reinforced grommets" width="1440" height="960" fetchPriority="high" className="h-36 w-full object-cover object-[center_58%] sm:h-48" />
+          <img src="/images/product-heroes/vinyl-banners-bold-640.webp" srcSet="/images/product-heroes/vinyl-banners-bold-640.webp 640w, /images/product-heroes/vinyl-banners-bold-1440.webp 1440w" sizes="(max-width: 576px) 100vw, 576px" alt="FIELDWORK mountain photography vinyl banner with bold white lettering and reinforced grommets" width="1440" height="960" fetchPriority="high" className="h-36 w-full object-cover object-[center_58%] sm:h-48" />
         </picture>
         <div className="bg-white px-4 pt-2">
           <HeroDeliveryStatus variant="arrival" condensed />
@@ -41,7 +41,7 @@ export function MobileBannerLandingProof() {
       <div className="mx-auto max-w-xl">
         <h2 className="mb-3 text-xl font-bold">Made for your big moment</h2>
         <picture>
-          <img src="/images/product-heroes/vinyl-banners-640.webp" srcSet="/images/product-heroes/vinyl-banners-640.webp 640w, /images/product-heroes/vinyl-banners-1440.webp 1440w" sizes="(max-width: 576px) 100vw, 576px" alt="Finished botanical vinyl banner mounted outside a flower shop" width="1440" height="960" loading="lazy" className="h-auto w-full rounded-lg" />
+          <img src="/images/product-heroes/vinyl-banners-bold-640.webp" srcSet="/images/product-heroes/vinyl-banners-bold-640.webp 640w, /images/product-heroes/vinyl-banners-bold-1440.webp 1440w" sizes="(max-width: 576px) 100vw, 576px" alt="FIELDWORK outdoor brand vinyl banner secured to a storefront railing" width="1440" height="960" loading="lazy" className="h-auto w-full rounded-lg" />
         </picture>
       </div>
     </section>
