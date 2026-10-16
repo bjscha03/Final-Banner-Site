@@ -234,6 +234,28 @@ try{
   const catalog=JSON.parse(await readFile(root+'shared/specialty-catalog.json','utf8'));
   for(const product of catalog){await open(product.slug);assert.match(await page.getByTestId('specialty-price').innerText(),/FREE Next[- ]Day Air/);for(const variant of product.variants){await page.locator('#specialty-variant').selectOption(variant.id);const hero=page.locator('button[aria-label^="Enlarge"] img').first();assert.match(await hero.getAttribute('src'),/^\/images\/products\//);await hero.evaluate(img=>img.decode());assert.equal(await page.locator('img[src*="b2sign.com"]').count(),0);}}
  });
+ await check('lights, graphic-only, reverse flags and tent accessories retain photographs and accurate selections',async()=>{
+  const cases=[
+   ['deluxe-retractable-banner','led','1','1 LED Light'],
+   ['x-banner-stand','hardware','p','Printed graphic only'],
+   ['economy-feather-flag','graphic','-1','Single Side Print Thru Reverse'],
+   ['custom-event-tents','tent_sandbag','1','4 Sandbags'],
+  ];
+  for(const [slug,key,value,label] of cases){
+   await open(slug);await page.locator('#option-'+key).selectOption(value);
+   const gallery=page.getByTestId('specialty-product-gallery');
+   await gallery.locator('button[aria-label^="Enlarge"] img').evaluate(img=>img.decode());
+   assert.match(await page.getByTestId('selected-package-summary').innerText(),new RegExp(label));
+   assert.equal(await page.getByTestId('selected-configuration-guide').count(),0);
+   for(const thumb of await gallery.locator('button[aria-label^="View "]').all()){
+    await thumb.click();await gallery.locator('button[aria-label^="Enlarge"] img').evaluate(img=>img.decode());
+    assert.equal(await page.locator('#option-'+key).inputValue(),value);
+   }
+   await gallery.getByRole('button',{name:'View Product overview',exact:true}).click();
+   await gallery.screenshot({path:`${out}/gallery-${slug}.png`});
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Gallery must not overflow the viewport');
+  }
+ });
  await check('every variant and default print panel uses its registered artwork size with no AI actions',async()=>{
   const catalog=JSON.parse(await readFile(root+'shared/specialty-catalog.json','utf8'));
   const templates=JSON.parse(await readFile(root+'shared/specialty-templates.json','utf8'));
@@ -272,18 +294,19 @@ try{
    await page.locator('#specialty-artwork').screenshot({path:`${out}/artwork-${product.slug}.png`});
   }
  });
- await check('configuration changes clear approval and never retain an incompatible setup photo',async()=>{
+ await check('configuration changes clear approval while preserving a labeled product photograph',async()=>{
   await open('standard-retractable-banner');await uploadArt();
   await page.getByLabel('I checked the front artwork',{exact:false}).check();
   await page.locator('#option-hardware').selectOption('p');
   assert.equal(await page.getByLabel('I checked the front artwork',{exact:false}).isChecked(),false);
   assert.equal(await page.getByRole('button',{name:'Add to cart',exact:true}).isDisabled(),true);
-  await page.getByTestId('selected-configuration-guide').waitFor();
-  assert.equal(await page.locator('button[aria-label^="Enlarge"] img').count(),0);
+  await page.getByTestId('selected-package-summary').waitFor();
+  assert.match(await page.getByTestId('selected-package-summary').innerText(),/Printed graphic only/);
+  await page.locator('button[aria-label^="Enlarge"] img').evaluate(img=>img.decode());
   await open('acrylic-signs');await page.getByLabel('Width (in)',{exact:true}).fill('36');
-  await page.getByTestId('selected-configuration-guide').waitFor();
-  assert.match(await page.getByTestId('selected-configuration-guide').innerText(),/36 × 18 in/);
-  assert.equal(await page.locator('button[aria-label^="Enlarge"] img').count(),0);
+  await page.getByTestId('selected-package-summary').waitFor();
+  assert.match(await page.getByTestId('selected-package-summary').innerText(),/36 × 18 in/);
+  await page.locator('button[aria-label^="Enlarge"] img').evaluate(img=>img.decode());
  });
  await check('homepage and desktop/mobile navigation expose each product category without overflow',async()=>{
   await page.goto(origin+'/');await page.getByRole('heading',{name:'Build your entire display.'}).waitFor();
