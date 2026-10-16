@@ -219,6 +219,7 @@ try{
   assert.equal(item.specialty_config.panels[0].artwork.isPdf,true);const printed=uploads.get(item.specialty_config.panels[0].productionFileKey),output=await PDFDocument.load(printed.bytes);assert.deepEqual(output.getPage(0).getSize(),{width:1728,height:1296});assert.match(output.getPage(0).node.Resources().toString(),/XObject/);
   await open('display-posters');pdf.addPage();await page.locator('#specialty-artwork input[type=file]').setInputFiles({name:'qa-multipage.pdf',mimeType:'application/pdf',buffer:Buffer.from(await pdf.save())});await page.getByRole('alert').filter({hasText:'separate single-page PDF'}).waitFor();assert.equal(await page.getByRole('button',{name:'Add to cart',exact:true}).isDisabled(),true);
   await open('acrylic-signs');await page.locator('#specialty-artwork input[type=file]').setInputFiles({name:'qa-clear-vector.pdf',mimeType:'application/pdf',buffer:Buffer.from(bytes)});
+  await page.getByRole('button',{name:'See flat artwork',exact:true}).click();
   const clearProof=page.getByAltText('Front flat artwork without guides',{exact:true});await clearProof.waitFor({timeout:60000});await clearProof.evaluate(img=>img.decode());
   assert.equal(await clearProof.evaluate(img=>{const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);return ctx.getImageData(Math.floor(c.width/2),Math.floor(c.height*.8),1,1).data[3];}),0,'Clear acrylic must preserve transparent regions inside the PDF page');
  });
