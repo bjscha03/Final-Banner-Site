@@ -973,6 +973,8 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
         : 'The server found updated pricing, but this cart could not be updated safely. Refresh checkout before paying.'), {
         code: 'STALE_CART_TOTAL',
         canonicalQuoteApplied: applied,
+        expectedTotalCents: total, serverTotalCents,
+        requestId: response.headers.get('x-nf-request-id') || undefined,
       });
     }
     if (
@@ -1092,7 +1094,11 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           return;
         }
         const message = humanizeStripeError(error);
-        trackCheckoutDiagnostic('provider_error', { provider: 'stripe', method, code: error?.code || error?.details?.providerCode });
+        trackCheckoutDiagnostic('provider_error', { provider: 'stripe', method, code: error?.code || error?.details?.providerCode }, {
+          expectedTotalCents: error?.expectedTotalCents, serverTotalCents: error?.serverTotalCents,
+          canonicalQuoteApplied: error?.canonicalQuoteApplied, requestId: error?.requestId,
+          stage: error?.code === 'STALE_CART_TOTAL' ? 'price_review_before_charge' : 'payment_submission',
+        });
         resetForRetry(message);
         onError(Object.assign(new Error(message), {
           userMessage: message,

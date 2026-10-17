@@ -89,3 +89,15 @@ it('preserves exact upload sizes and validation evidence through the admin repor
   const saved = normalizeReport({ ...body(), details: { phase: 'validation', status: 413, fileBytes: 400000000, fileLimitBytes: 314572800, errorMessage: 'File exceeds upload limit' } }, 'Mobile Safari', 'deploy-test')!;
   expect(saved.details).toEqual({ phase: 'validation', status: 413, fileBytes: 400000000, fileLimitBytes: 314572800, errorMessage: 'File exceeds upload limit' });
 });
+
+it('requires fix evidence to resolve and preserves it when reopened', async () => {
+  const event = normalizeReport(body(), '', 'deploy-test')!; await saveIssue(mocks.store, event);
+  const update = { key: issueKey(event), status: 'resolved' };
+  expect((await admin(request('PATCH', update, { authorization: 'test-token' }), context)).status).toBe(400);
+  const resolution = 'Compatible PDF API and worker; real PDF verified without Promise.withResolvers.';
+  expect((await admin(request('PATCH', { ...update, resolution }, { authorization: 'test-token' }), context)).status).toBe(200);
+  expect(mocks.records.get(update.key)).toMatchObject({ status: 'resolved', resolution, details: event.details });
+  expect(mocks.records.get(update.key).resolvedAt).toBeTruthy();
+  await admin(request('PATCH', { ...update, status: 'new' }, { authorization: 'test-token' }), context);
+  expect(mocks.records.get(update.key)).toMatchObject({ status: 'new', resolution, resolvedAt: null });
+});

@@ -399,15 +399,13 @@ for (const scenario of ["guest", "new-account", "empty-wallet", "pending-only"] 
   });
 }
 
-test("current desktop navigation and compact mobile banner headers are preserved", async ({ page }, info) => {
+test("storefront navigation is preserved and only Google Ads has a compact header", async ({ page }, info) => {
   await mock(page);
   const mobile = info.project.name.includes("portrait");
   for (const path of ["/design", "/design?product=yard-sign", "/double-sided-banners", "/large-banners-fast", "/fall-festival-banners", "/bof-cash-test", "/canva-test", "/design/canva-editor", "/pdf-diagnostic", "/missing-page", "/google-ads-banner"]) {
     await page.goto(path);
-    // Current main uses a logo/cart header on mobile banner designers and
-    // Google Ads, while large/festival and other routes keep full navigation.
-    const compactHeader = path === "/google-ads-banner"
-      || (mobile && ["/design", "/double-sided-banners"].includes(path));
+    // Storefront routes retain navigation; only the Google Ads landing page omits it.
+    const compactHeader = path === "/google-ads-banner";
     await expect(page.getByRole("button", { name: "Shopping cart", exact: true }), path).toBeVisible();
     if (compactHeader) {
       await expect(page.getByRole("navigation", { name: "Primary navigation" }), path).toHaveCount(0);

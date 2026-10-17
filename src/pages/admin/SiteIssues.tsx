@@ -16,6 +16,7 @@ export default function SiteIssues() {
   const result = useSiteIssues(allowed);
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState('new');
+  const [resolutionNotes, setResolutionNotes] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
   const [actionError, setActionError] = useState('');
@@ -23,10 +24,10 @@ export default function SiteIssues() {
   const issues = result.data?.issues || [];
   const newIssues = issues.filter(i => i.status === 'new' && i.traffic === 'customer');
   const displayed = issues.filter(i => filter === 'tests' ? i.traffic === 'test' : filter === 'all' ? i.traffic === 'customer' : i.traffic === 'customer' && i.status === 'new');
-  async function review(issue: IssueRow) {
+  async function review(issue: IssueRow, status: 'new' | 'reviewed' | 'resolved' = issue.status === 'new' ? 'reviewed' : 'new') {
     setBusy(issue.id); setActionError('');
     try {
-      const response = await adminFetch('/.netlify/functions/admin-site-issues', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: issue.key, status: issue.status === 'new' ? 'reviewed' : 'new' }) });
+      const response = await adminFetch('/.netlify/functions/admin-site-issues', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: issue.key, status, resolution: resolutionNotes[issue.id] || issue.resolution || '' }) });
       if (!response.ok) throw new Error('Could not update this issue. Please retry.');
       await queryClient.invalidateQueries({ queryKey: SITE_ISSUES_QUERY });
     } catch (error) { setActionError(error instanceof Error ? error.message : 'Could not update issue.'); }
@@ -64,9 +65,16 @@ export default function SiteIssues() {
     {!result.isPending && !result.isError && !displayed.length && <div className="rounded-xl border bg-white p-8 text-center text-slate-600">No reports in this view. Monitoring records new issues from the time it was enabled.</div>}
     <div className="space-y-4">{displayed.map(issue => <article key={issue.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-bold text-[#0B1F3A]">{ISSUE_LABELS[issue.kind]}</h2><p className="mt-1 text-sm text-slate-600">{new Date(issue.occurredAt).toLocaleString()} · {issue.device} · {issue.browser} / {issue.os}</p></div>
-        <Button size="sm" variant="outline" disabled={busy === issue.id} onClick={() => void review(issue)}><Check className="mr-1 h-4 w-4" />{issue.status === 'new' ? 'Mark reviewed' : 'Reopen'}</Button></div>
-      <div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded bg-slate-100 px-2 py-1">{issue.page}</span><span className="rounded bg-slate-100 px-2 py-1">{issue.status === 'reviewed' ? 'Reviewed' : 'Needs review'}</span>{issue.traffic === 'test' && <span className="rounded bg-violet-100 px-2 py-1 text-violet-900">Test traffic</span>}{!issue.online && <span className="rounded bg-amber-100 px-2 py-1">Browser was offline</span>}</div>
+        <Button size="sm" variant="outline" disabled={!!busy} onClick={() => void review(issue)}><Check className="mr-1 h-4 w-4" />{issue.status === 'new' ? 'Mark reviewed' : 'Reopen'}</Button></div>
+      <div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded bg-slate-100 px-2 py-1">{issue.page}</span><span className="rounded bg-slate-100 px-2 py-1">{issue.status === 'resolved' ? 'Resolved' : issue.status === 'reviewed' ? 'Reviewed — not yet resolved' : 'Needs review'}</span>{issue.traffic === 'test' && <span className="rounded bg-violet-100 px-2 py-1 text-violet-900">Test traffic</span>}{!issue.online && <span className="rounded bg-amber-100 px-2 py-1">Browser was offline</span>}</div>
       {issue.details.errorMessage === 'Script error.' && !issue.details.source && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">The browser withheld the script name and error details. This report alone cannot identify the cause or confirm a fix; keep it open until the problem can be reproduced.</p>}
+      {issue.resolution && <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm text-slate-900"><strong>{issue.status === 'resolved' ? 'Resolution: ' : 'Investigation: '}</strong>{issue.resolution}{issue.resolvedAt && <span className="block text-xs">Resolved {new Date(issue.resolvedAt).toLocaleString()}</span>}</p>}
+      {issue.status !== 'resolved' && <div className="mt-3 flex flex-col gap-2">
+        <label htmlFor={`resolution-${issue.id}`} className="text-sm font-semibold">Fix and verification notes</label>
+        <textarea id={`resolution-${issue.id}`} className="min-h-20 rounded border p-2 text-sm" maxLength={1500} placeholder="What caused it, what changed, and how the fix was verified" value={resolutionNotes[issue.id] || ''} onChange={event => setResolutionNotes(notes => ({ ...notes, [issue.id]: event.target.value }))} />
+        <Button className="self-start" variant="outline" size="sm" disabled={!!busy || !(resolutionNotes[issue.id] || '').trim()} onClick={() => void review(issue, 'new')}>Save investigation notes</Button>
+        <Button className="self-start" size="sm" disabled={!!busy || (resolutionNotes[issue.id] || '').trim().length < 20} onClick={() => void review(issue, 'resolved')}>Mark resolved</Button>
+      </div>}
       <details className="mt-4 text-sm"><summary className="cursor-pointer font-semibold text-[#18448D]">Diagnostic details</summary><dl className="mt-3 grid gap-2 sm:grid-cols-2">{Object.entries({ ...issue.details, connection: issue.online ? 'Online' : 'Offline', received: issue.receivedAt, session: issue.sessionId, report: issue.id, deploy: issue.deployId }).map(([key, value]) => <div key={key} className="min-w-0 rounded bg-slate-50 p-2"><dt className="text-xs font-semibold text-slate-500">{key}</dt><dd className="whitespace-pre-wrap break-words font-mono text-xs text-slate-800">{String(value)}</dd></div>)}</dl></details>
     </article>)}</div>
     <p className="mt-6 text-xs leading-5 text-slate-500">A report signals a problem to investigate; it does not prove a lost order. Browser reports may arrive after connectivity returns. If a browser cannot run the site or contact the server, a report may not arrive. This page does not send email or push alerts.</p>

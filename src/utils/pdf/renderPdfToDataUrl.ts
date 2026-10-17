@@ -1,5 +1,4 @@
-import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import * as pdfjsLib from '@/utils/pdf/pdfRuntime';
 
 export type PdfPreviewResult = {
   previewUrl: string;
@@ -41,7 +40,6 @@ const DEFAULT_TIMEOUT_MS = 45_000;
 const PREVIEW_MIME_TYPE = 'image/jpeg';
 const PREVIEW_QUALITY = 0.9;
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 const isPdfFile = (file: File) =>
   file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');

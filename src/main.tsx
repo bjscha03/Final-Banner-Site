@@ -1,3 +1,4 @@
+import { reportPageIssue } from '@/lib/siteIssueReporter';
 import { FormEvent, useMemo, useState } from 'react';
 import { createRoot, hydrateRoot } from 'react-dom/client';
 import App from './App.tsx';
@@ -176,7 +177,9 @@ const rootElement = document.getElementById('root')!;
 const canHydrate = document.documentElement.dataset.prerendered === 'true' && RootComponent === App;
 
 if (canHydrate) {
-  hydrateRoot(rootElement, <RootComponent />);
+  hydrateRoot(rootElement, <RootComponent />, {
+    onRecoverableError: (error, info) => reportPageIssue('page_error', error, undefined, undefined, undefined, info.componentStack || undefined),
+  });
 } else {
   if (rootElement.hasChildNodes()) rootElement.replaceChildren();
   createRoot(rootElement).render(<RootComponent />);

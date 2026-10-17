@@ -1,7 +1,6 @@
 // Comprehensive PDF.js diagnostic test to identify parsing issues
-import { GlobalWorkerOptions } from 'pdfjs-dist';
+import { GlobalWorkerOptions } from '@/utils/pdf/pdfRuntime';
 
-GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
 export interface DiagnosticResult {
   strategy: string;
@@ -86,7 +85,7 @@ async function testStrategy(strategyName: string, file: File, config: any): Prom
   try {
     console.log(`Testing strategy: ${strategyName}`);
     
-    const _pdfjsLib = await import('pdfjs-dist');
+    const _pdfjsLib = await import('@/utils/pdf/pdfRuntime');
     const arrayBuffer = await file.arrayBuffer();
     
     const loadingTask = (_pdfjsLib as any).getDocument({
