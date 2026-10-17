@@ -17,7 +17,7 @@ const CustomQuoteSection: React.FC = () => (
           <p className="mt-4 max-w-2xl text-base leading-7 text-slate-200">
             Use the custom quote form for unusual dimensions, large quantities, specialized finishing, or production planning.
           </p>
-          <Link to="/custom-quote" className="mt-7 inline-flex min-h-12 items-center justify-center gap-3 rounded-md bg-brand-orange px-6 py-3 font-extrabold uppercase text-brand-ink transition-colors hover:bg-brand-orange-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+          <Link to="/custom-quote" className="mt-7 inline-flex min-h-12 items-center justify-center gap-3 rounded-md bg-brand-orange px-6 py-3 font-extrabold uppercase text-white transition-colors hover:bg-brand-orange-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
             Request a custom quote <ArrowRight className="h-5 w-5" aria-hidden="true" />
           </Link>
         </div>

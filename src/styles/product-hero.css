@@ -5,8 +5,8 @@
 .product-hero-light h1 { margin-top: 15px; max-width: 650px; font-family: Inter, sans-serif; font-size: clamp(44px, 4.65vw, 78px); line-height: 1.04; letter-spacing: -.05em; font-weight: 750; text-wrap: balance; }
 .product-hero-description { margin-top: 20px; max-width: 550px; font-size: clamp(16px, 1.2vw, 19px); line-height: 1.6; color: #3e4c5d; }
 .product-hero-actions { display: flex; align-items: flex-start; flex-direction: column; gap: 14px; margin-top: 26px; }
-.product-hero-cta { display: inline-flex; align-items: center; justify-content: center; gap: 16px; min-height: 56px; padding: 14px 24px; border-radius: 6px; background: var(--brand-orange); color: var(--brand-ink); font-size: 17px; line-height: 1.4; font-weight: 650; transition: background-color .2s; }
-.product-hero-cta:hover { background: var(--brand-orange-hover); color: var(--brand-ink); }
+.product-hero-cta { display: inline-flex; align-items: center; justify-content: center; gap: 16px; min-height: 56px; padding: 14px 24px; border-radius: 6px; background: var(--brand-orange); color: white; font-size: 17px; line-height: 1.4; font-weight: 650; transition: background-color .2s; }
+.product-hero-cta:hover { background: var(--brand-orange-hover); color: white; }
 .product-hero-cta svg { width: 22px; height: 22px; flex-shrink: 0; }
 .product-hero-secondary { display: inline-flex; align-items: center; min-height: 44px; font-size: 15px; text-decoration: underline; text-underline-offset: 5px; }
 .product-hero-secondary:hover { color: #ae3e00; }

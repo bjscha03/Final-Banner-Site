@@ -213,7 +213,7 @@ const Footer: React.FC = () => {
                       ? 'bg-red-600 text-white hover:bg-red-700'
                       : isSubmitting
                       ? 'cursor-not-allowed bg-gray-500 text-white'
-                      : 'bg-brand-orange text-brand-ink hover:bg-brand-orange-hover'
+                      : 'bg-brand-orange text-white hover:bg-brand-orange-hover'
                   }`}
                 >
                   {isSubmitting ? (

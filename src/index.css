@@ -570,10 +570,9 @@
 
 @layer base {
   :root {
-    /* BOF CTA palette: navy labels keep vivid orange readable. */
+    /* BOF CTA palette: brand orange with white button labels. */
     --brand-orange: #FF6A00;
     --brand-orange-hover: #F06000;
-    --brand-ink: #061A31;
 
     --background: 0 0% 100%;
     --foreground: 216 68% 14%;
@@ -718,7 +717,7 @@
   .brand-button-primary,
   .btn-primary,
   .btn-hero-primary {
-    @apply inline-flex min-h-12 items-center justify-center rounded-md bg-brand-orange px-6 py-3 font-bold text-brand-ink shadow-none transition-colors duration-200 hover:bg-brand-orange-hover hover:text-brand-ink hover:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 active:bg-brand-orange-hover;
+    @apply inline-flex min-h-12 items-center justify-center rounded-md bg-brand-orange px-6 py-3 font-bold text-white shadow-none transition-colors duration-200 hover:bg-brand-orange-hover hover:text-white hover:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 active:bg-brand-orange-hover;
     background-image: none;
     transform: none;
   }

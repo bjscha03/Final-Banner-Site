@@ -190,7 +190,7 @@ const CustomQuote: React.FC = () => {
                 Your custom quote request number is <strong className="text-[#18448D]">{quoteNumber}</strong>.
               </p>
               <p className="mt-2 text-slate-600">Our team will review your project details and respond with pricing.</p>
-              <Button className="mt-6 bg-brand-orange hover:bg-brand-orange-hover text-brand-ink" asChild>
+              <Button className="mt-6 bg-brand-orange hover:bg-brand-orange-hover text-white" asChild>
                 <a href="/">Return Home</a>
               </Button>
             </div>
@@ -309,7 +309,7 @@ const CustomQuote: React.FC = () => {
           </div>
 
           <div className="sticky bottom-0 border border-slate-200 bg-white p-4 shadow-[0_-8px_24px_rgba(11,31,58,0.08)]">
-            <Button type="submit" disabled={submitting} className="w-full bg-brand-orange py-6 text-base font-bold hover:bg-brand-orange-hover text-brand-ink">
+            <Button type="submit" disabled={submitting} className="w-full bg-brand-orange py-6 text-base font-bold hover:bg-brand-orange-hover text-white">
               {submitting ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Submitting secure quote request…</> : 'Request a Custom Quote'}
             </Button>
           </div>

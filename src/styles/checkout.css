@@ -71,8 +71,8 @@
 .checkout-country { display: flex; gap: 14px; align-items: center; font-size: 13px; color: #334155; }
 .checkout-country p { display: flex; align-items: center; min-height: 44px; flex: 1; padding: 10px 12px; border: 1px solid #cdd6e2; border-radius: 5px; }
 .checkout-card-fields { padding-top: 16px; margin-top: 16px !important; border-top: 1px solid var(--checkout-border); }
-.checkout-page .checkout-pay-button { min-height: 48px; border-radius: 6px; background: var(--brand-orange); color: var(--brand-ink); font-size: 17px; font-weight: 700; box-shadow: none; }
-.checkout-page .checkout-pay-button:hover { background: var(--brand-orange-hover); color: var(--brand-ink); }
+.checkout-page .checkout-pay-button { min-height: 48px; border-radius: 6px; background: var(--brand-orange); color: white; font-size: 17px; font-weight: 700; box-shadow: none; }
+.checkout-page .checkout-pay-button:hover { background: var(--brand-orange-hover); color: white; }
 .checkout-page button:disabled { cursor: not-allowed; }
 .checkout-payment-note { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 12px; font-size: 10px; color: #64748b; }
 .checkout-payment-note svg { width: 12px; height: 12px; }

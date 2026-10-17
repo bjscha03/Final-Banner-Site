@@ -147,7 +147,7 @@ export default function LouisvilleOffer() {
           </p>
         )}
         <Button
-          className="mt-7 h-14 w-full bg-brand-orange text-base text-brand-ink"
+          className="mt-7 h-14 w-full bg-brand-orange text-base text-white"
           disabled={!offer?.valid}
           onClick={() => offer && start(offer)}
         >

@@ -573,7 +573,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                 isProcessing
                   ? 'cursor-not-allowed bg-gray-400 text-[#0B1F3A]'
                   : hasSelectedOptions
-                    ? 'bg-brand-orange text-brand-ink hover:bg-brand-orange-hover'
+                    ? 'bg-brand-orange text-white hover:bg-brand-orange-hover'
                     : 'bg-[#0B1F3A] text-white hover:bg-[#102A4C]'
               }`}
             >

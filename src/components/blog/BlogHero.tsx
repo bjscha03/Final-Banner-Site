@@ -54,7 +54,7 @@ export function BlogHero({ post }: BlogHeroProps) {
           <div className="mt-8 flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:gap-8">
             <a
               href="#article-library"
-              className="inline-flex min-h-[52px] items-center justify-center gap-3 rounded-md bg-brand-orange px-7 py-4 text-xs font-semibold tracking-[0.12em] text-brand-ink transition-colors hover:bg-brand-orange-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F45B08] focus-visible:ring-offset-2"
+              className="inline-flex min-h-[52px] items-center justify-center gap-3 rounded-md bg-brand-orange px-7 py-4 text-xs font-semibold tracking-[0.12em] text-white transition-colors hover:bg-brand-orange-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F45B08] focus-visible:ring-offset-2"
             >
               Explore all guides
               <ArrowRight className="h-5 w-5" aria-hidden="true" />

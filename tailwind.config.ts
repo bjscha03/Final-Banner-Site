@@ -24,7 +24,6 @@ export default {
         brand: {
           orange: 'var(--brand-orange)',
           'orange-hover': 'var(--brand-orange-hover)',
-          ink: 'var(--brand-ink)',
         },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
