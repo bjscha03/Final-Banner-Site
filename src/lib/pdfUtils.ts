@@ -1,7 +1,6 @@
-import * as pdfjsLib from 'pdfjs-dist';
+import * as pdfjsLib from '@/utils/pdf/pdfRuntime';
 
 // Configure PDF.js worker - use the version-specific CDN URL
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.mjs`;
 
 export interface PDFPreview {
   imageUrl: string;

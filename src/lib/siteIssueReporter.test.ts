@@ -76,3 +76,19 @@ it('captures actionable crash evidence and redacts sensitive URL data', async ()
   expect(sent.details.breadcrumbs).toContain('upload_success');
   expect(JSON.stringify(sent)).not.toContain('token=private');
 });
+
+it('deduplicates crashes despite intervening breadcrumbs', async () => {
+  const { reportSiteIssue, recordIssueAction } = await import('./siteIssueReporter');
+  reportSiteIssue('page_crash', { errorMessage: 'Unable to preload CSS for /assets/page.css' });
+  recordIssueAction('button_clicked');
+  reportSiteIssue('page_crash', { errorMessage: 'Unable to preload CSS for /assets/page.css' });
+  await vi.advanceTimersByTimeAsync(1);
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+it('preserves asset/request evidence and strips secrets', async () => {
+  const { issueDetails } = await import('./siteIssueSchema');
+  const details = issueDetails({ source: '/assets/page-123.css', requestId: '01M532TRJ5XEWWYC17T0V802B2', attempt: 3, chunkIndex: 4, canonicalQuoteApplied: true, password: 'secret', errorMessage: 'Unable to preload CSS for https://deploy.netlify.app/assets/page-123.css?token=secret' });
+  expect(details).toMatchObject({ source: '/assets/page-123.css', attempt: 3, chunkIndex: 4, canonicalQuoteApplied: true });
+  expect(details.errorMessage).toContain('/assets/page-123.css');
+  expect(JSON.stringify(details)).not.toMatch(/secret|password|token=/);
+});

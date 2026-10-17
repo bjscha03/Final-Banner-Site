@@ -37,7 +37,7 @@ export function sendArtworkChunk(url: string, body: Blob, token: string, signal:
     xhr.upload.onprogress = event => {
       if (event.lengthComputable && event.total > 0) onProgress?.(Math.min(1, event.loaded / event.total));
     };
-    xhr.onload = () => finish(() => resolve(new Response(xhr.responseText, { status: xhr.status })));
+    xhr.onload = () => finish(() => resolve(new Response(xhr.responseText, { status: xhr.status, headers: { 'x-nf-request-id': xhr.getResponseHeader?.('x-nf-request-id') || '' } })));
     xhr.onerror = () => finish(() => reject(new ArtworkUploadError('Artwork upload connection interrupted.', { phase: 'chunked', retryable: true })));
     xhr.ontimeout = () => finish(() => reject(new ArtworkUploadError('Artwork chunk timed out.', { phase: 'chunked', retryable: true })));
     xhr.onabort = () => finish(() => reject(new DOMException('Upload cancelled', 'AbortError')));
@@ -54,6 +54,7 @@ async function request(action: string, body: BodyInit, options: UploadArtworkOpt
   for (let attempt = 1; attempt <= 3; attempt++) {
     if (options.signal?.aborted) throw new DOMException('Upload cancelled', 'AbortError');
     options.onAttempt?.(attempt, 3);
+    let requestId = '';
     try {
       // Control requests must fail before the page's idle watchdog so retries
       // can run. Include response parsing: abort alone may leave it pending.
@@ -67,11 +68,13 @@ async function request(action: string, body: BodyInit, options: UploadArtworkOpt
         const data = await response.json().catch(() => ({}));
         return { response, data };
       }, action === 'start' ? 30_000 : action === 'complete' ? 90_000 : 120_000, options.signal);
+      requestId = response.headers.get('x-nf-request-id') || '';
       if (!response.ok) throw new ArtworkUploadError(data.error || `Artwork upload failed (${response.status}).`, {
         phase: 'chunked', status: response.status, retryable: response.status >= 500 || response.status === 408 || response.status === 429,
       });
       return data;
     } catch (error) {
+      if (error instanceof ArtworkUploadError) error.evidence = { operation: action, attempt, ...(index != null ? { chunkIndex: index } : {}), ...(requestId ? { requestId } : {}) };
       if (options.signal?.aborted || attempt === 3 || (error instanceof ArtworkUploadError && !error.retryable)) throw error;
       await new Promise(resolve => window.setTimeout(resolve, 600 * attempt));
     }

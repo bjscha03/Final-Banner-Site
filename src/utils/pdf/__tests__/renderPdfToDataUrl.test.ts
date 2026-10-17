@@ -39,7 +39,7 @@ const {
   };
 });
 
-vi.mock('pdfjs-dist', () => mockPdfjsLib);
+vi.mock('@/utils/pdf/pdfRuntime', () => mockPdfjsLib);
 vi.mock('pdfjs-dist/build/pdf.worker.min.mjs?url', () => ({
   default: '/assets/pdf.worker.min.mjs',
 }));

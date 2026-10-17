@@ -88,6 +88,7 @@ export class ArtworkUploadError extends Error {
   phase: ArtworkUploadPhase;
   status: number | null;
   retryable: boolean;
+  evidence?: Record<string, string | number>;
 
   constructor(
     message: string,
@@ -141,6 +142,7 @@ export function getArtworkUploadEvidence(error: unknown, file: Pick<File, 'name'
   const err = error instanceof Error ? error : null;
   const message = err?.message || (typeof error === 'string' ? error : 'Artwork operation failed');
   return {
+    ...(error instanceof ArtworkUploadError ? error.evidence || {} : {}),
     fileBytes: file.size,
     fileLimitBytes: MAX_ARTWORK_BYTES,
     errorName: err?.name || 'Error',
