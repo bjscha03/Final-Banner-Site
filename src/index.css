@@ -122,6 +122,51 @@
   color: #475569;
 }
 
+/* On phones, show every value with its heading instead of hiding columns offscreen. */
+@media screen and (max-width: 639px) {
+  .blog-table-cards .blog-table-hint { display: none; }
+  .blog-table-cards .blog-table-scroll { border: 0; border-radius: 0; overflow: visible; }
+  .blog-article table[data-mobile-cards] { display: block; }
+  .blog-article table[data-mobile-cards] thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .blog-article table[data-mobile-cards] tbody { display: grid; gap: 1rem; }
+  .blog-article table[data-mobile-cards] tbody tr {
+    display: block;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background: #fff;
+  }
+  .blog-article table[data-mobile-cards] td {
+    display: block;
+    width: auto;
+    min-width: 0;
+    padding: 0.75rem 1rem;
+    border: 0;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+  }
+  .blog-article table[data-mobile-cards] td + td { border-top: 1px solid #e2e8f0; }
+  .blog-article table[data-mobile-cards] td:first-child { background: #f1f5f9; }
+  .blog-article table[data-mobile-cards] td::before {
+    content: attr(data-column-label);
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #18448d;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+}
+
 @media print {
   .blog-table-hint { display: none; }
   .blog-table-scroll { overflow: visible; }
