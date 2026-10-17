@@ -86,7 +86,7 @@ test('mobile navigation stays usable after opening from a scrolled page', async 
 
 test('specialty catalog exposes every family with an indexable canonical', async ({ page }) => {
   await page.goto('/products', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('heading', { level: 1, name: 'Make the entire space yours.' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Show up. Stand out.' })).toBeVisible();
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'index, follow');
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://bannersonthefly.com/products');
   await expect(page.locator('a[href^="/products/"]').filter({ has: page.locator('h3') })).toHaveCount(19);
