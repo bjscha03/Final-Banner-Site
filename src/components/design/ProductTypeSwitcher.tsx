@@ -75,7 +75,7 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({ productType, 
                 className="absolute inset-0"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#061A31] via-transparent to-transparent" aria-hidden="true" />
-              {option.type === 'banner' && <span className="absolute left-4 top-4 bg-[#C94008] px-3 py-2 text-xs font-black uppercase tracking-wide">Most popular</span>}
+              {option.type === 'banner' && <span className="absolute left-4 top-4 bg-brand-orange px-3 py-2 text-xs font-black uppercase tracking-wide text-brand-ink">Most popular</span>}
               {active && <><span className="pointer-events-none absolute inset-0 z-10 border-4 border-[#FF6A00]" aria-hidden="true" /><CheckCircle2 className="absolute right-4 top-4 h-9 w-9 rounded-full bg-[#FF6A00] text-white" aria-label="Selected" /></>}
               <div className="absolute inset-x-0 bottom-0 p-5 lg:p-6">
                 <p className="homepage-condensed text-3xl font-black uppercase leading-none lg:text-4xl">{option.label}</p>

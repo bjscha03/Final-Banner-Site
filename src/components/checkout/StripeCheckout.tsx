@@ -1519,7 +1519,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           <Button
             type="button"
             size="lg"
-            className="checkout-pay-button h-12 w-full bg-[#ec5700] text-base font-bold text-white hover:bg-[#c94e00] focus-visible:ring-[#18448D]"
+            className="checkout-pay-button h-12 w-full bg-brand-orange text-base font-bold text-brand-ink hover:bg-brand-orange-hover focus-visible:ring-[#18448D]"
             disabled={disabled || busy || !stripe || !elements}
             onClick={() => void submitCard()}
           >

@@ -447,7 +447,7 @@ export default function LouisvilleOutreach() {
                     ))}
                   </div>
                   <Button
-                    className="mt-4 bg-[#c94e00]"
+                    className="mt-4 bg-brand-orange text-brand-ink"
                     disabled={
                       busy ||
                       data?.preview ||
@@ -616,7 +616,7 @@ export default function LouisvilleOutreach() {
                   </Button>
                 </div>
                 <Button
-                  className="bg-[#c94e00]"
+                  className="bg-brand-orange text-brand-ink"
                   disabled={
                     busy ||
                     !selected.length ||
@@ -804,7 +804,7 @@ export default function LouisvilleOutreach() {
               <Button variant="outline" onClick={() => setConfirm(false)}>
                 Cancel
               </Button>
-              <Button className="bg-[#c94e00]" onClick={send}>
+              <Button className="bg-brand-orange text-brand-ink" onClick={send}>
                 Send {selectedContacts.length} invitations
               </Button>
             </div>

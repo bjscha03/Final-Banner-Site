@@ -22,10 +22,10 @@
 .homepage-hero-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; margin-top: 26px; }
 .homepage-hero-primary {
   display: inline-flex; align-items: center; justify-content: center; gap: 16px;
-  min-height: 58px; padding: 14px 26px; border-radius: 6px; background: #c94e00; color: white;
+  min-height: 58px; padding: 14px 26px; border-radius: 6px; background: var(--brand-orange); color: var(--brand-ink);
   font-size: clamp(16px, 1.3vw, 21px); font-weight: 650; transition: background-color .2s;
 }
-.homepage-hero-primary:hover { background: #ae3e00; color: white; }
+.homepage-hero-primary:hover { background: var(--brand-orange-hover); color: var(--brand-ink); }
 .homepage-hero-primary svg { width: 24px; height: 24px; }
 .homepage-hero-secondary {
   display: inline-flex; align-items: center; min-height: 44px; color: #061a31;
@@ -33,7 +33,7 @@
   text-underline-offset: 6px; text-decoration-thickness: 1px;
 }
 .homepage-hero-secondary:hover { color: #b84300; }
-.homepage-hero-actions a:focus-visible { outline: 3px solid #c94e00; outline-offset: 5px; }
+.homepage-hero-actions a:focus-visible { outline: 3px solid var(--brand-orange); outline-offset: 5px; }
 .homepage-hero-photo { position: absolute; inset: 0 0 0 34%; z-index: 0; overflow: hidden; }
 .homepage-hero-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .homepage-hero-photo::after {

@@ -40,7 +40,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           )}
 
           <div className={`mt-7 ${centered ? 'flex justify-center' : ''}`}>
-            <div className="h-1 w-16 bg-[#c94e00]" />
+            <div className="h-1 w-16 bg-brand-orange text-brand-ink" />
           </div>
           <div className={`mt-7 ${centered ? 'flex justify-center' : ''}`}>
             <HeroDeliveryStatus variant="light" className="w-full max-w-[570px] text-left" />

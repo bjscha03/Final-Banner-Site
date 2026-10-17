@@ -39,7 +39,7 @@ const ProductSelectionStrip: React.FC = () => {
             >
               <ProductVisual productSlug={product.slug} presentation="card" className="absolute inset-0" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#061A31] via-transparent to-transparent" aria-hidden="true" />
-              {product.slug === 'vinyl-banners' && <span className="absolute left-4 top-4 bg-[#C94008] px-3 py-2 text-xs font-black uppercase tracking-wide">Most popular</span>}
+              {product.slug === 'vinyl-banners' && <span className="absolute left-4 top-4 bg-brand-orange px-3 py-2 text-xs font-black uppercase tracking-wide text-brand-ink">Most popular</span>}
               <div className="absolute inset-x-0 bottom-0 p-5 lg:p-6">
                 <h3 className="homepage-condensed [--homepage-mobile-size:2.5rem] text-3xl font-black uppercase leading-none lg:text-4xl">{product.title}</h3>
                 <p className="mt-2 text-sm">{product.details}</p>

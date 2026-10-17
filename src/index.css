@@ -286,7 +286,7 @@
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-xl px-5 py-3 font-semibold text-white bg-gradient-to-r from-orange-500 via-orange-600 to-red-500 hover:from-orange-600 hover:via-red-500 hover:to-red-600 shadow-xl shadow-orange-500/40 hover:shadow-2xl hover:shadow-orange-500/50 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 transform hover:scale-105 hover:-translate-y-1 active:scale-95;
+    @apply inline-flex items-center justify-center rounded-xl px-5 py-3 font-semibold text-white bg-brand-orange hover:bg-brand-orange-hover shadow-xl shadow-orange-500/40 hover:shadow-2xl hover:shadow-orange-500/50 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 transform hover:scale-105 hover:-translate-y-1 active:scale-95;
   }
 
   .btn-outline {
@@ -294,7 +294,7 @@
   }
 
   .btn-hero-primary {
-    @apply inline-flex items-center justify-center rounded-2xl px-8 py-4 font-bold text-white bg-gradient-to-r from-orange-500 via-orange-600 to-red-500 hover:from-orange-600 hover:via-red-500 hover:to-red-600 shadow-2xl shadow-orange-500/50 hover:shadow-2xl hover:shadow-orange-500/60 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 transform hover:scale-110 hover:-translate-y-2 active:scale-95 relative overflow-hidden;
+    @apply inline-flex items-center justify-center rounded-2xl px-8 py-4 font-bold text-white bg-brand-orange hover:bg-brand-orange-hover shadow-2xl shadow-orange-500/50 hover:shadow-2xl hover:shadow-orange-500/60 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 transform hover:scale-110 hover:-translate-y-2 active:scale-95 relative overflow-hidden;
   }
 
   .btn-hero-primary::before {
@@ -570,6 +570,11 @@
 
 @layer base {
   :root {
+    /* BOF CTA palette: navy labels keep vivid orange readable. */
+    --brand-orange: #FF6A00;
+    --brand-orange-hover: #F06000;
+    --brand-ink: #061A31;
+
     --background: 0 0% 100%;
     --foreground: 216 68% 14%;
 
@@ -713,7 +718,8 @@
   .brand-button-primary,
   .btn-primary,
   .btn-hero-primary {
-    @apply inline-flex min-h-12 items-center justify-center rounded-md bg-[#C94E00] px-6 py-3 font-bold text-white shadow-none transition-colors duration-200 hover:bg-[#B84300] hover:text-white hover:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 active:bg-[#B84300];
+    @apply inline-flex min-h-12 items-center justify-center rounded-md bg-brand-orange px-6 py-3 font-bold text-brand-ink shadow-none transition-colors duration-200 hover:bg-brand-orange-hover hover:text-brand-ink hover:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 active:bg-brand-orange-hover;
+    background-image: none;
     transform: none;
   }
 
