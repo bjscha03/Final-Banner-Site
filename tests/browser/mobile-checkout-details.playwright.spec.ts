@@ -12,7 +12,12 @@ test('contact and delivery details are visible before either payment method', as
 
   await expect(checkoutHeader).toBeVisible();
   await expect(checkoutHeader).toContainText('Secure checkout');
-  await expect(page.locator('nav[aria-label="Primary navigation"]')).toHaveCount(0);
+  await expect(checkoutHeader.getByRole('link', { name: 'Banners On The Fly', exact: true })).toHaveAttribute('href', '/');
+  if ((page.viewportSize()?.width ?? 1024) < 1024) {
+    await expect(checkoutHeader.getByRole('button', { name: 'Open navigation menu' })).toBeVisible();
+  } else {
+    await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();
+  }
   await expect(page.getByLabel('Email address for newsletter')).toHaveCount(0);
   await expect(contactHeading).toBeVisible({ timeout: 20_000 });
   await expect(firstName).toBeVisible();

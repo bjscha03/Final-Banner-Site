@@ -29,6 +29,26 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test('storefront mobile navigation opens, returns home, and stays off the Google Ads route', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 1024) >= 1024, 'Mobile navigation');
+  for (const route of ['/design', '/design?product=banner', '/design?product=vinyl-banners', '/design?product=yard-signs', '/design?product=car-magnets']) {
+    await page.goto(route, { waitUntil: 'domcontentloaded' });
+    const header = page.locator('[data-site-header]');
+    await expect(header.getByRole('link', { name: 'Banners On The Fly', exact: true })).toHaveAttribute('href', '/');
+    await header.getByRole('button', { name: 'Open navigation menu' }).click();
+    const menu = page.getByRole('navigation', { name: 'Mobile navigation' });
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole('link', { name: 'Yard Signs', exact: true })).toBeVisible();
+    await menu.getByRole('link', { name: 'Home', exact: true }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(menu).toHaveCount(0);
+  }
+  await page.goto('/google-ads-banner?product=banner', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('[data-site-header]')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open navigation menu' })).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toHaveCount(0);
+});
+
 for (const route of ROUTES) {
   test(`${route} keeps the timer and mobile footer consistent`, async ({ page }) => {
     await page.goto(route, { waitUntil: 'domcontentloaded' });

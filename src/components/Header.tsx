@@ -14,12 +14,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 interface HeaderProps {
+  checkoutMode?: boolean;
   compactMobile?: boolean;
   cartCount?: number;
   onCartClick?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobile = false }) => {
+const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobile = false, checkoutMode = false }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const { user, loading, signOut } = useAuth();
@@ -92,6 +93,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
   return (
     <header
       data-site-header
+      {...(checkoutMode ? { 'data-checkout-header': '' } : {})}
       {...(isHomepage ? { 'data-homepage-header': '' } : {})}
       className={isHomepage
         ? 'relative z-50 border-b border-[#e5dfd6] bg-white text-[#061A31]'
@@ -260,6 +262,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
                 className={isHomepage ? 'h-10 w-auto max-w-[205px] object-contain sm:h-12 sm:max-w-[260px] lg:h-[58px]' : compactMobile ? 'h-8 w-auto max-w-[175px] object-contain sm:max-w-[220px] lg:h-[54px]' : 'h-10 w-auto max-w-[205px] object-contain sm:h-12 sm:max-w-[250px] lg:h-[54px]'}
               />
             </ScrollToTopLink>
+            {checkoutMode && <p className="text-center text-[10px] font-semibold text-slate-600">Secure checkout</p>}
           </div>
 
           <nav className="hidden items-center gap-3 xl:gap-4 2xl:gap-6 lg:flex" aria-label="Primary navigation">
