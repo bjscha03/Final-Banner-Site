@@ -5,18 +5,18 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/store/cart', () => ({ useCartStore: () => ({ getItemCount: () => 1 }) }));
 vi.mock('@/store/ui', () => ({ useUIStore: () => ({ isCartOpen: false, setIsCartOpen: vi.fn() }) }));
-vi.mock('./Header', () => ({ default: () => <nav>Store navigation</nav> }));
+vi.mock('./Header', () => ({ default: ({ checkoutMode }: { checkoutMode?: boolean }) => <nav data-checkout-mode={checkoutMode ? 'true' : 'false'}>Store navigation</nav> }));
 vi.mock('./Footer', () => ({ default: () => <footer>Store footer</footer> }));
 vi.mock('./CartModal', () => ({ default: () => null }));
 vi.mock('./ScrollToTop', () => ({ default: () => null }));
 import Layout from './Layout';
 
 describe('checkout navigation', () => {
-  it.each([undefined, true])('removes the store menu during all checkout states (mode %s)', (checkoutMode) => {
+  it.each([undefined, true])('keeps navigation and passes checkout mode during all checkout states (mode %s)', (checkoutMode) => {
     const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/checkout']}><Layout checkoutMode={checkoutMode}>Checkout content</Layout></MemoryRouter>);
-    expect(html).toContain('Secure checkout');
-    expect(html).toContain('Banners On The Fly');
-    expect(html).not.toContain('Store navigation');
+    expect(html).toContain('Secure encrypted checkout');
+    expect(html).toContain('data-checkout-mode="true"');
+    expect(html).toContain('Store navigation');
     expect(html).not.toContain('Store footer');
     expect(html).toContain('Checkout help');
   });

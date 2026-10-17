@@ -832,16 +832,16 @@ describe('sitewide orange button contrast', () => {
   it('uses white text on an accessible orange for shared button styles', () => {
     const button = fs.readFileSync(path.resolve(__dirname, '../../../src/components/ui/button.tsx'), 'utf8');
     const styles = fs.readFileSync(path.resolve(__dirname, '../../../src/index.css'), 'utf8');
-    const orange = '#C94E00';
+    const orange = styles.match(/--brand-orange:\s*(#[A-Fa-f0-9]{6})/)[1];
     const channels = orange.match(/[a-f\d]{2}/gi).map((channel) => Number.parseInt(channel, 16) / 255);
     const linear = channels.map((channel) => (
       channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
     ));
     const luminance = (0.2126 * linear[0]) + (0.7152 * linear[1]) + (0.0722 * linear[2]);
 
-    expect(button).toContain(`bg-[${orange}] text-white`);
-    expect(button).not.toContain(`bg-[${orange}] text-[#0B1F3A]`);
-    expect(styles).toMatch(/\.brand-button-primary,[\s\S]*?bg-\[#C94E00\][\s\S]*?text-white/);
+    expect(button).toContain('bg-brand-orange text-white');
+    expect(button).not.toContain('bg-brand-orange text-[#0B1F3A]');
+    expect(styles).toMatch(/\.brand-button-primary,[\s\S]*?bg-brand-orange[\s\S]*?text-white/);
     expect(1.05 / (luminance + 0.05)).toBeGreaterThanOrEqual(4.5);
   });
 });
