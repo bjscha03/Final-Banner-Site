@@ -141,7 +141,7 @@ const PRESET_SIZES = [
 
 const FastBannerAdHero: React.FC<{ onStart: () => void; halloween?: boolean }> = ({ onStart, halloween = false }) => (
   <LightProductHero
-    attributes={{ 'data-google-ads-hero': true }}
+    attributes={{ 'data-google-ads-hero': true, 'data-halloween-hero': halloween }}
     productSlug="vinyl-banners"
     eyebrow={halloween ? "Custom Halloween banners for parties, haunted houses & trunk-or-treats." : "Beautiful custom banners. Made for your next big moment."}
     title={halloween ? "Halloween banners. Without the wait." : "Custom banners. Without the wait."}
