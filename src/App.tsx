@@ -177,7 +177,7 @@ export const RoutedApplication = () => (
             <Route path="/design" element={<Design />} />
             {/* Legacy design-editor route — redirect to /design to prevent old designer page from loading */}
             <Route path="/design-editor" element={<Navigate to="/design" replace />} />
-            <Route path="/halloween-banner" element={<Design />} />
+            <Route path="/halloween-banner" element={<><PromoBanner /><GoogleAdsBanner key="halloween-banner" /></>} />
             <Route path="/design/complete" element={<DesignComplete />} />
             <Route path="/design/canva-editor" element={<Layout><CanvaEditor /></Layout>} />
             <Route path="/canva-test" element={<Layout><CanvaTest /></Layout>} />

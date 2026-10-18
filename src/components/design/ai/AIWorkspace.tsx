@@ -830,13 +830,13 @@ function AIWorkspaceSession(props: Props) {
           {!concepts.length && !stage && !pendingImageJob && !progressPreview && <div className="ai-studio-empty">
             {props.productType==='banner'?<img
               className="ai-studio-banner-showcase"
-              src="/images/ai-studio-banner-showcase-1774.webp"
-              srcSet="/images/ai-studio-banner-showcase-960.webp 960w, /images/ai-studio-banner-showcase-1774.webp 1774w"
+              src="/images/product-heroes/halloween-banner-1440.webp"
+              srcSet="/images/product-heroes/halloween-banner-640.webp 640w, /images/product-heroes/halloween-banner-1440.webp 1440w"
               sizes="(max-width: 800px) calc(100vw - 50px), (max-width: 1100px) calc(100vw - 390px), (max-width: 1599px) calc(100vw - 440px), calc(100vw - 480px)"
-              width={1774}
-              height={887}
+              width={1440}
+              height={960}
               decoding="async"
-              alt="Crosby Cougars volleyball and Anderson Construction designs displayed as finished vinyl banners with metal grommets and reinforced hems. A little imagination. A big impression."
+              alt="Happy Halloween witch-and-pumpkin design displayed as a realistic finished vinyl banner with metal grommets and reinforced hems."
             />:context.product&&context.template?<div className="w-full max-w-xl p-6" data-testid="ai-product-example"><SpecialtyPreview product={context.product} variant={context.variant} template={context.template}/><p className="mt-4 font-bold text-white">{context.label}</p><p className="mt-1 text-sm text-slate-300">{formatDimension(brief.widthIn)} × {formatDimension(brief.heightIn)} print panel</p></div>:<div className="p-10 text-2xl font-bold">Your {context.noun} · {formatDimension(brief.widthIn)} × {formatDimension(brief.heightIn)}</div>}
             <p>Tell us what you have in mind.<br />We’ll create artwork for your selected {context.noun}.</p>
             <span className="ai-studio-empty-hint"><ArrowLeft className="h-4 w-4" /> Start with your description</span>
