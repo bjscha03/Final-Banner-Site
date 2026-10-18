@@ -33,9 +33,10 @@ export async function handler(event) {
       } catch { /* Regenerate an unavailable cached derivative from the original. */ }
     }
     const result = await production.renderAiProductionImage(item);
+    if (result.buffer.length > 20 * 1024 * 1024) throw new Error('This artwork exceeds the image storage limit. The original artwork is available.');
     cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET, secure: true });
     const upload = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream({ resource_type: 'raw', type: 'upload',
+      const stream = cloudinary.uploader.upload_stream({ resource_type: 'raw', type: 'upload', disable_promises: true,
         public_id: `production-images/${item.id}-${plan.hash.slice(0, 16)}-${item.width_in}x${item.height_in}in-${production.DPI}dpi.jpg`, overwrite: false },
         (error, value) => error ? reject(error) : resolve(value));
       stream.end(result.buffer);

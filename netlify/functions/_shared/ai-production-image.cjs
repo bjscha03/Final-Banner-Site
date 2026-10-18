@@ -3,7 +3,7 @@ const crypto = require('node:crypto');
 const sharp = require('sharp');
 const { toStoredOriginalPrintScene } = require('./stored-original-print-scene.cjs');
 const { fetchBuffer } = require('./print-scene-renderer.cjs');
-const VERSION = 'ai-jpeg-full-size-200-v1';
+const VERSION = 'ai-jpeg-full-size-200-v2';
 const DPI = 200;
 const MAX_PIXELS = 180_000_000;
 const { isAiArtwork } = require('./ai-artwork-kind.cjs');
@@ -45,13 +45,13 @@ async function renderAiProductionImage(item, { fetchSource = fetchBuffer } = {})
     // Common AI fit case: one streaming resize avoids an extra full-canvas PNG.
     buffer = await sharp(original).resize(width, height, { fit: 'fill', kernel: 'lanczos3' })
       .flatten({ background: scene.backgroundColor || '#ffffff' }).withMetadata({ density: DPI })
-      .jpeg({ quality: 96, chromaSubsampling: '4:4:4' }).toBuffer();
+      .jpeg({ quality: 92, chromaSubsampling: '4:4:4' }).toBuffer();
   } else {
     const layer = await sharp(original).resize(placedWidth, placedHeight, { fit: 'fill', kernel: 'lanczos3' })
       .extract({ left: x0 - left, top: y0 - top, width: x1 - x0, height: y1 - y0 }).png().toBuffer();
     buffer = await sharp({ create: { width, height, channels: 3, background: scene.backgroundColor || '#ffffff' } })
       .composite([{ input: layer, left: x0, top: y0 }]).withMetadata({ density: DPI })
-      .jpeg({ quality: 96, chromaSubsampling: '4:4:4' }).toBuffer();
+      .jpeg({ quality: 92, chromaSubsampling: '4:4:4' }).toBuffer();
   }
   const sourcePpi = Math.min(meta.width / object.widthIn, meta.height / object.heightIn);
   return { buffer, metadata: { version: VERSION, hash: plan.hash, filename: plan.filename,
