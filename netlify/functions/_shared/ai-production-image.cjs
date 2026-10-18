@@ -3,9 +3,9 @@ const crypto = require('node:crypto');
 const sharp = require('sharp');
 const { toStoredOriginalPrintScene } = require('./stored-original-print-scene.cjs');
 const { fetchBuffer } = require('./print-scene-renderer.cjs');
-const VERSION = 'ai-jpeg-full-size-150-v1';
-const DPI = 150;
-const MAX_PIXELS = 100_000_000;
+const VERSION = 'ai-jpeg-full-size-200-v1';
+const DPI = 200;
+const MAX_PIXELS = 180_000_000;
 const { isAiArtwork } = require('./ai-artwork-kind.cjs');
 function productionImagePlan(item) {
   if (!isAiArtwork(item)) throw new Error('This item has no saved AI artwork.');
@@ -15,9 +15,9 @@ function productionImagePlan(item) {
   const scene = toStoredOriginalPrintScene(state, Number(item.width_in), Number(item.height_in));
   if (scene?.sceneVersion !== 2 || scene.objects?.length !== 1 || scene.objects[0].source?.originalUrl !== originalUrl) throw new Error('This AI layout cannot be exported automatically.');
   const width = Math.round(scene.widthIn * DPI), height = Math.round(scene.heightIn * DPI);
-  if (width < 1 || height < 1 || width * height > MAX_PIXELS || width > 30000 || height > 30000) throw new Error('This size exceeds the automatic 150 DPI image export limit. Download the saved original artwork for production.');
+  if (width < 1 || height < 1 || width * height > MAX_PIXELS || width > 40000 || height > 40000) throw new Error('This size exceeds the automatic image export limit. Download the saved original artwork for production.');
   const hash = crypto.createHash('sha256').update(JSON.stringify({ version: VERSION, scene, sha256: item.artwork_manifest?.sha256 })).digest('hex');
-  return { scene, width, height, hash, filename: `ai-artwork-${item.id}-${scene.widthIn}x${scene.heightIn}in-150dpi.jpg` };
+  return { scene, width, height, hash, filename: `ai-artwork-${item.id}-${scene.widthIn}x${scene.heightIn}in-${DPI}dpi.jpg` };
 }
 async function renderAiProductionImage(item, { fetchSource = fetchBuffer } = {}) {
   const plan = productionImagePlan(item);
@@ -27,7 +27,7 @@ async function renderAiProductionImage(item, { fetchSource = fetchBuffer } = {})
   const meta = await sharp(original, { limitInputPixels: 150_000_000 }).metadata();
   if (!meta.width || !meta.height) throw new Error('Unable to measure original image');
   const placedWidth = Math.round(object.widthIn * DPI), placedHeight = Math.round(object.heightIn * DPI);
-  if (placedWidth < 1 || placedHeight < 1 || placedWidth * placedHeight > 150_000_000) throw new Error('The saved zoom exceeds the automatic image export limit.');
+  if (placedWidth < 1 || placedHeight < 1 || placedWidth * placedHeight > 267_000_000) throw new Error('The saved zoom exceeds the automatic image export limit.');
   const left = Math.round(object.xIn * DPI), top = Math.round(object.yIn * DPI);
   const crop = object.crop || { x: 0, y: 0, width: 1, height: 1 };
   if (![crop.x, crop.y, crop.width, crop.height].every(Number.isFinite)
