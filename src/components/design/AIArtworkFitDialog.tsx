@@ -9,12 +9,11 @@ import { artworkFitIdentity, canApplyArtworkFit, prepareArtworkFitSource, saveFi
 import { logUx } from '@/lib/uxAnalytics';
 import {aiProductContext} from './ai/productContext';
 import {SpecialtyTemplateGuide} from '@/components/specialty/SpecialtyPreview';
-import { artworkResolution } from '@/lib/artworkResolution';
 
 export function ArtworkFitButton({ onClick, disabled, onRestore }: { onClick: () => void; disabled?: boolean; onRestore?: () => void }) {
   return <div className="mt-3 border-t border-slate-100 pt-3">
     <p className="text-sm font-semibold text-slate-900">Need a better fit for this size?</p>
-    <p className="mt-1 text-xs leading-relaxed text-slate-600">Let AI rearrange your existing design. Compare it before making a change.</p>
+    <p className="mt-1 text-xs leading-relaxed text-slate-600">Let AI fit your design to this size, then approve the preview.</p>
     <div className="mt-2 flex flex-wrap gap-2">
       <button type="button" disabled={disabled} onClick={onClick} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"><Sparkles className="h-4 w-4" aria-hidden="true" />Fit my design with AI</button>
       {onRestore && <button type="button" disabled={disabled} onClick={onRestore} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 disabled:opacity-50"><Undo2 className="h-4 w-4" aria-hidden="true" />Restore original</button>}
@@ -39,8 +38,8 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
   const [busy, setBusy] = useState(false);
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState('');
-  const [stage, setStage] = useState('');
-  const [reviewed, setReviewed] = useState(false);
+  const preparedIdentity = useRef('');
+  const autoStartedIdentity = useRef('');
   const [attempt, setAttempt] = useState(0);
   const [retryPending, setRetryPending] = useState(false);
   const [retryAt, setRetryAt] = useState(0);
@@ -53,8 +52,9 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
 
   useEffect(() => {
     controller.current?.abort(); inFlight.current = false; savedResult.current = null;
-    setSource(''); setResult(null); setReady(false); setBusy(false); setApplying(false); setReviewed(false); setAttempt(0); setError(''); setZoom(false);
+    setSource(''); setResult(null); setReady(false); setBusy(false); setApplying(false); setAttempt(0); setError(''); setZoom(false);
     setRetryPending(false); setRetryAt(0); setRetrySeconds(0);
+    preparedIdentity.current = ''; autoStartedIdentity.current = '';
   }, [identity]);
   useEffect(() => () => controller.current?.abort(), []);
 
@@ -82,6 +82,7 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
       if (cancelled || currentIdentity !== identityRef.current) return;
       setSource(image);
       if (!status.response.ok || !status.body?.ready) throw new Error('AI fitting is temporarily unavailable. Your original is safe. Please try again shortly.');
+      preparedIdentity.current = currentIdentity;
       setReady(true);
     }).catch(reason => { if (!cancelled) setError(reason.message || 'AI fit could not be opened.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -93,7 +94,7 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
   async function generate(newVersion = false) {
     if (!ready || !source || inFlight.current || applying || retryAt > Date.now()) return;
     const requestIdentity = identity;
-    inFlight.current = true; setBusy(true); setError(''); setReviewed(false);
+    inFlight.current = true; setBusy(true); setError('');
     const nextAttempt = newVersion ? attempt + 1 : attempt;
     if (newVersion) setAttempt(nextAttempt);
     controller.current?.abort();
@@ -102,15 +103,16 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
       logUx('ai_fit_start', { widthIn, heightIn });
       const response = await runBackgroundJob('/.netlify/functions/ai-designer-fit', {
         sourceImage: source, widthIn, heightIn, productType, attempt: nextAttempt,
-      }, activeController.signal, 'Preparing your design', setStage, undefined, undefined, requestIdentity);
+      }, activeController.signal, 'Fitting your design', () => {}, undefined, undefined, requestIdentity);
       if (activeController.signal.aborted || requestIdentity !== identityRef.current) return;
       if (Math.abs(response.fit?.widthIn-widthIn)>.001 || Math.abs(response.fit?.heightIn-heightIn)>.001
         || (productType.startsWith('specialty:')&&response.fit?.productType!==productType)) {
         throw new Error('The fitted result does not match your selected product and size. Your original is unchanged.');
       }
+      if (!canApplyArtworkFit(response.fit)) throw new Error('No fitted image was returned.');
       setResult(response.fit);
       savedResult.current = null; setRetryPending(false); setRetryAt(0);
-      logUx('ai_fit_complete', { widthIn, heightIn, checksPassed: response.fit.verification.passed });
+      logUx('ai_fit_complete', { widthIn, heightIn, checksPassed: response.fit.verification?.passed });
     } catch (reason) {
       if (!activeController.signal.aborted && requestIdentity === identityRef.current) {
         setError(reason instanceof Error ? reason.message : 'AI fit could not finish. Your original is unchanged.');
@@ -123,8 +125,19 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
     }
   }
 
+  // The initial Fit click starts the work. Reopening and rerendering must not
+  // submit another paid request, and a size change must use its own source.
+  useEffect(() => {
+    if (!open || !ready || !source || error || result || preparedIdentity.current !== identity
+      || autoStartedIdentity.current === identity || inFlight.current) return;
+    autoStartedIdentity.current = identity;
+    void generate();
+    // generate reads the current prepared source and request identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, ready, source, identity, result, error]);
+
   async function apply() {
-    if (!canApplyArtworkFit(result) || !reviewed || applying || inFlight.current) return;
+    if (!canApplyArtworkFit(result) || applying || inFlight.current) return;
     const requestIdentity = identity; inFlight.current = true; setApplying(true); setError('');
     try {
       const saved = savedResult.current?.id === result.id ? savedResult.current.artwork : await saveFittedArtwork(result);
@@ -138,40 +151,30 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
 
   const proposed = result ? `data:${result.mimeType};base64,${result.imageBase64}` : '';
   const canApply = canApplyArtworkFit(result);
-  const resolution = result ? artworkResolution(result.widthPx, result.heightPx, widthIn, heightIn) : null;
-  return <Dialog open={open} onOpenChange={value => { if (!applying) onOpenChange(value); }}>
-    <DialogContent className="max-h-[94dvh] w-[calc(100%_-_1rem)] overflow-y-auto p-4 sm:max-w-5xl sm:p-6" onInteractOutside={event => { if (busy || applying) event.preventDefault(); }}>
-      <DialogHeader>
-        <DialogTitle className="pr-7 text-xl font-bold text-slate-900">Fit your design to {widthIn}″ × {heightIn}″</DialogTitle>
-        <DialogDescription className="text-sm leading-relaxed">Preview your fitted design, then approve or retry.</DialogDescription>
-      </DialogHeader>
-      {loading && <p role="status" className="flex items-center gap-2 py-8"><Loader2 className="h-5 w-5 animate-spin" />Preparing your original artwork…</p>}
-      {source && <div className="grid gap-4 sm:grid-cols-2">
-        <figure className="min-w-0"><figcaption className="mb-2 text-sm font-bold">Original artwork</figcaption><div className="flex min-h-40 items-center justify-center rounded-xl border bg-slate-100 p-3"><img src={source} alt="Your original design, unchanged" className="max-h-72 max-w-full object-contain" /></div></figure>
-        <figure className="min-w-0"><figcaption className="mb-2 text-sm font-bold">{result ? 'Proposed layout' : 'Your selected product shape'}</figcaption>
-          <div className="flex min-h-40 items-center justify-center rounded-xl border bg-slate-100 p-3">
-            <div className="relative overflow-hidden bg-white shadow-sm" style={{ aspectRatio: `${widthIn} / ${heightIn}`, width:Math.min(900,400*widthIn/heightIn),maxWidth:'100%' }}>
-              {proposed ? <button type="button" onClick={() => setZoom(true)} aria-label="Enlarge proposed layout" className="block h-full w-full"><img src={proposed} alt="AI layout at your selected product dimensions" className="h-full w-full object-contain" /></button>
-                : <img src={source} alt="Original artwork fitted proportionally within your selected size" className="absolute inset-0 h-full w-full object-contain opacity-65" />}
-              {productContext.template&&<SpecialtyTemplateGuide template={productContext.template}/>}
-            </div>
+  const working = loading || busy || (!result && !error);
+  return <>
+    {open && working && <div role="status" aria-live="polite" className="fixed bottom-5 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-3 whitespace-nowrap rounded-xl bg-white px-5 py-4 text-sm font-semibold text-slate-800 shadow-lg ring-1 ring-slate-200"><Loader2 className="h-5 w-5 animate-spin text-orange-600" aria-hidden="true" />Fitting your design…</div>}
+    <Dialog open={open && !working && (canApply || Boolean(error))} onOpenChange={value => { if (!applying) onOpenChange(value); }}>
+      <DialogContent className="max-h-[94dvh] w-[calc(100%_-_1rem)] overflow-y-auto p-4 sm:max-w-3xl sm:p-6" onInteractOutside={event => { if (applying) event.preventDefault(); }}>
+        <DialogHeader>
+          <DialogTitle className="pr-7 text-xl font-bold text-slate-900">{canApply ? 'Approve your fitted design' : 'Fit your design'}</DialogTitle>
+          <DialogDescription className="sr-only">Review the fitted preview at {widthIn} by {heightIn} inches and approve your design.</DialogDescription>
+        </DialogHeader>
+        {canApply && <div className="flex items-center justify-center rounded-xl bg-slate-100 p-3">
+          <div className="relative w-full overflow-hidden bg-white shadow-sm" style={{ aspectRatio: `${widthIn} / ${heightIn}`, maxHeight: '65dvh', maxWidth: `calc(65dvh * ${widthIn / heightIn})` }}>
+            <button type="button" onClick={() => setZoom(true)} aria-label="Enlarge fitted design" className="block h-full w-full"><img src={proposed} alt="Your fitted design" className="h-full w-full object-contain" /></button>
+            {productContext.template && <SpecialtyTemplateGuide template={productContext.template} />}
           </div>
-          {result && <button type="button" onClick={() => setZoom(true)} className="min-h-11 text-sm font-semibold text-blue-800 underline">Enlarge to check details</button>}
-        </figure>
-      </div>}
-      {busy && <div role="status" aria-live="polite" className="rounded-xl bg-orange-50 p-4 text-sm text-slate-800"><p className="flex items-center gap-2 font-semibold"><Loader2 className="h-5 w-5 animate-spin text-orange-600" />{stage}</p><p className="mt-2">This can take a few minutes. Please keep this window open while we finish your design.</p></div>}
-      {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{retrySeconds > 0 ? `Please wait ${Math.floor(retrySeconds / 60)}:${String(retrySeconds % 60).padStart(2, '0')} before retrying. Your original and latest preview are safe.` : error}</p>}
-      {result && !busy && !canApply && <p className="text-sm text-slate-600">Please retry this design.</p>}
-      {result && !busy && (!resolution || !resolution.meetsMinimum) && <p role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"><strong>Print resolution needs attention.</strong> {resolution ? `This layout has ${resolution.ppi.toFixed(1)} pixels per inch at ${widthIn}″ × ${heightIn}″, below our 200 PPI minimum.` : 'We could not verify this layout’s resolution.'} A larger file or a different DPI label will not restore missing detail. Keep your original high-resolution artwork or contact us for help before printing.</p>}
-      {canApply && !busy && <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold text-slate-800"><input type="checkbox" checked={reviewed} disabled={applying} onChange={event => setReviewed(event.target.checked)} className="h-5 w-5 accent-orange-600" />Approve design</label>}
-      {!busy && <div className="flex flex-wrap gap-2 border-t pt-4">
-        <button type="button" disabled={applying} onClick={() => onOpenChange(false)} className="min-h-11 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">Keep original</button>
-        {error && !ready && !loading && <button type="button" onClick={() => setReadinessAttempt(value => value + 1)} className="min-h-11 rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold text-white">Retry</button>}
-        {!result && !busy && (ready || loading) && <button type="button" disabled={!ready || loading || applying || retrySeconds > 0} onClick={() => void generate()} className="min-h-11 rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold text-white disabled:opacity-50">{error ? 'Retry' : 'Create fitted version'}</button>}
-        {result && !busy && <button type="button" disabled={applying || retrySeconds > 0} onClick={() => void generate(!retryPending)} className="min-h-11 rounded-lg border border-orange-300 px-4 py-2 text-sm font-semibold text-orange-800 disabled:opacity-50">Retry</button>}
-        {result && <button type="button" disabled={busy || applying || !reviewed || !canApply} onClick={() => void apply()} className="min-h-11 rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold text-white disabled:opacity-50">{applying ? 'Saving your layout…' : 'Use this version'}</button>}
-      </div>}
-      <Dialog open={zoom} onOpenChange={setZoom}><DialogContent className="max-h-[94dvh] w-[98vw] max-w-7xl overflow-auto p-3"><DialogTitle>Review your fitted design</DialogTitle><DialogDescription>Zoom in and check the wording, logos and fine details.</DialogDescription><img src={proposed} alt="Full fitted artwork for detailed review" className="h-auto w-full" /></DialogContent></Dialog>
-    </DialogContent>
-  </Dialog>;
+        </div>}
+        {/* Technical details stay in diagnostics. A failed save never pretends
+            that approval succeeded or replaces the customer's original. */}
+        {error && <p role="status" className="text-sm text-slate-600">{canApply ? 'Your preview is ready. Tap Approve design to finish.' : 'Your original design is saved. Tap Try again to continue.'}</p>}
+        <div className="flex flex-wrap justify-end gap-2">
+          {canApply ? <button type="button" disabled={applying} onClick={() => void apply()} className="min-h-11 rounded-lg bg-orange-600 px-6 py-3 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-50">{applying ? 'Saving your design…' : 'Approve design'}</button>
+            : <button type="button" disabled={loading || retrySeconds > 0} onClick={() => { if (!ready) setReadinessAttempt(value => value + 1); else void generate(!retryPending); }} className="min-h-11 rounded-lg bg-orange-600 px-6 py-3 text-sm font-bold text-white disabled:opacity-50">{retrySeconds > 0 ? 'Please wait…' : 'Try again'}</button>}
+        </div>
+        <Dialog open={zoom} onOpenChange={setZoom}><DialogContent className="max-h-[94dvh] w-[98vw] max-w-7xl overflow-auto p-3"><DialogTitle>Your fitted design</DialogTitle><DialogDescription className="sr-only">Enlarged preview of your fitted design.</DialogDescription><img src={proposed} alt="Full fitted artwork for detailed review" className="h-auto w-full" /></DialogContent></Dialog>
+      </DialogContent>
+    </Dialog>
+  </>;
 }
