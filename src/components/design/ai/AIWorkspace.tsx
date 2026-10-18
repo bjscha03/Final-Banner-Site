@@ -33,6 +33,7 @@ import SpecialtyPreview, {SpecialtyTemplateGuide} from '@/components/specialty/S
 import { fetchAIRequest } from './jobRequest';
 import { AIJobFailedError, forgetPendingJob, resumeBackgroundJob, runBackgroundJob, type PendingAIJob } from './backgroundJob';
 import LayerControls from './LayerControls';
+import AITutorial from './AITutorial';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type {
   AIConcept,
@@ -699,7 +700,7 @@ function AIWorkspaceSession(props: Props) {
       </div>
 
       <div className="ai-studio-intro">
-        <div><h2>{props.productType==='banner'?<>Big ideas. <span>Bold banners.</span></>:<>Your product. <span>Your design.</span></>}</h2><p>Describe it. Create it. Make it yours.</p></div>
+        <div><h2>{props.productType==='banner'?<>Big ideas. <span>Bold banners.</span></>:<>Your product. <span>Your design.</span></>}</h2><p>Describe it. Create it. Make it yours.</p><AITutorial /></div>
         <ol className="ai-studio-steps" aria-label="Design progress">
           {['Describe', 'Create', 'Finish'].map((label, index) => {
             const current = selected ? 2 : stage || pendingImageJob ? 1 : 0;
