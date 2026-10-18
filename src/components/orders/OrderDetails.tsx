@@ -742,7 +742,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                       <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                         <p className="font-semibold text-emerald-900">Generated Production PDF</p>
                         <p className="mt-1 text-xs text-emerald-800">Status: {item.generated_print_pdf_url ? 'generated' : item.production_pdf_status || 'pending'}</p>
-                        {(item.generated_print_pdf_metadata?.resolution || []).some((entry: any) => entry.status === 'fail') && <p className="mt-1 text-xs font-semibold text-red-700">Low-resolution warning: one or more raster assets are below 150 effective PPI.</p>}
                         {item.production_pdf_error && <p className="mt-1 text-xs text-red-700">{item.production_pdf_error}</p>}
                         <div className="mt-2 grid grid-cols-2 gap-2">
                           <Button variant="outline" size="sm" onClick={() => handlePdfDownload(item, index, false)} disabled={!!pdfGenerating[index]}>{item.generated_print_pdf_url ? 'Download' : 'Generate'}</Button>

@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, Loader2 } from 'lucide-react';
 import { adminFetch } from '@/lib/serverAuth';
-import { orderArtworkResolution } from '@/lib/artworkResolution';
 
 export default function AIArtworkQuality({ item, orderId }: { item: any; orderId: string }) {
-  const resolution = orderArtworkResolution(item);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const download = async () => {
@@ -30,9 +28,7 @@ export default function AIArtworkQuality({ item, orderId }: { item: any; orderId
     <Button type="button" data-admin-ai-resized-file onClick={download} disabled={busy} className="h-auto min-h-11 w-full whitespace-normal bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800">
       {busy ? <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" />Preparing image…</> : <><Download className="mr-1.5 h-4 w-4" />Download AI Artwork · JPG</>}
     </Button>
-    <p className="mt-2 font-bold">{item.width_in}″ × {item.height_in}″ · Full size · 150 DPI</p>
-    <p className="mt-1">Print at 100%. No doubling or size correction needed.</p>
-    <p className="mt-1 text-[11px]">{resolution ? `Native source detail: ${resolution.ppi.toFixed(1)} PPI. ` : ''}The export preserves the saved design and resamples to the ordered size; it does not recreate missing detail.</p>
+    <p className="mt-2 font-bold">{item.width_in}″ × {item.height_in}″ · Print at 100%</p>
     {error && <p role="alert" className="mt-2 font-semibold text-red-800">{error}</p>}
   </div>;
 }
