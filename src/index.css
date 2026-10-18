@@ -615,9 +615,10 @@
 
 @layer base {
   :root {
-    /* BOF CTA palette: brand orange with white button labels. */
-    --brand-orange: #C94E00;
-    --brand-orange-hover: #AE4300;
+    /* Owner-approved BOF palette: #FF6A00 with white button labels.
+       Preserve these colors during unrelated fixes; palette changes require design approval. */
+    --brand-orange: #FF6A00;
+    --brand-orange-hover: #F06000;
 
     --background: 0 0% 100%;
     --foreground: 216 68% 14%;
