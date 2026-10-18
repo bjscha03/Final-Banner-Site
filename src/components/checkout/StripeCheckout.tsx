@@ -1,3 +1,5 @@
+import { useDeliveryAddressCheck } from './useDeliveryAddressCheck';
+import { CheckoutAddressInput, applySuggestedAddress, type SuggestedAddress } from './CheckoutAddressInput';
 import { trackCheckoutDiagnostic } from '@/lib/checkoutDiagnostics';
 import {readBofReferral} from '@/lib/bofCash';
 import {authorizedHeaders} from '@/lib/serverAuth';
@@ -339,6 +341,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   const [customer, setCustomer] = useState<CustomerFormState>(() => (
     readCheckoutCustomerDraft(user?.email || '')
   ));
+  const addressCheck = useDeliveryAddressCheck(customer, setCustomer);
   const {
     markPaymentStarted,
     getCartId: getAbandonedCartId,
@@ -506,6 +509,15 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       setCheckoutError(message || null);
     }
   }, [persistRecovery]);
+
+  const selectAddress = (address: SuggestedAddress, shipping: boolean) => {
+    setCustomer(current => {
+      const next = applySuggestedAddress(current, address, shipping);
+      writeCheckoutCustomerDraft(next);
+      return next;
+    });
+    setCheckoutError(null);
+  };
 
   const updateCustomer = <K extends keyof CustomerFormState>(
     field: K,
@@ -1134,6 +1146,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       });
       return;
     }
+    if (!(await addressCheck.check())) return;
     let submitResult;
     try {
       submitResult = await withStripeStageTimeout(elements.submit());
@@ -1185,7 +1198,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   ];
 
   const currentValidation = checkoutError ? validateCheckoutCustomer(customer) : null;
-  const busy = isProcessing || isPolling || Boolean(verificationMessage);
+  const busy = isProcessing || isPolling || addressCheck.checking || Boolean(verificationMessage);
   const expressCheckoutVisible = walletsAvailable && !verificationMessage;
   const walletPhoneIsInvalid = walletPhoneRequired && !isValidCheckoutPhone(customer.phone);
   const focusWalletPhone = () => {
@@ -1327,7 +1340,8 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                     event.paymentFailed?.({ reason: 'invalid_payment_data', message });
                     return;
                   }
-                  let submitResult;
+                  if (!(await addressCheck.check())) return;
+    let submitResult;
                   try {
                     submitResult = await withStripeStageTimeout(elements.submit());
                   } catch (error) {
@@ -1427,6 +1441,17 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
               {customerFields
                 .filter(({ field }) => field !== 'phone' || !walletPhoneRequired)
                 .map(({ field, label, type = 'text', inputMode, autoComplete, wide }) => {
+                if (field === 'street') return (
+                  <div key={field} className="col-span-2 text-sm font-medium text-slate-800">
+                    <label htmlFor="stripe-street">{label}{label.includes('*') ? '' : ' *'}</label>
+                    <CheckoutAddressInput id="stripe-street" name="billing-street" data-stripe-field="street"
+                      className="mt-1 h-11 bg-white text-base sm:text-sm" placeholder="Start typing your street address"
+                      autoComplete="billing address-line1" required value={customer.street}
+                      aria-invalid={currentValidation?.field === 'street' || undefined}
+                      onChange={event => { updateCustomer('street', event.target.value); setCheckoutError(null); }}
+                      onAddressSelected={address => selectAddress(address, false)} />
+                  </div>
+                );
                 const required = field !== 'street2';
                 const isInvalid = currentValidation?.field === field;
                 const fieldInput = (
@@ -1474,7 +1499,18 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
 
               {!customer.shippingSame ? <>
                 {shippingFields.map(({ field, label, inputMode, autoComplete, wide }) => {
-                const required = field !== 'shippingStreet2';
+                if (field === 'shippingStreet') return (
+                    <div key={field} className="col-span-2 text-sm font-medium text-slate-800">
+                      <label htmlFor="stripe-shippingStreet">{label}{label.includes('*') ? '' : ' *'}</label>
+                      <CheckoutAddressInput id="stripe-shippingStreet" name="shipping-street" data-stripe-field="shippingStreet"
+                        className="mt-1 h-11 bg-white text-base sm:text-sm" placeholder="Start typing the shipping address"
+                        autoComplete="shipping address-line1" required value={customer.shippingStreet}
+                        aria-invalid={currentValidation?.field === 'shippingStreet' || undefined}
+                        onChange={event => { updateCustomer('shippingStreet', event.target.value); setCheckoutError(null); }}
+                        onAddressSelected={address => selectAddress(address, true)} />
+                    </div>
+                  );
+                  const required = field !== 'shippingStreet2';
                 const isInvalid = currentValidation?.field === field;
                 return (
                   <label key={field} htmlFor={`stripe-${field}`} className={`text-sm font-medium text-slate-800 ${wide ? 'col-span-2' : ''}`}>
@@ -1504,6 +1540,8 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
               </> : null}
             </div>
           </div>
+
+          {addressCheck.reviewPanel}
 
           <div className="checkout-card-fields">
             <div className="checkout-section-title">

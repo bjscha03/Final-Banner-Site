@@ -1,3 +1,5 @@
+import { useDeliveryAddressCheck } from './useDeliveryAddressCheck';
+import { CheckoutAddressInput, applySuggestedAddress, type SuggestedAddress } from './CheckoutAddressInput';
 import { trackCheckoutDiagnostic } from '@/lib/checkoutDiagnostics';
 import {readBofReferral} from '@/lib/bofCash';
 import {authorizedHeaders} from '@/lib/serverAuth';
@@ -102,7 +104,7 @@ type SubmittedCustomer = {
 
 const InlineCardSubmit: React.FC<{
   disabled: boolean;
-  beforeSubmit: () => boolean;
+  beforeSubmit: () => Promise<boolean>;
 }> = ({ disabled, beforeSubmit }) => {
   const { cardFieldsForm } = usePayPalCardFields();
 
@@ -112,8 +114,8 @@ const InlineCardSubmit: React.FC<{
       className="checkout-pay-button mt-3 w-full"
       size="lg"
       disabled={disabled || !cardFieldsForm}
-      onClick={() => {
-        if (beforeSubmit()) void cardFieldsForm?.submit();
+      onClick={async () => {
+        if (await beforeSubmit()) void cardFieldsForm?.submit();
       }}
     >
       Pay Now
@@ -325,6 +327,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   const [customer, setCustomer] = useState<CustomerFormState>(() => (
     readCheckoutCustomerDraft(user?.email || '')
   ));
+  const addressCheck = useDeliveryAddressCheck(customer, setCustomer);
   const {
     markPaymentStarted,
     getCartId: getAbandonedCartId,
@@ -375,6 +378,15 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       });
     }
   }, [customer.email, user?.email]);
+
+  const selectAddress = (address: SuggestedAddress, shipping: boolean) => {
+    setCustomer(current => {
+      const next = applySuggestedAddress(current, address, shipping);
+      writeCheckoutCustomerDraft(next);
+      return next;
+    });
+    setCheckoutError(null);
+  };
 
   const updateCustomer = <K extends keyof CustomerFormState>(
     field: K,
@@ -1044,7 +1056,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     onError(error instanceof Error ? error : new Error(message));
   };
 
-  const buttonsDisabled = disabled
+  const buttonsDisabled = addressCheck.checking || disabled
     || providerLocked
     || isPreparing
     || isCapturing
@@ -1076,7 +1088,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     }
   };
 
-  const prepareCustomerForPayment = (method: 'card' | 'paypal'): boolean => {
+  const prepareCustomerForPayment = async (method: 'card' | 'paypal'): Promise<boolean> => {
     trackCheckoutDiagnostic('pay_clicked', { provider: 'paypal', method });
     const validation = validateCustomer();
     if (validation) {
@@ -1090,6 +1102,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       });
       return false;
     }
+    if (!(await addressCheck.check())) return false;
     submittedCustomerRef.current = getSubmittedCustomer();
     paymentSnapshotRef.current = markPaymentStarted({
       email: submittedCustomerRef.current.email,
@@ -1109,9 +1122,9 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       onInit={() => trackCheckoutDiagnostic('payment_fields_ready', { provider: 'paypal', method: 'paypal' })}
       style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal', height: 42 }}
       disabled={buttonsDisabled}
-      onClick={(_data, actions) => {
+      onClick={async (_data, actions) => {
         trackPaymentClick('paypal');
-        if (!prepareCustomerForPayment('paypal')) return actions.reject();
+        if (!(await prepareCustomerForPayment('paypal'))) return actions.reject();
         return actions.resolve();
       }}
       createOrder={handleCreateOrder}
@@ -1185,7 +1198,18 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
 
         <div className="grid grid-cols-2 gap-3">
           {customerFields.map(({ field, label, type = 'text', inputMode, autoComplete, wide }) => {
-            const required = field !== 'street2';
+            if (field === 'street') return (
+                  <div key={field} className="col-span-2 text-sm font-medium text-slate-800">
+                    <label htmlFor="checkout-street">{label}{label.includes('*') ? '' : ' *'}</label>
+                    <CheckoutAddressInput id="checkout-street" name="billing-street" data-checkout-field="street"
+                      className="mt-1 h-11 bg-white text-base sm:text-sm" placeholder="Start typing your street address"
+                      autoComplete="billing address-line1" required value={customer.street}
+                      aria-invalid={currentValidation?.field === 'street' || undefined}
+                      onChange={event => { updateCustomer('street', event.target.value); setCheckoutError(null); }}
+                      onAddressSelected={address => selectAddress(address, false)} />
+                  </div>
+                );
+                const required = field !== 'street2';
             const isInvalid = currentValidation?.field === field;
             const fieldInput = (
               <label
@@ -1243,7 +1267,18 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
           {!customer.shippingSame
             ? <>
               {shippingFields.map(({ field, label, inputMode, autoComplete, wide }) => {
-                const required = field !== 'shippingStreet2';
+                if (field === 'shippingStreet') return (
+                    <div key={field} className="col-span-2 text-sm font-medium text-slate-800">
+                      <label htmlFor="checkout-shippingStreet">{label}{label.includes('*') ? '' : ' *'}</label>
+                      <CheckoutAddressInput id="checkout-shippingStreet" name="shipping-street" data-checkout-field="shippingStreet"
+                        className="mt-1 h-11 bg-white text-base sm:text-sm" placeholder="Start typing the shipping address"
+                        autoComplete="shipping address-line1" required value={customer.shippingStreet}
+                        aria-invalid={currentValidation?.field === 'shippingStreet' || undefined}
+                        onChange={event => { updateCustomer('shippingStreet', event.target.value); setCheckoutError(null); }}
+                        onAddressSelected={address => selectAddress(address, true)} />
+                    </div>
+                  );
+                  const required = field !== 'shippingStreet2';
                 const isInvalid = currentValidation?.field === field;
                 return (
                   <label
@@ -1281,6 +1316,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
             </>
             : null}
         </div>
+        {addressCheck.reviewPanel}
       </section>
     );
   };
