@@ -18,6 +18,7 @@ export default async (request) => {
         });
         const uploaded = await new Promise((resolve, reject) => {
           cloudinary.uploader.upload_stream({
+            disable_promises: true,
             resource_type: 'image', public_id: `uploads/original-preview-${session.id}`,
             overwrite: true, format: 'png',
           }, (error, result) => error ? reject(error) : resolve(result)).end(preview.data);

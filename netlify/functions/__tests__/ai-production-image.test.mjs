@@ -18,6 +18,9 @@ describe('AI production JPG', () => {
   it('plans the reported 96x36 order at 19200x7200, not a 72 DPI half-size file', () => {
     expect(production.productionImagePlan(item({ width_in: 96, height_in: 36 }))).toMatchObject({ width: 19200, height: 7200 });
   });
+  it('accepts the large 120x48 preset at full-size 200 DPI', () => {
+    expect(production.productionImagePlan(item({ width_in: 120, height_in: 48 }))).toMatchObject({ width: 24000, height: 9600 });
+  });
   it('invalidates cached files when placement or output dimensions change', () => {
     const a = item();
     const b = { ...a, canvas_state_json: JSON.stringify({ ...JSON.parse(a.canvas_state_json), imgPos: { x: 5, y: 0 } }) };

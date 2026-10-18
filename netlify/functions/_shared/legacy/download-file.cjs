@@ -1,7 +1,7 @@
 const { neon } = require('@neondatabase/serverless');
 const { v2: cloudinary } = require('cloudinary');
 const { requireAdmin } = require('../server-auth.cjs');
-const { isStoredOriginalUrl } = require('../original-artwork-url.cjs');
+const { isStoredOriginalUrl, isCloudinaryOriginalUrl } = require('../original-artwork-url.cjs');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -132,6 +132,11 @@ exports.handler = async (event, context) => {
         const original = new URL(requestedKey);
         original.searchParams.set('download', '1');
         return { statusCode: 302, headers: { ...headers, Location: original.href, 'Cache-Control': 'private, no-store' }, body: '' };
+      }
+      // The order/file association was authorized above. Deliver original CDN
+      // bytes directly instead of buffering >4.5 MB through a Lambda response.
+      if (isCloudinaryOriginalUrl(requestedKey)) {
+        return { statusCode: 302, headers: { ...headers, Location: requestedKey, 'Cache-Control': 'private, no-store' }, body: '' };
       }
       const response = await fetch(requestedKey);
       if (!response.ok) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Original artwork is unavailable' }) };

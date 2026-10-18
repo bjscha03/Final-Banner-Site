@@ -1,9 +1,9 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ sql: vi.fn(), requireAdmin: vi.fn(), plan: vi.fn(), render: vi.fn(), upload: vi.fn() }));
+const mocks = vi.hoisted(() => ({ sql: vi.fn(), requireAdmin: vi.fn(), plan: vi.fn(), render: vi.fn(), store: vi.fn() }));
 vi.mock('@neondatabase/serverless', () => ({ neon: () => mocks.sql }));
 vi.mock('../_shared/server-auth.cjs', () => ({ default: { requireAdmin: mocks.requireAdmin } }));
 vi.mock('../_shared/ai-production-image.cjs', () => ({ default: { productionImagePlan: mocks.plan, renderAiProductionImage: mocks.render, VERSION: 'v1', DPI: 200 } }));
-vi.mock('cloudinary', () => ({ default: { v2: { config() {}, uploader: { upload_stream: mocks.upload } } } }));
+vi.mock('../_shared/store-production-image.mjs', () => ({ storeProductionImage: mocks.store }));
 import { handler } from '../admin-ai-production-image.mjs';
 const orderId = '1ee94925-f191-44d3-a302-90cc7e0c9010', itemId = '1e5d1afb-acc5-4943-a814-9c67e4983cfc';
 const event = { httpMethod: 'POST', body: JSON.stringify({ orderId, itemId }) };
@@ -28,13 +28,14 @@ it('reuses a verified cached image for the same composition', async () => {
 it('stores a derivative without replacing the original and returns JSON instead of a large binary payload', async () => {
   const item = { id: itemId, width_in: 96, height_in: 36, canvas_state_json: 'saved', artwork_manifest: { originalUrl: 'https://cdn.test/original.jpg', productionImage: { hash: 'old-150-hash', version: 'ai-jpeg-full-size-150-v1', dpi: 150, url: 'https://cdn.test/old-150.jpg' } } };
   mocks.sql.mockResolvedValueOnce([item]).mockResolvedValue([]);
-  mocks.plan.mockReturnValue({ hash: 'new-hash' });
-  mocks.render.mockResolvedValue({ buffer: Buffer.alloc(5 * 1024 * 1024), metadata: { hash: 'new-hash', dpi: 200 } });
-  mocks.upload.mockImplementation((options, done) => ({ end: () => done(null, { secure_url: 'https://cdn.test/print.jpg' }) }));
+  mocks.plan.mockReturnValue({ hash: 'new-hash', filename: '96x36in-200dpi.jpg' });
+  mocks.render.mockResolvedValue({ buffer: Buffer.alloc(27 * 1024 * 1024), metadata: { hash: 'new-hash', dpi: 200 } });
+  mocks.store.mockResolvedValue('https://bannersonthefly.com/artwork-original/test/original.jpg');
   const result = await handler(event);
   expect(result.statusCode).toBe(200); expect(result.body.length).toBeLessThan(1000);
   expect(JSON.parse(result.body).dpi).toBe(200);
-  expect(mocks.upload.mock.calls[0][0].public_id).toContain('96x36in-200dpi.jpg');
+  expect(mocks.store.mock.calls[0][0].length).toBe(27 * 1024 * 1024);
+  expect(mocks.store.mock.calls[0][1]).toBe('96x36in-200dpi.jpg');
   expect(mocks.sql.mock.calls[1][0].join('')).toContain("'{productionImage}'");
   expect(item.artwork_manifest.originalUrl).toBe('https://cdn.test/original.jpg');
 });

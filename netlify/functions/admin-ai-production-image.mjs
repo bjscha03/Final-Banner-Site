@@ -5,9 +5,8 @@ import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import auth from './_shared/server-auth.cjs';
 import production from './_shared/ai-production-image.cjs';
-import cloudinaryModule from 'cloudinary';
+import { storeProductionImage } from './_shared/store-production-image.mjs';
 
-const { v2: cloudinary } = cloudinaryModule;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const reply = (statusCode, body) => ({ statusCode, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' }, body: JSON.stringify(body) });
 export async function handler(event) {
@@ -33,16 +32,11 @@ export async function handler(event) {
       } catch { /* Regenerate an unavailable cached derivative from the original. */ }
     }
     const result = await production.renderAiProductionImage(item);
-    if (result.buffer.length > 20 * 1024 * 1024) throw new Error('This artwork exceeds the image storage limit. The original artwork is available.');
-    cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET, secure: true });
-    const upload = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream({ resource_type: 'raw', type: 'upload', disable_promises: true,
-        public_id: `production-images/${item.id}-${plan.hash.slice(0, 16)}-${item.width_in}x${item.height_in}in-${production.DPI}dpi.jpg`, overwrite: false },
-        (error, value) => error ? reject(error) : resolve(value));
-      stream.end(result.buffer);
-    });
-    if (!upload?.secure_url) throw new Error('The production image could not be saved');
-    const metadata = { ...result.metadata, url: upload.secure_url, bytes: result.buffer.length };
+    const downloadOrigin = process.env.CONTEXT === 'production'
+      ? process.env.URL || 'https://bannersonthefly.com'
+      : process.env.DEPLOY_PRIME_URL || 'https://bannersonthefly.com';
+    const url = await storeProductionImage(result.buffer, plan.filename, downloadOrigin);
+    const metadata = { ...result.metadata, url, bytes: result.buffer.length };
     // Preserve the immutable native source and all other manifest properties.
     // Cache applies only to this exact saved composition, not a later edit.
     await sql`UPDATE order_items SET artwork_manifest = jsonb_set(COALESCE(artwork_manifest, '{}'::jsonb), '{productionImage}', ${JSON.stringify(metadata)}::jsonb)

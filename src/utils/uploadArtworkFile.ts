@@ -622,7 +622,8 @@ export async function uploadArtworkFile(
     throw new ArtworkUploadError(validationError, { phase: 'validation', retryable: false });
   }
 
-  if (file.size > CLOUDINARY_ARTWORK_BYTES) {
+  const sourcePixels = Number(options.originalWidth) * Number(options.originalHeight);
+  if (file.size > CLOUDINARY_ARTWORK_BYTES || sourcePixels > 25_000_000) {
     const { uploadLargeArtworkFile } = await import('./uploadLargeArtworkFile');
     return uploadLargeArtworkFile(file, options);
   }
@@ -653,6 +654,14 @@ export async function uploadArtworkFile(
     } catch (error) {
       lastError = error;
       if (options.signal?.aborted) throw error;
+      // Compressed images can have small byte counts but exceed the provider's
+      // pixel/page limits. Preserve the original using chunked storage instead
+      // of making the customer resize or repeatedly retry a permanent rejection.
+      if (error instanceof ArtworkUploadError && [400, 413].includes(error.status || 0)
+        && /too large|maximum|megapixel|pixel limit|exceeds|page limit/i.test(error.message)) {
+        const { uploadLargeArtworkFile } = await import('./uploadLargeArtworkFile');
+        return uploadLargeArtworkFile(file, options);
+      }
       const retryable = error instanceof ArtworkUploadError ? error.retryable : true;
       // A failed same-origin attempt must not disable recovery for small files.
       // Mobile connections can recover after the first ticket request times out,

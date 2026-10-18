@@ -635,9 +635,14 @@
   X-Robots-Tag = "noindex, nofollow, noarchive"
   Referrer-Policy = "no-referrer"
 
-# Full-size 200 DPI JPG exports approach 2 GB during compositing (measured on
-# the 96x36 production fixture). Keep the binary in storage, outside Lambda's
+# Full-size 200 DPI JPG exports exceed 2.7 GB for a 120x48 banner (measured).
+# Keep the binary in chunked storage, outside Lambda's
 # response payload limit.
 [functions."admin-ai-production-image"]
+  timeout = 60
+  memory = 4096
+
+# Preserve up to 300 MB of original chunks and build a bounded raster preview.
+[functions."artwork-original-upload"]
   timeout = 60
   memory = 3072
