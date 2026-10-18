@@ -1796,7 +1796,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                   const loading = Boolean(fileLoadingStates[loadingKey]);
                   return (
                     <React.Fragment key={`artwork-${index}`}>
-                    {!getAIResizedArtworkSelection(item) && <Button
+                    <Button
                       key={`original-${index}`}
                       type="button"
                       size="sm"
@@ -1811,7 +1811,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                       ) : (
                         <><Download className="mr-1.5 h-3.5 w-3.5" />{originalFiles.length > 1 ? `Original File ${index + 1}` : 'Original File'}</>
                       )}
-                    </Button>}
+                    </Button>
                     {getAIResizedArtworkSelection(item) && <AIArtworkQuality item={item} orderId={order.id} />}
                     </React.Fragment>
                   );
@@ -2140,7 +2140,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
               const loading = Boolean(fileLoadingStates[loadingKey]);
               return (
                 <React.Fragment key={`artwork-${index}`}>
-                {!getAIResizedArtworkSelection(item) && <Button
+                <Button
                   key={`original-${index}`}
                   type="button"
                   size="sm"
@@ -2155,7 +2155,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                   ) : (
                     <><Download className="mr-1.5 h-3.5 w-3.5" />{originalFiles.length > 1 ? `Original File ${index + 1}` : 'Original File'}</>
                   )}
-                </Button>}
+                </Button>
                 {getAIResizedArtworkSelection(item) && <AIArtworkQuality item={item} orderId={order.id} />}
                 </React.Fragment>
               );
