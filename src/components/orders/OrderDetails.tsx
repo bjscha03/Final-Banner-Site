@@ -16,7 +16,8 @@ import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } f
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
 import { authorizedHeaders } from '@/lib/serverAuth';
-import { getOriginalArtworkSelection } from '@/lib/artworkFiles';
+import AIArtworkQuality from './AIArtworkQuality';
+import { getOriginalArtworkSelection, getAIResizedArtworkSelection } from '@/lib/artworkFiles';
 import { orderItemToReorderQuote } from '@/lib/orders/reorder';
 import {
   Dialog,
@@ -736,7 +737,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     </div>
 
                     {isAdminUser && item.specialty_config && <section className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3"><p className="font-semibold text-emerald-900">Approved production panels</p>{item.specialty_config.panels.map(panel=><div key={panel.id} className="rounded-lg bg-white p-3"><p className="font-bold">{panel.label}</p><p className="text-xs text-slate-600">{panel.composition.widthIn}″ × {panel.composition.heightIn}″ print area · {panel.templateId}</p><div className="mt-2 flex flex-wrap gap-4 text-sm font-semibold text-blue-800"><a href={panel.productionUrl} target="_blank" rel="noreferrer">Production PDF</a><a href={panel.artwork.productionUrl||panel.artwork.url} target="_blank" rel="noreferrer">Original artwork</a><a href={panel.preview.url} target="_blank" rel="noreferrer">Approved preview</a></div></div>)}</section>}
-                    {isAdminUser && item.product_type!=='specialty' && <div className="space-y-3">
+                    {isAdminUser && getAIResizedArtworkSelection(item) && <AIArtworkQuality item={item} orderId={order.id} />}
+                    {isAdminUser && item.product_type!=='specialty' && item.product_type!=='banner' && !getAIResizedArtworkSelection(item) && <div className="space-y-3">
                       <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                         <p className="font-semibold text-emerald-900">Generated Production PDF</p>
                         <p className="mt-1 text-xs text-emerald-800">Status: {item.generated_print_pdf_url ? 'generated' : item.production_pdf_status || 'pending'}</p>

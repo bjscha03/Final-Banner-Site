@@ -14,6 +14,6 @@ export function getOriginalArtworkSelection(item: any): OriginalArtworkSelection
  */
 export function getAIResizedArtworkSelection(item: any): OriginalArtworkSelection | null {
   const filename = item?.artwork_manifest?.originalFilename || item?.original_filename || item?.file_name;
-  if (typeof filename !== 'string' || !/^ai-fit-\d+(?:\.\d+)?x\d+(?:\.\d+)?-.+\.(?:jpe?g|png)$/i.test(filename)) return null;
+  if (typeof filename !== 'string' || !/^ai-(?:fit|banner)-\d+(?:\.\d+)?x\d+(?:\.\d+)?-.+\.(?:jpe?g|png)$/i.test(filename)) return null;
   return getOriginalArtworkSelection(item);
 }

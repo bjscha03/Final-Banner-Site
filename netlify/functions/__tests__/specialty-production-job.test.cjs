@@ -14,6 +14,7 @@ function job(items){
  const queries=[],rendered=[],exports={};
  const sql=async(parts,...values)=>{const query=parts.join('?');queries.push({query,values});return /SELECT/.test(query)?items:[];};
  vm.runInNewContext(fs.readFileSync(require.resolve('../_shared/legacy/generate-paid-order-pdfs-background.cjs'),'utf8'),{exports,process:{env:{DATABASE_URL:'postgres://test.invalid/db'}},console:{error(){}},require(name){
+  if(name==='../ai-artwork-kind.cjs')return require('../_shared/ai-artwork-kind.cjs');
   if(name==='@neondatabase/serverless')return {neon:()=>sql};
   if(name==='./render-order-pdf.cjs')return {handler:async event=>{rendered.push(JSON.parse(event.body));return {statusCode:200};}};
   if(name==='../preview-artifact.cjs')return {assertReadyPlacementPreview};
@@ -42,4 +43,10 @@ test('large specialty print PDFs remain available to the paid order production j
  const j=job([{id:'tent',canvas_state_json:{kind:'specialty',configuration:{panels:[large]}}}]);
  assert.equal((await j.run()).statusCode,200);assert.equal(j.rendered.length,0);
  assert.ok(j.queries.some(q=>/production_pdf_status='generated'/.test(q.query)&&q.values.includes('tent')));
+});
+
+test('AI artwork bypasses PDF generation while other line items still render',async()=>{
+ const j=job([{id:'ai',file_name:'ai-fit-96x36-accepted.jpg'},{id:'plain',width_in:72,height_in:36,canvas_state_json:{objects:[]}}]);
+ assert.equal((await j.run()).statusCode,200);assert.equal(j.rendered.length,1);assert.equal(j.rendered[0].itemId,'plain');
+ assert.ok(j.queries.some(q=>/production_pdf_status='not_required'/.test(q.query)&&q.values.includes('ai')));
 });

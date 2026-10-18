@@ -1796,7 +1796,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                   const loading = Boolean(fileLoadingStates[loadingKey]);
                   return (
                     <React.Fragment key={`artwork-${index}`}>
-                    <Button
+                    {!getAIResizedArtworkSelection(item) && <Button
                       key={`original-${index}`}
                       type="button"
                       size="sm"
@@ -1811,21 +1811,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                       ) : (
                         <><Download className="mr-1.5 h-3.5 w-3.5" />{originalFiles.length > 1 ? `Original File ${index + 1}` : 'Original File'}</>
                       )}
-                    </Button>
-                    {getAIResizedArtworkSelection(item) && (
-                      <Button
-                        type="button"
-                        onClick={() => onFileDownload(getAIResizedArtworkSelection(item)!.url, order.id, index, getOriginalFilename(item), 'ai-resized')}
-                        disabled={Boolean(fileLoadingStates[`${order.id}-${index}-ai-resized`])}
-                        className="h-auto min-h-11 w-full whitespace-normal border-2 border-emerald-800 bg-emerald-700 px-3 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-800 focus-visible:ring-emerald-600"
-                        data-admin-ai-resized-file
-                        title="Download the saved AI artwork at its native pixel resolution; check the resolution notice before printing"
-                      >
-                        {fileLoadingStates[`${order.id}-${index}-ai-resized`]
-                          ? <><Loader2 className="mr-1.5 h-4 w-4 shrink-0 animate-spin" />Downloading...</>
-                          : <><Download className="mr-1.5 h-4 w-4 shrink-0" />Download AI-Resized File{orderItems.length > 1 ? ` ${index + 1}` : ''}</>}
-                      </Button>
-                    )}
+                    </Button>}
                     {getAIResizedArtworkSelection(item) && <AIArtworkQuality item={item} orderId={order.id} />}
                     </React.Fragment>
                   );
@@ -2154,7 +2140,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
               const loading = Boolean(fileLoadingStates[loadingKey]);
               return (
                 <React.Fragment key={`artwork-${index}`}>
-                <Button
+                {!getAIResizedArtworkSelection(item) && <Button
                   key={`original-${index}`}
                   type="button"
                   size="sm"
@@ -2169,21 +2155,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                   ) : (
                     <><Download className="mr-1.5 h-3.5 w-3.5" />{originalFiles.length > 1 ? `Original File ${index + 1}` : 'Original File'}</>
                   )}
-                </Button>
-                {getAIResizedArtworkSelection(item) && (
-                  <Button
-                    type="button"
-                    onClick={() => onFileDownload(getAIResizedArtworkSelection(item)!.url, order.id, index, getOriginalFilename(item), 'ai-resized')}
-                    disabled={Boolean(fileLoadingStates[`${order.id}-${index}-ai-resized`])}
-                    className="h-auto min-h-11 w-full whitespace-normal border-2 border-emerald-800 bg-emerald-700 px-3 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-800 focus-visible:ring-emerald-600"
-                    data-admin-ai-resized-file
-                    title="Download the saved AI artwork at its native pixel resolution; check the resolution notice before printing"
-                  >
-                    {fileLoadingStates[`${order.id}-${index}-ai-resized`]
-                      ? <><Loader2 className="mr-1.5 h-4 w-4 shrink-0 animate-spin" />Downloading...</>
-                      : <><Download className="mr-1.5 h-4 w-4 shrink-0" />Download AI-Resized File{orderItems.length > 1 ? ` ${index + 1}` : ''}</>}
-                  </Button>
-                )}
+                </Button>}
                 {getAIResizedArtworkSelection(item) && <AIArtworkQuality item={item} orderId={order.id} />}
                 </React.Fragment>
               );

@@ -17,10 +17,10 @@ exports.handler = async (event) => {
 
   const sql = neon(dbUrl);
   const items = await sql`
-    SELECT id, width_in, height_in, canvas_state_json, production_pdf_status
+    SELECT id, width_in, height_in, canvas_state_json, production_pdf_status, file_name, original_filename, artwork_manifest
       FROM order_items
      WHERE order_id = ${orderId}
-       AND COALESCE(production_pdf_status, 'pending') <> 'generated'
+       AND COALESCE(production_pdf_status, 'pending') NOT IN ('generated', 'not_required')
   `;
 
   const renderer = require('./render-order-pdf.cjs');
@@ -28,6 +28,12 @@ exports.handler = async (event) => {
 
   for (const item of items) {
     try {
+      // AI artwork is delivered as a full-size JPEG. Do not regenerate the
+      // unwanted PDF proof or repeatedly enqueue it as a missing print file.
+      if (require('../ai-artwork-kind.cjs').isAiArtwork(item)) {
+        await sql`UPDATE order_items SET production_pdf_status='not_required',production_pdf_error=NULL WHERE id=${item.id}`;
+        continue;
+      }
       let saved;try{saved=typeof item.canvas_state_json==='string'?JSON.parse(item.canvas_state_json):item.canvas_state_json;}catch{}
       if(saved?.kind==='specialty'){
         const {assertReadyPlacementPreview}=require('../preview-artifact.cjs');
