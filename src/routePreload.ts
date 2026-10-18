@@ -12,8 +12,8 @@ const recoverPreload = (error: unknown) => {
   // React's real route import still reports persistent failures via its boundary.
 };
 
-if (pathname === '/google-ads-banner' || pathname === '/fall-festival-banners') {
+if (pathname === '/google-ads-banner' || pathname === '/fall-festival-banners' || pathname === '/halloween-banner') {
   void import('./pages/GoogleAdsBanner').catch(recoverPreload);
-} else if (pathname === '/design' || pathname === '/halloween-banner') {
+} else if (pathname === '/design') {
   void import('./pages/Design').catch(recoverPreload);
 }

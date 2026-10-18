@@ -139,13 +139,15 @@ const PRESET_SIZES = [
 ];
 
 
-const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
+const FastBannerAdHero: React.FC<{ onStart: () => void; halloween?: boolean }> = ({ onStart, halloween = false }) => (
   <LightProductHero
     attributes={{ 'data-google-ads-hero': true }}
     productSlug="vinyl-banners"
-    eyebrow="Beautiful custom banners. Made for your next big moment."
-    title="Custom banners. Without the wait."
-    primaryLabel="Build & price my banner"
+    eyebrow={halloween ? "Custom Halloween banners for parties, haunted houses & trunk-or-treats." : "Beautiful custom banners. Made for your next big moment."}
+    title={halloween ? "Halloween banners. Without the wait." : "Custom banners. Without the wait."}
+    description={halloween ? "Create your Halloween design with our new AI tool, or upload artwork. Preview your banner and order online." : undefined}
+    primaryLabel={halloween ? "Build my Halloween banner" : "Build & price my banner"}
+    photo={halloween ? <img src="/images/product-heroes/halloween-banner-1440.webp" srcSet="/images/product-heroes/halloween-banner-640.webp 640w, /images/product-heroes/halloween-banner-1440.webp 1440w" sizes="(min-width: 1024px) 60vw, 100vw" alt="Happy Halloween witch-and-pumpkin vinyl banner with reinforced grommets mounted on a wooden fence" width="1440" height="960" fetchPriority="high" /> : undefined}
     onStart={onStart}
     offer={<BannerDiscountOffer />}
   />
@@ -197,9 +199,10 @@ function preloadPermanentArtwork(url: string, timeoutMs = 20_000): Promise<boole
 const GoogleAdsBanner: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const isHalloweenLanding = location.pathname.replace(/\/+$/, '') === '/halloween-banner';
   const isLargeBannerLanding = location.pathname.replace(/\/+$/, '') === '/large-banners-fast';
   const isFallFestivalLanding = location.pathname.replace(/\/+$/, '') === '/fall-festival-banners';
-  const designerPath = isLargeBannerLanding ? "/large-banners-fast" : location.pathname === "/google-ads-banner" ? "/google-ads-banner" : "/design";
+  const designerPath = isHalloweenLanding ? "/halloween-banner" : isLargeBannerLanding ? "/large-banners-fast" : location.pathname === "/google-ads-banner" ? "/google-ads-banner" : "/design";
   const [searchParams] = useSearchParams();
   const getProductQuerySlug = useCallback((type: ProductTypeSlug) => {
     if (type === 'yard_sign') return 'yard-signs';
@@ -658,7 +661,7 @@ const GoogleAdsBanner: React.FC = () => {
   );
   // Both banner entry points share the same mobile flow. Keep the existing
   // desktop presentation while using the Google Ads redesign on /design too.
-  const paidBannerLanding = compactMobileLanding && (designerPath === '/google-ads-banner' || !isLgScreen);
+  const paidBannerLanding = compactMobileLanding && (designerPath === '/google-ads-banner' || isHalloweenLanding || !isLgScreen);
   const mobilePaidLayout = paidBannerLanding && !isLgScreen;
   const artworkWorkspaceRef = useRef<HTMLDivElement>(null);
   useArtworkWorkspaceViewport(artworkWorkspaceRef, uploadedFile?.editorIdentity || uploadedFile?.fileKey, widthIn / heightIn, isLgScreen);
@@ -3329,9 +3332,10 @@ const GoogleAdsBanner: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>{isLargeBannerLanding ? 'Large Banners Fast — Free Next-Day Air Shipping' : isFallFestivalLanding ? 'Custom Fall Festival Banners' : isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Car Magnets' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
-        <meta name="description" content={isLargeBannerLanding ? "Order large custom vinyl banners with 24-hour production and free next-day air shipping after production. Choose 8 × 4 ft, 10 × 4 ft or custom sizes. Get instant pricing and design online." : isFallFestivalLanding ? 'Custom fall festival banners for churches, schools, harvest festivals and trunk-or-treats. Upload artwork or create with AI. 24-hour production.' : isYardSign ? "Upload yard-sign artwork, review the supported size and current price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
+        <title>{isHalloweenLanding ? 'Custom Halloween Banners' : isLargeBannerLanding ? 'Large Banners Fast — Free Next-Day Air Shipping' : isFallFestivalLanding ? 'Custom Fall Festival Banners' : isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Car Magnets' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
+        <meta name="description" content={isHalloweenLanding ? "Create a custom Halloween banner for parties, haunted houses and trunk-or-treats. Choose your size, upload artwork and preview online. 24-hour production and free next-day air shipping on orders $20+." : isLargeBannerLanding ? "Order large custom vinyl banners with 24-hour production and free next-day air shipping after production. Choose 8 × 4 ft, 10 × 4 ft or custom sizes. Get instant pricing and design online." : isFallFestivalLanding ? 'Custom fall festival banners for churches, schools, harvest festivals and trunk-or-treats. Upload artwork or create with AI. 24-hour production.' : isYardSign ? "Upload yard-sign artwork, review the supported size and current price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
         <meta name="robots" content={isLargeBannerLanding ? "noindex, follow" : isFallFestivalLanding ? "index, follow" : "noindex, nofollow"} />
+        {isHalloweenLanding && <link rel="canonical" href="https://bannersonthefly.com/halloween-banner" />}
         {isLargeBannerLanding && <link rel="canonical" href="https://bannersonthefly.com/large-banners-fast" />}
         {isFallFestivalLanding && <link rel="canonical" href="https://bannersonthefly.com/fall-festival-banners" />}
       </Helmet>
@@ -3368,7 +3372,7 @@ const GoogleAdsBanner: React.FC = () => {
 
         {/* HERO */}
         {!isYardSign && !isCarMagnet ? (
-          isLargeBannerLanding ? <ProductPageHero productSlug="large-banners-fast" ctaUrl="#order-builder" onStart={scrollToOrder} /> : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <><MobileBannerLandingHero redesigned={paidBannerLanding} /><div className="hidden lg:block"><FastBannerAdHero onStart={scrollToOrder} /></div></>
+          isLargeBannerLanding ? <ProductPageHero productSlug="large-banners-fast" ctaUrl="#order-builder" onStart={scrollToOrder} /> : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <><MobileBannerLandingHero redesigned={paidBannerLanding} halloween={isHalloweenLanding} /><div className="hidden lg:block"><FastBannerAdHero onStart={scrollToOrder} halloween={isHalloweenLanding} /></div></>
         ) : (
         <LightProductHero
           attributes={{ 'data-google-product-hero': isYardSign ? 'yard-signs' : 'car-magnets' }}
