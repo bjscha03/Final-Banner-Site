@@ -1430,7 +1430,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
 
       {!verificationMessage ? (
         <section aria-labelledby="card-payment-heading" className="space-y-4">
-          <h3 id="card-payment-heading" className="sr-only">Pay securely by card</h3>
+          <h3 id="card-payment-heading" className="sr-only">{paymentMethod === 'cashapp' ? 'Pay securely with Cash App' : 'Pay securely by card'}</h3>
 
           <div ref={customerDetailsRef} className="checkout-contact">
             <div className="checkout-section-title">
