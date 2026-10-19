@@ -21,7 +21,7 @@ export default function SpecialtyCatalog() {
       <div className="product-hero-stage">
         <div className="product-hero-copy">
           <p className="product-hero-eyebrow">Displays &amp; Signs</p>
-          <h1 id="catalog-hero-title">Show up.<br />Stand out.</h1>
+          <h1 id="catalog-hero-title">Show up.<span className="product-hero-accent">Stand out.</span></h1>
           <p className="product-hero-description">Custom displays and signs that turn heads—at events, in-store, and everywhere you go.</p>
           <div className="product-hero-actions"><a href="#shop-displays" className="product-hero-cta">Shop Displays &amp; Signs<ArrowRight aria-hidden="true" /></a></div>
           <p className="catalog-hero-note">Your artwork. Your brand. Ready to be seen.</p>

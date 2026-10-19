@@ -104,6 +104,7 @@ const ProductPageHero: React.FC<ProductPageHeroProps> = ({ productSlug, ctaUrl, 
       attributes={{ 'data-product-page-hero': productSlug }}
       productSlug={isLargeBanner || productSlug === 'double-sided-banners' ? 'vinyl-banners' : productSlug}
       title={hero.title.join(' ')}
+      accentText={hero.title[hero.title.length - 1]}
       eyebrow={hero.eyebrow}
       description={isLargeBanner ? 'Big visibility for your next opening, event, or deadline. Choose your size, upload artwork, and see your price before ordering.' : hero.intro}
       primaryLabel={hero.primaryLabel}

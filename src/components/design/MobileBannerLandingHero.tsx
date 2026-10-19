@@ -1,3 +1,4 @@
+import ProductionShippingBenefits from '@/components/delivery/ProductionShippingBenefits';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import GoogleReviewSpotlight from './GoogleReviewSpotlight';
 
@@ -5,9 +6,10 @@ export default function MobileBannerLandingHero({ redesigned = false, halloween 
   if (!redesigned) return (
     <section data-testid="mobile-banner-hero" className="border-b border-[#e5dfd6] bg-[#f8f6f1] px-4 py-4 text-[#061A31] lg:hidden">
       <div className="mx-auto max-w-xl">
-        <h1 className="font-sans text-[clamp(1.65rem,7vw,2rem)] font-extrabold leading-[1.12] tracking-[-0.025em]">
-          {halloween ? 'Halloween banners.' : 'Custom banners.'}<br /><span className="text-[#061A31]">Without the wait.</span>
+        <h1 className="font-sans text-[clamp(1.65rem,7vw,2rem)] font-[850] leading-[1.12] tracking-[-0.055em]">
+          {halloween ? 'Halloween banners.' : 'Custom banners.'}<br /><span className="text-[var(--brand-orange)]">Without the wait.</span>
         </h1>
+        <ProductionShippingBenefits />
         <p className="mt-1 text-xs font-medium text-slate-600">Upload. Preview. Order.</p>
         <p className="mt-1 text-[11px] font-semibold text-[#b84300]">20% off your first order · Applied automatically</p>
         <HeroDeliveryStatus variant="arrival" className="mt-2" />
@@ -18,9 +20,10 @@ export default function MobileBannerLandingHero({ redesigned = false, halloween 
     <section data-testid="mobile-banner-hero" className="bg-[#f8f6f1] text-[#061A31] lg:hidden">
       <div className="mx-auto max-w-xl">
         <div className="px-4 pb-3 pt-4">
-        <h1 className="text-[clamp(1.75rem,7.8vw,2.5rem)] font-extrabold leading-[1.06] tracking-tight">
-          {halloween ? 'Halloween banners.' : 'Custom banners.'}<br /><span className="text-[#061A31]">Without the wait.</span>
+        <h1 className="text-[clamp(1.75rem,7.8vw,2.5rem)] font-[850] leading-[1.06] tracking-[-0.055em]">
+          {halloween ? 'Halloween banners.' : 'Custom banners.'}<br /><span className="text-[var(--brand-orange)]">Without the wait.</span>
         </h1>
+        <ProductionShippingBenefits />
         <p className="mt-2 text-xs font-medium text-slate-600">{halloween ? 'For parties, haunted houses & trunk-or-treats.' : 'Fast printing. Next-day air. Real results.'}</p>
         </div>
         <picture>

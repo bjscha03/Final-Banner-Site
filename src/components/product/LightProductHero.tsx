@@ -1,3 +1,4 @@
+import ProductionShippingBenefits from '@/components/delivery/ProductionShippingBenefits';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Clock3, Monitor, Truck, type LucideIcon } from 'lucide-react';
@@ -16,6 +17,7 @@ const defaultBenefits: HeroBenefit[] = [
 interface LightProductHeroProps {
   productSlug: CityProductSlug;
   title: string;
+  accentText: string;
   eyebrow?: string;
   description?: string;
   primaryLabel: string;
@@ -29,15 +31,16 @@ interface LightProductHeroProps {
 }
 
 /** Shared visual treatment; product selection, prices and delivery logic stay with their owners. */
-export default function LightProductHero({ productSlug, title, eyebrow, description, primaryLabel, ctaUrl = '/design', onStart, secondary, offer, benefits = defaultBenefits, photo, attributes }: LightProductHeroProps) {
+export default function LightProductHero({ productSlug, title, accentText, eyebrow, description, primaryLabel, ctaUrl = '/design', onStart, secondary, offer, benefits = defaultBenefits, photo, attributes }: LightProductHeroProps) {
   const action = <>{primaryLabel}<ArrowRight aria-hidden="true" /></>;
   return (
     <section {...attributes} className="product-hero-light">
       <div className="product-hero-stage">
         <div className="product-hero-copy">
           {eyebrow && <p className="product-hero-eyebrow">{eyebrow}</p>}
-          <h1>{title}</h1>
+          <h1>{title.endsWith(accentText) ? <>{title.slice(0, -accentText.length)}<span className="product-hero-accent">{accentText}</span></> : title}</h1>
           {description && <p className="product-hero-description">{description}</p>}
+          <ProductionShippingBenefits freight={attributes?.['data-product-page-hero'] === 'large-banners-fast'} />
           <div className="product-hero-actions">
             {onStart ? <button type="button" onClick={onStart} className="product-hero-cta">{action}</button> : <Link to={ctaUrl} className="product-hero-cta">{action}</Link>}
             {secondary && <a href={secondary.href} className="product-hero-secondary">{secondary.label}</a>}
