@@ -122,17 +122,23 @@ export const attemptPurchaseTracking = async (order: PurchaseTrackingOrder): Pro
   const alreadyTracked = hasStoredKey(key);
 
   if (inFlight.has(key)) return { tracked: false, duplicate: true, key, attempts: [] };
-  // A provider gets its own durable success key. If GA4/Meta succeeded but the
-  // direct Ads call threw or was interrupted, a revisit must retry Ads without
-  // replaying either successful provider.
-  if (alreadyTracked && (!hasGoogleAdsConfig || hasStoredKey(googleAdsKey))) {
+  // The aggregate key means at least one browser provider queued an event,
+  // not that all providers did. Each provider must retain its own retry state.
+  const ga4PreviouslyQueued = hasStoredKey(ga4Key);
+  const metaPreviouslyQueued = hasStoredKey(metaKey);
+  // Older releases wrote only the aggregate key. Preserve their dedupe behavior
+  // rather than replaying historical GA4/Meta purchases after this upgrade.
+  const legacyBrowserTracking = alreadyTracked && !ga4PreviouslyQueued && !metaPreviouslyQueued;
+  const skipGa4 = ga4PreviouslyQueued || legacyBrowserTracking;
+  const skipMeta = metaPreviouslyQueued || legacyBrowserTracking;
+  if (skipGa4 && skipMeta && (!hasGoogleAdsConfig || hasStoredKey(googleAdsKey))) {
     return { tracked: false, duplicate: true, key, attempts: [] };
   }
 
   inFlight.add(key);
   const attempts: ProviderAttempt[] = [];
   try {
-    if (!alreadyTracked && !hasStoredKey(ga4Key)) {
+    if (!skipGa4) {
       const ga4Attempt = attempt('ga4', () => trackPurchase({
         transaction_id: transactionId,
         value: order.totalCents,
@@ -147,7 +153,7 @@ export const attemptPurchaseTracking = async (order: PurchaseTrackingOrder): Pro
       attempts.push({ provider: 'ga4', attempted: false, ok: true, status: 'blocked' });
     }
 
-    if (!alreadyTracked && !hasStoredKey(metaKey)) {
+    if (!skipMeta) {
       const metaAttempt = attempt('meta', () => trackFBPurchase({ value: order.totalCents, transaction_id: transactionId }));
       attempts.push(metaAttempt);
       if (metaAttempt.ok) setStoredKey(metaKey);
