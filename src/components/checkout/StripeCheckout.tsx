@@ -1218,7 +1218,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       {!verificationMessage && <p className="checkout-express-label">Express checkout</p>}
       <div className={`checkout-express-options ${expressCheckoutVisible ? 'has-wallet' : ''} ${availableWalletCount > 1 ? 'has-multiple-wallets' : ''}`}>
       <section
-        style={{ width: availableWalletCount > 1 ? 250 : 120 }}
+        style={{ gridRow: `span ${Math.max(1, availableWalletCount)}` }}
         aria-labelledby="express-checkout-heading"
         aria-hidden={walletsReady && !expressCheckoutVisible}
         className={!walletsReady ? "relative min-h-12" : expressCheckoutVisible
@@ -1256,7 +1256,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
               </p>
             </div>
           ) : null}
-          <div className="relative min-h-[48px]">
+          <div className="checkout-native-wallets relative min-h-[48px]">
             <div>
               <ExpressCheckoutElement
                 options={{
@@ -1266,8 +1266,9 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                   buttonTheme: { applePay: 'black', googlePay: 'black' },
                   buttonType: { applePay: 'plain', googlePay: 'plain' },
                   emailRequired: true,
-                  // Compact branded buttons wrap without hiding available wallets.
-                  layout: { maxColumns: 2, maxRows: 0, overflow: 'never' },
+                  // A 120px column keeps each native button the same size as the
+                  // other wallets; the outer grid aligns the rows alongside it.
+                  layout: { maxColumns: 1, maxRows: 0, overflow: 'never' },
                   paymentMethodOrder: ['apple_pay', 'google_pay'],
                   paymentMethods: {
                     applePay: 'always',
