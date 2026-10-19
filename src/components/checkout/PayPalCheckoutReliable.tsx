@@ -56,6 +56,7 @@ interface PayPalCheckoutProps {
   cardFirstLayout?: boolean;
   /** Hide PayPal-hosted card fields when Stripe already supplies the card form. */
   paypalOnly?: boolean;
+  preferredFunding?: 'paypal' | 'venmo';
   resumeCheckout?: ActiveCheckoutMarker | null;
   onPaymentStateChange?: (state: CheckoutPaymentStateEvent) => void;
   onCanonicalQuote?: (quote: CanonicalCartQuote, serverTotalCents: number) => boolean;
@@ -306,6 +307,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   providerLocked = false,
   cardFirstLayout = false,
   paypalOnly = false,
+  preferredFunding = 'paypal',
   resumeCheckout = null,
   onPaymentStateChange,
   onCanonicalQuote,
@@ -1120,7 +1122,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       key={`${fundingSource}-${hash(checkoutSignature)}`}
       fundingSource={fundingSource}
       onInit={() => trackCheckoutDiagnostic('payment_fields_ready', { provider: 'paypal', method: fundingSource })}
-      style={{ layout: 'vertical', color: fundingSource === 'venmo' ? 'blue' : 'gold', shape: 'rect', height: 48 }}
+      style={{ layout: 'vertical', color: fundingSource === 'venmo' ? 'blue' : 'gold', shape: 'rect', borderRadius: 12, height: 48 }}
       disabled={buttonsDisabled}
       onClick={async (_data, actions) => {
         trackPaymentClick(fundingSource);
@@ -1147,9 +1149,9 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   );
 
   const renderPayPalButton = () => (
-    <div className="space-y-2.5">
-      {renderWalletButton('paypal')}
-      {renderWalletButton('venmo')}
+    <div className="checkout-paypal-wallets">
+      <div>{renderWalletButton(preferredFunding)}</div>
+      <div>{renderWalletButton(preferredFunding === 'venmo' ? 'paypal' : 'venmo')}</div>
     </div>
   );
 
@@ -1461,8 +1463,6 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         </div>
       ) : null}
 
-      {!verificationMessage ? renderCustomerDetails() : null}
-
       {checkoutError ? (
         <div
           id="checkout-customer-error"
@@ -1476,29 +1476,11 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
 
       {!verificationMessage ? (
         <PayPalScriptProvider options={initialOptions}>
-          <h3 className="mb-1 text-sm font-bold text-[#0B1F3A]">Choose payment method</h3>
-          <p className="mb-3 text-xs text-gray-600">
-            {paypalOnly ? 'Complete your order securely with PayPal or Venmo.' : 'Pay securely by card, PayPal or Venmo.'}
-          </p>
-          {(!cardFieldsExpanded || paypalOnly) && orderSummary}
-          {paypalOnly ? (
-            renderPayPalButton()
-          ) : cardFirstLayout ? (
-            <div className="space-y-2.5">
-              {renderInlineCardFields()}
-              <div className="flex items-center gap-2">
-                <span className="h-px flex-1 bg-slate-200" />
-                <span className="text-[11px] text-slate-500">or</span>
-                <span className="h-px flex-1 bg-slate-200" />
-              </div>
-              {renderPayPalButton()}
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {renderPayPalButton()}
-              {renderInlineCardFields()}
-            </div>
-          )}
+          <p className="checkout-express-label">Express checkout</p>
+          {renderPayPalButton()}
+          {renderCustomerDetails()}
+          {orderSummary}
+          {!paypalOnly && renderInlineCardFields()}
         </PayPalScriptProvider>
       ) : null}
     </div>

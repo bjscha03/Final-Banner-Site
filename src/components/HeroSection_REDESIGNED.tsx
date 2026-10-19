@@ -81,7 +81,7 @@ const HeroSection: React.FC = () => {
               </div>
               <div className="text-4xl md:text-5xl font-black text-white mb-2">24hr</div>
               <div className="text-slate-300 font-medium text-lg">Production Time</div>
-              <div className="text-slate-400 text-sm mt-1">Estimated delivery</div>
+              <div className="text-slate-400 text-sm mt-1">Delivery date</div>
             </div>
 
             <div className="group text-center p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">

@@ -38,45 +38,25 @@ describe('DeliveryTimer', () => {
     // The observed Friday checkout session: the old clock read about 56 hours.
     const html = renderAt('2026-10-02T19:38:42.000Z');
     expect(html).toContain('data-state="weekend_lock"');
-    expect(html).toContain('Estimated delivery');
+    expect(html).toContain('Delivery date');
     expect(html).toContain('Tuesday, October 6');
     expect(html).toContain('Monday, October 5');
-    expect(html).toContain('Free next-business-day air after production.');
+    expect(html).toContain('Shipping date');
     expect(html).not.toContain('role="timer"');
     expect(html).not.toContain('Next production window');
     expect(html).not.toMatch(/\d{2}:\d{2}:\d{2}/);
   });
 
-  it('renders standard shipment, delivery, and cutoff countdown together', () => {
-    // Monday, April 27, 2026 at 1:00 PM ET: HIT is closed and 10 PM is 9 hours away.
-    const html = renderAt('2026-04-27T17:00:00.000Z');
-
-    expect(html).toContain('data-state="standard"');
-    expect(html).toContain('Expected Wednesday delivery');
-    expect(html).toContain('expected shipment Tuesday and expected delivery Wednesday');
-    expect(html).toContain('09:00:00');
-    expect(html).toContain("remaining until tonight&#x27;s 10:00 PM ET cutoff");
-  });
-
-  it('renders both faster and standard dates while HIT is available', () => {
-    // Monday, April 27, 2026 at 9:00 AM ET.
-    const html = renderAt('2026-04-27T13:00:00.000Z');
-
-    expect(html).toContain('data-state="hit_available"');
-    expect(html).toContain('expected shipment Monday and expected delivery Tuesday');
-    expect(html).toContain('Standard option: expected to ship Tuesday and arrive Wednesday');
-    expect(html).toContain('04:00:00');
-  });
-
-  it('renders both expected days and the hold timer when HIT is selected', () => {
-    cartSnapshot.sameDayHitService = true;
-    const html = renderAt('2026-04-27T13:00:00.000Z', true);
-
-    expect(html).toContain('data-state="hit_selected"');
-    expect(html).toContain('data-hit-selected="true"');
-    expect(html).toContain('expected to ship Monday and arrive Tuesday');
-    expect(html).toContain('04:00:00');
-    expect(html).toContain('remaining to hold your slot');
+  it.each([
+    ['2026-04-27T17:00:00.000Z', false, 'Tuesday, April 28', 'Wednesday, April 29'],
+    ['2026-04-27T13:00:00.000Z', false, 'Tuesday, April 28', 'Wednesday, April 29'],
+    ['2026-04-27T13:00:00.000Z', true, 'Monday, April 27', 'Tuesday, April 28'],
+  ])('shows only dates for standard and priority services at %s', (now, priority, ship, delivery) => {
+    cartSnapshot.sameDayHitService = Boolean(priority);
+    const html = renderAt(String(now), true);
+    expect(html).toContain(ship);
+    expect(html).toContain(delivery);
+    expect(html).not.toMatch(/role="timer"|cutoff|estimated|expected|\d{2}:\d{2}:\d{2}/i);
   });
 
   it('renders the weekend estimate as a single slim checkout strip', () => {
@@ -133,9 +113,9 @@ describe('DeliveryTimer', () => {
 describe('Friday delivery selection', () => {
   it('shows Monday for HIT and Saturday for the paid upgrade', () => {
     cartSnapshot.sameDayHitService = true;
-    expect(renderSlimAt('2026-09-11T16:59:59Z', true)).toContain('HIT active · expected Monday delivery');
+    expect(renderSlimAt('2026-09-11T16:59:59Z', true)).toContain('Monday, September 14');
     cartSnapshot.saturdayDelivery = true;
-    expect(renderSlimAt('2026-09-11T16:59:59Z', true)).toContain('HIT active · expected Saturday delivery');
+    expect(renderSlimAt('2026-09-11T16:59:59Z', true)).toContain('Saturday, September 12');
     expect(renderSlimAt('2026-09-11T17:00:00Z', true)).toContain('Tuesday, September 15');
   });
 });

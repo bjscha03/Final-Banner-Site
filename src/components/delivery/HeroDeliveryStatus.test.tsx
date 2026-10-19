@@ -37,7 +37,7 @@ describe('HeroDeliveryStatus', () => {
     expect(html).toContain('Wednesday, September 9');
   });
 
-  it('renders Tue, Sep 8 ship and Wed, Sep 9 delivery during the Labor Day 2026 holiday window (editorial)', () => {
+  it('renders Tue, Sep 8 ship and Wednesday, September 9 delivery during the Labor Day 2026 holiday window (editorial)', () => {
     // Monday, September 7, 2026 (Labor Day) at noon ET.
     const html = renderAt('2026-09-07T16:00:00.000Z', 'editorial');
 
@@ -51,16 +51,16 @@ describe('HeroDeliveryStatus', () => {
     const html = renderAt('2026-09-08T04:00:00.000Z', 'compact');
 
     expect(html).not.toContain('data-state="weekend_lock"');
-    expect(html).toContain('Wed, Sep 9');
-    expect(html).toContain('Thu, Sep 10');
+    expect(html).toContain('Wednesday, September 9');
+    expect(html).toContain('Thursday, September 10');
   });
 
   it('shows the actual arrival and ship dates in the compact mobile hero', () => {
     const html = renderAt('2026-10-04T16:00:00.000Z', 'arrival');
 
-    expect(html).toContain('Estimated delivery');
+    expect(html).toContain('Delivery date');
     expect(html).toContain('Tuesday, October 6');
-    expect(html).toContain('Expected to ship Monday, October 5');
+    expect(html).toContain('Monday, October 5');
     expect(html).toContain('data-variant="arrival"');
   });
 });

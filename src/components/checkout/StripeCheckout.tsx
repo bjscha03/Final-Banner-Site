@@ -16,7 +16,6 @@ import { CircleAlert, Clock3, CreditCard, Lock, Loader2, RefreshCw } from 'lucid
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { useAbandonedCartCapture } from '@/hooks/useAbandonedCartCapture';
 import { getStoredAttribution } from '@/lib/attribution';
 import {
@@ -65,6 +64,7 @@ import { CheckoutCardDivider } from './CheckoutCardDivider';
 interface StripeCheckoutProps {
   orderSummary?: React.ReactNode;
   alternativePayment?: React.ReactNode;
+  paymentMethod?: 'card' | 'cashapp';
   publishableKey: string;
   total: number;
   onSuccess: (orderId: string, orderData?: any) => void;
@@ -307,10 +307,10 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   signature,
   orderSummary,
   alternativePayment,
+  paymentMethod = 'card',
 }) => {
   const stripe = useStripe();
   const elements = useElements();
-  const isMobile = useIsMobile();
   const { user } = useAuth();
   const { items, discountCode, sameDayHitService, saturdayDelivery } = useCartStore();
   const resumedStripe = resumeCheckout?.provider === 'stripe' ? resumeCheckout : null;
@@ -1129,11 +1129,11 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   }, [completePayment, onError, pollPaymentStatus, resetForRetry]);
 
   const submitCard = async () => {
-    trackCheckoutDiagnostic('pay_clicked', { provider: 'stripe', method: 'card' });
+    trackCheckoutDiagnostic('pay_clicked', { provider: 'stripe', method: paymentMethod });
     if (!stripe || !elements || paymentFlightRef.current) return;
     const validation = validateCheckoutCustomer(customer);
     if (validation) {
-      trackCheckoutDiagnostic('validation_blocked', { provider: 'stripe', method: 'card', field: validation.field });
+      trackCheckoutDiagnostic('validation_blocked', { provider: 'stripe', method: paymentMethod, field: validation.field });
       setCheckoutError(validation.message);
       window.requestAnimationFrame(() => {
         if (validation.field === 'phone' && walletPhoneRequired) {
@@ -1151,16 +1151,16 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
     try {
       submitResult = await withStripeStageTimeout(elements.submit());
     } catch (error) {
-      trackCheckoutDiagnostic('provider_error', { provider: 'stripe', method: 'card', stage: 'elements_submit', code: error?.code });
+      trackCheckoutDiagnostic('provider_error', { provider: 'stripe', method: paymentMethod, stage: 'elements_submit', code: error?.code });
       setCheckoutError(humanizeStripeError(error));
       return;
     }
     if (submitResult.error) {
-      trackCheckoutDiagnostic('validation_blocked', { provider: 'stripe', method: 'card', stage: 'payment_fields', code: submitResult.error.code });
+      trackCheckoutDiagnostic('validation_blocked', { provider: 'stripe', method: paymentMethod, stage: 'payment_fields', code: submitResult.error.code });
       setCheckoutError(humanizeStripeError(submitResult.error));
       return;
     }
-    await startPayment('card', formCustomer(customer)).catch(() => undefined);
+    await startPayment(paymentMethod, formCustomer(customer)).catch(() => undefined);
   };
 
   const customerFields: Array<{
@@ -1218,6 +1218,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       {!verificationMessage && <p className="checkout-express-label">Express checkout</p>}
       <div className={`checkout-express-options ${expressCheckoutVisible ? 'has-wallet' : ''} ${availableWalletCount > 1 ? 'has-multiple-wallets' : ''}`}>
       <section
+        style={{ width: availableWalletCount > 1 ? 250 : 120 }}
         aria-labelledby="express-checkout-heading"
         aria-hidden={walletsReady && !expressCheckoutVisible}
         className={!walletsReady ? "relative min-h-12" : expressCheckoutVisible
@@ -1265,9 +1266,8 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                   buttonTheme: { applePay: 'black', googlePay: 'black' },
                   buttonType: { applePay: 'plain', googlePay: 'plain' },
                   emailRequired: true,
-                  // Give each phone wallet its own full-width row. Unlimited rows
-                  // keep eligible wallets visible without a cramped overflow menu.
-                  layout: { maxColumns: isMobile ? 1 : 2, maxRows: 0, overflow: 'never' },
+                  // Compact branded buttons wrap without hiding available wallets.
+                  layout: { maxColumns: 2, maxRows: 0, overflow: 'never' },
                   paymentMethodOrder: ['apple_pay', 'google_pay'],
                   paymentMethods: {
                     applePay: 'always',
@@ -1374,7 +1374,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       </div>
 
       {!verificationMessage && (walletsAvailable || alternativePayment) ? (
-        <CheckoutCardDivider />
+        paymentMethod === 'cashapp' ? <p className="text-sm font-semibold">Pay with Cash App</p> : <CheckoutCardDivider />
       ) : null}
 
       {verificationMessage ? (
@@ -1549,8 +1549,8 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
               <h4 className="text-sm font-bold text-[#0B1F3A]">Payment</h4>
             </div>
             <PaymentElement
-              options={stripeCardPaymentElementOptions}
-              onReady={() => trackCheckoutDiagnostic('payment_fields_ready', { provider: 'stripe', method: 'card' })}
+              options={paymentMethod === 'cashapp' ? { ...stripeCardPaymentElementOptions, paymentMethodOrder: ['cashapp'] } : stripeCardPaymentElementOptions}
+              onReady={() => trackCheckoutDiagnostic('payment_fields_ready', { provider: 'stripe', method: paymentMethod })}
               onLoadError={() => {
                 trackCheckoutDiagnostic('payment_fields_load_failed', { provider: 'stripe', method: 'card' });
                 setCheckoutError('Card payment fields could not load. Refresh the page or choose PayPal.');
@@ -1569,7 +1569,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           >
             {isProcessing
               ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Completing secure payment…</>
-              : <><Lock className="mr-2 h-4 w-4" aria-hidden="true" />{`Pay $${(total / 100).toFixed(2)}`}</>}
+              : <><Lock className="mr-2 h-4 w-4" aria-hidden="true" />{`${paymentMethod === 'cashapp' ? 'Continue with Cash App · ' : 'Pay '}$${(total / 100).toFixed(2)}`}</>}
           </Button>
         </section>
       ) : null}
@@ -1578,7 +1578,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   );
 };
 
-const StripeCheckout: React.FC<StripeCheckoutProps> = ({ publishableKey, total, ...props }) => {
+const StripeCheckout: React.FC<StripeCheckoutProps> = ({ publishableKey, total, paymentMethod = 'card', ...props }) => {
   const { items, discountCode, sameDayHitService, saturdayDelivery } = useCartStore();
   const signature = useMemo(() => buildStripeCheckoutSignature({
     total,
@@ -1592,7 +1592,7 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({ publishableKey, total, 
     mode: 'payment',
     amount: total,
     currency: 'usd',
-    paymentMethodTypes: ['card'],
+    allowedPaymentMethodTypes: [paymentMethod],
     appearance: {
       theme: 'stripe',
       variables: {
@@ -1601,7 +1601,7 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({ publishableKey, total, 
         colorText: '#0B1F3A',
         colorDanger: '#B42318',
         fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
-        borderRadius: '6px',
+        borderRadius: '12px',
         spacingUnit: '4px',
       },
       rules: {
@@ -1611,13 +1611,13 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({ publishableKey, total, 
       },
     },
     loader: 'auto',
-  }), [total]);
+  }), [total, paymentMethod]);
 
   if (!publishableKey || total <= 0) return null;
 
   return (
-    <Elements key={signature} stripe={stripePromise} options={options}>
-      <StripeCheckoutForm {...props} total={total} signature={signature} />
+    <Elements key={`${signature}-${paymentMethod}`} stripe={stripePromise} options={options}>
+      <StripeCheckoutForm {...props} paymentMethod={paymentMethod} total={total} signature={signature} />
     </Elements>
   );
 };
