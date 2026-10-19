@@ -16,7 +16,7 @@ type DiagnosticContext = {
 };
 
 /** Never send field values, provider messages, artwork, payment IDs or secrets. */
-export function trackCheckoutDiagnostic(event: CheckoutDiagnostic, context: DiagnosticContext): void {
+export function trackCheckoutDiagnostic(event: CheckoutDiagnostic, context: DiagnosticContext, evidence: Record<string, unknown> = {}): void {
   recordIssueAction(`checkout_${event}`);
   const properties: Record<string, string> = {};
   for (const key of ['provider', 'method', 'stage', 'field', 'code'] as const) {
@@ -26,7 +26,7 @@ export function trackCheckoutDiagnostic(event: CheckoutDiagnostic, context: Diag
   // Ordinary declines and validation mistakes are not site outages.
   if (event === 'payment_fields_load_failed') reportSiteIssue('checkout_load_error', properties);
   if (event === 'provider_error' && !['card_declined', 'insufficient_funds', 'incorrect_cvc', 'expired_card', 'payment_intent_authentication_failure', 'INSTRUMENT_DECLINED', 'PAYER_ACTION_REQUIRED'].includes(properties.code)) {
-    reportSiteIssue('checkout_error', properties);
+    reportSiteIssue('checkout_error', { ...properties, ...evidence });
   }
   // Use the existing tracking policy: preview and admin visits stay excluded.
   // Each destination is independent and cannot interfere with checkout.

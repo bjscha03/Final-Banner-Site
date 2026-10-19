@@ -29,7 +29,6 @@ import {
   YARD_SIGN_INCREMENT,
   YARD_SIGN_SINGLE_SIDED_CENTS,
   YARD_SIGN_DOUBLE_SIDED_CENTS,
-  YARD_SIGN_STEP_STAKE_CENTS,
   YARD_SIGN_WIDTH_IN,
   YARD_SIGN_HEIGHT_IN,
   getTotalDesignQuantity,
@@ -59,6 +58,7 @@ import ArtworkPreviewEditor, {
   type ArtworkTransform,
 } from '@/components/design/ArtworkPreviewEditor';
 import ConfigCard from '@/components/design/layout/ConfigCard';
+import YardSignStakeOptions from './YardSignStakeOptions';
 import { logUx } from '@/lib/uxAnalytics';
 import { createStableCartItemId } from '@/lib/cartItemIdentity';
 import {
@@ -517,6 +517,15 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
         </p>
       </ConfigCard>
 
+      <YardSignStakeOptions
+        totalQuantity={totalQuantity}
+        enabled={addStepStakes}
+        quantity={stepStakeQuantity}
+        onEnabledChange={onStepStakesChange}
+        onQuantityChange={onStepStakeQuantityChange}
+        restorationKey={autoOpenDesignId}
+      />
+
       {/* Step 3 — Add Designs (upload + per-design quantity) */}
       <ConfigCard step={3} title="Add Designs" id="yard-upload-section" headerRight={<span className="text-xs font-normal text-gray-400">Up to {YARD_SIGN_MAX_DESIGNS} designs per order</span>}>
         <p className="text-xs text-gray-500 mb-2">
@@ -702,72 +711,6 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
         )}
       </ConfigCard>
 
-      {/* Step 4 — Add Stakes (optional). Renamed from "Finishing options" so
-          the mobile sticky CTA can ask the user to review this step before
-          Add to Cart. */}
-      <ConfigCard step={4} title="Add Stakes" id="yard-finishing-section">
-        <p className="text-xs text-gray-500 mb-3">Optional wire H-stakes for ground mounting.</p>
-        <div
-          className={`border rounded-xl p-4 transition-all cursor-pointer ${
-            addStepStakes
-              ? 'border-orange-500 bg-orange-50'
-              : 'border-gray-200 hover:border-gray-400'
-          }`}
-          onClick={() => {
-            const next = !addStepStakes;
-            onStepStakesChange(next);
-            if (next && totalQuantity > 0) {
-              onStepStakeQuantityChange(totalQuantity);
-            }
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={addStepStakes}
-              onChange={() => {}}
-              className="accent-orange-500 w-4 h-4 flex-shrink-0"
-            />
-            <div className="flex-1">
-              <p className={`text-sm font-semibold ${addStepStakes ? 'text-orange-700' : 'text-gray-800'}`}>
-                Step Stakes
-              </p>
-              <p className="text-xs text-gray-500">
-                Wire H-stakes for ground mounting · {usd(YARD_SIGN_STEP_STAKE_CENTS / 100)} each
-              </p>
-            </div>
-          </div>
-          {addStepStakes && (
-            <div className="mt-3 ml-7" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-600">Qty:</span>
-                <button
-                  onClick={() => onStepStakeQuantityChange(Math.max(1, stepStakeQuantity - 1))}
-                  className="w-7 h-7 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors"
-                >
-                  <Minus className="h-3 w-3 text-gray-600" />
-                </button>
-                <input
-                  type="number"
-                  min={1}
-                  max={YARD_SIGN_MAX_QUANTITY}
-                  value={stepStakeQuantity}
-                  onChange={e => onStepStakeQuantityChange(Math.max(1, Math.min(YARD_SIGN_MAX_QUANTITY, +e.target.value || 1)))}
-                  className="w-14 border rounded-lg px-2 py-1 text-sm text-center"
-                />
-                <button
-                  onClick={() => onStepStakeQuantityChange(Math.min(YARD_SIGN_MAX_QUANTITY, stepStakeQuantity + 1))}
-                  className="w-7 h-7 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors"
-                >
-                  <Plus className="h-3 w-3 text-gray-600" />
-                </button>
-              </div>
-              <p className="text-xs text-gray-400 mt-1.5">Typically 1 stake per sign</p>
-            </div>
-          )}
-        </div>
-      </ConfigCard>
-
       {/* Helper text */}
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-1.5">
         <p className="text-xs text-blue-700 font-medium">📋 Order Guidelines</p>
@@ -798,10 +741,11 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1">
                 <Move className="w-4 h-4" /> Drag to reposition · Drag corners to resize · Pinch to scale
               </p>
-              <div className="rounded-lg p-4" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
+              <div className="rounded-lg p-4 pt-24" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
                 {/* Width wrapper — constrains max-width so padding-bottom produces correct height (cross-browser safe, fixes Safari aspect-ratio bug) */}
                 <div className="mx-auto" style={{ width: '100%', maxWidth: `${Math.round(400 * (24 / 18))}px` }}>
                   <ArtworkPreviewEditor
+                    enableCropping={false}
                     key={`${previewDesign.id}|${previewDesign.fileKey}`}
                     ref={previewEditorRef}
                     initialNormalizedTransform={restoredFitTransform}
@@ -811,6 +755,12 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
                     paddingPct={`${(18 / 24) * 100}%`}
                     containerRef={previewCanvasRef}
                     mobileToolbarContainer={mobileToolbarEl}
+                    fitAssistance={{
+                      enabled: ENABLE_AI && !isUploading && !isSavingPreview && !aiModalOpen && Boolean(previewDesign.fileKey),
+                      fitDialogOpen: Boolean(fitDesign),
+                      onFit: () => setFitDesignId(previewDesign.id),
+                      widthIn: YARD_SIGN_WIDTH_IN, heightIn: YARD_SIGN_HEIGHT_IN, productLabel: 'yard sign',
+                    }}
                     fitControls={ENABLE_AI ? <ArtworkFitButton
                       onClick={() => setFitDesignId(previewDesign.id)}
                       disabled={isUploading || isSavingPreview}

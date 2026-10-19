@@ -3,16 +3,32 @@ on:
   pull_request:
     paths:
       - 'src/pages/GoogleAdsBanner.tsx'
+      - 'src/lib/artworkInteractions*'
+      - 'tests/browser/artwork-canvas-controls.playwright.spec.ts'
       - 'src/components/design/**'
       - 'src/components/pricing/**'
       - 'tests/browser/compact-banner-builder.playwright.spec.ts'
+      - 'tests/browser/mobile-designer-consistency.playwright.spec.ts'
       - '.github/workflows/compact-banner-builder.yml'
 permissions:
   contents: read
 jobs:
   builder-browsers:
+    name: builder (${{ matrix.project }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - chromium-1440x900
+          - firefox-1280x800
+          - webkit-1280x800
+          - webkit-iphone15pro-portrait
+          - webkit-iphone15pro-landscape
+          - webkit-iphonese-portrait
+          - chromium-pixel8-portrait
+          - webkit-ipad11-portrait
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,18 +40,13 @@ jobs:
       - name: Verify desktop, phone and tablet ordering
         run: >-
           npx playwright test --config=playwright.preview.config.ts
+          artwork-canvas-controls.playwright.spec.ts
           compact-banner-builder.playwright.spec.ts
-          --project=chromium-1440x900
-          --project=firefox-1280x800
-          --project=webkit-1280x800
-          --project=webkit-iphone15pro-portrait
-          --project=webkit-iphone15pro-landscape
-          --project=webkit-iphonese-portrait
-          --project=chromium-pixel8-portrait
-          --project=webkit-ipad11-portrait
+          mobile-designer-consistency.playwright.spec.ts
+          --project=${{ matrix.project }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: compact-builder-browser-results
+          name: compact-builder-${{ matrix.project }}
           path: test-results/
           retention-days: 7

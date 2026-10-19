@@ -18,6 +18,7 @@ export default defineConfig({
         // Test-only receiver: WebKit route interception omits file bytes.
         // Receiving real multipart HTTP verifies the same bytes in every engine.
         const assets = new Map<string, Buffer>();
+        const uploadGates = new Map<string, { promise: Promise<void>; release: () => void }>();
         server.middlewares.use(async (req, res, next) => {
           const url = new URL(req.url || '/', 'http://127.0.0.1:4175');
           const browserScenario = String(req.headers.cookie || '').match(/(?:^|;\s*)compact_browser_scenario=([^;]+)/)?.[1];
@@ -43,6 +44,19 @@ export default defineConfig({
           }
           if (!url.pathname.startsWith('/__compact-test-')) return next();
           const scenario = url.searchParams.get('scenario') || 'default';
+          if (url.pathname === '/__compact-test-hold') {
+            req.resume();
+            if (url.searchParams.get('hold') === '1') {
+              let release!: () => void;
+              const promise = new Promise<void>(resolve => { release = resolve; });
+              uploadGates.set(scenario, { promise, release });
+            } else {
+              uploadGates.get(scenario)?.release();
+              uploadGates.delete(scenario);
+            }
+            res.end('ok');
+            return;
+          }
           if (url.pathname === '/__compact-test-asset') {
             const kind = url.searchParams.get('kind') || 'original';
             const bytes = assets.get(`${scenario}:${kind}`);
@@ -69,6 +83,7 @@ export default defineConfig({
             const metadata = await sharp(bytes).metadata();
             const kind = filename.startsWith('placement-v3-') ? 'placement' : 'original';
             assets.set(`${scenario}:${kind}`, bytes);
+            await uploadGates.get(scenario)?.promise;
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({
               secure_url: `http://${req.headers.host}/__compact-test-asset?scenario=${encodeURIComponent(scenario)}&kind=${kind}`,

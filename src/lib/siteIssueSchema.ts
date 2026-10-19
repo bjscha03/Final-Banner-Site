@@ -5,9 +5,9 @@ export type SiteIssue = {
   page: string; sessionId: string; traffic: 'customer' | 'test';
   device: string; browser: string; os: string; online: boolean;
   details: Record<string, string | number | boolean>;
-  status: 'new' | 'reviewed'; reviewedAt?: string; deployId: string;
+  status: 'new' | 'reviewed' | 'resolved'; reviewedAt?: string; resolvedAt?: string; resolution?: string; deployId: string;
 };
-export type SiteIssueInput = Omit<SiteIssue, 'receivedAt' | 'status' | 'reviewedAt' | 'deployId' | 'device' | 'browser' | 'os'>;
+export type SiteIssueInput = Omit<SiteIssue, 'receivedAt' | 'status' | 'reviewedAt' | 'resolvedAt' | 'resolution' | 'deployId' | 'device' | 'browser' | 'os'>;
 export const ISSUE_LABELS: Record<SiteIssueKind, string> = {
   upload_error: 'Artwork upload failed', upload_timeout: 'Artwork upload stalled', upload_preview_error: 'Artwork preview failed',
   checkout_error: 'Checkout error', checkout_load_error: 'Payment form did not load',
@@ -23,7 +23,7 @@ export function diagnosticText(value: unknown, limit = 1000): string {
   if (typeof value !== 'string') return '';
   return value.slice(0, 16000)
     .replace(/(?:https?:\/\/|blob:|data:)[^\s)]+/gi, raw => {
-      try { const url = new URL(raw); return /^\/assets\/[A-Za-z0-9_.-]+\.js(?::\d+:\d+)?$/.test(url.pathname) ? url.pathname : '[url]'; } catch { return '[url]'; }
+      try { const url = new URL(raw); return /^\/assets\/[A-Za-z0-9_.-]+\.(?:js|css|mjs)(?::\d+:\d+)?$/.test(url.pathname) ? url.pathname : '[url]'; } catch { return '[url]'; }
     })
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
     .replace(/\b(?:Bearer\s+\S+|(?:sk|pk|pi|cs|seti|pm)_[A-Za-z0-9_]+)\b/gi, '[secret]')
@@ -36,12 +36,12 @@ export function issueDetails(input: unknown): SiteIssue['details'] {
   const result: SiteIssue['details'] = {};
   if (!input || typeof input !== 'object') return result;
   const values = input as Record<string, unknown>;
-  for (const key of ['phase', 'status', 'mimeType', 'sizeBucket', 'provider', 'method', 'stage', 'code', 'errorName', 'correlationId', 'transport', 'field', 'event', 'browserVersion', 'clientBuild']) {
+  for (const key of ['phase', 'status', 'mimeType', 'sizeBucket', 'provider', 'method', 'stage', 'code', 'errorName', 'correlationId', 'transport', 'field', 'event', 'browserVersion', 'clientBuild', 'requestId', 'operation', 'recovery', 'assetHost', 'action', 'product']) {
     const value = values[key];
     if (typeof value === 'string' && /^[A-Za-z0-9_.<>+\/-]{1,100}$/.test(value)) result[key] = value;
     if (key === 'status' && typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 599) result[key] = value;
   }
-  for (const key of ['durationMs', 'line', 'column']) {
+  for (const key of ['durationMs', 'line', 'column', 'attempt', 'chunkIndex', 'chunkCount', 'expectedTotalCents', 'serverTotalCents', 'viewportWidth', 'viewportHeight']) {
     const value = values[key];
     if (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 86_400_000) result[key] = Math.round(value);
   }
@@ -52,8 +52,8 @@ export function issueDetails(input: unknown): SiteIssue['details'] {
   for (const [key, limit] of Object.entries({ errorMessage: 1000, stack: 3000, componentStack: 1500, breadcrumbs: 1500 })) {
     const text = diagnosticText(values[key], limit); if (text) result[key] = text;
   }
-  if (typeof values.retryable === 'boolean') result.retryable = values.retryable;
-  if (typeof values.source === 'string' && /^\/assets\/[A-Za-z0-9_.-]{1,140}\.js$/.test(values.source)) result.source = values.source;
+  for (const key of ['retryable', 'canonicalQuoteApplied', 'recoveryAttempted']) if (typeof values[key] === 'boolean') result[key] = values[key];
+  if (typeof values.source === 'string' && /^\/assets\/[A-Za-z0-9_.-]{1,140}\.(?:js|css|mjs)$/.test(values.source)) result.source = values.source;
   return result;
 }
 export function deviceInfo(agent: string) {

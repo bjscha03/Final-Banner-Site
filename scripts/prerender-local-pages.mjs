@@ -39,7 +39,7 @@ await writeFile(path.join(distDir, '404.html'), await makeDocument('/__not-found
 const allowedLocalUrls = new Set(indexablePrerenderRoutes.map((route) => `https://bannersonthefly.com${route}`));
 const sitemapPath = path.join(distDir, 'sitemap.xml');
 let sitemap = await readFile(sitemapPath, 'utf8');
-const managedPathPattern = /^https:\/\/bannersonthefly\.com\/(?:trade-shows(?:\/[^/]+)?|(?:vinyl-banners|yard-signs|car-magnets)\/[^/]+)\/?$/;
+const managedPathPattern = /^https:\/\/bannersonthefly\.com\/(?:trade-shows(?:\/[^/]+)?|(?:vinyl-banners|yard-signs|car-magnets)(?:\/[^/]+)?)\/?$/;
 sitemap = sitemap.replace(/\s*<url>[\s\S]*?<\/url>/g, (block) => {
   const location = block.match(/<loc>([^<]+)<\/loc>/)?.[1]?.trim();
   if (location?.replace(/\/$/, '') === 'https://bannersonthefly.com/locations') return '';

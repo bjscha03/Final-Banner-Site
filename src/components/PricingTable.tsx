@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 const materials = [
   {
     name: '13oz Vinyl',
+    material: '13oz',
     profile: 'Everyday displays',
     use: 'Indoor displays & short-term outdoor use.',
     imageStem: 'material-13oz',
@@ -12,6 +13,7 @@ const materials = [
   },
   {
     name: '15oz Vinyl',
+    material: '15oz',
     profile: 'Outdoor promotions',
     use: 'Storefronts, events & everyday outdoor use.',
     imageStem: 'material-15oz',
@@ -19,6 +21,7 @@ const materials = [
   },
   {
     name: '18oz Vinyl',
+    material: '18oz',
     profile: 'Heavy-duty jobs',
     use: 'Heavy-duty & longer-term outdoor displays.',
     imageStem: 'material-18oz',
@@ -26,6 +29,7 @@ const materials = [
   },
   {
     name: 'Mesh Banner',
+    material: 'mesh',
     profile: 'Windy locations',
     use: 'Fences & outdoor spaces with airflow.',
     imageStem: 'material-mesh',
@@ -52,8 +56,8 @@ const PricingTable: React.FC = () => (
             Four materials. Find the right fit for your space.
           </p>
         </div>
-        <Link to="/vinyl-banners" className="mb-1 inline-flex w-fit shrink-0 items-center gap-3 border-b border-[#061A31] pb-1 text-sm font-bold uppercase text-[#061A31] transition-colors hover:text-[#C94008] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
-          Compare materials <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        <Link to="/design?product=banner" className="mb-1 inline-flex w-fit shrink-0 items-center gap-3 border-b border-[#061A31] pb-1 text-sm font-bold uppercase text-[#061A31] transition-colors hover:text-[#C94008] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+          Design your banner <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       </div>
 
@@ -89,8 +93,8 @@ const PricingTable: React.FC = () => (
                 <h3 className="homepage-condensed [--homepage-mobile-size:2rem] text-[2rem] font-black uppercase leading-tight text-[#061A31]">{material.profile}</h3>
                 <p className="text-xl font-semibold text-[#C94008]">{material.name}</p>
                 <p className="mb-4 mt-2 text-base leading-6 text-[#263d54]">{material.use}</p>
-                <Link to={material.imageStem === 'material-mesh' ? '/mesh-banners' : '/vinyl-banners'} aria-label={`Explore ${material.name}`} className="mt-auto inline-flex w-fit items-center gap-3 border-b-2 border-[#F45B08] pb-1 text-sm font-bold uppercase text-[#061A31] transition-colors hover:text-[#C94008] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
-                  Explore material <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                <Link to={`/design?product=banner&material=${material.material}`} aria-label={`Design a ${material.name} banner`} className="mt-auto inline-flex w-fit items-center gap-3 border-b-2 border-[#F45B08] pb-1 text-sm font-bold uppercase text-[#061A31] transition-colors hover:text-[#C94008] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+                  Design your banner <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </div>
             </article>

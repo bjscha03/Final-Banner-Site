@@ -27,7 +27,7 @@ export default defineConfig({
   },
   webServer: {
     command: 'npx vite preview --host 127.0.0.1 --port 4176',
-    url: 'http://127.0.0.1:4176/vinyl-banners/louisville-ky/',
+    url: 'http://127.0.0.1:4176/vinyl-banners/',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

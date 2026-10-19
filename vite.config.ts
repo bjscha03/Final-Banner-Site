@@ -12,6 +12,10 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Keep lazy JS/CSS tied to the document's atomic deploy. The custom domain
+  // switches releases immediately; the deploy permalink keeps the old files
+  // available to customers already designing or checking out.
+  base: mode === 'test' ? '/' : process.env.DEPLOY_URL || '/',
   define: { 'import.meta.env.VITE_COMMIT_REF': JSON.stringify(process.env.COMMIT_REF || process.env.VITE_COMMIT_REF || 'unknown') },
   server: {
     host: "::",

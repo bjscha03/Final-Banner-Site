@@ -5,8 +5,14 @@ interface ProductVisualProps {
   productSlug: CityProductSlug;
   className?: string;
   priority?: boolean;
-  presentation?: 'default' | 'selector' | 'card';
+  presentation?: 'default' | 'selector' | 'card' | 'hero';
 }
+
+const HERO_IMAGE_ALTS: Record<CityProductSlug, string> = {
+  'vinyl-banners': 'FIELDWORK mountain photography vinyl banner with bold white lettering, secured with grommets to a storefront railing',
+  'yard-signs': 'Bold orange and charcoal RIDGELINE open house yard sign on a galvanized H stake outside a modern home',
+  'car-magnets': 'Orange and charcoal APEX Home Services removable magnet fitted entirely within a white work van door',
+};
 
 const PRODUCT_IMAGE_ALTS: Record<CityProductSlug, string> = {
   'vinyl-banners': 'Navy and orange Make It Big vinyl banner mounted on a black storefront railing',
@@ -23,12 +29,12 @@ const ProductVisual: React.FC<ProductVisualProps> = ({ productSlug, className = 
         data-product-visual-subject={productSlug}
         data-product-visual-face={productSlug}
         {...(presentation === 'selector' ? { 'data-selector-product-subject': '', 'data-selector-product-face': '' } : {})}
-        src={`/images/product-editorial/${productSlug}-1440.webp`}
-        srcSet={`/images/product-editorial/${productSlug}-640.webp 640w, /images/product-editorial/${productSlug}-1440.webp 1440w`}
+        src={`/images/${presentation === 'hero' ? 'product-heroes' : 'product-editorial'}/${productSlug}${presentation === 'hero' ? '-bold' : ''}-1440.webp`}
+        srcSet={`/images/${presentation === 'hero' ? 'product-heroes' : 'product-editorial'}/${productSlug}${presentation === 'hero' ? '-bold' : ''}-640.webp 640w, /images/${presentation === 'hero' ? 'product-heroes' : 'product-editorial'}/${productSlug}${presentation === 'hero' ? '-bold' : ''}-1440.webp 1440w`}
         sizes={presentation === 'selector' || presentation === 'card' ? '(min-width: 768px) 33vw, 100vw' : '(min-width: 1024px) 60vw, 100vw'}
-        alt={PRODUCT_IMAGE_ALTS[productSlug]}
+        alt={(presentation === 'hero' ? HERO_IMAGE_ALTS : PRODUCT_IMAGE_ALTS)[productSlug]}
         width={1440}
-        height={1080}
+        height={presentation === 'hero' ? 960 : 1080}
         loading={priority ? 'eager' : 'lazy'}
         fetchPriority={priority ? 'high' : 'auto'}
         className="h-full w-full object-cover object-center"

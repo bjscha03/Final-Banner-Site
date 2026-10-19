@@ -25,6 +25,11 @@ const order = {
 } satisfies Order;
 
 describe('Admin review-request presentation rules', () => {
+  it('disables review requests after a partial refund even if an earlier email was sent', () => {
+    const eligibility = getReviewRequestEligibility({ ...order, partial_refund_cents: 1, review_request_last_sent_at: '2026-09-01' });
+    expect(eligibility.eligible).toBe(false);
+    expect(eligibility.reason).toMatch(/partial refund/);
+  });
   it('uses the server-resolved canonical customer email', () => {
     expect(getReviewRequestCustomerEmail(order)).toBe('canonical@example.com');
     expect(isValidReviewRequestEmail('bad address')).toBe(false);

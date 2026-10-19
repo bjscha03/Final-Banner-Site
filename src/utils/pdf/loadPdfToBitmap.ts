@@ -2,11 +2,10 @@
 // Enhanced PDF rendering utility for banner design applications
 // Converts PDF to high-resolution bitmap with print-ready quality and optimized file size
 
-import { GlobalWorkerOptions } from 'pdfjs-dist';
+import { GlobalWorkerOptions } from '@/utils/pdf/pdfRuntime';
 
-GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
-let _pdfjsLib: typeof import('pdfjs-dist') | null = null;
+let _pdfjsLib: typeof import('@/utils/pdf/pdfRuntime') | null = null;
 
 export interface PdfRenderOptions {
   bannerWidthInches: number;
@@ -215,7 +214,7 @@ export async function loadPdfToBitmap(
 
     // Load PDF.js library dynamically
     if (!_pdfjsLib) {
-      _pdfjsLib = await import('pdfjs-dist');
+      _pdfjsLib = await import('@/utils/pdf/pdfRuntime');
     }
 
     // Calculate optimal dimensions

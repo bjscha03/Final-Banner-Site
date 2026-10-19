@@ -303,6 +303,8 @@ test("guest activation opens past orders and older orders load without losing hi
       return route.fallback();
     const response = await route.fetch({
       url: `http://127.0.0.1:4175${url.pathname}${url.search}`,
+      // Retry transient local-dev-server connection resets, not HTTP failures.
+      maxRetries: 2,
     });
     await route.fulfill({ response });
   });
@@ -397,23 +399,25 @@ for (const scenario of ["guest", "new-account", "empty-wallet", "pending-only"] 
   });
 }
 
-test("site navigation is present across routes except the Google Ads landing page", async ({ page }, info) => {
+test("storefront navigation is preserved and only Google Ads has a compact header", async ({ page }, info) => {
   await mock(page);
   const mobile = info.project.name.includes("portrait");
-  for (const path of ["/design", "/design?product=yard-sign", "/double-sided-banners", "/large-banners-fast", "/fall-festival-banners", "/bof-cash-test", "/canva-test", "/design/canva-editor", "/pdf-diagnostic", "/missing-page"]) {
+  for (const path of ["/design", "/design?product=yard-sign", "/double-sided-banners", "/large-banners-fast", "/fall-festival-banners", "/bof-cash-test", "/canva-test", "/design/canva-editor", "/pdf-diagnostic", "/missing-page", "/google-ads-banner"]) {
     await page.goto(path);
-    if (mobile) {
+    // Storefront routes retain navigation; only the Google Ads landing page omits it.
+    const compactHeader = path === "/google-ads-banner";
+    await expect(page.getByRole("button", { name: "Shopping cart", exact: true }), path).toBeVisible();
+    if (compactHeader) {
+      await expect(page.getByRole("navigation", { name: "Primary navigation" }), path).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Open navigation menu" }), path).toHaveCount(0);
+    } else if (mobile) {
       await page.getByRole("button", { name: "Open navigation menu" }).click();
-      await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Mobile navigation" }), path).toBeVisible();
       await page.getByRole("button", { name: "Close navigation menu" }).click();
     } else {
-      await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Primary navigation" }), path).toBeVisible();
     }
   }
-  await page.goto("/google-ads-banner");
-  await expect(page.getByRole("button", { name: "Shopping cart", exact: true })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Open navigation menu" })).toHaveCount(0);
 });
 
 test("checkout shows usable credit, applies it once, and restores totals on removal", async ({
@@ -607,14 +611,14 @@ test("sharing uses the public referral link across Facebook, text, email, and co
   );
   expect(facebook.hostname).toBe("www.facebook.com");
   expect(facebook.searchParams.get("u")).toBe(link);
+  const shareDraft = await sharing.getByLabel("Your ready-to-send message").inputValue();
+  expect(shareDraft).toContain("first qualifying order");
   for (const label of ["Text a friend", "Email a friend"]) {
     const href = (await sharing
       .getByRole("link", { name: label })
       .getAttribute("href"))!;
     expect(decodeURIComponent(href)).toContain(link);
-    expect(decodeURIComponent(href)).toContain(
-      "I earn BOF Cash on qualifying referrals, too.",
-    );
+    expect(decodeURIComponent(href)).toContain(shareDraft);
     expect(href).not.toContain("claim");
   }
   for (const name of ["Copy link", "Copy code", "Copy message"])

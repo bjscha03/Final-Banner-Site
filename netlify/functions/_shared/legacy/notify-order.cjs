@@ -12,6 +12,7 @@ const {
 } = require('./email-template.cjs');
 const { createGuestOrderViewUrl } = require('../order-confirmation-token.cjs');
 const { getSession } = require('../server-auth.cjs');
+const { renderOrderDeliveryEstimate } = require('../order-delivery-email.cjs');
 
 const DEFAULT_PUBLIC_SITE_ORIGIN = 'https://www.bannersonthefly.com';
 const ALLOWED_PUBLIC_SITE_HOSTS = new Set([
@@ -123,12 +124,12 @@ function createAdminOrderEmailHtml(payload) {
   const itemsHtml = order.items.map(item => {
     const isYardSign = item.product_type === 'yard_sign';
     const isCarMagnet = item.product_type === 'car_magnet';
-    const productBadge = isYardSign
+    const productBadge = item.product_type==='specialty'?`<span>${escapeHtml(item.name)}</span>`:isYardSign
       ? `<span style="display: inline-block; background-color: #ecfdf5; color: #065f46; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; margin-bottom: 4px;">🪧 Yard Sign</span>`
       : isCarMagnet
         ? `<span style="display: inline-block; background-color: #fff7ed; color: #9a3412; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; margin-bottom: 4px;">🚗 Car Magnets</span>`
         : `<span style="display: inline-block; background-color: #eff6ff; color: #1e40af; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; margin-bottom: 4px;">🏷️ Banner</span>`;
-    const imgAlt = isYardSign ? 'Yard Sign' : isCarMagnet ? 'Car Magnets' : 'Banner';
+    const imgAlt = item.product_type==='specialty'?escapeHtml(item.name):isYardSign ? 'Yard Sign' : isCarMagnet ? 'Car Magnets' : 'Banner';
 
     return `
     <tr>
@@ -600,6 +601,7 @@ async function sendEmail(type, payload) {
       // rush shipping, never reference "delivered tomorrow").
       const sameDayHit = !!order.sameDayHitService;
       const saturdayDelivery = !!order.saturdayDelivery;
+      const deliveryBlock = renderOrderDeliveryEstimate({ created_at: order.created_at, same_day_hit_service: sameDayHit, saturday_delivery: saturdayDelivery, items: order.items });
       const sameDayBlock = sameDayHit
         ? `
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:14px 0;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;">
@@ -628,6 +630,7 @@ async function sendEmail(type, payload) {
           bodyHtml: `
             <p style="margin:0 0 12px;font-size:15px;color:#334155;">Hi ${escapeHtml(names.firstName)},</p>
             <p style="margin:0 0 16px;font-size:14px;color:#334155;">Thank you for your order!</p>
+            ${deliveryBlock}
             ${itemHtml}
             ${sameDayBlock}
             ${totalsHtml}
@@ -661,6 +664,7 @@ async function sendEmail(type, payload) {
           orderNumber: order.number,
           bodyHtml: `
             ${adminPriorityBanner}
+            ${deliveryBlock}
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:0 0 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
               <tr><td style="padding:14px;">
                 <p style="margin:0 0 6px;color:#0f172a;font-size:14px;font-weight:700;">Customer Name: ${escapeHtml(names.fullName || 'Not provided')}</p>
@@ -919,6 +923,7 @@ exports.handler = async (event) => {
       idempotencyAttemptId,
       order: {
         isTestOrder: !!order.is_test_order,
+        created_at: order.created_at,
         id: order.id,
         number: order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN',
         customerName: customerName,
@@ -957,6 +962,7 @@ exports.handler = async (event) => {
           const normalized = normalizeOrderItemDisplay(item);
           return {
           product_type: item.product_type || 'banner',
+          specialty_config:item.specialty_config||null,
           name: getItemDisplayName(item),
           quantity: item.quantity,
           price: item.line_total_cents / 100,

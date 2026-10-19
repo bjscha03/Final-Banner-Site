@@ -43,7 +43,11 @@ export const summarizeAdminOrders = (orders: Order[]): AdminOrderOverview => {
     if (shipped) summary.shippedOrders += 1;
     if (!shipped && status !== 'in_production') summary.pendingOrders += 1;
 
-    if (!isTestOrder(order) && REVENUE_STATUSES.has(status)) summary.totalRevenueCents += totalCents;
+    if (!isTestOrder(order) && REVENUE_STATUSES.has(status)) {
+      const refundCents = Math.min(totalCents, Math.max(0, Number(order.partial_refund_cents) || 0));
+      summary.totalRevenueCents += totalCents - refundCents;
+      summary.refundedRevenueCents += refundCents;
+    }
     return summary;
   }, {
     totalOrders: 0,

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "sms:dev": "vite-node server/sms-server.js",
-    "build": "npm run generate:seo-assets && vite build && vite build --config vite.ssr.config.ts && node scripts/prerender-local-pages.mjs && node scripts/verify-local-build.mjs",
+    "build": "node scripts/generate-order-delivery.mjs --check && node scripts/generate-specialty-options.mjs --check && npm run generate:seo-assets && vite build && vite build --config vite.ssr.config.ts && node scripts/prerender-local-pages.mjs && node scripts/verify-local-build.mjs",
     "generate:seo-assets": "node scripts/generate-seo-assets.mjs",
     "test:local-pages": "vitest run src/lib/seo/__tests__/localPages.test.ts",
     "test:trade-shows": "vitest run src/lib/tradeShows/__tests__/tradeShows.test.ts",
@@ -37,6 +37,7 @@
     "@netlify/functions": "^4.2.5",
     "@netlify/neon": "^0.1.0",
     "@paypal/react-paypal-js": "^8.9.1",
+    "@pdf-lib/fontkit": "^1.1.1",
     "@radix-ui/react-accordion": "^1.2.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-aspect-ratio": "^1.1.0",

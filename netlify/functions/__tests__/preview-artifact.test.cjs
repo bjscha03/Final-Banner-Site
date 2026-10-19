@@ -43,6 +43,14 @@ test('server and browser canonical signature algorithms share a fixed vector', (
   );
 });
 
+test('crop survives normalization and cannot be changed without invalidating approval', () => {
+  const preview = artifact({ crop: { x: 0.1, y: 0.2, width: 0.6, height: 0.7 } });
+  const item = normalizeCartItemPlacement({ placement_preview: preview });
+  assert.deepEqual(item.placement_preview.crop, preview.crop);
+  assert.throws(() => assertReadyPlacementPreview({ ...preview, crop: { ...preview.crop, x: 0.2 } }), PreviewArtifactValidationError);
+  assert.throws(() => assertReadyPlacementPreview(artifact({ crop: { x: 0.5, y: 0, width: 0.8, height: 1 } })), /crop/);
+});
+
 test('a complete permanent artifact validates and becomes the only commerce URL', () => {
   const placement = artifact();
   assert.equal(assertReadyPlacementPreview(placement), placement);

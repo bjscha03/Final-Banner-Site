@@ -42,7 +42,7 @@ test('banner upload opens the native chooser from the first visible upload actio
   await page.goto('/google-ads-banner?product=banner', { waitUntil: 'domcontentloaded' });
   await expectNoHorizontalOverflow(page);
 
-  const action = page.getByRole('button', { name: /Upload your artwork.*PNG, JPG, or PDF/i }).first();
+  const action = page.getByRole('button', { name: /(?:I have artwork|Upload your artwork).*PNG, JPG, or PDF/i }).first();
 
   await expect(action).toBeVisible();
   await expectChooserFromAction(page, action);

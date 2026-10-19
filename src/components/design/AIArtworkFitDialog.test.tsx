@@ -21,7 +21,6 @@ let props: React.ComponentProps<typeof AIArtworkFitDialog>;
 const button = (label: string) => [...document.querySelectorAll('button')].find(el => el.textContent === label) as HTMLButtonElement;
 async function click(label: string) { const el = button(label); expect(el).toBeTruthy(); await act(async () => el.click()); }
 async function render() { await act(async () => root.render(<AIArtworkFitDialog {...props} />)); }
-async function checkReview() { await act(async () => (document.querySelector('input[type="checkbox"]') as HTMLInputElement).click()); }
 
 beforeEach(() => {
   vi.clearAllMocks(); vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
@@ -34,129 +33,144 @@ beforeEach(() => {
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals(); });
 
-it('compares first, requires customer review, and saves before applying', async () => {
-  await render(); await click('Create fitted version');
+it('starts on opening, shows only the completed preview, and saves with one approval', async () => {
+  await render();
+  expect(runBackgroundJob).toHaveBeenCalledOnce();
   expect(props.onApply).not.toHaveBeenCalled();
-  expect(button('Use this version').disabled).toBe(true);
-  await checkReview(); await click('Use this version');
+  expect(document.querySelector('input[type="checkbox"]')).toBeNull();
+  expect(document.querySelector('img[alt="Your fitted design"]')).not.toBeNull();
+  expect(document.body.textContent).not.toMatch(/Original artwork|Create fitted version|PPI|DPI|resolution|Please retry this design/i);
+  expect(button('Approve design').disabled).toBe(false);
+  await click('Approve design');
   expect(saveFittedArtwork).toHaveBeenCalledExactlyOnceWith(success);
   expect(props.onApply).toHaveBeenCalledExactlyOnceWith(fitted, 'original-1|120|48');
   expect(props.onOpenChange).toHaveBeenCalledWith(false);
 });
 
-it('prevents using a result with changed wording or design elements', async () => {
-  vi.mocked(runBackgroundJob).mockResolvedValue({ fit: { ...success, verification: { ...success.verification, passed: false, issues: ['The logo changed'] } } });
-  await render(); await click('Create fitted version');
-  expect(document.body.textContent).toContain('The logo changed');
-  expect(button('Use this version').disabled).toBe(true);
-  expect(document.querySelector('input[type="checkbox"]')).toBeNull();
-  await click('Use this version');
-  expect(saveFittedArtwork).not.toHaveBeenCalled(); expect(props.onApply).not.toHaveBeenCalled();
-});
-
-it('leaves the original intact when saving fails and permits retry', async () => {
-  vi.mocked(saveFittedArtwork).mockRejectedValueOnce(new Error('Upload failed'));
-  await render(); await click('Create fitted version'); await checkReview(); await click('Use this version');
-  expect(document.body.textContent).toContain('Upload failed'); expect(props.onApply).not.toHaveBeenCalled();
-  await click('Use this version'); expect(props.onApply).toHaveBeenCalledOnce();
-});
-
-it('ignores a late result after the selected size changes and prepares the new size', async () => {
-  let resolve!: (value: any) => void;
-  vi.mocked(runBackgroundJob).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
-  await render(); await click('Create fitted version');
-  props = { ...props, widthIn: 72 }; await render();
-  await act(async () => resolve({ fit: success }));
-  expect(button('Use this version')).toBeUndefined();
-  expect(button('Create fitted version').disabled).toBe(false);
-  await click('Create fitted version');
-  expect(runBackgroundJob).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ widthIn: 72 }), expect.anything(), expect.anything(), expect.anything(), undefined, undefined, 'original-1|72|48');
-});
-
-it('keeps one request running when the dialog closes and reopens', async () => {
-  let resolve!: (value: any) => void;
-  vi.mocked(runBackgroundJob).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+it.each([
+  { passed: false, canApply: false, issues: ['The logo changed'] },
+  { passed: false, canApply: false, blockingIssues: ['The admission price changed'], missing: ['5'], added: ['15'] },
+])('lets the customer approve the preview despite internal analysis: %j', async checks => {
+  const reviewable = { ...success, verification: { ...success.verification, ...checks } };
+  vi.mocked(runBackgroundJob).mockResolvedValue({ fit: reviewable });
   await render();
-  const create = button('Create fitted version');
-  await act(async () => { create.click(); create.click(); });
+  expect(document.body.textContent).not.toMatch(/logo changed|admission price|retry this design|PPI|DPI|resolution/i);
+  await click('Approve design');
+  expect(saveFittedArtwork).toHaveBeenCalledExactlyOnceWith(reviewable);
+  expect(props.onApply).toHaveBeenCalledOnce();
+});
+
+it('lets the screenshot 53.3 PPI layout and unknown pixel dimensions be approved', async () => {
+  for (const pixels of [1920, 0]) {
+    props = { ...props, widthIn: 36, heightIn: 36, artwork: { ...artwork, editorIdentity: `source-${pixels}` } };
+    const result = { ...success, widthIn: 36, heightIn: 36, widthPx: pixels, heightPx: pixels };
+    vi.mocked(runBackgroundJob).mockResolvedValue({ fit: result });
+    await render();
+    expect(document.body.textContent).not.toMatch(/PPI|DPI|resolution|missing detail|minimum/i);
+    await click('Approve design');
+    expect(saveFittedArtwork).toHaveBeenLastCalledWith(result);
+  }
+});
+
+it('keeps the original if saving fails and retries approval without technical errors', async () => {
+  vi.mocked(saveFittedArtwork).mockRejectedValueOnce(new Error('Upload failed'));
+  await render(); await click('Approve design');
+  expect(document.body.textContent).not.toContain('Upload failed');
+  expect(props.onApply).not.toHaveBeenCalled();
+  expect(document.querySelector('img[alt="Your fitted design"]')).not.toBeNull();
+  await click('Approve design');
+  expect(props.onApply).toHaveBeenCalledOnce();
+});
+
+it('shows centered progress without a setup step or duplicate requests', async () => {
+  let resolve!: (value: any) => void;
+  vi.mocked(runBackgroundJob).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  await render(); await render();
+  expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+  expect(document.body.textContent).toContain('Fitting your design');
+  expect(document.body.textContent).toContain('This can take a few minutes. Please keep this window open.');
+  expect(button('Create fitted version')).toBeUndefined();
+  expect(button('Approve design')).toBeUndefined();
   props = { ...props, open: false }; await render(); props = { ...props, open: true }; await render();
   expect(runBackgroundJob).toHaveBeenCalledOnce();
   await act(async () => resolve({ fit: success }));
-  expect(button('Use this version')).toBeTruthy(); expect(props.onApply).not.toHaveBeenCalled();
+  expect(button('Approve design')).toBeTruthy();
 });
 
-it('offers a working retry after readiness temporarily fails', async () => {
+it('ignores an old result after a size change and automatically fits the new size', async () => {
+  let resolve!: (value: any) => void;
+  vi.mocked(runBackgroundJob).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  await render();
+  vi.mocked(runBackgroundJob).mockResolvedValue({ fit: { ...success, widthIn: 72 } });
+  props = { ...props, widthIn: 72 }; await render();
+  await act(async () => resolve({ fit: success }));
+  expect(runBackgroundJob).toHaveBeenCalledTimes(2);
+  expect(runBackgroundJob).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ widthIn: 72 }), expect.anything(), expect.anything(), expect.any(Function), undefined, undefined, 'original-1|72|48');
+  await click('Approve design');
+  expect(saveFittedArtwork).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ widthIn: 72 }));
+});
+
+it('automatically starts after retrying temporary readiness failure', async () => {
   vi.mocked(fetchAIJson).mockResolvedValueOnce({ response: new Response('{}'), body: { ready: false } });
-  await render(); await click('Try opening AI fit again');
-  expect(button('Create fitted version').disabled).toBe(false);
+  await render(); expect(runBackgroundJob).not.toHaveBeenCalled();
+  expect(document.querySelector('[role="alert"]')).toBeNull();
+  await click('Try again');
+  expect(runBackgroundJob).toHaveBeenCalledOnce();
+  expect(button('Approve design')).toBeTruthy();
 });
 
-it('lets the customer review and apply the cosmetic differences from the petting-zoo report', async () => {
-  const reviewable = { ...success, verification: { ...success.verification, passed: false, canApply: true, blockingIssues: [], confidence: .8, issues: ['The lettering appears wider.', 'The divider has two additional decorative dots.', 'The wood grain and knot pattern differ.'] } };
-  vi.mocked(runBackgroundJob).mockResolvedValue({ fit: reviewable });
-  await render(); await click('Create fitted version');
-  expect(document.body.textContent).toContain('Review the visual changes');
-  expect(document.body.textContent).not.toContain('This version needs another attempt');
-  expect(document.body.textContent).toContain('The wood grain and knot pattern differ.');
-  expect(button('Use this version').disabled).toBe(true);
-  await checkReview();
-  expect(button('Use this version').disabled).toBe(false);
-  await click('Use this version');
-  expect(saveFittedArtwork).toHaveBeenCalledExactlyOnceWith(reviewable);
-  expect(props.onApply).toHaveBeenCalledExactlyOnceWith(fitted, 'original-1|120|48');
+it('permits retry without exposing generation errors or claiming a missing result succeeded', async () => {
+  vi.mocked(runBackgroundJob).mockRejectedValueOnce(new Error('Provider failed'));
+  await render();
+  expect(document.body.textContent).not.toContain('Provider failed');
+  expect(button('Approve design')).toBeUndefined();
+  expect(props.onApply).not.toHaveBeenCalled();
+  await click('Try again');
+  expect(runBackgroundJob).toHaveBeenCalledTimes(2);
+  expect(button('Approve design')).toBeTruthy();
 });
 
-it('keeps a changed admission price blocked even when cosmetic review would be available', async () => {
-  vi.mocked(runBackgroundJob).mockResolvedValue({ fit: { ...success, verification: { ...success.verification, passed: false, canApply: false, blockingIssues: ['The admission price changed'], missing: ['5'], added: ['15'] } } });
-  await render(); await click('Create fitted version');
-  expect(button('Use this version').disabled).toBe(true);
-  expect(document.querySelector('input[type="checkbox"]')).toBeNull();
-  expect(document.body.textContent).toContain('The admission price changed');
-  expect(saveFittedArtwork).not.toHaveBeenCalled();
-});
-
-it('keeps the last preview and retries the same attempt after a failed replacement', async () => {
-  await render(); await click('Create fitted version');
-  vi.mocked(runBackgroundJob).mockRejectedValueOnce(new Error('Temporary connection failure'));
-  await click('Try another layout');
-  expect(document.querySelector('img[alt="AI layout at your selected product dimensions"]')).not.toBeNull();
-  expect(button('Retry same request')).toBeTruthy();
-  await click('Retry same request');
-  expect(vi.mocked(runBackgroundJob).mock.calls.slice(1).map(call => call[1].attempt)).toEqual([1, 1]);
-});
-
-it('shows the server cooldown and prevents repeated retry clicks until it expires', async () => {
+it('respects server cooldown without showing raw errors or allowing duplicate work', async () => {
   vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
   try {
-    await render(); await click('Create fitted version');
     vi.mocked(runBackgroundJob).mockRejectedValueOnce(new AIRequestRateLimitError('Limit reached', '65'));
-    await click('Try another layout');
-    expect(document.body.textContent).toContain('Please wait 1:05');
-    expect(button('Retry same request').disabled).toBe(true);
-    await click('Retry same request'); expect(runBackgroundJob).toHaveBeenCalledTimes(2);
+    await render();
+    expect(document.body.textContent).not.toContain('Limit reached');
+    expect(button('Please wait…').disabled).toBe(true);
     await act(async () => vi.advanceTimersByTime(65_000));
-    expect(button('Retry same request').disabled).toBe(false);
-    await click('Retry same request');
-    expect(runBackgroundJob).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ attempt: 1 }), expect.anything(), expect.anything(), expect.anything(), undefined, undefined, 'original-1|120|48');
+    await click('Try again');
+    expect(runBackgroundJob).toHaveBeenCalledTimes(2);
   } finally { vi.useRealTimers(); }
 });
 
-
-it.each(['yard_sign', 'car_magnet'] as const)('fits %s using product dimensions and isolates its request identity', async productType => {
+it.each(['yard_sign', 'car_magnet'] as const)('automatically fits %s and saves its selected dimensions', async productType => {
   props = { ...props, productType, widthIn: 24, heightIn: 18 };
-  await render(); await click('Create fitted version');
-  expect(runBackgroundJob).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ productType, widthIn: 24, heightIn: 18 }), expect.anything(), expect.anything(), expect.anything(), undefined, undefined, `original-1|24|18|${productType}`);
-  await checkReview(); await click('Use this version');
+  vi.mocked(runBackgroundJob).mockResolvedValue({ fit: { ...success, productType, widthIn: 24, heightIn: 18 } });
+  await render(); await click('Approve design');
   expect(props.onApply).toHaveBeenCalledExactlyOnceWith(fitted, `original-1|24|18|${productType}`);
 });
 
-it('discards an in-flight result when the product changes at the same dimensions', async () => {
-  let resolve!: (value: any) => void;
-  vi.mocked(runBackgroundJob).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
-  props = { ...props, widthIn: 24, heightIn: 18 };
-  await render(); await click('Create fitted version');
-  props = { ...props, productType: 'car_magnet' }; await render();
-  await act(async () => resolve({ fit: success }));
-  expect(button('Use this version')).toBeUndefined();
-  expect(props.onApply).not.toHaveBeenCalled();
+it('updates actual progress and rotates patience messages until the preview is ready', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+  try {
+    let updateStage!: (message: string) => void;
+    let resolve!: (value: any) => void;
+    vi.mocked(runBackgroundJob).mockImplementationOnce((_path, _payload, _signal, _waiting, onStage) => {
+      updateStage = onStage;
+      return new Promise(done => { resolve = done; });
+    });
+    await render();
+    await act(async () => updateStage('Rearranging your design for the selected size'));
+    expect(document.querySelector('[role="status"]')?.textContent).toContain('Rearranging your design');
+    await act(async () => vi.advanceTimersByTime(15000));
+    expect(document.body.textContent).toContain('You’ll be able to review and approve the finished preview.');
+    await act(async () => vi.advanceTimersByTime(15000));
+    expect(document.body.textContent).toContain('Thanks for your patience');
+    await act(async () => updateStage('Checking the complete fitted design again'));
+    expect(document.querySelector('[role="status"]')?.textContent).toContain('Checking the complete fitted design again');
+    expect(runBackgroundJob).toHaveBeenCalledOnce();
+    await act(async () => resolve({ fit: success }));
+    expect(button('Approve design')).toBeTruthy();
+    expect(document.body.textContent).not.toContain('This can take a few minutes');
+  } finally { vi.useRealTimers(); }
 });

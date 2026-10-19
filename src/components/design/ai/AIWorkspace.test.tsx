@@ -123,8 +123,8 @@ describe('customer AI version selection and handoff', () => {
     const direction = [...host.querySelectorAll('select')].find(item => item.closest('label')?.textContent?.startsWith('Visual direction'))!;
     expect(direction.value).toBe('Modern minimal');
     await click('Discard unapplied changes');
-    expect(button('Use this design').disabled).toBe(false);
-    await click('Use this design');
+    expect(button('Approve design & continue').disabled).toBe(false);
+    await click('Approve design & continue');
     expect(generated.mock.calls[0][0].imageBase64).toBe(concept(1).imageBase64);
   });
 
@@ -151,7 +151,7 @@ describe('customer AI version selection and handoff', () => {
     expect(selectedImage()).toContain(concept(2).imageBase64);
     expect(editRequests).toHaveLength(1);
     expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/ai-designer-worker-background'))).toHaveLength(1);
-    await click('Use this design');
+    await click('Approve design & continue');
     expect(generated.mock.calls[0][0].imageBase64).toBe(concept(2).imageBase64);
   });
   it('preserves an interrupted preview across closing and reopening, then retrieves the same edit', async () => {
@@ -207,7 +207,7 @@ describe('customer AI version selection and handoff', () => {
     expect(editRequests.map(item => item.currentBackgroundRef)).toEqual(['background-1', 'background-2', 'background-3']);
     expect(button('Select version 4').getAttribute('aria-pressed')).toBe('true');
     expect(selectedImage()).toBe(`data:image/jpeg;base64,${concept(4).imageBase64}`);
-    await click('Use this design');
+    await click('Approve design & continue');
     expect(generated).toHaveBeenCalledWith(expect.objectContaining({
       imageBase64: concept(4).imageBase64,
       session: expect.objectContaining({ selectedConcept: expect.objectContaining({ versionId: 'v4', backgroundRef: 'background-4' }), versionHistory: expect.arrayContaining([expect.objectContaining({ versionId: 'v1' }), expect.objectContaining({ versionId: 'v4' })]) }),
@@ -220,7 +220,7 @@ describe('customer AI version selection and handoff', () => {
     expect(button('Select version 4').getAttribute('aria-pressed')).toBe('true');
     await click('Redo');
     expect(button('Select version 2').getAttribute('aria-pressed')).toBe('true');
-    await click('Use this design');
+    await click('Approve design & continue');
     expect(generated.mock.calls[0][0].imageBase64).toBe(concept(2).imageBase64);
     expect(generated.mock.calls[0][0].session.versionHistory).toHaveLength(4);
   });
@@ -239,7 +239,7 @@ describe('customer AI version selection and handoff', () => {
     await click('Select version 1'); await finishJob();
     expect(selectedImage()).toBe(`data:image/jpeg;base64,${concept(2).imageBase64}`);
     expect(host.textContent).toContain('Please retry this edit.');
-    expect(button('Use this design').disabled).toBe(false);
+    expect(button('Approve design & continue').disabled).toBe(false);
   });
   it('flushes a quick close and restores all versions and the selection in the same order', async () => {
     await mount(session(concept(3), [concept(1), concept(2), concept(3)]));
@@ -259,7 +259,7 @@ describe('customer AI version selection and handoff', () => {
     const original = concept(1, { artworkRef: 'print-original' });
     const edited = concept(2, { artworkRef: 'print-edited' });
     await mount(session(edited, [original, edited]));
-    await click('Use this design');
+    await click('Approve design & continue');
     const exportCall = fetchMock.mock.calls.find(([url]) => url.endsWith('/ai-designer-export'))!;
     expect(JSON.parse(exportCall[1].body).artworkRef).toBe('print-edited');
     expect(generated).not.toHaveBeenCalled(); expect(closed).not.toHaveBeenCalled();
@@ -286,37 +286,38 @@ describe('customer print review', () => {
     expect(host.textContent).not.toMatch(/Check text spacing|Give text more space|close to the edge/);
     expect(host.textContent).not.toContain('Internal checker diagnostic');
     expect(host.textContent).not.toContain('Review warning');
-    await click('Use this design');
+    await click('Approve design & continue');
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     expect(generated.mock.calls[0][0].session.selectedConcept.validation.passed).toBe(false);
     expect(generated.mock.calls[0][0].imageBase64).toBe(original.imageBase64);
   });
   it('allows review and continuation when visual checking is unavailable without claiming it passed', async () => {
     await mount(session(flagged(['visionUnavailable'], true)));
-    expect(host.textContent).toContain('automatic visual check could not finish');
+    expect(host.textContent).not.toContain('automatic visual check could not finish');
     expect(host.textContent).not.toContain('Wording check: Failed');
-    await click('Use this design');
+    await click('Approve design & continue');
     expect(generated).toHaveBeenCalledOnce();
     expect(generated.mock.calls[0][0].session.selectedConcept.validation.vision.available).toBe(false);
   });
-  it.each(['clippedContent', 'unexpectedText'])('retains explicit review for %s without displaying the accompanying margin flag', async flag => {
-    await mount(session(flagged(['importantContentOutsideSafeMargins', flag])));
-    await click('Review design & continue');
-    expect(generated).not.toHaveBeenCalled();
-    const dialog = document.querySelector('[role="dialog"]')!;
-    expect(dialog.textContent).toContain(flag === 'clippedContent' ? 'cut off at the edge' : 'extra wording');
-    expect(host.textContent).not.toMatch(/Check text spacing|Give text more space|close to the edge/);
-    expect(dialog.textContent).not.toMatch(/Check text spacing|Give text more space|close to the edge/);
-    const approve = [...dialog.querySelectorAll('button')].find(item => item.textContent === 'Approve design & continue')!;
-    await act(async () => (approve as HTMLButtonElement).click());
-    expect(generated).toHaveBeenCalledOnce();
-  });
-  it('does not dismiss a real resolution failure when the visual checker is unavailable', async () => {
-    const original = flagged(['visionUnavailable'], true);
-    original.validation.checks.resolution.passed = false;
+  it.each(['clippedContent', 'unexpectedText'])('allows customer approval with internal %s diagnostics', async flag => {
+    const original = flagged(['importantContentOutsideSafeMargins', flag]);
     await mount(session(original));
-    expect(host.textContent).toContain('image may look soft');
-    expect(button('Review design & continue')).toBeDefined();
+    expect(host.querySelector('[data-testid="ai-print-review"]')).toBeNull();
+    await click('Approve design & continue');
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(generated).toHaveBeenCalledOnce();
+    expect(generated.mock.calls[0][0].session.selectedConcept.validation).toEqual(original.validation);
+  });
+  it('allows low resolution artwork to continue without warnings or another confirmation', async () => {
+    const original = flagged(['visionUnavailable'], true);
+    original.validation.checks.resolution = { passed: false, effectivePpi: 53.3, minimumPpi: 200 };
+    original.validation.reasons = ['Effective resolution 53.3 PPI is below the 200 PPI requirement'];
+    await mount(session(original));
+    expect(host.textContent).not.toMatch(/image may look soft|\bPPI\b|\bDPI\b|resolution|automatic visual check/i);
+    expect(host.querySelector('[data-testid="ai-print-review"]')).toBeNull();
+    await click('Approve design & continue');
+    expect(generated).toHaveBeenCalledOnce();
+    expect(generated.mock.calls[0][0].session.selectedConcept.validation).toEqual(original.validation);
   });
   it('silently retains new margin-check diagnostics while allowing the original artwork to continue', async () => {
     const original = concept(1);
@@ -328,15 +329,42 @@ describe('customer print review', () => {
     expect(host.querySelector('[data-testid="ai-print-review"]')).toBeNull();
     expect(host.textContent).not.toMatch(/Check text spacing|Give text more space|safe margin/);
     expect(editRequests).toHaveLength(0);
-    await click('Use this design');
+    await click('Approve design & continue');
     expect(generated).toHaveBeenCalledOnce();
     expect(generated.mock.calls[0][0].session.selectedConcept.validation).toEqual(original.validation);
   });
   it('does not bring the spacing warning back when another review notice is present', async () => {
     await mount(session(flagged(['importantContentOutsideSafeMargins', 'visionUnavailable'], true)));
-    expect(host.textContent).toContain('automatic visual check could not finish');
+    expect(host.textContent).not.toContain('automatic visual check could not finish');
     expect(host.textContent).not.toMatch(/Check text spacing|Give text more space|close to the edge/);
-    await click('Use this design');
+    await click('Approve design & continue');
     expect(generated).toHaveBeenCalledOnce();
+  });
+});
+
+describe('product-specific AI sessions',()=>{
+  it('preserves the existing banner draft when its selected dimensions change',async()=>{
+    const saved=session();await mount(saved);
+    await act(async()=>root.render(<AIWorkspace productType="banner" widthIn={96} heightIn={48} material="13oz" initialSession={saved} onGenerated={generated}/>));
+    expect(selectedImage()).toContain(concept(1).imageBase64);
+    expect(button('Apply your changes before continuing').disabled).toBe(true);
+    expect(host.textContent).toContain('8 ft × 4 ft');
+  });
+  it('replaces the banner example and clears its versions when changing to a flag',async()=>{
+    await mount(session());
+    expect(selectedImage()).toContain(concept(1).imageBase64);
+    await act(async()=>root.render(<AIWorkspace productType="specialty:feather-flags:feather-flags-1:front" widthIn={25} heightIn={80} material="Fabric" initialSession={session()} onGenerated={generated}/>));
+    expect(host.querySelector('.ai-studio-banner-showcase')).toBeNull();
+    expect(selectedImage()).toBeUndefined();
+    expect(host.querySelector('[data-testid="ai-product-example"]')).not.toBeNull();
+    expect(host.textContent).toContain('Feather Flags');
+    expect(host.textContent).toContain('25 in × 80 in');
+    expect(host.textContent).not.toContain('Free Next-Day Air shipping');
+  });
+  it('ignores a mismatched product draft even if stored under the current draft key',async()=>{
+    mocks.records.set('customer:customer-test:specialty:feather-flags:feather-flags-1:front:25:80',{brief,concepts:[concept(1)],selectedId:'v1'});
+    await act(async()=>root.render(<AIWorkspace productType="specialty:feather-flags:feather-flags-1:front" widthIn={25} heightIn={80} material="Fabric" onGenerated={generated}/>));
+    expect(selectedImage()).toBeUndefined();
+    expect(host.textContent).toContain('25 in × 80 in');
   });
 });

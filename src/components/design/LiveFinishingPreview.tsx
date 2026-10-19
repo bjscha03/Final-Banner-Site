@@ -5,14 +5,20 @@ import { normalizeOrderItemDisplay } from '@/lib/product-display';
 import { ZoomIn } from 'lucide-react';
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import BannerDimensions from '@/components/preview/BannerDimensions';
+import { useState } from 'react';
+import { artworkImageBox } from '@/lib/artworkInteractions';
 
 /** Display-only scene: the editor remains the authority for saving artwork. */
-export default function LiveFinishingPreview({ item, src, transform, choiceConfirmed }: {
+export default function LiveFinishingPreview({ item, src, transform, choiceConfirmed, prominent = false }: {
   item: CartItem;
   src: string;
   transform: NormalizedArtworkTransform;
   choiceConfirmed: boolean;
+  prominent?: boolean;
 }) {
+  const [natural, setNatural] = useState({ w: 0, h: 0 });
+  const imageBox = natural.w ? artworkImageBox({ x: transform.xPct * item.width_in / 100, y: transform.yPct * item.height_in / 100, scaleX: transform.scaleX, scaleY: transform.scaleY }, { w: item.width_in, h: item.height_in }, natural) : null;
+  const crop = transform.crop;
   const details = normalizeOrderItemDisplay(item);
   const selected = item.rope_feet > 0
     ? `Rope: ${details.ropeDisplay}`
@@ -24,10 +30,10 @@ export default function LiveFinishingPreview({ item, src, transform, choiceConfi
   const ratio = Math.max(0.9, Math.min(1.8, item.width_in / item.height_in));
   const artwork = (
     <div className="relative overflow-hidden bg-white">
-      <img src={src} alt="Your artwork with the selected finishing" className="absolute inset-0 h-full w-full object-contain" style={{
-        transform: `translate(${transform.xPct}%, ${transform.yPct}%) scale(${transform.scaleX}, ${transform.scaleY})`,
-        transformOrigin: 'center center',
-      }} />
+      <img src={src} onLoad={e => setNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })} alt="Your artwork with the selected finishing" className="absolute object-contain" style={imageBox ? {
+        left: `${imageBox.left / item.width_in * 100}%`, top: `${imageBox.top / item.height_in * 100}%`, width: `${imageBox.width / item.width_in * 100}%`, height: `${imageBox.height / item.height_in * 100}%`, maxWidth: 'none',
+        clipPath: crop ? `inset(${crop.y*100}% ${(1-crop.x-crop.width)*100}% ${(1-crop.y-crop.height)*100}% ${crop.x*100}%)` : undefined,
+      } : { inset: 0, width: '100%', height: '100%' }} />
     </div>
   );
   return (
@@ -38,7 +44,7 @@ export default function LiveFinishingPreview({ item, src, transform, choiceConfi
         <span className="text-xs text-[#18448D]">Tap to enlarge</span>
       </div>
       <DialogTrigger asChild>
-        <button type="button" aria-label="Enlarge realistic preview" className="realistic-banner-trigger mx-auto" style={{ maxWidth: `min(100%, calc(20dvh * ${ratio}))` }}>
+        <button type="button" aria-label="Enlarge realistic preview" className="realistic-banner-trigger mx-auto" style={{ maxWidth: prominent ? `min(100%, 480px, calc(36dvh * ${ratio}))` : `min(100%, calc(20dvh * ${ratio}))` }}>
           <RealisticBannerScene item={item} artwork={artwork} />
           <span className="realistic-banner-zoom" aria-hidden="true"><ZoomIn size={16} /></span>
         </button>

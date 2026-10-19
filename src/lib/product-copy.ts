@@ -116,6 +116,7 @@ const carMagnetCopy: ProductCopyConfig = {
  * Get the product copy config for a given product type.
  */
 export function getProductCopy(productType?: string): ProductCopyConfig {
+  if (productType === 'specialty') return {...bannerCopy, singularLabel:'Product',pluralLabel:'Products',addAnotherCta:'Shop More Products',reviewNoticeBody:'Your saved layout and each approved artwork panel stay with your order.',upsellHeader:'Complete Your Setup',minimumOrderSuggestionsSmall:['Increase your quantity or add another product'],minimumOrderSuggestionsMedium:['Increase your quantity or add another product'],minimumOrderSuggestionsLarge:['Increase your quantity or add another product'],priceBreakdownBaseLabel:'Product',shippingNotification:'Get notified when your order ships'};
   if (productType === 'yard_sign') return yardSignCopy;
   if (productType === 'car_magnet') return carMagnetCopy;
   return bannerCopy;
@@ -130,6 +131,7 @@ export function getDominantProductType(
   items: Array<{ product_type?: string }>
 ): string {
   if (items.length === 0) return 'banner';
+  if (items.some(i => i.product_type === 'specialty')) return 'specialty';
   const allYardSigns = items.every((i) => i.product_type === 'yard_sign');
   const allCarMagnets = items.every((i) => i.product_type === 'car_magnet');
   if (allYardSigns) return 'yard_sign';

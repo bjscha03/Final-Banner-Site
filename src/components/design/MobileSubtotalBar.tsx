@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { usd } from '@/lib/pricing';
 import ShippingBenefitBadge from '@/components/pricing/ShippingBenefitBadge';
+import { ArrowRight } from 'lucide-react';
 import {
   getAutomaticPromotionDisplayServerSnapshot,
   getAutomaticPromotionDisplaySnapshot,
@@ -8,6 +9,9 @@ import {
 } from '@/lib/automaticPromotionDisplay';
 
 export interface MobileSubtotalBarProps {
+  compact?: boolean;
+  selectionLabel?: string;
+  compactDiscountLabel?: string | null;
   uploadRecovery?: { onCancel: () => void };
   primaryAction?: { label: string; onClick: () => void; disabled: boolean };
   subtotal: ReactNode;
@@ -22,6 +26,9 @@ export interface MobileSubtotalBarProps {
  * prevents paid and organic traffic from receiving different mobile actions.
  */
 export default function MobileSubtotalBar({
+  compact = false,
+  selectionLabel,
+  compactDiscountLabel,
   primaryAction,
   uploadRecovery,
   subtotal,
@@ -84,10 +91,27 @@ export default function MobileSubtotalBar({
       <div
         ref={barRef}
         data-testid="mobile-subtotal-bar"
-        className={`fixed inset-x-0 bottom-0 z-40 overflow-x-clip border-t border-gray-200 bg-white px-4 shadow-lg ${primaryAction ? 'pt-2 lg:hidden' : 'pt-3 md:hidden'}`}
+        data-compact-landscape={compact && Boolean(primaryAction) ? 'true' : undefined}
+        className={`fixed inset-x-0 bottom-0 z-40 overflow-x-clip px-4 ${compact && primaryAction ? 'banner-order-bar pt-2 lg:hidden' : primaryAction ? 'border-t border-gray-200 bg-white pt-2 shadow-lg lg:hidden' : 'border-t border-gray-200 bg-white pt-3 shadow-lg md:hidden'}`}
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}
       >
-        <div className="flex min-h-[44px] items-center justify-between gap-3">
+        {compact && primaryAction ? <div className="mx-auto max-w-xl">
+          <div className="flex items-center justify-between gap-3">
+          <div className="mobile-subtotal-details min-w-0 flex-1">
+            <p className="text-xs font-semibold text-white">{selectionLabel}</p>
+            {displayedSubtotal}
+            <p className="flex flex-wrap items-baseline gap-x-1 text-[11px] leading-[14px] text-[#B8C8DC]">
+              {compactDiscountLabel && <span>{compactDiscountLabel} <span aria-hidden="true">·</span></span>}
+              <span>Before tax</span>
+            </p>
+          </div>
+          <button type="button" data-banner-primary-action onClick={primaryAction.onClick} disabled={primaryAction.disabled}
+            className="inline-flex min-h-12 max-w-[58%] shrink-0 items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#F56600] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#091C32] disabled:bg-slate-600 disabled:text-slate-200">
+            {primaryAction.label}<ArrowRight aria-hidden="true" className="h-4 w-4 shrink-0" />
+          </button>
+          </div>
+          <ShippingBenefitBadge variant="price" className="mobile-subtotal-shipping mt-2 !text-xs !text-white [&>svg]:h-4 [&>svg]:w-4" />
+        </div> : <><div className="flex min-h-[44px] items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5">
             <div className="min-w-0 max-w-full [overflow-wrap:anywhere]">
               <p className="text-xs text-gray-500">{primaryAction ? 'This banner · Before tax' : 'Subtotal'}</p>
@@ -109,14 +133,14 @@ export default function MobileSubtotalBar({
             {primaryAction ? 'View cart' : 'View Cart'} ({cartItemCount})
           </button>
         </div>
-        {uploadRecovery && <button type="button" onClick={uploadRecovery.onCancel} className="min-h-11 w-full text-sm font-semibold text-slate-700 underline">Cancel upload</button>}
         {primaryAction && <>
           <div className="mt-0.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
             {promotionNote && <p data-testid="mobile-applied-discount" className="text-[11px] font-bold leading-tight text-emerald-700">{promotionNote}</p>}
             <ShippingBenefitBadge variant="sticky" className="shrink-0 !border-0 !bg-transparent !p-0 [&>svg]:h-3.5 [&>svg]:w-3.5 [&_p]:text-[10px] [&_p>span:first-child]:inline" />
           </div>
           <button type="button" data-banner-primary-action onClick={primaryAction.onClick} disabled={primaryAction.disabled} className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-[#FF6A00] px-4 py-2 text-base font-bold text-white focus-visible:ring-2 focus-visible:ring-[#061A31] disabled:opacity-60">{primaryAction.label}</button>
-        </>}
+        </>}</>}
+        {uploadRecovery && <button type="button" onClick={uploadRecovery.onCancel} className={`min-h-11 w-full text-sm font-semibold underline ${compact && primaryAction ? 'text-white' : 'text-slate-700'}`}>Cancel upload</button>}
       </div>
     </>
   );

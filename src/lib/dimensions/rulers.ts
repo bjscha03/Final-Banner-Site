@@ -51,7 +51,7 @@ export function getRulerTicks(
 
     // Pick a major step (in feet) so we don't exceed maxMajor labels.
     const candidateSteps = [1, 2, 5, 10, 20, 50, 100];
-    let stepFt = 1;
+    let stepFt = Math.max(1, Math.ceil(totalFt / Math.max(1, maxMajor - 1)));
     for (const s of candidateSteps) {
       if (Math.floor(totalFt / s) + 1 <= maxMajor) {
         stepFt = s;
@@ -97,7 +97,7 @@ export function getRulerTicks(
 
     // Pick a major step (in inches).
     const candidateSteps = [1, 2, 5, 6, 10, 12, 24, 48];
-    let stepIn = 1;
+    let stepIn = Math.max(1, Math.ceil(totalIn / Math.max(1, maxMajor - 1)));
     for (const s of candidateSteps) {
       if (Math.floor(totalIn / s) + 1 <= maxMajor) {
         stepIn = s;

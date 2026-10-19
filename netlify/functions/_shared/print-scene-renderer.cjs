@@ -1,8 +1,8 @@
 const crypto = require('crypto');
 const { v2: cloudinary } = require('cloudinary');
-const { PDFDocument, rgb, degrees, StandardFonts } = require('pdf-lib');
+const { PDFDocument, rgb, degrees, StandardFonts, pushGraphicsState, popGraphicsState, rectangle, clip, endPath } = require('pdf-lib');
 
-const RENDERER_VERSION = 'production-pdf-v3-signed-source';
+const RENDERER_VERSION = 'production-pdf-v4-measured-source';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -134,7 +134,7 @@ function effectiveResolution(obj) {
     placedHeightIn: obj.heightIn,
     effectivePpi,
     upscaling: effectivePpi != null && effectivePpi < 300,
-    status: effectivePpi == null ? 'warning' : effectivePpi >= 150 ? (effectivePpi >= 300 ? 'pass' : 'warning') : 'fail',
+    status: effectivePpi == null ? 'warning' : effectivePpi >= 200 ? (effectivePpi >= 300 ? 'pass' : 'warning') : 'fail',
   };
 }
 
@@ -166,13 +166,20 @@ async function renderPrintSceneToPdfBuffer(sceneInput) {
     const drawOrigin = rotatedLowerLeftForCenter(x, y, w, h, rotationDegrees);
 
     if (obj.type === 'image') {
+      const crop = obj.crop;
+      if (crop) {
+        if (rotationDegrees !== 0 || ![crop.x, crop.y, crop.width, crop.height].every(Number.isFinite)
+          || crop.x < 0 || crop.y < 0 || crop.width <= 0 || crop.height <= 0
+          || crop.x + crop.width > 1.000001 || crop.y + crop.height > 1.000001) throw new Error('Invalid production artwork crop');
+        page.pushOperators(pushGraphicsState(), rectangle(x + crop.x * w, y + (1 - crop.y - crop.height) * h, crop.width * w, crop.height * h), clip(), endPath());
+      }
       const url = assertProductionUrl(obj);
       const source = obj.source || {};
       const buffer = await fetchBuffer(url, source);
       const isPdf = source.mimeType === 'application/pdf' || source.format === 'pdf' || source.isVector;
-      metadata.resolution.push({ objectId: obj.id, ...effectiveResolution(obj) });
 
       if (isPdf) {
+        metadata.resolution.push({ objectId: obj.id, ...effectiveResolution(obj) });
         const pageIndex = Math.max(0, Number(source.pdfPageNumber || 1) - 1);
         const [embeddedPage] = await pdfDoc.embedPdf(buffer, [pageIndex]);
         page.drawPage(embeddedPage, {
@@ -186,8 +193,10 @@ async function renderPrintSceneToPdfBuffer(sceneInput) {
       } else {
         const fmt = String(source.format || source.mimeType || '').toLowerCase();
         const image = fmt.includes('png') ? await pdfDoc.embedPng(buffer) : await pdfDoc.embedJpg(new Uint8Array(buffer));
+        metadata.resolution.push({ objectId: obj.id, ...effectiveResolution({ ...obj, source: { ...source, originalWidth: image.width, originalHeight: image.height } }) });
         page.drawImage(image, { x: drawOrigin.x, y: drawOrigin.y, width: w, height: h, rotate, opacity });
       }
+      if (crop) page.pushOperators(popGraphicsState());
     } else if (obj.type === 'text' && obj.text?.content) {
       page.drawText(String(obj.text.content), {
         x: drawOrigin.x,

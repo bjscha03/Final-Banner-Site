@@ -1,7 +1,6 @@
 import React from 'react';
-import ProductVisual from '@/components/product/ProductVisual';
-import { ArrowRight, Clock3, Layers3, Magnet, Monitor, Truck, type LucideIcon } from 'lucide-react';
-import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
+import LightProductHero from '@/components/product/LightProductHero';
+import { Clock3, Layers3, Magnet, Monitor, Truck, type LucideIcon } from 'lucide-react';
 import BannerDiscountOffer from '@/components/design/BannerDiscountOffer';
 import type { ProductTypeSlug } from '@/lib/products';
 
@@ -52,15 +51,6 @@ const DESIGN_HEROES: Record<ProductTypeSlug, DesignHeroDefinition> = {
   },
 };
 
-interface SceneProps {
-  definition: DesignHeroDefinition;
-  className: string;
-}
-
-const DesignScene: React.FC<SceneProps> = ({ definition, className }) => (
-  <ProductVisual productSlug={definition.productSlug} priority className={className} />
-);
-
 interface DesignPageHeroProps {
   productType: ProductTypeSlug;
   onStart: () => void;
@@ -70,45 +60,17 @@ const DesignPageHero: React.FC<DesignPageHeroProps> = ({ productType, onStart })
   const definition = DESIGN_HEROES[productType];
 
   return (
-    <section data-design-page-hero={productType} className="relative isolate overflow-hidden border-t-4 border-[#F45B08] bg-[#E95413] text-white">
-      <DesignScene definition={definition} className="absolute inset-y-0 right-0 hidden w-[62%] lg:block" />
-      <div className="absolute inset-0 hidden bg-[linear-gradient(90deg,#E95413_0%,#E95413_32%,rgba(233,84,19,.97)_43%,rgba(233,84,19,.68)_54%,rgba(233,84,19,.08)_70%,transparent_82%)] lg:block" aria-hidden="true" />
-      <div className="absolute inset-0 hidden bg-[radial-gradient(circle_at_13%_18%,rgba(255,179,62,.36),transparent_34%)] lg:block" aria-hidden="true" />
-
-      <div className="relative z-10 mx-auto flex w-full max-w-[1740px] items-center px-5 py-10 sm:px-8 sm:py-12 lg:min-h-[650px] lg:px-12 lg:py-14 xl:px-16">
-        <div className="max-w-[610px] lg:w-[43%]">
-          <h1 className="homepage-condensed [--homepage-mobile-size:clamp(4.1rem,19vw,5.5rem)] text-[5.5rem] font-black uppercase leading-[0.83] tracking-[-0.015em] text-white drop-shadow-[0_3px_0_rgba(6,26,49,.12)] sm:text-[6.8rem] lg:text-[7.2rem]">
-            {definition.title.map((line) => <span key={line} className="block">{line}</span>)}
-          </h1>
-
-          <div className="mt-7 flex w-full max-w-[505px] flex-col gap-3">
-            <button
-              type="button"
-              onClick={onStart}
-              className="inline-flex min-h-14 items-center justify-center gap-4 rounded-md bg-[#061A31] px-7 py-3.5 text-sm font-black uppercase tracking-[0.035em] text-white shadow-[0_12px_30px_rgba(6,26,49,.22)] transition-colors hover:bg-[#0C2B50] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:text-base"
-            >
-              {definition.cta}<ArrowRight className="h-5 w-5" aria-hidden="true" />
-            </button>
-            {definition.offer && <BannerDiscountOffer className="w-full" />}
-          </div>
-
-          <HeroDeliveryStatus className="mt-3 w-full max-w-[505px]" />
-        </div>
-      </div>
-
-      <DesignScene definition={definition} className="relative block aspect-[4/3] w-full overflow-hidden border-t border-[#061A31]/20 lg:hidden" />
-
-      <div className="relative z-20 bg-[#061A31] text-white">
-        <ul className="mx-auto grid max-w-[1740px] divide-y divide-[#F45B08]/80 px-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:px-8 lg:px-12 xl:px-16" aria-label="Product ordering benefits">
-          {definition.benefits.map(({ label, icon: Icon }) => (
-            <li key={label} className="flex min-h-[72px] items-center gap-4 py-4 sm:justify-center sm:px-6 lg:min-h-[88px] lg:gap-5">
-              <Icon className="h-7 w-7 flex-none stroke-[1.7] text-[#F45B08] lg:h-9 lg:w-9" aria-hidden="true" />
-              <span className="text-xs font-bold uppercase leading-5 tracking-[0.02em] lg:text-sm">{label}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
+    <LightProductHero
+      attributes={{ 'data-design-page-hero': productType }}
+      productSlug={definition.productSlug}
+      title={definition.title.join(' ')}
+      accentText={definition.title[definition.title.length - 1]}
+      eyebrow={productType === 'yard_sign' ? 'Custom yard signs · Made to stand out' : productType === 'car_magnet' ? 'Custom car magnets · Your business, on the move' : 'Custom banners · Made for your next big moment'}
+      primaryLabel={definition.cta}
+      onStart={onStart}
+      benefits={definition.benefits}
+      offer={definition.offer ? <BannerDiscountOffer /> : undefined}
+    />
   );
 };
 

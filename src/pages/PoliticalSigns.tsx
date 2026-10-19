@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Clock, Truck, ShieldCheck, CheckCircle, ArrowRight } from 'lucide-react';
 import Layout from '@/components/Layout';
-import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
+import LightProductHero from '@/components/product/LightProductHero';
 import ProductVisual from '@/components/product/ProductVisual';
 
 type ProductType = 'banner' | 'yard_sign' | 'car_magnet';
@@ -71,40 +71,17 @@ const PoliticalSigns: React.FC = () => {
         <link rel="canonical" href="https://bannersonthefly.com/political-signs" />
       </Helmet>
 
-      <section className="border-b-4 border-[#FF6A00] bg-[#0B1F3A] text-white">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.05fr_.95fr] lg:px-8 lg:py-24">
-          <div className="max-w-2xl">
-            <p className="mb-4 text-xs font-bold uppercase tracking-[0.22em] text-[#FF8A3D]">Campaign print essentials</p>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight text-white">
-              Political signs, configured with confidence
-            </h1>
-            <p className="mt-5 text-lg md:text-xl text-white/90">
-              Custom political banners, yard signs, and car magnets with production and carrier transit shown separately.
-            </p>
-            <div className="mt-8">
-              <button
-                type="button"
-                onClick={() => document.getElementById('choose-product')?.scrollIntoView({ behavior: 'smooth' })}
-                className="brand-button-on-dark"
-              >
-                Order Political Signs <ArrowRight className="h-5 w-5" />
-              </button>
-            </div>
-            <HeroDeliveryStatus className="mt-6 w-full max-w-[570px]" />
-            <ul className="mt-6 grid sm:grid-cols-2 gap-3 text-sm font-medium">
-              {[{ icon: Clock, text: 'Most standard orders: 24-hour production' }, { icon: Truck, text: 'Free next-day air after production' }].map(
-                ({ icon: Icon, text }) => (
-                  <li key={text} className="flex items-center gap-2 text-white/90">
-                    <Icon className="h-4 w-4 flex-shrink-0 text-[#FF6A00]" />
-                    <span>{text}</span>
-                  </li>
-                )
-              )}
-            </ul>
-          </div>
-          <ProductVisual productSlug="yard-signs" priority className="min-h-[330px] border border-white/20 sm:min-h-[410px]" />
-        </div>
-      </section>
+      <LightProductHero
+        attributes={{ 'data-political-signs-hero': true }}
+        productSlug="yard-signs"
+        eyebrow="Campaign print essentials"
+        title="Make your message part of the neighborhood."
+        accentText="part of the neighborhood."
+        description="Custom political banners, yard signs, and car magnets. Choose your product, upload your artwork, and review your print online."
+        primaryLabel="Order political signs"
+        onStart={() => document.getElementById('choose-product')?.scrollIntoView({ behavior: 'smooth' })}
+        photo={<img src="/images/product-heroes/political-signs-1440.webp" srcSet="/images/product-heroes/political-signs-640.webp 640w, /images/product-heroes/political-signs-1440.webp 1440w" sizes="(min-width: 768px) 54vw, 100vw" alt="Teal and cream Vote Local corrugated yard sign on a wire stake beside a neighborhood walkway" width="1440" height="960" loading="eager" fetchPriority="high" />}
+      />
 
       <section id="choose-product" className="bg-white py-14 sm:py-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">

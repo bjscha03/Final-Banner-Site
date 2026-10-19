@@ -9,10 +9,23 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
 const dateLabel = (date: ETParts) => dateFormatter.format(new Date(Date.UTC(date.year, date.month - 1, date.day)));
 
 /** Uses the same delivery engine and selected services as checkout. */
-export default function PriceDeliveryEstimate({ compact = false }: { compact?: boolean }) {
+export default function PriceDeliveryEstimate({ compact = false, variant = 'default' }: { compact?: boolean; variant?: 'default' | 'checkout' }) {
   const isHitSelected = useCartStore(state => state.sameDayHitService);
   const isSaturdaySelected = useCartStore(state => state.saturdayDelivery);
   const { estimate } = useDeliveryCountdown({ isHitSelected, isSaturdaySelected });
+
+  if (variant === 'checkout') {
+    const longDate = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
+    const label = (date: ETParts) => longDate.format(new Date(Date.UTC(date.year, date.month - 1, date.day)));
+    return <div data-price-delivery-estimate className="checkout-delivery">
+      <Truck aria-hidden="true" />
+      <div><p>Estimated delivery</p><strong>{label(estimate.deliveryDate)}</strong>
+        <p className="checkout-free-shipping"><span>FREE</span> Next-Day Air Shipping</p>
+        <p className="checkout-ship-date">Expected to ship {label(estimate.shipDate)}</p>
+        <p className="checkout-production-note">{isHitSelected ? 'Priority production, then next-day air.' : '24-hour production, then next-day air.'}</p>
+      </div>
+    </div>;
+  }
 
   return (
     <div data-price-delivery-estimate className={compact

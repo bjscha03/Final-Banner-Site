@@ -8,11 +8,14 @@ import BannerPrintSides from '@/components/design/BannerPrintSides';
 import { useBannerPrinting } from '@/hooks/useBannerPrinting';
 import { useUploadWatchdog } from '@/hooks/useUploadWatchdog';
 import MobileBannerLandingHero, { MobileBannerLandingProof } from '@/components/design/MobileBannerLandingHero';
-import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
+import AIArtworkHelp from '@/components/design/AIArtworkHelp';
+import GoogleReviewSpotlight, { FadingGoogleReviews } from '@/components/design/GoogleReviewSpotlight';
 import LargeBannerSizeCards, { LARGE_BANNER_SIZES } from '@/components/design/LargeBannerSizeCards';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
 import ProductPageHero from '@/components/product/ProductPageHero';
+import LightProductHero from '@/components/product/LightProductHero';
+import BannerDiscountOffer from '@/components/design/BannerDiscountOffer';
 import { cartEditUrl } from '@/lib/cartEditUrl';
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
@@ -44,16 +47,14 @@ import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import { sameDayConfig } from '@/lib/sameDayConfig';
-import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import PriceDeliveryEstimate from '@/components/delivery/PriceDeliveryEstimate';
 import CustomBannerSize from '@/components/design/CustomBannerSize';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
+import { revealArtworkElement, useArtworkWorkspaceViewport } from '@/components/design/artworkViewport';
 import MobileFinishingStep from '@/components/design/MobileFinishingStep';
 import LiveFinishingPreview from '@/components/design/LiveFinishingPreview';
-import AIArtworkHelp from '@/components/design/AIArtworkHelp';
 import RealOrdersStrip from '@/components/design/RealOrdersStrip';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
-import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import PreviewRulerFrame from '@/components/preview/PreviewRulerFrame';
 import ArtworkPreviewEditor, { type ArtworkPreviewEditorHandle } from '@/components/design/ArtworkPreviewEditor';
 import {
@@ -138,105 +139,33 @@ const PRESET_SIZES = [
 ];
 
 
-const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
-  <section
-    data-google-ads-hero
-    className="relative isolate overflow-hidden border-b-4 border-[#FF6A00] bg-[#F86408] text-[#071C35]"
-  >
-    <div
-      className="pointer-events-none absolute inset-0 z-0 opacity-45"
-      style={{
-        backgroundImage: 'radial-gradient(circle at 13% 18%, rgba(255,188,74,.72), transparent 35%), radial-gradient(circle at 39% 76%, rgba(146,48,0,.24), transparent 38%)',
-      }}
-      aria-hidden="true"
-    />
-
-    <div className="relative z-10 mx-auto flex max-w-[1855px] items-center px-5 py-10 sm:px-8 sm:py-12 xl:min-h-[700px] xl:px-16 xl:py-16 2xl:min-h-[748px]">
-      <div className="w-full xl:max-w-[760px]">
-        <h1 className="homepage-condensed max-w-[760px] [--homepage-mobile-size:clamp(3.8rem,17vw,5.1rem)] text-[5.1rem] font-black uppercase leading-[0.86] tracking-[-0.015em] text-[#071C35] sm:text-[6.6rem] xl:text-[7.5rem]">
-          Custom banners.<br />Without the wait.
-        </h1>
-
-        <button
-          type="button"
-          onClick={onStart}
-          className="mt-7 inline-flex min-h-14 w-full max-w-[505px] items-center justify-center gap-4 rounded-md bg-[#071C35] px-6 py-4 text-base font-black uppercase tracking-[0.035em] text-white shadow-[0_12px_30px_rgba(7,28,53,.2)] transition-colors hover:bg-[#10375f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#F86408] sm:w-auto sm:min-w-[440px] sm:text-lg"
-        >
-          Build &amp; price my banner <ArrowRight className="h-6 w-6" aria-hidden="true" />
-        </button>
-
-        <div className="mt-5 grid w-full max-w-[505px] grid-cols-[auto_1fr] items-center gap-4 rounded-md border border-white/70 bg-white px-5 py-4 text-[#071C35] shadow-[0_9px_20px_rgba(57,20,0,.2)] sm:gap-5 sm:px-6">
-          <p className="homepage-condensed whitespace-nowrap [--homepage-mobile-size:3rem] text-5xl font-black uppercase leading-none text-[#E95413] sm:text-[4rem]">20% off</p>
-          <div className="border-l-2 border-[#E95413] pl-4 text-sm font-bold uppercase leading-5 tracking-[0.04em] sm:text-base sm:leading-6">
-            First order<br />Automatically applied
-          </div>
-        </div>
-        <HeroDeliveryStatus className="mt-5 w-full max-w-[505px]" />
-      </div>
-    </div>
-
-    <picture className="relative z-[5] block w-full overflow-hidden bg-[#15283e] xl:absolute xl:bottom-[82px] xl:right-0 xl:top-0 xl:w-[57%]">
-      <source
-        type="image/avif"
-        srcSet="/images/google-ads/banner-collage-520.avif 520w, /images/google-ads/banner-collage-800.avif 800w, /images/google-ads/banner-collage-1040.avif 1040w"
-        sizes="(min-width: 1280px) 57vw, 100vw"
-      />
-      <source
-        type="image/webp"
-        srcSet="/images/google-ads/banner-collage-520.webp 520w, /images/google-ads/banner-collage-800.webp 800w, /images/google-ads/banner-collage-1040.webp 1040w"
-        sizes="(min-width: 1280px) 57vw, 100vw"
-      />
-      <img
-        src="/images/google-ads/banner-collage-1040.webp"
-        alt="Custom vinyl and mesh banners installed at a storefront, sports field, and market event"
-        width="1040"
-        height="748"
-        loading="eager"
-        decoding="sync"
-        fetchPriority="high"
-        className="aspect-[1040/748] h-auto w-full object-cover xl:h-full xl:object-cover xl:object-center"
-      />
-    </picture>
-
-    <div className="pointer-events-none absolute inset-y-0 left-0 z-[6] hidden w-[58%] bg-[linear-gradient(90deg,#F86408_0%,rgba(248,100,8,.99)_64%,rgba(248,100,8,.86)_82%,transparent_100%)] xl:block" aria-hidden="true" />
-
-    <div className="relative z-20 border-t border-[#FF6A00] bg-[#101820]/95 text-white">
-      <ul className="mx-auto grid max-w-[1600px] grid-cols-3 divide-x divide-[#FF6900]/80 px-2 py-3 sm:px-7 sm:py-4 xl:py-5" aria-label="Banner ordering benefits">
-        <li className="flex items-center justify-center gap-2 px-2 sm:gap-4 sm:px-6">
-          <Clock className="h-5 w-5 flex-none text-[#FF6900] sm:h-9 sm:w-9" aria-hidden="true" />
-          <span className="text-[9px] font-bold uppercase leading-3 sm:text-sm xl:text-base">24-hour standard production</span>
-        </li>
-        <li className="flex items-center justify-center gap-2 px-2 sm:gap-4 sm:px-6">
-          <Truck className="h-5 w-5 flex-none text-[#FF6900] sm:h-9 sm:w-9" aria-hidden="true" />
-          <span className="text-[9px] font-bold uppercase leading-3 sm:text-sm xl:text-base">Free next-day air after production</span>
-        </li>
-        <li className="flex items-center justify-center gap-2 px-2 sm:gap-4 sm:px-6">
-          <Monitor className="h-5 w-5 flex-none text-[#FF6900] sm:h-9 sm:w-9" aria-hidden="true" />
-          <span className="text-[9px] font-bold uppercase leading-3 sm:text-sm xl:text-base">Live print preview</span>
-        </li>
-      </ul>
-    </div>
-  </section>
+const FastBannerAdHero: React.FC<{ onStart: () => void; halloween?: boolean }> = ({ onStart, halloween = false }) => (
+  <LightProductHero
+    attributes={{ 'data-google-ads-hero': true, 'data-halloween-hero': halloween }}
+    productSlug="vinyl-banners"
+    eyebrow={halloween ? "Custom Halloween banners for parties, haunted houses & trunk-or-treats." : "Beautiful custom banners. Made for your next big moment."}
+    title={halloween ? "Halloween banners. Without the wait." : "Custom banners. Without the wait."}
+    accentText="Without the wait."
+    description={halloween ? "Create your Halloween design with our new AI tool, or upload artwork. Preview your banner and order online." : undefined}
+    primaryLabel={halloween ? "Build my Halloween banner" : "Build & price my banner"}
+    photo={halloween ? <img src="/images/product-heroes/halloween-banner-1440.webp" srcSet="/images/product-heroes/halloween-banner-640.webp 640w, /images/product-heroes/halloween-banner-1440.webp 1440w" sizes="(min-width: 1024px) 60vw, 100vw" alt="Happy Halloween witch-and-pumpkin vinyl banner with reinforced grommets mounted on a wooden fence" width="1440" height="960" fetchPriority="high" /> : undefined}
+    onStart={onStart}
+    offer={<BannerDiscountOffer />}
+  />
 );
 
-
 const FallFestivalHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
-  <section data-fall-festival-hero className="border-b border-amber-100 bg-[#fffaf1] text-[#3a1f12]">
-    <div className="mx-auto grid max-w-[1536px] gap-6 px-5 py-7 sm:px-8 sm:py-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:gap-10 lg:px-10 lg:py-12">
-      <div className="min-w-0">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#b45309] sm:text-sm">Custom banners for autumn events</p>
-        <h1 className="mt-3 font-sans text-[clamp(2.2rem,8.7vw,3.5rem)] font-extrabold leading-[1.05] tracking-[-0.045em] lg:text-[clamp(2.5rem,4.25vw,4.5rem)]">Custom Fall Festival Banners <span className="text-[#b45309]">— Printed &amp; Shipped Fast</span></h1>
-        <p className="mt-5 max-w-xl text-base leading-relaxed text-[#65412c] sm:text-xl">Full-color vinyl banners for fall festivals, church festivals, harvest events, and trunk-or-treats. Upload your own artwork or create a banner with AI, then order online in minutes.</p>
-        <button type="button" onClick={onStart} className="mt-6 inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-lg bg-[#b45309] px-4 py-4 text-base font-bold text-white transition-colors hover:bg-[#92400e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3a1f12] focus-visible:ring-offset-4 sm:max-w-[505px] sm:text-lg">Create my fall festival banner <ArrowRight className="h-5 w-5 shrink-0" aria-hidden="true" /></button>
-        <p className="mt-2 text-xs leading-5 text-[#76503a] sm:text-sm">24-hour production · Free next-day air shipping · Easy online ordering</p>
-        <HeroDeliveryStatus variant="light" className="mt-6 w-full" />
-      </div>
-      <figure className="min-w-0">
-        <img src="/images/seasonal-halloween-2026-desktop.webp" alt="Finished custom Fall Festival vinyl banner at a church fall festival with pumpkins and families arriving" width="1448" height="1086" loading="eager" decoding="async" fetchPriority="high" className="aspect-[4/3] w-full rounded-xl object-cover shadow-sm" />
-        <figcaption className="mt-2 text-center text-xs text-[#76503a]">Made for church, school, business, and community fall events.</figcaption>
-      </figure>
-    </div>
-  </section>
+  <LightProductHero
+    attributes={{ 'data-fall-festival-hero': true }}
+    productSlug="vinyl-banners"
+    eyebrow="Custom banners for autumn events"
+    title="Make your fall event easy to find."
+    accentText="easy to find."
+    description="Full-color vinyl banners for festivals, harvest markets, and trunk-or-treats. Upload your artwork or create a design online."
+    primaryLabel="Create my fall festival banner"
+    onStart={onStart}
+    photo={<img src="/images/homepage/freshfield-fall-desktop.webp" alt="Freshfield Fall Market vinyl banner secured between timber posts in natural daylight" width="1536" height="1024" loading="eager" fetchPriority="high" />}
+  />
 );
 
 
@@ -272,9 +201,10 @@ function preloadPermanentArtwork(url: string, timeoutMs = 20_000): Promise<boole
 const GoogleAdsBanner: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const isHalloweenLanding = location.pathname.replace(/\/+$/, '') === '/halloween-banner';
   const isLargeBannerLanding = location.pathname.replace(/\/+$/, '') === '/large-banners-fast';
   const isFallFestivalLanding = location.pathname.replace(/\/+$/, '') === '/fall-festival-banners';
-  const designerPath = isLargeBannerLanding ? "/large-banners-fast" : location.pathname === "/google-ads-banner" ? "/google-ads-banner" : "/design";
+  const designerPath = isHalloweenLanding ? "/halloween-banner" : isLargeBannerLanding ? "/large-banners-fast" : location.pathname === "/google-ads-banner" ? "/google-ads-banner" : "/design";
   const [searchParams] = useSearchParams();
   const getProductQuerySlug = useCallback((type: ProductTypeSlug) => {
     if (type === 'yard_sign') return 'yard-signs';
@@ -368,7 +298,7 @@ const GoogleAdsBanner: React.FC = () => {
   };
   const [materialDropdownOpen, setMaterialDropdownOpen] = useState(false);
   const materialDropdownRef = useRef<HTMLDivElement>(null);
-  const [grommets, setGrommets] = useState(initialProductType === 'banner' ? 'every-2-3ft' : 'none');
+  const [grommets, setGrommets] = useState('none');
   const [polePockets, setPolePockets] = useState('none');
   const [polePocketSize, setPolePocketSize] = useState('2');
   // Display unit for size inputs and the live preview ruler. Single source
@@ -381,12 +311,11 @@ const GoogleAdsBanner: React.FC = () => {
     () => (localStorage.getItem('banner-unit-pref') as 'in' | 'ft' | null) ?? 'ft'
   );
   const [addRope, setAddRope] = useState(false);
-  const [finishingType, setFinishingType] = useState<FinishingType>(initialProductType === 'banner' ? 'grommets' : 'none');
+  const [finishingType, setFinishingType] = useState<FinishingType>('none');
   const [mobileFinishingOpen, setMobileFinishingOpen] = useState(false);
   const [mobileFinishingSource, setMobileFinishingSource] = useState<'inline' | 'modal'>('inline');
   const [finishingPreviewTransform, setFinishingPreviewTransform] = useState<NormalizedArtworkTransform | null>(null);
-  const [dismissedOrientation, setDismissedOrientation] = useState<string | null>(null);
-  const [finishingChoiceConfirmed, setFinishingChoiceConfirmed] = useState(initialProductType === 'banner');
+  const [finishingChoiceConfirmed, setFinishingChoiceConfirmed] = useState(false);
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -488,7 +417,6 @@ const GoogleAdsBanner: React.FC = () => {
   const [modalMobileToolbarEl, setModalMobileToolbarEl] = useState<HTMLDivElement | null>(null);
 
   // Drag hint auto-fade state
-  const [showDragHint, setShowDragHint] = useState(false);
 
   // Upsell modal state
   const [showUpsellModal, setShowUpsellModal] = useState(false);
@@ -716,16 +644,6 @@ const GoogleAdsBanner: React.FC = () => {
   }, [unit]);
 
 
-  // Show drag hint briefly when artwork is first uploaded
-  useEffect(() => {
-    if (uploadedFile) {
-      setShowDragHint(true);
-      const timer = setTimeout(() => setShowDragHint(false), 2000);
-      return () => clearTimeout(timer);
-    }
-    setShowDragHint(false);
-  }, [uploadedFile]);
-
   // Close material dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -743,6 +661,12 @@ const GoogleAdsBanner: React.FC = () => {
   const [isLgScreen, setIsLgScreen] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : false
   );
+  // Both banner entry points share the same mobile flow. Keep the existing
+  // desktop presentation while using the Google Ads redesign on /design too.
+  const paidBannerLanding = compactMobileLanding && (designerPath === '/google-ads-banner' || isHalloweenLanding || !isLgScreen);
+  const mobilePaidLayout = paidBannerLanding && !isLgScreen;
+  const artworkWorkspaceRef = useRef<HTMLDivElement>(null);
+  useArtworkWorkspaceViewport(artworkWorkspaceRef, uploadedFile?.editorIdentity || uploadedFile?.fileKey, widthIn / heightIn, isLgScreen);
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');
     const handler = () => setIsLgScreen(mq.matches);
@@ -886,6 +810,22 @@ const GoogleAdsBanner: React.FC = () => {
   }, [sameDayHitService, isCarMagnet, isYardSign, carMagnetPricing?.baseSubtotalCents, yardSignPricing?.totalCents, bannerPricing.subtotalBeforeDiscountCents]);
   const previewSaturdayFeeCents = saturdayDelivery && previewSameDayFeeCents > 0 ? Math.round(sameDayConfig.saturdayDeliveryFee * 100) : 0;
 
+  // Each option uses the same best-discount-wins and finishing math as checkout.
+  const mobileSizePrices = PRESET_SIZES.map(size => {
+    const option = calculateBannerPricing({ widthIn: size.w, heightIn: size.h, quantity, material, grommets, addRope, ropePlacement, polePockets });
+    const promo = resolvePromo({
+      subtotalCents: option.subtotalBeforeDiscountCents, quantity, code: effectivePromoCode,
+      validatedPromo: activeCartPromo,
+      items: [{ id: 'current-configurator-line', product_type: productType, width_in: size.w, height_in: size.h, line_total_cents: option.subtotalBeforeDiscountCents }],
+    });
+    const rush = sameDayHitService ? computeSameDayFeesCents(option.subtotalBeforeDiscountCents, { sameDay: true, saturday: false }).sameDayFeeCents : 0;
+    const originalCents = option.subtotalBeforeDiscountCents + rush + (rush > 0 ? previewSaturdayFeeCents : 0);
+    return {
+      amount: usd(Math.max(0, originalCents - promo.appliedDiscountAmountCents) / 100),
+      originalAmount: promo.appliedDiscountAmountCents > 0 ? usd(originalCents / 100) : undefined,
+    };
+  });
+
   useEffect(() => {
     // Flag this session as coming from Google Ads landing page
     if (designerPath === '/google-ads-banner') sessionStorage.setItem('isGoogleAdsLanding', 'true');
@@ -929,6 +869,7 @@ const GoogleAdsBanner: React.FC = () => {
       yPct: designerRecovery.normalized_placement.y_pct,
       scaleX: designerRecovery.normalized_placement.scale_x,
       scaleY: designerRecovery.normalized_placement.scale_y,
+      ...(item.placement_preview?.crop ? { crop: item.placement_preview.crop } : {}),
     };
     const recoveredRevision = Number(item.composition_revision || item.placement_preview?.compositionRevision || 0);
     setImgPos({ x: 0, y: 0 });
@@ -1119,13 +1060,14 @@ const GoogleAdsBanner: React.FC = () => {
     // new product never starts with these auto-selected.
     useCartStore.getState().setSameDayHitService(false);
     useCartStore.getState().setSaturdayDelivery(false);
-    // Each new banner starts with free grommets. Cart edits restore their saved choice.
+    // New banners start without hardware; customers choose their finishing.
+    // Cart edits restore the customer's saved choice.
     if (newType === 'banner') {
-      setGrommets('every-2-3ft');
+      setGrommets('none');
       setPolePockets('none');
       setAddRope(false);
-      setFinishingType('grommets');
-      setFinishingChoiceConfirmed(true);
+      setFinishingType('none');
+      setFinishingChoiceConfirmed(false);
     }
     // Reset yard sign state when switching
     if (newType === 'yard_sign') {
@@ -1743,6 +1685,50 @@ const GoogleAdsBanner: React.FC = () => {
     setAiDesignSession(null);
   }, []);
 
+  const [undoDeletedArtwork, setUndoDeletedArtwork] = useState<(() => void) | null>(null);
+  useEffect(() => { if (uploadedFile) setUndoDeletedArtwork(null); }, [uploadedFile]);
+  const deleteArtworkWithUndo = useCallback(() => {
+    const artwork = uploadedFileRef.current;
+    if (!artwork) return;
+    let snapshot: ReturnType<ArtworkPreviewEditorHandle['getCompositionSnapshot']> | undefined;
+    try { snapshot = (showPreview ? modalEditorRef.current : inlineEditorRef.current)?.getCompositionSnapshot(); } catch { /* upload can still be in progress */ }
+    const originalFile = activeUploadFileRef.current;
+    const savedFitUndo = fitUndo;
+    const savedAiSession = aiDesignSession;
+    const savedAiPrompt = aiPrompt;
+    const savedAiEditPrompt = aiEditPrompt;
+    removeArtwork();
+    setShowPreview(false);
+    setUndoDeletedArtwork(() => () => {
+      const permanent = getPermanentArtworkPreviewUrl(artwork);
+      if (/^https?:\/\//i.test(permanent)) {
+        const restored = { ...artwork, previewUrl: permanent, thumbnailUrl: permanent };
+        uploadedFileRef.current = restored;
+        setUploadedFile(restored);
+        setRestoredNormalizedTransform(snapshot?.transform || null);
+        setRestoredCompositionRevision((snapshot?.revision || 0) + 1);
+      } else if (originalFile) { void handleFileUpload(originalFile); }
+      setFitUndo(savedFitUndo);
+      setAiDesignSession(savedAiSession);
+      setAiPrompt(savedAiPrompt);
+      setAiEditPrompt(savedAiEditPrompt);
+      setUndoDeletedArtwork(null);
+    });
+  }, [showPreview, aiDesignSession, aiPrompt, aiEditPrompt, fitUndo, removeArtwork, handleFileUpload]);
+
+  useEffect(() => {
+    if (uploadedFile || !undoDeletedArtwork) return;
+    const undoDeleteKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+        event.preventDefault(); undoDeletedArtwork();
+      }
+    };
+    window.addEventListener('keydown', undoDeleteKey);
+    return () => window.removeEventListener('keydown', undoDeleteKey);
+  }, [uploadedFile, undoDeletedArtwork]);
+
   const resetPreview = useCallback(() => {
     removeArtwork();
     setPolePocketSize('2');
@@ -1761,9 +1747,9 @@ const GoogleAdsBanner: React.FC = () => {
   const resetAfterSuccessfulAdd = useCallback(() => {
     resetPreview();
     setMobileFinishingOpen(false);
-    setFinishingChoiceConfirmed(productType === 'banner');
-    setFinishingType(productType === 'banner' ? 'grommets' : 'none');
-    setGrommets(productType === 'banner' ? 'every-2-3ft' : 'none');
+    setFinishingChoiceConfirmed(false);
+    setFinishingType('none');
+    setGrommets('none');
     setPolePockets('none');
     setAddRope(false);
     setShowPostAddResetNotice(true);
@@ -2076,6 +2062,7 @@ const GoogleAdsBanner: React.FC = () => {
         bgColor: '#fafafa',
         productType: 'car_magnet',
         roundedCorners: carMagnetRoundedCorners,
+        crop: preparedPlacement.spec.transform.crop,
         canonicalComposition: preparedPlacement.spec,
         placementPreview: preparedPlacement.artifact,
         ...(aiPrompt ? { aiPrompt } : {}),
@@ -2205,6 +2192,7 @@ const GoogleAdsBanner: React.FC = () => {
       bgColor: '#fafafa',
       productType: 'banner',
       ...(isDoubleSidedBanner ? { productName: 'Double-Sided Banner', material: '18oz', printSides: 2, sameArtworkBothSides: true } : {}),
+      crop: preparedPlacement.spec.transform.crop,
       canonicalComposition: preparedPlacement.spec,
       placementPreview: preparedPlacement.artifact,
       ...(aiPrompt ? { aiPrompt } : {}),
@@ -2276,6 +2264,11 @@ const GoogleAdsBanner: React.FC = () => {
     actionType: 'checkout' | 'cart',
     editorSource: 'inline' | 'modal',
   ): Promise<void> => {
+    if (productType === 'banner' && !finishingChoiceConfirmed) {
+      setShowPreview(false);
+      scrollToStepAnchor('options-section');
+      return Promise.resolve();
+    }
     if (!isYardSign && !isCarMagnet && !hasCommittedBannerSize) {
       toast({
         title: 'Choose a banner size',
@@ -2341,7 +2334,7 @@ const GoogleAdsBanner: React.FC = () => {
     })();
     actionPreparationRef.current = promise;
     return promise;
-  }, [finishingType, hasCommittedBannerSize, hasReviewedOptions, heightIn, isCarMagnet, isYardSign, performCheckout, prepareCurrentPlacementPreview, productType, toast, widthIn]);
+  }, [finishingChoiceConfirmed, finishingType, hasCommittedBannerSize, hasReviewedOptions, heightIn, isCarMagnet, isYardSign, performCheckout, prepareCurrentPlacementPreview, productType, toast, widthIn]);
 
   // Proceed directly to checkout only after the actual editor canvas is finalized.
   const handleCheckout = useCallback(() => {
@@ -2524,7 +2517,7 @@ const GoogleAdsBanner: React.FC = () => {
   const openOrScrollToUpload = useCallback(() => {
     setHasEnteredBuilder(true);
     const target = document.getElementById('upload-section') ?? builderStartRef.current ?? orderRef.current;
-    target?.scrollIntoView({ behavior: 'instant', block: 'start' });
+    revealArtworkElement(target?.querySelector<HTMLElement>('[role="button"]') ?? target);
     const opened = fileUploaderRef.current?.openFilePicker() ?? false;
     logUx('upload_picker_requested', { source: 'sticky_cta', opened });
   }, []);
@@ -2735,22 +2728,6 @@ const GoogleAdsBanner: React.FC = () => {
   const mobileBannerAction = hasPermanentArtwork(uploadedFile) && hasCommittedBannerSize && !isProcessingUpsell && !isUploading
     ? { label: 'Next: Finishing', disabled: false, onClick: () => openMobileFinishing('inline') }
     : bannerAction;
-  const orientationKey = `${uploadedFile?.editorIdentity || uploadedFile?.fileKey}:${widthIn}:${heightIn}`;
-  const artworkRatio = uploadedFile?.originalWidth && uploadedFile?.originalHeight
-    ? uploadedFile.originalWidth / uploadedFile.originalHeight : 0;
-  const offerOrientationSwap = !isYardSign && !isCarMagnet && artworkRatio > 0
-    && widthIn > 0 && heightIn > 0 && dismissedOrientation !== orientationKey
-    && ((artworkRatio < 0.8 && widthIn > heightIn) || (artworkRatio > 1.25 && heightIn > widthIn));
-  const swapBannerOrientation = () => {
-    setWidthFtStr(String(Math.floor(heightIn / 12)));
-    setWidthInRStr(String(heightIn % 12));
-    setHeightFtStr(String(Math.floor(widthIn / 12)));
-    setHeightInRStr(String(widthIn % 12));
-    setWidthCustomInStr(String(heightIn));
-    setHeightCustomInStr(String(widthIn));
-    setActivePreset(null);
-    setHasConfirmedSize(true);
-  };
   const bannerPrice = (
     <div>
     <div className="flex flex-wrap items-baseline gap-x-2">
@@ -2760,6 +2737,23 @@ const GoogleAdsBanner: React.FC = () => {
     <PriceDeliveryEstimate compact />
     </div>
   );
+  const mobileDiscountLabel = bannerPromoResolution.appliedDiscountAmountCents > 0
+    ? bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20'
+      ? '20% off applied'
+      : bannerPromoResolution.appliedDiscountType === 'quantity'
+        ? `${Math.round(quantityDiscountRate * 100)}% bulk discount`
+        : `${usd(bannerPromoResolution.appliedDiscountAmountCents / 100)} off applied`
+    : null;
+  const compactBannerPrice = (sticky = false) => <div data-testid="mobile-banner-price">
+    <div className="flex flex-wrap items-baseline gap-x-1.5">
+      <span data-banner-current-price className={`text-2xl font-extrabold tracking-tight ${sticky ? 'text-white' : 'text-emerald-700'}`}>{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</span>
+      {bannerPromoResolution.appliedDiscountAmountCents > 0 && <del className={`text-xs ${sticky ? 'text-[#B8C8DC]' : 'text-slate-500'}`}>{usd((bannerPricing.subtotalBeforeDiscountCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</del>}
+    </div>
+    {!sticky && mobileDiscountLabel && <p className="text-[10px] font-semibold leading-3 text-emerald-700">{mobileDiscountLabel}</p>}
+  </div>;
+  const paidMobileAction = hasPermanentArtwork(uploadedFile) && hasCommittedBannerSize && !isUploading && !isProcessingUpsell
+      ? { ...mobileBannerAction, label: 'Review & finish' }
+      : bannerAction;
 
   const bannerSummary = (<>
                   {(!activeCartPromo || activeCartPromo.code === 'NEW20') && firstOrderOffer.status !== 'eligible' && firstOrderOffer.status !== 'unverified' && (
@@ -2845,6 +2839,16 @@ const GoogleAdsBanner: React.FC = () => {
                   />
   </>);
 
+  const mobileReviewSummary = <section data-testid="mobile-review-summary" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <h2 className="text-base font-bold">Your banner</h2>
+    <p className="mt-1 text-xs text-slate-600">{widthDisplay} × {heightDisplay} · {materialLabel} · Qty {quantity}</p>
+    <div className="mt-3">{compactBannerPrice()}</div>
+    <dl className="mt-3 space-y-2 border-y border-slate-200 py-3 text-xs"><div className="flex justify-between gap-3"><dt>Shipping</dt><dd className="font-bold text-emerald-700">FREE</dd></div><div className="flex justify-between gap-3"><dt>Tax</dt><dd className="text-slate-500">Calculated at checkout</dd></div></dl>
+    <div className="mt-3"><PriceDeliveryEstimate /></div>
+    {activeCartPromo?.code === 'NEW20' && firstOrderOffer.message && <p className="mt-2 text-[11px] leading-4 text-slate-500">{firstOrderOffer.message}</p>}
+    <details className="mt-2"><summary className="min-h-11 cursor-pointer py-3 text-xs font-semibold text-[#18448D] underline">Price details & promo code</summary>{/* Retain all existing discounts, fees and eligibility controls. */}{bannerSummary}</details>
+  </section>;
+
   const materialCard = isDoubleSidedBanner ? (
     <ConfigCard compact step={2} title="Material" id="material-section">
       <p className="font-semibold text-[#0B1F3A]">18 oz vinyl · Double-sided</p>
@@ -2866,10 +2870,10 @@ const GoogleAdsBanner: React.FC = () => {
                           onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
                         <span className="min-w-0 flex-1 text-left font-semibold text-gray-800">{selectedMaterial.label}</span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#EAF1FB] px-2 py-1 text-[11px] font-bold text-[#18448D]">
+                        {!mobilePaidLayout && <span className="inline-flex items-center gap-1 rounded-full bg-[#EAF1FB] px-2 py-1 text-[11px] font-bold text-[#18448D]">
                           <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
                           Selected
-                        </span>
+                        </span>}
                         <svg className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${materialDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                       </button>
                       {materialDropdownOpen && (
@@ -2902,7 +2906,7 @@ const GoogleAdsBanner: React.FC = () => {
                       )}
                     </div>
                   </ConfigCard>);
-  const quantityCard = (<ConfigCard compact={!isCarMagnet} step={isCarMagnet ? 2 : 3} title="Quantity" id="quantity-section">
+  const quantityCard = (<ConfigCard className={mobilePaidLayout ? 'flex flex-wrap items-center justify-between gap-2' : undefined} compact={!isCarMagnet} step={isCarMagnet ? 2 : 3} title="Quantity" id="quantity-section">
                   {isCarMagnet && (
                     <div className="mb-4 flex items-start gap-2 rounded-xl border border-[#D7E3F4] bg-[#F4F8FD] px-3 py-2.5 text-sm text-slate-700">
                       <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#18448D]" aria-hidden="true" />
@@ -2928,7 +2932,7 @@ const GoogleAdsBanner: React.FC = () => {
                       Large Banner 25% Off applied automatically. Quantity discounts cannot be combined.
                     </p>
                   )}
-                  {!isCarMagnet && quantity === 1 && bannerPromoResolution.promotionId !== 'LARGE_BANNER_25' && (
+                  {!mobilePaidLayout && !isCarMagnet && quantity === 1 && bannerPromoResolution.promotionId !== 'LARGE_BANNER_25' && (
                     <p className="text-xs text-gray-700 mt-1.5">Order 2+ for up to 13% off</p>
                   )}
                 </ConfigCard>);
@@ -3019,10 +3023,10 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
   );
   const sizeCard = (<ConfigCard
-                  className={compactMobileLanding ? '!p-3 lg:!p-6' : undefined}
+                  className={paidBannerLanding ? '!border-0 !p-0 !shadow-none lg:!border lg:!p-6 lg:!shadow-sm' : compactMobileLanding ? '!p-3 lg:!p-6' : undefined}
                   bodyClassName={compactMobileLanding ? '!mt-2 lg:!mt-4' : undefined}
                   step={1}
-                  title={isCarMagnet ? "Choose your size" : isLargeBannerLanding ? "Choose your large banner size" : "Size & quantity"}
+                  title={isCarMagnet || mobilePaidLayout ? "Choose your size" : isLargeBannerLanding ? "Choose your large banner size" : "Size & quantity"}
                   id="size-section"
                   headerRight={!isCarMagnet ? (
                     <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs" role="group" aria-label="Display unit">
@@ -3063,21 +3067,22 @@ const GoogleAdsBanner: React.FC = () => {
                               <button key={p.label} onClick={() => setCarMagnetSizeLabel(p.label)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${carMagnetSizeLabel === p.label ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
                                 {p.label}
                               </button>
-                            ))}</div></div> : <BannerSizeChoices sizes={PRESET_SIZES} widthIn={widthIn} heightIn={heightIn} unit={unit} onSelect={applyPreset} />}
+                            ))}</div></div> : <BannerSizeChoices sizes={PRESET_SIZES} widthIn={widthIn} heightIn={heightIn} unit={unit} onSelect={applyPreset} prices={mobilePaidLayout ? mobileSizePrices : undefined} />}
                     </div>}
                     {!isCarMagnet && <CustomBannerSize hasCustomSize={!(isLargeBannerLanding ? LARGE_BANNER_SIZES : PRESET_SIZES).some(size => size.w === widthIn && size.h === heightIn)}>
                       {sizeDimensions}
                     </CustomBannerSize>}
                   </div>
                 {isLargeBannerLanding && <p className="mt-3 text-xs text-slate-600">Online sizes up to 50 ft on the long side and 16 ft on the short side. Larger project? <Link to="/custom-quote" className="font-semibold text-orange-700 underline">Request a quote</Link>.</p>}
-                {!isCarMagnet && <BannerPrintSides doubleSided={isDoubleSidedBanner} onChange={handleBannerPrintSidesChange} />}
-                {!isCarMagnet && <div className="mt-5 grid gap-4 border-t border-slate-200 pt-4 sm:grid-cols-[minmax(0,1fr)_auto]">{materialCard}{quantityCard}</div>}
+                {mobilePaidLayout && <p className="mt-2 text-center text-[11px] text-slate-500">{bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? 'First-order prices shown' : 'Current prices shown'} · {quantity > 1 ? `For ${quantity} banners · ` : ''}Before tax</p>}
+                {!isCarMagnet && !mobilePaidLayout && <BannerPrintSides doubleSided={isDoubleSidedBanner} onChange={handleBannerPrintSidesChange} />}
+                {!isCarMagnet && !mobilePaidLayout && <div className="mt-5 grid gap-4 border-t border-slate-200 pt-4 sm:grid-cols-[minmax(0,1fr)_auto]">{materialCard}{quantityCard}</div>}
                 </ConfigCard>);
   const bannerFinishingOptions = (
 <FinishingOptionsCard
                         compact
                         finishingType={finishingType}
-                        explicitChoice={!isLgScreen}
+                        explicitChoice
                         choiceConfirmed={finishingChoiceConfirmed}
                         setFinishingType={(value) => { setFinishingType(value); setFinishingChoiceConfirmed(true); }}
                         grommets={grommets}
@@ -3101,13 +3106,30 @@ const GoogleAdsBanner: React.FC = () => {
                     ) : bannerFinishingOptions}
                   </div>
                 </ConfigCard>);
-  const artworkFitControls = !isYardSign && ENABLE_AI && uploadedFile ? (
-    <ArtworkFitButton onClick={() => setFitModalOpen(true)}
-      disabled={!hasCommittedBannerSize || isUploading || isProcessingUpsell || !hasPermanentArtwork(uploadedFile)}
-      onRestore={fitUndo?.appliedIdentity === uploadedFile.editorIdentity ? restoreArtworkBeforeFit : undefined} />
+  const artworkFitDisabled = !hasCommittedBannerSize || isUploading || isProcessingUpsell || !hasPermanentArtwork(uploadedFile);
+  const artworkFitAssistance = {
+    enabled: !isYardSign && ENABLE_AI && Boolean(uploadedFile) && !artworkFitDisabled && !aiModalOpen && !aiEditModalOpen,
+    fitDialogOpen: fitModalOpen,
+    onFit: () => setFitModalOpen(true),
+    widthIn, heightIn, productLabel: isCarMagnet ? 'car magnet' : 'banner',
+  };
+  const primaryArtworkFitControl = !isYardSign && !isCarMagnet && ENABLE_AI && uploadedFile ? (
+    <button type="button" onClick={() => setFitModalOpen(true)} disabled={artworkFitDisabled}
+      className="flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-full bg-[var(--brand-orange)] px-2 py-2 text-xs font-bold leading-snug text-white hover:bg-[var(--brand-orange-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600 disabled:cursor-not-allowed disabled:opacity-50">
+      <Sparkles aria-hidden="true" className="h-4 w-4 shrink-0" />
+      <span className="whitespace-nowrap">Fit with AI</span>
+    </button>
   ) : null;
+  const artworkFitControls = !isYardSign && ENABLE_AI && uploadedFile ? (isCarMagnet ? (
+    <ArtworkFitButton onClick={() => setFitModalOpen(true)}
+      disabled={artworkFitDisabled}
+      onRestore={fitUndo?.appliedIdentity === uploadedFile.editorIdentity ? restoreArtworkBeforeFit : undefined} />
+  ) : fitUndo?.appliedIdentity === uploadedFile.editorIdentity ? (
+    <button type="button" onClick={restoreArtworkBeforeFit} disabled={artworkFitDisabled}
+      className="mt-2 min-h-11 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-800 disabled:opacity-50">Restore original</button>
+  ) : null) : null;
 
-  const uploadCard = (<ConfigCard step={isCarMagnet ? 4 : 2} title="Upload your artwork" id="upload-section">
+  const uploadCard = (<ConfigCard className={mobilePaidLayout ? '!border-0 !p-0 !shadow-none !scroll-mt-20' : undefined} step={mobilePaidLayout ? undefined : isCarMagnet ? 4 : 2} title="Upload your artwork" id="upload-section">
                   {/* Helper banner: shown when the user reaches the upload card before
                       completing required choices. Doesn't block upload — just surfaces
                       what still needs to happen before "Add to Cart" works. */}
@@ -3122,7 +3144,7 @@ const GoogleAdsBanner: React.FC = () => {
                       </p>
                     );
                   })()}
-                  {!isYardSign && !isCarMagnet && (
+                  {!paidBannerLanding && !isYardSign && !isCarMagnet && (
                     <AIArtworkHelp
                       widthIn={widthIn}
                       heightIn={heightIn}
@@ -3142,13 +3164,18 @@ const GoogleAdsBanner: React.FC = () => {
                         onUpload={handleFileUpload}
                         acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"
                         maxSize={MAX_ARTWORK_BYTES}
-                        label="Upload your artwork"
-                        subText={`PNG, JPG, or PDF • Max ${MAX_ARTWORK_MB}MB • ${widthDisplay} × ${heightDisplay}`}
+                        choiceCard={mobilePaidLayout}
+                        label={mobilePaidLayout ? 'Upload artwork' : 'Upload your artwork'}
+                        subText={`PNG, JPG, or PDF • Max ${MAX_ARTWORK_MB}MB${mobilePaidLayout ? '' : ` • ${widthDisplay} × ${heightDisplay}`}`}
                         isUploading={isUploading}
-                        style={previewCanvasStyle}
+                        style={mobilePaidLayout ? undefined : previewCanvasStyle}
                         className="mx-auto"
                       />
-                      {!isYardSign && !isCarMagnet && showCreateWithAI && (
+                      {mobilePaidLayout && showCreateWithAI && <button type="button" onClick={() => setAiModalOpen(true)} disabled={!hasCommittedBannerSize || !material || isUploading} className="mt-3 flex w-full items-start gap-4 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-orange-400 focus-visible:ring-2 focus-visible:ring-orange-600 disabled:opacity-50">
+                        <Sparkles className="mt-1 h-8 w-8 shrink-0 text-orange-500" aria-hidden="true" />
+                        <span className="min-w-0 flex-1"><span className="block text-lg font-bold text-[#061A31]">I need a design</span><span className="mt-0.5 block text-xs text-slate-600">Describe your idea and create with AI</span><span className="mt-2 flex min-h-11 items-center justify-center rounded-lg border border-orange-500 px-3 text-sm font-bold text-orange-700">Create with AI</span></span>
+                      </button>}
+                      {!mobilePaidLayout && !isYardSign && !isCarMagnet && showCreateWithAI && (
                         <div className="mt-3 flex flex-col items-center gap-2">
                         <span className="text-sm font-medium text-slate-500">or</span>
                           <button
@@ -3177,19 +3204,20 @@ const GoogleAdsBanner: React.FC = () => {
                         <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
                       </div>
                       {/* Banner preview with depth background */}
-                      <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden bg-slate-300 border border-slate-400/70 shadow-inner">
+                      <div ref={artworkWorkspaceRef} data-testid="artwork-workspace" className="banner-artwork-workspace rounded-xl p-4 pt-[104px] md:p-6 md:pt-[108px] max-w-full overflow-hidden bg-slate-300 border border-slate-400/70 shadow-inner">
                         {/* Width wrapper — constrains max-width so padding-bottom produces correct height */}
                         <PreviewRulerFrame
                           widthIn={widthIn}
                           heightIn={heightIn}
                           unit={isCarMagnet ? 'in' : unit}
                           debug={import.meta.env.DEV}
-                          className="mx-auto max-w-full"
-                          style={previewWrapperStyle}
+                          className="banner-artwork-ruler mx-auto max-w-full"
+                          style={{ ...previewWrapperStyle, maxWidth: `min(${previewWrapperStyle.maxWidth}, var(--artwork-viewport-width, ${previewWrapperStyle.maxWidth}))` }}
                         >
                           {/* PR3: Modern Canva-style artwork editor (drag,
                               resize handles, fit/fill/reset/constrain). */}
                           <ArtworkPreviewEditor
+                    onDelete={deleteArtworkWithUndo}
                     key={uploadedFile.editorIdentity || uploadedFile.fileKey}
                             ref={inlineEditorRef}
                             compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
@@ -3205,7 +3233,9 @@ const GoogleAdsBanner: React.FC = () => {
                             paddingPct={previewPaddingPct}
                             containerRef={previewContainerRef}
                             mobileToolbarContainer={inlineMobileToolbarEl}
+                            primaryFitControl={primaryArtworkFitControl}
                             fitControls={artworkFitControls}
+                            fitAssistance={artworkFitAssistance}
                             value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                             onChange={(v) => {
                               setImgPos({ x: v.x, y: v.y });
@@ -3214,31 +3244,12 @@ const GoogleAdsBanner: React.FC = () => {
                             }}
                             constrain={constrainProps}
                             onConstrainChange={setConstrainProps}
-                            showDragHint={showDragHint}
                             canvasStyle={{
                               backgroundColor: '#ffffff',
                               borderRadius: 2,
                               border: '1px solid #94a3b8',
                               boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
                             }}
-                            overlay={
-                              grommets !== 'none' ? (
-                                <svg
-                                  className="absolute inset-0 w-full h-full pointer-events-none"
-                                  viewBox={`0 0 ${widthIn} ${heightIn}`}
-                                  preserveAspectRatio="none"
-                                  style={{ zIndex: 10 }}
-                                  aria-hidden="true"
-                                >
-                                  <GrommetOverlay
-                                    widthIn={widthIn}
-                                    heightIn={heightIn}
-                                    option={grommets}
-                                    idSuffix="ga-inline"
-                                  />
-                                </svg>
-                              ) : null
-                            }
                           />
                         </PreviewRulerFrame>{/* close ruler frame */}
                       </div>
@@ -3254,16 +3265,8 @@ const GoogleAdsBanner: React.FC = () => {
                       <p className="text-xs text-gray-400 text-center mt-2">
                         Size: {isCarMagnet ? `${widthIn}" × ${heightIn}"` : `${widthFt} ft${widthInR > 0 ? ` ${widthInR} in` : ''} × ${heightFt} ft${heightInR > 0 ? ` ${heightInR} in` : ''}`} ({sqft.toFixed(1)} sq ft)
                       </p>
-                      {offerOrientationSwap && <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-[#0B1F3A]">
-                        <p className="font-semibold">Your artwork is {artworkRatio < 1 ? 'portrait' : 'landscape'}. Want your banner to match?</p>
-                        <p className="mt-1 text-xs text-slate-600">Swap the width and height, then check your preview. Your artwork stays uploaded.</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <button type="button" onClick={swapBannerOrientation} className="min-h-11 rounded-lg bg-[#0B1F3A] px-3 py-2 text-sm font-semibold text-white">Switch to {heightDisplay} × {widthDisplay}</button>
-                          <button type="button" onClick={() => setDismissedOrientation(orientationKey)} className="min-h-11 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold">Keep this size</button>
-                        </div>
-                      </div>}
                       {/* Confidence text */}
-                      <p className="text-xs text-gray-500 text-center mt-1 font-medium">Your design will be printed based on this preview</p>
+                      <p className="text-xs text-gray-500 text-center mt-1 font-medium">Drag artwork to move it. Use corner handles to resize.</p>
                       {/* File info bar */}
                       <div className="mt-2 p-3 flex items-center justify-between bg-green-50 border border-green-200 rounded-lg">
                         <div className="flex items-center gap-2 min-w-0">
@@ -3274,7 +3277,7 @@ const GoogleAdsBanner: React.FC = () => {
                           Replace
                           <input type="file" aria-label="Replace uploaded artwork" className="sr-only" disabled={isUploading || isProcessingUpsell} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleFileUpload(file); event.target.value = ''; }} />
                         </label>
-                        <button type="button" aria-label="Remove uploaded artwork" onClick={removeArtwork} className="ml-2 flex-shrink-0 p-2.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
+                        <button type="button" aria-label="Remove uploaded artwork" onClick={deleteArtworkWithUndo} className="ml-2 flex-shrink-0 p-2.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
                       </div>
                       {aiPrompt && !isYardSign && !isCarMagnet && showCreateWithAI && (
                         <div className="mt-2 flex justify-center">
@@ -3331,19 +3334,21 @@ const GoogleAdsBanner: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>{isLargeBannerLanding ? 'Large Banners Fast — Free Next-Day Air Shipping' : isFallFestivalLanding ? 'Custom Fall Festival Banners' : isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Car Magnets' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
-        <meta name="description" content={isLargeBannerLanding ? "Order large custom vinyl banners with 24-hour production and free next-day air shipping after production. Choose 8 × 4 ft, 10 × 4 ft or custom sizes. Get instant pricing and design online." : isFallFestivalLanding ? 'Custom fall festival banners for churches, schools, harvest festivals and trunk-or-treats. Upload artwork or create with AI. 24-hour production.' : isYardSign ? "Upload yard-sign artwork, review the supported size and current price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
+        <title>{isHalloweenLanding ? 'Custom Halloween Banners' : isLargeBannerLanding ? 'Large Banners Fast — Free Next-Day Air Shipping' : isFallFestivalLanding ? 'Custom Fall Festival Banners' : isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Car Magnets' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
+        <meta name="description" content={isHalloweenLanding ? "Create a custom Halloween banner for parties, haunted houses and trunk-or-treats. Choose your size, upload artwork and preview online. 24-hour production and free next-day air shipping on orders $20+." : isLargeBannerLanding ? "Order large custom vinyl banners with 24-hour production and free next-day air shipping after production. Choose 8 × 4 ft, 10 × 4 ft or custom sizes. Get instant pricing and design online." : isFallFestivalLanding ? 'Custom fall festival banners for churches, schools, harvest festivals and trunk-or-treats. Upload artwork or create with AI. 24-hour production.' : isYardSign ? "Upload yard-sign artwork, review the supported size and current price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
         <meta name="robots" content={isLargeBannerLanding ? "noindex, follow" : isFallFestivalLanding ? "index, follow" : "noindex, nofollow"} />
+        {isHalloweenLanding && <link rel="canonical" href="https://bannersonthefly.com/halloween-banner" />}
         {isLargeBannerLanding && <link rel="canonical" href="https://bannersonthefly.com/large-banners-fast" />}
         {isFallFestivalLanding && <link rel="canonical" href="https://bannersonthefly.com/fall-festival-banners" />}
       </Helmet>
       <div className="min-h-screen bg-white text-gray-900">
-        {/* Keep the paid landing page's logo-and-cart header at every viewport size. */}
+        {/* Only the paid landing route omits navigation. Sharing its mobile
+            designer must not remove the storefront's menu or home link. */}
         {location.pathname.replace(/\/+$/, "") === "/google-ads-banner" ? (
-        <header data-site-header className="w-full border-b border-white/10 bg-[#061A31] py-2 px-4 sticky top-0 z-50 lg:border-gray-100 lg:bg-white lg:py-3">
+        <header data-site-header className="w-full border-b border-[#e5dfd6] bg-white py-2 px-4 sticky top-0 z-50 lg:py-3">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
-            <div className="w-10" />
-            <picture><source media="(max-width: 1023px)" srcSet="/images/homepage/header-logo-reverse.png" /><img src="/images/header-logo.png" alt="Banners On The Fly" width="248" height="70" className="h-8 w-auto object-contain lg:h-10" loading="eager" /></picture>
+            <div className={mobilePaidLayout ? "hidden w-10 lg:block" : "w-10"} />
+            <picture><img src="/images/header-logo.png" alt="Banners On The Fly" width="248" height="70" className="h-8 w-auto object-contain lg:h-10" loading="eager" /></picture>
             <button
               onClick={() => setIsCartOpen(true)}
               aria-label="Shopping cart"
@@ -3365,95 +3370,36 @@ const GoogleAdsBanner: React.FC = () => {
           <Header compactMobile={compactMobileLanding} cartCount={cartItemCount} onCartClick={() => setIsCartOpen(true)} />
         )}
 
-        {!isYardSign && !isCarMagnet && <GoogleReviewSpotlight compactMobile={compactMobileLanding} />}
+        {!isYardSign && !isCarMagnet && !mobilePaidLayout && <GoogleReviewSpotlight />}
 
         {/* HERO */}
         {!isYardSign && !isCarMagnet ? (
-          isLargeBannerLanding ? <ProductPageHero productSlug="large-banners-fast" ctaUrl="#order-builder" onStart={scrollToOrder} /> : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <><MobileBannerLandingHero /><div className="hidden lg:block"><FastBannerAdHero onStart={scrollToOrder} /></div></>
+          isLargeBannerLanding ? <ProductPageHero productSlug="large-banners-fast" ctaUrl="#order-builder" onStart={scrollToOrder} /> : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <><MobileBannerLandingHero redesigned={paidBannerLanding} halloween={isHalloweenLanding} /><div className="hidden lg:block"><FastBannerAdHero onStart={scrollToOrder} halloween={isHalloweenLanding} /></div></>
         ) : (
-        <section className="relative overflow-hidden border-b-4 border-[#FF6A00] bg-[#0B1F3A] px-4 py-10 sm:py-12 lg:py-16">
-          <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:gap-14">
-            <div className="text-center lg:text-left">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF8A3D]">{heroContent.eyebrow}</p>
-              <h1 className="mt-4 max-w-3xl font-display text-4xl font-black leading-[1.04] tracking-[-0.04em] text-white sm:text-5xl lg:text-6xl">
-                {heroContent.headline}
-              </h1>
-              <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-200 sm:text-lg lg:mx-0">
-                {heroContent.intro}
-              </p>
-
-              <div data-mobile-delivery-timer className="mx-auto mt-5 max-w-xl text-left md:hidden">
-                <DeliveryTimer reflectCartSelection variant="compact" className="shadow-lg" />
-              </div>
-
-              <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-3 text-sm font-semibold text-white lg:justify-start">
-                <span className="inline-flex items-center gap-2"><Clock className="h-4 w-4 text-[#FF8A3D]" />Most standard orders: 24-hour production</span>
-                <span className="inline-flex items-center gap-2"><Truck className="h-4 w-4 text-[#FF8A3D]" />Free next-day air anywhere in the U.S.</span>
-                <span className="inline-flex items-center gap-2"><FileCheck className="h-4 w-4 text-[#FF8A3D]" />Every file reviewed before print</span>
-              </div>
-
-              <div className="mt-7 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
-                <button
-                  type="button"
-                  onClick={scrollToOrder}
-                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 bg-[#C94E00] px-7 py-3.5 text-base font-bold text-white shadow-[0_10px_28px_rgba(255,106,0,0.24)] transition-colors hover:bg-[#B84300] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1F3A] sm:w-auto"
-                >
-                  {heroContent.cta}
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </button>
-                <p className="text-sm font-semibold text-[#FFB27D]">{heroContent.offer}</p>
-              </div>
-
-              <div className="mt-7 flex items-center justify-center gap-3 border-t border-white/15 pt-5 lg:justify-start">
-                <img
-                  src="https://res.cloudinary.com/dtrxl120u/image/upload/w_128,h_128,c_fill,f_auto,q_auto/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg"
-                  alt="Dan Oliver of Dan-O's Seasoning"
-                  width="48"
-                  height="48"
-                  className="h-12 w-12 rounded-full border-2 border-white/70 object-cover"
-                />
-                <div className="text-left">
-                  <span className="text-[#FF8A3D]" role="img" aria-label="Five-star customer feedback">★★★★★</span>
-                  <p className="text-xs font-semibold text-white">Trusted by Dan-O&rsquo;s Seasoning</p>
-                </div>
-              </div>
-            </div>
-
-            <aside className="border border-white/15 bg-white text-[#0B1F3A] shadow-[0_24px_60px_rgba(0,0,0,0.24)]" aria-label="Popular order example">
-              <div className="border-t-4 border-[#FF6A00] p-6 sm:p-7">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Popular starting point</p>
-                <div className="mt-3 flex items-end justify-between gap-5 border-b border-slate-200 pb-5">
-                  <div>
-                    <p className="font-display text-xl font-bold">{heroContent.priceLabel}</p>
-                    <p className="mt-1 text-sm text-slate-500">Before destination-based tax</p>
-                  </div>
-                  <p className="font-display text-3xl font-black text-[#0B1F3A]">{heroContent.price}</p>
-                </div>
-                <ol className="mt-5 grid gap-3 text-sm">
-                  <li className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B1F3A] text-xs font-bold text-white">1</span>Choose your configuration</li>
-                  <li className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B1F3A] text-xs font-bold text-white">2</span>Upload your artwork</li>
-                  <li className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B1F3A] text-xs font-bold text-white">3</span>Review the on-screen preview</li>
-                  <li className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B1F3A] text-xs font-bold text-white">4</span>Continue to secure checkout</li>
-                </ol>
-                <div className="mt-5 border-l-4 border-[#FF6A00] bg-[#FFF7F1] px-4 py-3 text-sm leading-6 text-slate-700">
-                  Free next-day air anywhere in the United States is included after production. Production time and carrier transit are shown separately.
-                </div>
-              </div>
-            </aside>
-          </div>
-        </section>
+        <LightProductHero
+          attributes={{ 'data-google-product-hero': isYardSign ? 'yard-signs' : 'car-magnets' }}
+          productSlug={isYardSign ? 'yard-signs' : 'car-magnets'}
+          title={heroContent.headline}
+          accentText={isCarMagnet ? "made fast." : "produced fast."}
+          eyebrow={heroContent.eyebrow}
+          description={heroContent.intro}
+          primaryLabel={heroContent.cta}
+          onStart={scrollToOrder}
+          offer={<p className="text-sm font-semibold">{heroContent.priceLabel} from {heroContent.price} · {heroContent.offer}</p>}
+        />
         )}
 
-        <RealOrdersStrip compactMobile={compactMobileLanding} expanded />
+        {!mobilePaidLayout && <RealOrdersStrip compactMobile={compactMobileLanding} expanded />}
 
-        <section ref={orderRef} id="order-builder" className={compactMobileLanding ? "bg-gray-50 px-4 py-3 lg:py-12" : "py-12 px-4 bg-gray-50"}>
-          <div className="max-w-4xl lg:max-w-7xl mx-auto">
+        <section ref={orderRef} id="order-builder" className={paidBannerLanding ? "bg-white px-4 py-3 lg:bg-gray-50 lg:py-12" : compactMobileLanding ? "bg-gray-50 px-4 py-3 lg:py-12" : "py-12 px-4 bg-gray-50"}>
+          <div className={mobilePaidLayout ? 'mx-auto max-w-xl' : 'max-w-4xl lg:max-w-7xl mx-auto'}>
             <p className={`mb-3 text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF6A00] ${compactMobileLanding ? "hidden lg:block" : ""}`}>
               {isDoubleSidedBanner ? 'Double-sided · 18 oz vinyl' : isYardSign ? '24″ × 18″ yard signs' : isCarMagnet ? 'Custom car magnets' : 'Custom vinyl banners'}
             </p>
-            {compactMobileLanding && <p className="mb-2 flex items-center justify-between gap-2 text-xs font-medium text-slate-500 lg:hidden" aria-label="Ordering steps">
-              <span className="font-bold text-orange-700" aria-current="step">1 Design</span><span aria-hidden="true">→</span><span>2 Finishing</span><span aria-hidden="true">→</span><span>3 Checkout</span>
-            </p>}
+            {compactMobileLanding && !paidBannerLanding && <p className="mb-2 flex items-center justify-between gap-2 text-xs font-medium text-slate-500 lg:hidden" aria-label="Ordering steps"><span className="font-bold text-orange-700" aria-current="step">1 Design</span><span aria-hidden="true">→</span><span>2 Finishing</span><span aria-hidden="true">→</span><span>3 Checkout</span></p>}
+            {mobilePaidLayout && <>
+              {bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' && <p className="mb-4 rounded-full bg-orange-50 px-3 py-2 text-center text-xs font-bold text-orange-700">20% off your first order</p>}
+            </>}
             <h2
               ref={builderStartRef}
               id="builder-start"
@@ -3580,7 +3526,14 @@ const GoogleAdsBanner: React.FC = () => {
               <div className="space-y-5 min-w-0 max-w-full">
                 {sizeCard}
                 {isCarMagnet && quantityCard}
-                {isCarMagnet ? <>{finishingCard}{uploadCard}</> : <>{uploadCard}{isLgScreen && finishingCard}</>}
+                {isCarMagnet ? <>{finishingCard}{uploadCard}</> : <>
+                  <div className="space-y-3">
+                    {mobilePaidLayout && <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm"><BannerPrintSides compact doubleSided={isDoubleSidedBanner} onChange={handleBannerPrintSidesChange} />{materialCard}{quantityCard}</div>}
+                    {uploadCard}
+                    {mobilePaidLayout && <FadingGoogleReviews />}
+                  </div>
+                  {isLgScreen && finishingCard}
+                </>}
 
               </div>
 
@@ -3635,7 +3588,7 @@ const GoogleAdsBanner: React.FC = () => {
                 <>
                 <button onClick={handleCheckout} disabled={!uploadedFile || !hasCommittedBannerSize || isUploading || isProcessingUpsell} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && hasCommittedBannerSize && !isUploading && !isProcessingUpsell ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                   <Lock className="h-4 w-4" aria-hidden="true" />
-                  {isProcessingUpsell ? 'Saving your design…' : (editItemId ? 'Save & checkout' : 'Continue to checkout')}
+                  {isProcessingUpsell ? 'Saving your design…' : !isCarMagnet && !finishingChoiceConfirmed ? 'Choose finishing' : (editItemId ? 'Save & checkout' : 'Continue to checkout')}
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
                 </button>
                 <button
@@ -3667,8 +3620,8 @@ const GoogleAdsBanner: React.FC = () => {
           </div>
         </section>
 
-        {compactMobileLanding && <div className="lg:hidden"><MobileBannerLandingProof /></div>}
-        <TrustStrip />
+        {compactMobileLanding && !paidBannerLanding && <MobileBannerLandingProof />}
+        <TrustStrip className={paidBannerLanding ? 'hidden lg:block' : undefined} />
 
         <div className="py-4 pb-24 md:pb-4 text-center text-xs text-gray-400 border-t border-gray-100">
           <div className="mb-2">
@@ -3683,10 +3636,13 @@ const GoogleAdsBanner: React.FC = () => {
       </div>
 
         <MobileFinishingStep
+          reviewLayout={mobilePaidLayout}
+          finishingSummary={<>{addRope ? `Rope: ${getDisplayPlacement(ropePlacement)}` : polePockets !== 'none' ? `Pole pockets: ${getDisplayPlacement(polePockets)}` : `Grommets: ${grommetsLabel}`}<br />Hemming included</>}
+          onReplaceArtwork={file => { setMobileFinishingOpen(false); void handleFileUpload(file); }}
           open={mobileFinishingOpen && !isLgScreen && !isYardSign && !isCarMagnet}
           onBack={() => setMobileFinishingOpen(false)}
           description={`${widthDisplay} × ${heightDisplay} · ${materialLabel} · Qty ${quantity}`}
-          price={bannerPrice}
+          price={mobilePaidLayout ? compactBannerPrice(true) : bannerPrice}
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
           ready={finishingChoiceConfirmed && Boolean(uploadedFile) && hasCommittedBannerSize}
           busy={isUploading || isProcessingUpsell}
@@ -3695,8 +3651,9 @@ const GoogleAdsBanner: React.FC = () => {
           onViewCart={() => { setMobileFinishingOpen(false); setShowPreview(false); openCartDrawer(); }}
           onCheckout={() => { if (finishingChoiceConfirmed) void prepareAndRoutePlacement('checkout', mobileFinishingSource); }}
           onAddAnother={() => { if (finishingChoiceConfirmed) void prepareAndRoutePlacement('cart', mobileFinishingSource); }}
-          summary={<>{bannerSummary}<SameDayHitServiceCard variant="compact" previewHasPrice={Boolean(uploadedFile)} previewSubtotalCents={bannerPricing.subtotalBeforeDiscountCents} /></>}
+          summary={<>{mobilePaidLayout ? mobileReviewSummary : bannerSummary}<div className="mt-3"><SameDayHitServiceCard variant="compact" previewHasPrice={Boolean(uploadedFile)} previewSubtotalCents={bannerPricing.subtotalBeforeDiscountCents} /></div></>}
           preview={uploadedFile && finishingPreviewTransform && <LiveFinishingPreview
+            prominent={mobilePaidLayout}
             src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
             transform={finishingPreviewTransform}
             choiceConfirmed={finishingChoiceConfirmed}
@@ -3715,15 +3672,18 @@ const GoogleAdsBanner: React.FC = () => {
           {(!activeCartPromo || activeCartPromo.code === 'NEW20') && firstOrderOffer.status === 'unavailable' && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{firstOrderOffer.message} <button type="button" onClick={firstOrderOffer.retry} className="min-h-11 font-semibold underline">Retry offer</button></p>}
         </MobileFinishingStep>
         <MobileSubtotalBar
+          compact={mobilePaidLayout}
+          compactDiscountLabel={mobileDiscountLabel}
+          selectionLabel={`${widthDisplay} × ${heightDisplay} · ${quantity > 1 ? `Qty ${quantity}` : isDoubleSidedBanner ? '18oz · 2 sides' : material}`}
           uploadRecovery={!isYardSign && !isCarMagnet && isUploading ? { onCancel: cancelArtworkUpload } : undefined}
-          primaryAction={!isYardSign && !isCarMagnet ? mobileBannerAction : undefined}
+          primaryAction={!isYardSign && !isCarMagnet ? mobilePaidLayout ? paidMobileAction : mobileBannerAction : undefined}
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
           cartItemCount={cartItemCount}
           onViewCart={openCartDrawer}
           priceNote={!hasCommittedBannerSize ? undefined : isLargeBannerLanding && widthIn === 120 && heightIn === 48 ? "10′ × 4′ large banner selected" : showPopularBannerPriceNote ? POPULAR_BANNER_PRESET.mobilePriceNote : undefined}
           subtotal={
             !isYardSign && !isCarMagnet ? (
-              bannerPrice
+              mobilePaidLayout ? compactBannerPrice(true) : bannerPrice
             ) : isYardSign && yardSignPricing ? (
               <p className="text-xl font-bold text-gray-900">
                 {yardSignTotalQty > 0 ? usd(yardSignPricing.totalCents / 100) : '—'}
@@ -3738,6 +3698,10 @@ const GoogleAdsBanner: React.FC = () => {
             )
           }
         />
+
+      {!uploadedFile && undoDeletedArtwork && <div role="status" className="fixed bottom-24 left-1/2 z-[11030] flex -translate-x-1/2 items-center gap-3 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm shadow-lg">
+        Artwork deleted<button type="button" onClick={undoDeletedArtwork} className="min-h-11 px-3 font-semibold text-violet-700">Undo delete</button>
+      </div>}
 
       <AIArtworkFitDialog open={fitModalOpen && !isYardSign} productType={isCarMagnet ? 'car_magnet' : 'banner'} onOpenChange={setFitModalOpen}
         artwork={uploadedFile} widthIn={widthIn} heightIn={heightIn} onApply={applyFittedArtwork} />
@@ -3758,7 +3722,7 @@ const GoogleAdsBanner: React.FC = () => {
             <div className="p-4 flex-1 overflow-auto">
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Drag corners to resize</p>
               {/* Banner surface */}
-              <div className="rounded-lg p-3 border border-slate-300" style={{ background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)' }}>
+              <div className="rounded-lg p-3 pt-24 border border-slate-300" style={{ background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)' }}>
                 <PreviewRulerFrame
                   widthIn={widthIn}
                   heightIn={heightIn}
@@ -3767,6 +3731,7 @@ const GoogleAdsBanner: React.FC = () => {
                   style={previewWrapperStyle}
                 >
                   <ArtworkPreviewEditor
+                    onDelete={deleteArtworkWithUndo}
                     key={uploadedFile.editorIdentity || uploadedFile.fileKey}
                     ref={modalEditorRef}
                     compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
@@ -3782,7 +3747,9 @@ const GoogleAdsBanner: React.FC = () => {
                     paddingPct={previewPaddingPct}
                     containerRef={previewContainerRef}
                     mobileToolbarContainer={modalMobileToolbarEl}
+                    primaryFitControl={primaryArtworkFitControl}
                     fitControls={artworkFitControls}
+                    fitAssistance={artworkFitAssistance}
                     value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                     onChange={(v) => {
                       setImgPos({ x: v.x, y: v.y });
@@ -3798,24 +3765,6 @@ const GoogleAdsBanner: React.FC = () => {
                       border: '1px solid #94a3b8',
                       boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
                     }}
-                    overlay={
-                      grommets !== 'none' ? (
-                        <svg
-                          className="absolute inset-0 w-full h-full pointer-events-none"
-                          viewBox={`0 0 ${widthIn} ${heightIn}`}
-                          preserveAspectRatio="none"
-                          style={{ zIndex: 10 }}
-                          aria-hidden="true"
-                        >
-                          <GrommetOverlay
-                            widthIn={widthIn}
-                            heightIn={heightIn}
-                            option={grommets}
-                            idSuffix="ga-modal"
-                          />
-                        </svg>
-                      ) : null
-                    }
                   />
                 </PreviewRulerFrame>
               </div>
@@ -3831,7 +3780,7 @@ const GoogleAdsBanner: React.FC = () => {
                 Size: {widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''} ({sqft.toFixed(1)} sq ft)
               </p>
               {/* Confidence text */}
-              <p className="text-xs text-gray-500 text-center mt-2 font-medium">Your design will be printed based on this preview</p>
+              <p className="text-xs text-gray-500 text-center mt-2 font-medium">Drag artwork to move it. Use corner handles to resize.</p>
             </div>
             <div className="flex gap-3 p-4 border-t">
               <button onClick={() => setShowPreview(false)} className="flex-1 py-3.5 sm:py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>

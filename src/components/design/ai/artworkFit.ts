@@ -4,20 +4,21 @@ import { base64ToFile } from '@/utils/base64ToFile';
 import { uploadArtworkFile } from '@/utils/uploadArtworkFile';
 import { preloadPreviewImage } from '@/lib/previewImageCache';
 
-export type ArtworkFitProduct = 'banner' | 'yard_sign' | 'car_magnet';
+export type ArtworkFitProduct = 'banner' | 'yard_sign' | 'car_magnet' | `specialty:${string}`;
 
 export type ArtworkFitResult = {
+  productType?: ArtworkFitProduct;
   id: string; sourceHash: string; imageBase64: string; mimeType: string;
   widthIn: number; heightIn: number; widthPx: number; heightPx: number;
   verification: { passed: boolean; canApply?: boolean; blockingIssues?: string[]; originalText: string[]; detectedText: string[]; missing: string[]; added: string[]; issues: string[]; confidence: number };
   diagnostics: { model: string; durationMs: number };
 };
 
-/** Cosmetic differences need customer review; content failures cannot be applied. */
+/** Customers approve the visible preview; automated analysis is diagnostic only. */
 export function canApplyArtworkFit(result: ArtworkFitResult | null | undefined): result is ArtworkFitResult {
-  const checks = result?.verification;
-  return Boolean(checks && (checks.canApply ?? checks.passed) === true
-    && checks.missing.length === 0 && checks.added.length === 0 && !checks.blockingIssues?.length);
+  return Boolean(result?.id && result.imageBase64 && /^image\/(?:jpeg|png|webp)$/.test(result.mimeType)
+    && Number.isFinite(result.widthIn) && result.widthIn > 0
+    && Number.isFinite(result.heightIn) && result.heightIn > 0);
 }
 
 export function artworkFitIdentity(artwork: UploadedArtworkFile | null, widthIn: number, heightIn: number, productType: ArtworkFitProduct = 'banner') {
@@ -83,7 +84,7 @@ export async function prepareArtworkFitSource(artwork: UploadedArtworkFile): Pro
 
 /** Save the proposed version first. The current design changes only after this succeeds. */
 export async function saveFittedArtwork(result: ArtworkFitResult): Promise<UploadedArtworkFile> {
-  if (!canApplyArtworkFit(result)) throw new Error('This version needs another attempt before it can be used.');
+  if (!canApplyArtworkFit(result)) throw new Error('No fitted image is available to save.');
   const file = base64ToFile(result.imageBase64, `ai-fit-${result.widthIn}x${result.heightIn}-${result.id}.jpg`, result.mimeType);
   const saved = await uploadArtworkFile(file, { originalWidth: result.widthPx, originalHeight: result.heightPx });
   await preloadPreviewImage(saved.previewUrl, { timeoutMs: 20000 });

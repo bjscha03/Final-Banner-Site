@@ -2,6 +2,9 @@ export type ArtworkUploadStatus = 'pending' | 'uploaded' | 'failed';
 
 export type ArtworkFitMode = 'fill' | 'fit' | 'stretch';
 
+/** Visible window as fractions of the untouched original image. */
+export type ArtworkCrop = { x: number; y: number; width: number; height: number };
+
 /** Immutable metadata for the customer-supplied production source. */
 export interface ArtworkManifest {
   originalUrl: string;
@@ -34,6 +37,7 @@ export interface PlacementPreviewManifest {
   positionPct?: { x: number; y: number } | null;
   scaleX?: number | null;
   scaleY?: number | null;
+  crop?: ArtworkCrop | null;
   compositionRevision?: number | null;
   compositionSignature?: string | null;
   /** Compatibility aliases retained for existing order and email readers. */

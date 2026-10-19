@@ -23,6 +23,11 @@ const order = (id: string, createdAt: string, status: Order['status'], totalCent
 });
 
 describe('admin business metrics', () => {
+  it('deducts cumulative partial refunds once and never adds them to a later full refund', () => {
+    const orders = [order('partial', '2026-09-01', 'paid', 10600, 'one@buyer.test', { partial_refund_cents: 2500 }),
+      order('full', '2026-09-01', 'refunded', 5000, 'two@buyer.test', { partial_refund_cents: 1000 })];
+    expect(summarizeAdminBusinessMetrics(orders, orders)).toMatchObject({ grossSalesCents: 15600, recordedRefundsCents: 7500, netSalesCents: 8100, totalOrders: 1 });
+  });
   it('uses local calendar-month boundaries and inclusive custom end dates', () => {
     const now = new Date(2026, 8, 15, 12);
     const month = getAdminOrderPeriodBounds('this_month', {}, now);

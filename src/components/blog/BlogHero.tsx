@@ -26,20 +26,20 @@ export function BlogHero({ post }: BlogHeroProps) {
     <section
       data-blog-hero
       aria-labelledby="blog-field-guide-title"
-      className="border-b border-[#F45B08] bg-[#FBF8F2]"
+      className="border-b border-[#e5dfd6] bg-[#f8f6f1]"
     >
       <div className="mx-auto grid w-full max-w-[1740px] lg:grid-cols-[0.76fr_1.24fr] lg:items-center">
         <div className="px-5 py-10 sm:px-8 sm:py-14 lg:px-10 lg:py-16 xl:px-14 2xl:px-16">
           <div className="flex items-center gap-3 text-[#C94E00]">
             <BookOpen className="h-8 w-8 flex-none stroke-[1.8] sm:h-9 sm:w-9" aria-hidden="true" />
-            <p className="font-mono text-[11px] font-black uppercase tracking-[0.16em] sm:text-xs">
+            <p className="text-[11px] font-semibold tracking-[0.16em] sm:text-xs">
               The Banners On The Fly field guide
             </p>
           </div>
 
           <h1
             id="blog-field-guide-title"
-            className="homepage-condensed mt-5 text-[4.15rem] font-black uppercase leading-[0.86] tracking-[-0.012em] text-[#061A31] [--homepage-mobile-size:4.15rem] sm:text-[5.35rem] lg:text-[5.45rem] xl:text-[6.15rem] 2xl:text-[6.75rem]"
+            className="mt-5 font-sans text-[clamp(2.5rem,4.8vw,5rem)] font-bold leading-[1.05] tracking-[-0.05em] text-[#061A31]"
           >
             Print smarter.
             <br />
@@ -54,14 +54,14 @@ export function BlogHero({ post }: BlogHeroProps) {
           <div className="mt-8 flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:gap-8">
             <a
               href="#article-library"
-              className="inline-flex min-h-[52px] items-center justify-center gap-3 bg-[#061A31] px-7 py-4 font-mono text-xs font-black uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#123251] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F45B08] focus-visible:ring-offset-2"
+              className="inline-flex min-h-[52px] items-center justify-center gap-3 rounded-md bg-brand-orange px-7 py-4 text-xs font-semibold tracking-[0.12em] text-white transition-colors hover:bg-brand-orange-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F45B08] focus-visible:ring-offset-2"
             >
               Explore all guides
               <ArrowRight className="h-5 w-5" aria-hidden="true" />
             </a>
             <Link
               to="/design"
-              className="group inline-flex min-h-11 items-center gap-3 border-b-2 border-[#F45B08] py-2 font-mono text-xs font-black uppercase tracking-[0.12em] text-[#C94E00] transition-colors hover:text-[#9E3E00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F45B08] focus-visible:ring-offset-2"
+              className="group inline-flex min-h-11 items-center gap-3 border-b-2 border-[#F45B08] py-2 text-xs font-semibold tracking-[0.12em] text-[#C94E00] transition-colors hover:text-[#9E3E00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F45B08] focus-visible:ring-offset-2"
             >
               Start designing
               <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" aria-hidden="true" />
@@ -76,7 +76,7 @@ export function BlogHero({ post }: BlogHeroProps) {
               <React.Fragment key={topic.label}>
                 <Link
                   to={topic.to}
-                  className="font-mono text-[10px] font-black uppercase tracking-[0.12em] text-[#102B49] transition-colors hover:text-[#C94E00] sm:text-[11px]"
+                  className="text-[10px] font-semibold tracking-[0.12em] text-[#102B49] transition-colors hover:text-[#C94E00] sm:text-[11px]"
                 >
                   {topic.label}
                 </Link>
@@ -105,36 +105,32 @@ export function BlogHero({ post }: BlogHeroProps) {
               />
             </Link>
 
-            <div className="pointer-events-none absolute left-0 top-0 z-10 bg-[#E85C16] px-5 py-3 font-mono text-[11px] font-black uppercase tracking-[0.12em] text-white sm:px-6 sm:text-xs">
+            <div className="pointer-events-none absolute left-0 top-0 z-10 bg-white text-[#061A31] px-5 py-3 text-[11px] font-semibold tracking-[0.12em] sm:px-6 sm:text-xs">
               Featured guide
             </div>
 
-            <div className="pointer-events-none absolute right-0 top-0 z-10 flex bg-[#061A31] px-4 py-3 font-mono text-[10px] font-black uppercase tracking-[0.13em] text-white xl:bottom-[35%] xl:w-12 xl:items-start xl:justify-center xl:px-0 xl:py-5 xl:[writing-mode:vertical-rl]">
-              01 // Featured
-            </div>
-
-            <div className="absolute inset-x-0 bottom-0 flex h-[39%] min-h-[230px] flex-col justify-between bg-[#061A31] px-6 py-6 text-white sm:h-[35%] sm:px-8 sm:py-7 lg:px-9 xl:px-10">
+            <div className="absolute inset-x-0 bottom-0 flex h-[39%] min-h-[230px] flex-col justify-between border-t border-[#e5dfd6] bg-white px-6 py-6 text-[#061A31] sm:h-[35%] sm:px-8 sm:py-7 lg:px-9 xl:px-10">
               <div className="min-w-0">
-                <p className="font-mono text-[11px] font-black uppercase tracking-[0.14em] text-[#F26A21] sm:text-xs">
+                <p className="text-[11px] font-semibold tracking-[0.14em] text-[#b84300] sm:text-xs">
                   {category}
                 </p>
                 <Link to={articleUrl} className="group inline-block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F45B08]">
-                  <h2 className="homepage-condensed mt-3 line-clamp-2 text-[2.1rem] font-black uppercase leading-[0.95] tracking-[-0.01em] text-white transition-colors group-hover:text-[#FFD1B6] sm:text-[2.65rem] lg:text-[2.85rem] xl:text-[3.15rem]">
+                  <h2 className="mt-3 line-clamp-2 text-2xl font-bold leading-tight tracking-[-0.03em] text-[#061A31] transition-colors group-hover:text-[#b84300] sm:text-3xl">
                     {frontmatter.title}
                   </h2>
                 </Link>
               </div>
 
-              <div className="mt-5 flex items-center justify-between gap-5 border-t-2 border-[#F45B08] pt-4">
+              <div className="mt-5 flex items-center justify-between gap-5 border-t border-[#e5dfd6] pt-4">
                 {readingTime && (
-                  <span className="flex items-center gap-2 font-mono text-[10px] font-black uppercase tracking-[0.12em] text-white sm:text-xs">
+                  <span className="flex items-center gap-2 text-[10px] font-semibold tracking-[0.12em] text-[#061A31] sm:text-xs">
                     <Clock3 className="h-5 w-5 flex-none" aria-hidden="true" />
                     {readingTime}
                   </span>
                 )}
                 <Link
                   to={articleUrl}
-                  className="ml-auto inline-flex items-center gap-3 font-mono text-[10px] font-black uppercase tracking-[0.12em] text-white transition-colors hover:text-[#F26A21] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F45B08] sm:text-xs"
+                  className="ml-auto inline-flex items-center gap-3 text-[10px] font-semibold tracking-[0.12em] text-[#061A31] transition-colors hover:text-[#b84300] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F45B08] sm:text-xs"
                 >
                   Read the guide
                   <ArrowRight className="h-5 w-5" aria-hidden="true" />
@@ -145,7 +141,7 @@ export function BlogHero({ post }: BlogHeroProps) {
         </article>
       </div>
 
-      <HeroDeliveryStatus variant="editorial" />
+      <div className="border-t border-[#e5dfd6] bg-white px-5 py-5"><HeroDeliveryStatus variant="light" className="mx-auto max-w-[570px]" /></div>
     </section>
   );
 }

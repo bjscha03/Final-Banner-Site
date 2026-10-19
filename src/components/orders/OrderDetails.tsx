@@ -10,12 +10,14 @@ import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, File
 import TrackingBadge from './TrackingBadge';
 import OrderItemPreview from '@/components/preview/OrderItemPreview';
 import EmailDeliveryStatus from './EmailDeliveryStatus';
+import OrderDeliveryEstimate from './OrderDeliveryEstimate';
 import { getItemDisplayName, getProductLabel, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
 import { authorizedHeaders } from '@/lib/serverAuth';
-import { getOriginalArtworkSelection } from '@/lib/artworkFiles';
+import AIArtworkQuality from './AIArtworkQuality';
+import { getOriginalArtworkSelection, getAIResizedArtworkSelection } from '@/lib/artworkFiles';
 import { orderItemToReorderQuote } from '@/lib/orders/reorder';
 import {
   Dialog,
@@ -217,7 +219,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
     const item = order.items[itemIndex];
     
     try {
-      addFromQuote(orderItemToReorderQuote(item));
+      if(item.product_type==='specialty'&&item.specialty_config) useCartStore.getState().saveSpecialtyItem({configuration:item.specialty_config,quantity:item.quantity,widthIn:item.width_in,heightIn:item.height_in});
+      else addFromQuote(orderItemToReorderQuote(item));
     } catch (error) {
       toast({ title: 'Unable to reorder', description: error instanceof Error ? error.message : 'Please review the saved artwork.', variant: 'destructive' });
       return;
@@ -417,6 +420,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
               </div>
             </div>
 
+          {isAdminUser && <OrderDeliveryEstimate order={order} />}
           {/* Shipping Address - Admin Only */}
           {isAdminUser && hasAddress && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -703,6 +707,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                       <p className="break-words">Material: {normalized.materialDisplay}</p>
                       <p className="break-words">Print: {normalized.printDisplay}</p>
                       <p className="break-words">Qty: {normalized.qtyDisplay}</p>
+                      {item.specialty_config?.optionSummary?.map(option=><p key={option.key} className="break-words">{option.label}: {option.value}</p>)}
+                      {item.specialty_config?.customHoles?.map((hole,i)=><p key={i}>Mounting hole {i+1}: {hole.xIn}″ from left, {hole.yIn}″ from top</p>)}
                       {normalized.uploadedDesignsCount ? <p className="break-words">Uploaded Designs: {normalized.uploadedDesignsCount}</p> : null}
                       {normalized.stepStakesQty ? <p className="break-words">Step Stakes: {normalized.stepStakesQty}</p> : null}
                       {normalized.productType === 'banner' ? (
@@ -730,11 +736,12 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                       </div>
                     </div>
 
-                    {isAdminUser && <div className="space-y-3">
+                    {isAdminUser && item.specialty_config && <section className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3"><p className="font-semibold text-emerald-900">Approved production panels</p>{item.specialty_config.panels.map(panel=><div key={panel.id} className="rounded-lg bg-white p-3"><p className="font-bold">{panel.label}</p><p className="text-xs text-slate-600">{panel.composition.widthIn}″ × {panel.composition.heightIn}″ print area · {panel.templateId}</p><div className="mt-2 flex flex-wrap gap-4 text-sm font-semibold text-blue-800"><a href={panel.productionUrl} target="_blank" rel="noreferrer">Production PDF</a><a href={panel.artwork.productionUrl||panel.artwork.url} target="_blank" rel="noreferrer">Original artwork</a><a href={panel.preview.url} target="_blank" rel="noreferrer">Approved preview</a></div></div>)}</section>}
+                    {isAdminUser && getAIResizedArtworkSelection(item) && <AIArtworkQuality item={item} orderId={order.id} />}
+                    {isAdminUser && item.product_type!=='specialty' && item.product_type!=='banner' && !getAIResizedArtworkSelection(item) && <div className="space-y-3">
                       <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                         <p className="font-semibold text-emerald-900">Generated Production PDF</p>
                         <p className="mt-1 text-xs text-emerald-800">Status: {item.generated_print_pdf_url ? 'generated' : item.production_pdf_status || 'pending'}</p>
-                        {(item.generated_print_pdf_metadata?.resolution || []).some((entry: any) => entry.status === 'fail') && <p className="mt-1 text-xs font-semibold text-red-700">Low-resolution warning: one or more raster assets are below 150 effective PPI.</p>}
                         {item.production_pdf_error && <p className="mt-1 text-xs text-red-700">{item.production_pdf_error}</p>}
                         <div className="mt-2 grid grid-cols-2 gap-2">
                           <Button variant="outline" size="sm" onClick={() => handlePdfDownload(item, index, false)} disabled={!!pdfGenerating[index]}>{item.generated_print_pdf_url ? 'Download' : 'Generate'}</Button>
@@ -744,7 +751,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     </div>}
 
                     <div className="space-y-2">
-                      {isAdminUser && (() => {
+                      {isAdminUser && item.product_type!=='specialty' && (() => {
                         const downloadInfo = getBestDownloadUrl(item);
                         return downloadInfo ? (
                           <Button
@@ -858,6 +865,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     <div className="flex justify-between"><span>Original Subtotal</span><span className="font-semibold">{usd(profit.originalSubtotalCents / 100)}</span></div>
                     {profit.discountsAppliedCents > 0 && <div className="flex justify-between"><span>Discounts Applied</span><span className="font-semibold text-red-700">-{usd(profit.discountsAppliedCents / 100)}</span></div>}
                     <div className="flex justify-between"><span>Adjusted Retail Subtotal (before tax)</span><span className="font-semibold">{usd(profit.adjustedRetailSubtotalCents / 100)}</span></div>
+                    {profit.partialRefundCents > 0 && <div className="flex justify-between text-red-700"><span>Partial refund (excluding refunded tax)</span><span className="font-semibold">-{usd(profit.refundRevenueCents / 100)}</span></div>}
                     <div className="flex justify-between text-slate-700"><span>Production Cost</span><span className="font-semibold">{usd(profit.productionCostCents / 100)}</span></div>
                     <div className="flex justify-between text-slate-700"><span>Shipping/Handling Cost</span><span className="font-semibold">{usd(profit.shippingCostCents / 100)}</span></div>
                     <div className="flex justify-between text-slate-700"><span>Total Cost</span><span className="font-semibold">{usd(profit.totalCostCents / 100)}</span></div>

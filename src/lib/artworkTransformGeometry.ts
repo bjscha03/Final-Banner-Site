@@ -1,3 +1,4 @@
+import type { ArtworkCrop } from '@/types/artwork';
 export type ArtworkCanvasSize = { w: number; h: number };
 
 export type PixelArtworkTransform = {
@@ -5,6 +6,7 @@ export type PixelArtworkTransform = {
   y: number;
   scaleX: number;
   scaleY: number;
+  crop?: ArtworkCrop;
 };
 
 export type NormalizedArtworkGeometry = {
@@ -12,6 +14,7 @@ export type NormalizedArtworkGeometry = {
   yPct: number;
   widthPct: number;
   heightPct: number;
+  crop?: ArtworkCrop;
 };
 
 export function getContainedArtworkRect(
@@ -40,6 +43,7 @@ export function captureNormalizedArtworkGeometry(
     yPct: canvas.h ? transform.y / canvas.h : 0,
     widthPct: canvas.w ? (contained.w * transform.scaleX) / canvas.w : transform.scaleX,
     heightPct: canvas.h ? (contained.h * transform.scaleY) / canvas.h : transform.scaleY,
+    ...(transform.crop ? { crop: transform.crop } : {}),
   };
 }
 
@@ -62,5 +66,6 @@ export function restoreArtworkTransformFromGeometry(
     y: geometry.yPct * canvas.h,
     scaleX,
     scaleY,
+    ...(geometry.crop ? { crop: geometry.crop } : {}),
   };
 }

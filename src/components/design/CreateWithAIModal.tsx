@@ -24,8 +24,8 @@ const CreateWithAIModal: React.FC<Props> = (props) => {
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent className="h-[94dvh] w-[98vw] max-w-[1800px] overflow-y-auto border-0 bg-white p-0 shadow-2xl sm:rounded-2xl">
-        <DialogTitle className="sr-only">Create professional banner artwork with AI</DialogTitle>
-        <DialogDescription className="sr-only">Build a structured creative brief, generate complete flat artwork, validate it, and apply it to the banner configurator.</DialogDescription>
+        <DialogTitle className="sr-only">Create professional print artwork with AI</DialogTitle>
+        <DialogDescription className="sr-only">Create artwork for your selected product, size and print panel, review it, and apply it to your order.</DialogDescription>
         <AIWorkspace {...props} onClose={() => props.onOpenChange(false)} />
       </DialogContent>
     </Dialog>

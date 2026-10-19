@@ -75,7 +75,7 @@ export default function LouisvilleOffer() {
           A LITTLE LOCAL LOVE · LOUISVILLE
         </p>
         <h1 className="mb-7 text-center text-3xl font-bold text-[#122641]">
-          Your next banner starts here.
+          Your next banner <span className="text-[var(--brand-orange)]">starts here.</span>
         </h1>
         <div className="overflow-hidden rounded-3xl bg-[#122641] text-white shadow-xl">
           <div className="px-6 py-7 sm:px-9">
@@ -147,7 +147,7 @@ export default function LouisvilleOffer() {
           </p>
         )}
         <Button
-          className="mt-7 h-14 w-full bg-[#c94e00] text-base"
+          className="mt-7 h-14 w-full bg-brand-orange text-base text-white"
           disabled={!offer?.valid}
           onClick={() => offer && start(offer)}
         >

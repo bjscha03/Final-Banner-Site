@@ -122,6 +122,51 @@
   color: #475569;
 }
 
+/* On phones, show every value with its heading instead of hiding columns offscreen. */
+@media screen and (max-width: 639px) {
+  .blog-table-cards .blog-table-hint { display: none; }
+  .blog-table-cards .blog-table-scroll { border: 0; border-radius: 0; overflow: visible; }
+  .blog-article table[data-mobile-cards] { display: block; }
+  .blog-article table[data-mobile-cards] thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .blog-article table[data-mobile-cards] tbody { display: grid; gap: 1rem; }
+  .blog-article table[data-mobile-cards] tbody tr {
+    display: block;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background: #fff;
+  }
+  .blog-article table[data-mobile-cards] td {
+    display: block;
+    width: auto;
+    min-width: 0;
+    padding: 0.75rem 1rem;
+    border: 0;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+  }
+  .blog-article table[data-mobile-cards] td + td { border-top: 1px solid #e2e8f0; }
+  .blog-article table[data-mobile-cards] td:first-child { background: #f1f5f9; }
+  .blog-article table[data-mobile-cards] td::before {
+    content: attr(data-column-label);
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #18448d;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+}
+
 @media print {
   .blog-table-hint { display: none; }
   .blog-table-scroll { overflow: visible; }
@@ -286,7 +331,7 @@
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-xl px-5 py-3 font-semibold text-white bg-gradient-to-r from-orange-500 via-orange-600 to-red-500 hover:from-orange-600 hover:via-red-500 hover:to-red-600 shadow-xl shadow-orange-500/40 hover:shadow-2xl hover:shadow-orange-500/50 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 transform hover:scale-105 hover:-translate-y-1 active:scale-95;
+    @apply inline-flex items-center justify-center rounded-xl px-5 py-3 font-semibold text-white bg-brand-orange hover:bg-brand-orange-hover shadow-xl shadow-orange-500/40 hover:shadow-2xl hover:shadow-orange-500/50 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 transform hover:scale-105 hover:-translate-y-1 active:scale-95;
   }
 
   .btn-outline {
@@ -294,7 +339,7 @@
   }
 
   .btn-hero-primary {
-    @apply inline-flex items-center justify-center rounded-2xl px-8 py-4 font-bold text-white bg-gradient-to-r from-orange-500 via-orange-600 to-red-500 hover:from-orange-600 hover:via-red-500 hover:to-red-600 shadow-2xl shadow-orange-500/50 hover:shadow-2xl hover:shadow-orange-500/60 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 transform hover:scale-110 hover:-translate-y-2 active:scale-95 relative overflow-hidden;
+    @apply inline-flex items-center justify-center rounded-2xl px-8 py-4 font-bold text-white bg-brand-orange hover:bg-brand-orange-hover shadow-2xl shadow-orange-500/50 hover:shadow-2xl hover:shadow-orange-500/60 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 transform hover:scale-110 hover:-translate-y-2 active:scale-95 relative overflow-hidden;
   }
 
   .btn-hero-primary::before {
@@ -570,6 +615,11 @@
 
 @layer base {
   :root {
+    /* Owner-approved BOF palette: #FF6A00 with white button labels.
+       Preserve these colors during unrelated fixes; palette changes require design approval. */
+    --brand-orange: #FF6A00;
+    --brand-orange-hover: #F06000;
+
     --background: 0 0% 100%;
     --foreground: 216 68% 14%;
 
@@ -713,7 +763,8 @@
   .brand-button-primary,
   .btn-primary,
   .btn-hero-primary {
-    @apply inline-flex min-h-12 items-center justify-center rounded-md bg-[#C94E00] px-6 py-3 font-bold text-white shadow-none transition-colors duration-200 hover:bg-[#B84300] hover:text-white hover:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 active:bg-[#B84300];
+    @apply inline-flex min-h-12 items-center justify-center rounded-md bg-brand-orange px-6 py-3 font-bold text-white shadow-none transition-colors duration-200 hover:bg-brand-orange-hover hover:text-white hover:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 active:bg-brand-orange-hover;
+    background-image: none;
     transform: none;
   }
 
@@ -938,3 +989,33 @@ embed[type="application/pdf"] .pdfViewer .toolbar {
     }
   }
 }
+/* Keep artwork handles usable between the header and order action on phones
+   held sideways. Detailed price/shipping information remains in finishing. */
+@media (max-width: 1023px) and (max-height: 500px) and (orientation: landscape) {
+  .banner-artwork-workspace {
+    padding-top: 88px;
+    padding-bottom: 12px;
+  }
+  [data-compact-landscape="true"] {
+    padding-top: 4px;
+    padding-bottom: max(4px, env(safe-area-inset-bottom, 4px)) !important;
+  }
+  [data-compact-landscape="true"] .mobile-subtotal-details p,
+  [data-compact-landscape="true"] .mobile-subtotal-shipping {
+    display: none;
+  }
+  [data-compact-landscape="true"] [data-banner-primary-action] {
+    min-height: 44px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+}
+
+/* Shared visual boundary for the design and finishing order bars. */
+.banner-order-bar {
+  border-top: 4px solid #FF6A00;
+  background: #091C32;
+  color: #fff;
+  box-shadow: 0 -8px 24px rgba(9, 28, 50, 0.16);
+}
+.banner-order-bar [data-banner-current-price] { color: #fff; }

@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import {getItemDisplayName,getEmailItemOptions} from './product-display';
 import React from 'react';
 import { neon } from '@neondatabase/serverless';
 
@@ -327,6 +328,7 @@ export async function sendOrderConfirmation(order: any, customerEmail: string): 
         number: order.id.slice(-8).toUpperCase(),
         customerName: order.customer_name || 'Customer',
         items: order.items.map((item: any) => {
+          if(item.product_type==='specialty')return {name:getItemDisplayName(item),quantity:item.quantity,price:item.line_total_cents/100,options:getEmailItemOptions(item)};
           const isYardSign = item.product_type === 'yard_sign';
             const itemName = isYardSign
               ? 'Custom Yard Sign 24" × 18"'

@@ -53,6 +53,9 @@ import { getGrommetLabel } from '@/lib/grommets';
 import EditCustomerInfoDialog from '@/components/orders/EditCustomerInfoDialog';
 import ReviewRequestAction, { type ReviewRequestUpdate } from '@/components/orders/ReviewRequestAction';
 import AdminRefundOrderAction from '@/components/orders/AdminRefundOrderAction';
+import AdminPartialRefundAction from '@/components/orders/AdminPartialRefundAction';
+import OrderDeliveryEstimate from '@/components/orders/OrderDeliveryEstimate';
+import AIArtworkQuality from '@/components/orders/AIArtworkQuality';
 import AdminTrackingManager from '@/components/orders/AdminTrackingManager';
 import {
   adminOrderPeriodLabel,
@@ -698,7 +701,7 @@ const AdminOrders: React.FC = () => {
       setFileLoadingStates((current) => ({ ...current, [stateKey]: true }));
       toast({
         title: `Downloading ${label}`,
-        description: fileKind === 'ai-resized' ? 'Preparing the full-resolution AI-resized artwork...' : "Preparing the customer's uploaded file...",
+        description: fileKind === 'ai-resized' ? 'Preparing the saved AI artwork at its native pixel resolution...' : "Preparing the customer's uploaded file...",
       });
 
       // Use Netlify function for secure file downloads
@@ -1165,7 +1168,7 @@ const AdminOrders: React.FC = () => {
                     <FileText className="h-4 w-4" />
                     Custom Quotes
                     {globalOverview.customQuotes > 0 && (
-                      <Badge className="ml-1 bg-[#C94E00] text-white">{globalOverview.customQuotes}</Badge>
+                      <Badge className="ml-1 bg-brand-orange text-white">{globalOverview.customQuotes}</Badge>
                     )}
                   </a>
                 </TabsTrigger>
@@ -1279,7 +1282,7 @@ const AdminOrders: React.FC = () => {
               <div>
                 <h2 id="order-report-heading" className="text-lg font-bold text-gray-900">Order performance</h2>
                 <p className="mt-1 max-w-3xl text-xs leading-5 text-gray-600">
-                  Uses each order's creation date in your local calendar. Total Orders includes paid, in-production, and shipped orders. Gross also includes currently refunded records; Recorded Refunds removes those values from net. Test and unpaid orders are excluded.
+                  Uses each order's creation date in your local calendar. Total Orders includes paid, in-production, and shipped orders. Gross includes refunded records; Recorded Refunds includes full and recorded partial refunds, which reduce net sales. Test and unpaid orders are excluded.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2" role="group" aria-label="Order reporting period">
@@ -1365,7 +1368,7 @@ const AdminOrders: React.FC = () => {
           </section>
 
           <p className="-mt-5 mb-6 text-xs text-slate-600" data-admin-profit-note>
-            Net profit is estimated across the selected period using the same costs as each order: sales after discounts minus production and supplier shipping. Excludes tax, refunded orders, advertising and payment fees.
+            Net profit is estimated across the selected period: sales after discounts and partial refunds (excluding refunded tax), minus production and supplier shipping. Excludes tax, fully refunded orders, advertising and payment fees.
             {Boolean(businessMetrics.profitOrdersNeedingReview) && <strong className="ml-1 text-amber-800">{businessMetrics.profitOrdersNeedingReview} orders need cost review and are excluded from this profit subtotal.</strong>}
           </p>
 
@@ -1652,6 +1655,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
 
         {/* MIDDLE SECTION */}
         <div className="min-w-0 space-y-3">
+          <OrderDeliveryEstimate order={order} />
           <div><div className="text-xs font-medium uppercase tracking-wide text-gray-500">Order Total</div><div className={`text-lg font-bold ${ORDER_ACCENT_TEXT_CLASS}`}>{usd(getDisplayOrderTotalCents(order as any) / 100)}</div></div>
           {(() => {
             if (detailRequired) {
@@ -1670,6 +1674,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                     <div className="text-slate-700">Revenue: <span className="font-semibold">{usd(profit.originalSubtotalCents / 100)}</span></div>
                     {profit.discountsAppliedCents > 0 && <div className="text-slate-700">Discounts: <span className="font-semibold text-red-700">-{usd(profit.discountsAppliedCents / 100)}</span></div>}
                     {profit.adjustedRetailSubtotalCents !== profit.originalSubtotalCents && <div className="text-slate-700">Adjusted Subtotal: <span className="font-semibold">{usd(profit.adjustedRetailSubtotalCents / 100)}</span></div>}
+                    {profit.partialRefundCents > 0 && <div className="text-red-700">Partial refund (excluding refunded tax): <span className="font-semibold">-{usd(profit.refundRevenueCents / 100)}</span></div>}
                     <div className="text-gray-600">Production Cost: <span className="font-semibold">{usd(profit.productionCostCents / 100)}</span></div>
                     <div className="text-gray-600">Shipping/Handling Cost: <span className="font-semibold">{usd(profit.shippingCostCents / 100)}</span></div>
                     <div className="text-gray-600">Total Cost: <span className="font-semibold">{usd(profit.totalCostCents / 100)}</span></div>
@@ -1807,20 +1812,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                         <><Download className="mr-1.5 h-3.5 w-3.5" />{originalFiles.length > 1 ? `Original File ${index + 1}` : 'Original File'}</>
                       )}
                     </Button>
-                    {getAIResizedArtworkSelection(item) && (
-                      <Button
-                        type="button"
-                        onClick={() => onFileDownload(getAIResizedArtworkSelection(item)!.url, order.id, index, getOriginalFilename(item), 'ai-resized')}
-                        disabled={Boolean(fileLoadingStates[`${order.id}-${index}-ai-resized`])}
-                        className="h-auto min-h-11 w-full whitespace-normal border-2 border-emerald-800 bg-emerald-700 px-3 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-800 focus-visible:ring-emerald-600"
-                        data-admin-ai-resized-file
-                        title="Download the full-resolution AI-resized artwork saved for this order"
-                      >
-                        {fileLoadingStates[`${order.id}-${index}-ai-resized`]
-                          ? <><Loader2 className="mr-1.5 h-4 w-4 shrink-0 animate-spin" />Downloading...</>
-                          : <><Download className="mr-1.5 h-4 w-4 shrink-0" />Download AI-Resized File{orderItems.length > 1 ? ` ${index + 1}` : ''}</>}
-                      </Button>
-                    )}
+                    {getAIResizedArtworkSelection(item) && <AIArtworkQuality item={item} orderId={order.id} />}
                     </React.Fragment>
                   );
                 })}
@@ -1908,6 +1900,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
               )}
 
               <AdminRefundOrderAction order={order} onRefunded={onOrderRefunded} fullWidth />
+              <AdminPartialRefundAction order={order} onUpdated={onOrderRefunded} />
 
             </div>
             <ReviewRequestAction order={order} onSent={onReviewRequestSent} fullWidth />
@@ -2094,6 +2087,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
             </div>
           </div>
 
+          <OrderDeliveryEstimate order={order} />
           <div className="grid grid-cols-1 gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
             <div>
               <div className="text-xs text-gray-500">Items</div>
@@ -2107,7 +2101,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
               <div className="text-lg font-bold text-[#18448D]">{usd(getDisplayOrderTotalCents(order as any) / 100)}</div>
             {detailRequired ? (
               detailError ? <div className="text-xs text-slate-500">Cost details unavailable</div> : null
-            ) : (() => { const profit = estimateOrderProfit(order); return profit.needsReview ? (<div className="rounded bg-amber-100 px-2 py-1 text-xs text-amber-800"><div className="font-semibold">Needs review</div>{profit.reviewReasons.map((reason) => <div key={reason}>{reason}</div>)}</div>) : (<div className="text-xs text-slate-700">Rev {usd(profit.originalSubtotalCents/100)}{profit.discountsAppliedCents>0 ? ` · Disc -${usd(profit.discountsAppliedCents/100)}` : ''}{profit.adjustedRetailSubtotalCents !== profit.originalSubtotalCents ? ` · Adj ${usd(profit.adjustedRetailSubtotalCents/100)}` : ''}{profit.bofRewardReserveCents>0?` · BOF reserve -${usd(profit.bofRewardReserveCents/100)}`:''}{profit.bofReserveReleasedCents>0?` · BOF reserve used +${usd(profit.bofReserveReleasedCents/100)}`:''} · Prod {usd(profit.productionCostCents/100)} · Ship {usd(profit.shippingCostCents/100)} · Total Cost {usd(profit.totalCostCents/100)} · <span className={`${profit.netProfitCents>=0?'text-green-700':'text-red-700'} font-semibold`}>Profit {usd(profit.netProfitCents/100)}</span> · <span className={`${profit.marginPct >= 50 ? 'text-green-700' : profit.marginPct >= 35 ? 'text-amber-700' : 'text-red-700'} font-semibold`}>Margin {profit.marginPct.toFixed(1)}%</span></div>); })()}
+            ) : (() => { const profit = estimateOrderProfit(order); return profit.needsReview ? (<div className="rounded bg-amber-100 px-2 py-1 text-xs text-amber-800"><div className="font-semibold">Needs review</div>{profit.reviewReasons.map((reason) => <div key={reason}>{reason}</div>)}</div>) : (<div className="text-xs text-slate-700">Rev {usd(profit.originalSubtotalCents/100)}{profit.discountsAppliedCents>0 ? ` · Disc -${usd(profit.discountsAppliedCents/100)}` : ''}{profit.adjustedRetailSubtotalCents !== profit.originalSubtotalCents ? ` · Adj ${usd(profit.adjustedRetailSubtotalCents/100)}` : ''}{profit.bofRewardReserveCents>0?` · BOF reserve -${usd(profit.bofRewardReserveCents/100)}`:''}{profit.bofReserveReleasedCents>0?` · BOF reserve used +${usd(profit.bofReserveReleasedCents/100)}`:''}{profit.partialRefundCents>0 ? ` · Refund -${usd(profit.refundRevenueCents/100)}` : ''} · Prod {usd(profit.productionCostCents/100)} · Ship {usd(profit.shippingCostCents/100)} · Total Cost {usd(profit.totalCostCents/100)} · <span className={`${profit.netProfitCents>=0?'text-green-700':'text-red-700'} font-semibold`}>Profit {usd(profit.netProfitCents/100)}</span> · <span className={`${profit.marginPct >= 50 ? 'text-green-700' : profit.marginPct >= 35 ? 'text-amber-700' : 'text-red-700'} font-semibold`}>Margin {profit.marginPct.toFixed(1)}%</span></div>); })()}
             </div>
           </div>
         </div>
@@ -2162,20 +2156,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                     <><Download className="mr-1.5 h-3.5 w-3.5" />{originalFiles.length > 1 ? `Original File ${index + 1}` : 'Original File'}</>
                   )}
                 </Button>
-                {getAIResizedArtworkSelection(item) && (
-                  <Button
-                    type="button"
-                    onClick={() => onFileDownload(getAIResizedArtworkSelection(item)!.url, order.id, index, getOriginalFilename(item), 'ai-resized')}
-                    disabled={Boolean(fileLoadingStates[`${order.id}-${index}-ai-resized`])}
-                    className="h-auto min-h-11 w-full whitespace-normal border-2 border-emerald-800 bg-emerald-700 px-3 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-800 focus-visible:ring-emerald-600"
-                    data-admin-ai-resized-file
-                    title="Download the full-resolution AI-resized artwork saved for this order"
-                  >
-                    {fileLoadingStates[`${order.id}-${index}-ai-resized`]
-                      ? <><Loader2 className="mr-1.5 h-4 w-4 shrink-0 animate-spin" />Downloading...</>
-                      : <><Download className="mr-1.5 h-4 w-4 shrink-0" />Download AI-Resized File{orderItems.length > 1 ? ` ${index + 1}` : ''}</>}
-                  </Button>
-                )}
+                {getAIResizedArtworkSelection(item) && <AIArtworkQuality item={item} orderId={order.id} />}
                 </React.Fragment>
               );
             })}
@@ -2265,6 +2246,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
         )}
 
         <AdminRefundOrderAction order={order} onRefunded={onOrderRefunded} fullWidth />
+        <AdminPartialRefundAction order={order} onUpdated={onOrderRefunded} />
 
         <ReviewRequestAction order={order} onSent={onReviewRequestSent} fullWidth />
         {order.customer_info_admin_updated_at && <Badge className="w-full justify-center bg-indigo-100 text-indigo-800">Customer info updated by Admin</Badge>}

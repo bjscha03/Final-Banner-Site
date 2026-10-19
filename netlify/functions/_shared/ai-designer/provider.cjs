@@ -231,7 +231,7 @@ async function generateImage({ prompt, size, user, idempotencyKey }) {
   }
 }
 
-async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg', currentImageRole = 'artwork', maskImage, referenceImage, photoReferenceImages = [], logoReferenceImage, logoRendering = 'original', user, idempotencyKey, model: requestedModel, quality: requestedQuality }) {
+async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg', currentImageRole = 'artwork', maskImage, referenceImage, layoutReferenceImage, photoReferenceImages = [], logoReferenceImage, logoRendering = 'original', user, idempotencyKey, model: requestedModel, quality: requestedQuality }) {
   const { client, toFile } = await getClient();
   const model = requestedModel || getImageModel();
   if (!ALLOWED_IMAGE_MODELS.has(model)) throw Object.assign(new Error('Unapproved image model.'), { code: 'UNAPPROVED_IMAGE_MODEL' });
@@ -244,6 +244,9 @@ async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg
       prompt += '\nThe FIRST supplied image is visual style guidance only. Create a NEW banner composition and do not copy its wording.';
     } else if (currentImageRole === 'logo-reference') {
       prompt += '\nThe FIRST supplied image is a customer logo/brand reference, not an existing banner composition. Create a NEW banner composition.';
+    }
+    if (layoutReferenceImage?.buffer) {
+      images.push(await toFile(layoutReferenceImage.buffer, 'product-layout-guide.png', {type: layoutReferenceImage.mimeType}));
     }
     if (referenceImage?.buffer) {
       images.push(await toFile(referenceImage.buffer, 'reference-image', { type: referenceImage.mimeType }));

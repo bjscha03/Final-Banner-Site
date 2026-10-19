@@ -11,10 +11,13 @@ export default defineConfig({
   testDir: './tests/browser',
   testMatch: [
     'realistic-banner-preview.playwright.spec.ts',
+    'artwork-canvas-controls.playwright.spec.ts',
+    'artwork-fit-help.playwright.spec.ts',
     'compact-banner-builder.playwright.spec.ts',
     'preview-handoff.playwright.spec.ts',
     'checkout-thumbnail-real-route.playwright.spec.ts',
     'admin-review-request.playwright.spec.ts',
+    'admin-partial-refund.playwright.spec.ts',
     'admin-commerce-analytics.playwright.spec.ts',
     'ai-admin-entry.playwright.spec.ts',
     'admin-sales-foundation.playwright.ts',

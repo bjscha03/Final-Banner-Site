@@ -9,6 +9,8 @@ export interface CheckoutOrderTotalsProps {
   discountLabel?: string;
   discountHelperMessage?: string;
   shippingLabel: string;
+  shippingPending?: boolean;
+  pricingPending?: boolean;
   taxCents: number;
   taxRate?: number;
   sameDayFeeCents?: number;
@@ -28,6 +30,8 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
   discountLabel = 'Discount',
   discountHelperMessage,
   shippingLabel,
+  shippingPending = false,
+  pricingPending = false,
   taxCents,
   taxRate = 0.06,
   sameDayFeeCents = 0,
@@ -41,28 +45,28 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
   return (
     <section
       aria-labelledby={headingId}
-      className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 shadow-inner sm:p-5"
+      className="checkout-totals"
       data-testid="checkout-order-totals"
     >
-      <div className="mb-4 flex items-end justify-between gap-4 border-b border-slate-200 pb-3">
+      <div className="checkout-totals-heading">
         <div>
           <h3 id={headingId} className="text-base font-bold text-[#0B1F3A] sm:text-lg">
-            Price details
+            Order total
           </h3>
-          <p className="text-xs text-slate-500">Complete total, including tax</p>
+          <p className={pricingPending || shippingPending ? "text-xs text-amber-800" : "sr-only"}>{pricingPending?'Selected option prices are being confirmed':shippingPending ? 'Product estimate before delivery' : 'Complete total, including tax'}</p>
         </div>
-        <span className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">USD</span>
+        <span className="sr-only">USD</span>
       </div>
 
       <div className="space-y-2 text-sm">
         <div className="flex justify-between gap-4">
           <span className="text-slate-600">Subtotal</span>
           <span className="whitespace-nowrap font-semibold text-slate-800">
-            {usd(itemSubtotalCents / 100)}
+            {pricingPending?'Pending':usd(itemSubtotalCents / 100)}
           </span>
         </div>
 
-        {minOrderAdjustmentCents > 0 && (
+        {!pricingPending && minOrderAdjustmentCents > 0 && (
           <div className="flex justify-between gap-4">
             <span className="text-slate-600">Minimum order adjustment</span>
             <span className="whitespace-nowrap font-semibold text-slate-800">
@@ -71,9 +75,9 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
           </div>
         )}
 
-        {discountAmountCents > 0 && (
+        {!pricingPending && discountAmountCents > 0 && (
           <>
-            <div className="flex justify-between gap-4 text-green-700">
+            <div className="flex justify-between gap-4 text-[#c94e00]">
               <span className="flex min-w-0 items-center gap-1.5">
                 <Tag className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 <span>{discountLabel}</span>
@@ -90,10 +94,10 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
 
         <div className="flex justify-between gap-4">
           <span className="text-slate-600">{shippingLabel}</span>
-          {sameDayFeeCents > 0 ? (
+          {shippingPending ? <span className="text-amber-800 font-semibold">Not yet calculated</span> : sameDayFeeCents > 0 ? (
             <span className="whitespace-nowrap font-semibold text-slate-700">Next-Day Air Included</span>
           ) : (
-            <span className="flex items-center gap-1 whitespace-nowrap font-semibold text-green-700">
+            <span className="flex items-center gap-1 whitespace-nowrap font-semibold text-[#c94e00]">
               <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />
               FREE
             </span>
@@ -102,7 +106,7 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
 
         <div className="flex justify-between gap-4">
           <span className="text-slate-600">{taxLabel}</span>
-          <span className="whitespace-nowrap font-semibold text-slate-800">{usd(taxCents / 100)}</span>
+          <span className="whitespace-nowrap font-semibold text-slate-800">{pricingPending?'Pending':usd(taxCents / 100)}</span>
         </div>
 
         {sameDayFeeCents > 0 && (
@@ -123,13 +127,13 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
           </div>
         )}
 
-        <div className="mt-3 flex items-end justify-between gap-4 border-t-2 border-slate-300 pt-3">
+        <div className="checkout-final-total">
           <div>
-            <p className="font-bold text-[#0B1F3A]">Final total</p>
-            <p className="text-[11px] text-slate-500">Tax included</p>
+            <p className="font-bold text-[#0B1F3A]">Total</p>
+            <p className="text-[11px] text-slate-500">Including tax and shipping</p>
           </div>
-          <span className="whitespace-nowrap text-xl font-black text-[#FF6A00] sm:text-2xl">
-            {usd(totalCents / 100)}
+          <span className="whitespace-nowrap text-xl font-black text-[#071C35] sm:text-2xl">
+            {pricingPending||shippingPending?'Pending':usd(totalCents / 100)}
           </span>
         </div>
       </div>

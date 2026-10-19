@@ -9,6 +9,7 @@ import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
 import GoogleAdsBanner from './GoogleAdsBanner';
+import PromoBanner from '@/components/PromoBanner';
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
@@ -278,12 +279,12 @@ const Design: React.FC = () => {
   const latestDesignRef = useRef<DesignSnapshot>({ uploadedFile: null, imgPos: { x: 0, y: 0 }, imgScale: 1, imgScaleY: 1, constrainProps: true });
 
   // Handle product type switch — reset state
-  const handleProductTypeChange = useCallback((newType: ProductTypeSlug) => {
+  const handleProductTypeChange = useCallback((newType: ProductTypeSlug, updateUrl = true) => {
     if (newType === productType) return;
     // Stash current product's design before switching.
     productDesignStashRef.current[productType] = { ...latestDesignRef.current };
     setProductType(newType);
-    navigate(`${location.pathname}?product=${getProductQuerySlug(newType)}`, { replace: true });
+    if (updateUrl) navigate(`${location.pathname}?product=${getProductQuerySlug(newType)}`, { replace: true });
     // Restore destination's stashed design (or clean defaults). This is
     // what isolates artwork between product tabs.
     const restored: DesignSnapshot = productDesignStashRef.current[newType] ?? {
@@ -332,6 +333,13 @@ const Design: React.FC = () => {
       setFinishingType('none');
     }
   }, [productType, getProductQuerySlug, location.pathname, navigate]);
+
+  // Product navigation can change only the query while this designer stays mounted.
+  // Reuse the tab-switch behavior so each product keeps its own artwork.
+  useEffect(() => {
+    if (searchParams.get('editItem') || (location.state as { aiHandoffId?: string } | null)?.aiHandoffId) return;
+    handleProductTypeChange(initialProductType, false);
+  }, [initialProductType, searchParams, location.state, handleProductTypeChange]);
 
   // Restore cart item state when editing from cart (editItem query param)
   const editItemId = searchParams.get('editItem');
@@ -491,7 +499,11 @@ const Design: React.FC = () => {
   const widthInR = parseInt(widthInRStr, 10) || 0;
   const heightFt = parseInt(heightFtStr, 10) || 0;
   const heightInR = parseInt(heightInRStr, 10) || 0;
-  const [material, setMaterial] = useState<MaterialKey>('13oz');
+  const [material, setMaterial] = useState<MaterialKey>(() =>
+    initialProductType === 'banner' && !editItemId
+      ? MATERIALS.find((option) => option.mapped === searchParams.get('material'))?.mapped ?? '13oz'
+      : '13oz'
+  );
   const [materialDropdownOpen, setMaterialDropdownOpen] = useState(false);
   const materialDropdownRef = useRef<HTMLDivElement>(null);
   const [grommets, setGrommets] = useState('none');
@@ -565,6 +577,16 @@ const Design: React.FC = () => {
     setHasConfirmedSize(true);
   }, [editItemId, productType, searchParams]);
   const [hasConfirmedMaterial, setHasConfirmedMaterial] = useState(false);
+
+  // Homepage material cards and retired material URLs open the same designer.
+  // Only accept supported banner materials; cart edits keep their saved choice.
+  useEffect(() => {
+    if (productType !== 'banner' || editItemId) return;
+    const requestedMaterial = MATERIALS.find((option) => option.mapped === searchParams.get('material'));
+    if (!requestedMaterial) return;
+    setMaterial(requestedMaterial.mapped);
+    setHasConfirmedMaterial(true);
+  }, [editItemId, productType, searchParams]);
   const [hasConfirmedQuantity, setHasConfirmedQuantity] = useState(false);
   const [hasReviewedOptions, setHasReviewedOptions] = useState(false);
 
@@ -2953,6 +2975,14 @@ const Design: React.FC = () => {
       onRestore={fitUndo?.appliedIdentity === uploadedFile.editorIdentity ? restoreArtworkBeforeFit : undefined} />
   ) : null;
 
+  const artworkFitAssistance = {
+    enabled: !isYardSign && ENABLE_AI && Boolean(uploadedFile) && hasCommittedBannerSize
+      && !isUploading && !isProcessingUpsell && hasPermanentArtwork(uploadedFile) && !aiModalOpen && !aiEditModalOpen,
+    fitDialogOpen: fitModalOpen,
+    onFit: () => setFitModalOpen(true),
+    widthIn, heightIn, productLabel: isCarMagnet ? 'car magnet' : 'banner',
+  };
+
   return (
     <Layout>
       <Helmet>
@@ -3421,6 +3451,7 @@ const Design: React.FC = () => {
                           containerRef={previewContainerRef}
                           mobileToolbarContainer={inlineMobileToolbarEl}
                           fitControls={artworkFitControls}
+                          fitAssistance={artworkFitAssistance}
                           value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                           onChange={(v) => {
                             setImgPos({ x: v.x, y: v.y });
@@ -3721,6 +3752,7 @@ const Design: React.FC = () => {
                     containerRef={previewContainerRef}
                     mobileToolbarContainer={modalMobileToolbarEl}
                     fitControls={artworkFitControls}
+                    fitAssistance={artworkFitAssistance}
                     value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                     onChange={(v) => {
                       setImgPos({ x: v.x, y: v.y });
@@ -3842,6 +3874,6 @@ const Design: React.FC = () => {
 const DesignerRoute: React.FC = () => {
   const [params] = useSearchParams();
   const product = params.get('tab') || params.get('product') || 'banner';
-  return /^(yard[-_]?signs?|car[-_]?magnets?)$/.test(product) ? <Design /> : <GoogleAdsBanner />;
+  return /^(yard[-_]?signs?|car[-_]?magnets?)$/.test(product) ? <Design /> : <><PromoBanner /><GoogleAdsBanner /></>;
 };
 export default DesignerRoute;

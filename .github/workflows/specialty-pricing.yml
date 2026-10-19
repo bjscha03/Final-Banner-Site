@@ -1,0 +1,117 @@
+name: Specialty catalog release checks
+on:
+  pull_request:
+    paths:
+      - 'shared/specialty-*'
+      - 'src/lib/specialty*'
+      - 'src/components/specialty/**'
+      - 'src/pages/SpecialtyCatalog.tsx'
+      - 'netlify/functions/__tests__/specialty-*'
+      - 'scripts/test-specialty-browser.mjs'
+      - '.github/workflows/specialty-pricing.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: specialty-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  desktop-browsers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/generate-specialty-options.mjs --check
+      - run: node --test netlify/functions/__tests__/specialty-products.test.cjs netlify/functions/__tests__/specialty-proposed-pricing.test.cjs netlify/functions/__tests__/specialty-quote-validation.test.cjs netlify/functions/__tests__/specialty-production-job.test.cjs
+      - run: npx vitest run --config vitest.ai.config.ts src/lib/specialtyGallery.test.ts src/components/specialty/SpecialtyGallery.test.tsx src/lib/specialtyArtwork.test.ts src/lib/specialtyDiscount.test.ts src/store/cart.specialty.test.ts src/components/specialty/SpecialtyPreview.test.tsx src/pages/SpecialtyProductPage.test.tsx netlify/functions/__tests__/specialty-ai-layout.test.mjs
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium firefox webkit chrome msedge
+      - name: Resolve the local HTTPS fixture for all browser engines
+        run: echo '127.0.0.1 deploy-preview-0--bof-local.netlify.app' | sudo tee -a /etc/hosts
+      - name: Verify all specialty artwork and cart flows in firefox
+        run: node scripts/test-specialty-browser.mjs
+        env:
+          BOF_QA_BROWSER: firefox
+          BOF_QA_TEST_CHECKOUT: '1'
+          BOF_QA_DIR: pricing-browser-results/firefox
+      - name: Verify all specialty artwork and cart flows in safari-engine
+        run: node scripts/test-specialty-browser.mjs
+        env:
+          BOF_QA_BROWSER: webkit
+          BOF_QA_TEST_CHECKOUT: '1'
+          BOF_QA_DIR: pricing-browser-results/safari-engine
+      - name: Verify all specialty artwork and cart flows in chromium
+        run: node scripts/test-specialty-browser.mjs
+        env:
+          BOF_QA_BROWSER: chromium
+          BOF_QA_TEST_CHECKOUT: '1'
+          BOF_QA_DIR: pricing-browser-results/chromium
+      - name: Verify all specialty artwork and cart flows in chrome
+        run: node scripts/test-specialty-browser.mjs
+        env:
+          BOF_QA_BROWSER: chromium
+          BOF_QA_CHANNEL: chrome
+          BOF_QA_TEST_CHECKOUT: '1'
+          BOF_QA_DIR: pricing-browser-results/chrome
+      - name: Verify all specialty artwork and cart flows in edge
+        run: node scripts/test-specialty-browser.mjs
+        env:
+          BOF_QA_BROWSER: chromium
+          BOF_QA_CHANNEL: msedge
+          BOF_QA_TEST_CHECKOUT: '1'
+          BOF_QA_DIR: pricing-browser-results/edge
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: specialty-release-desktop-browsers
+          path: pricing-browser-results
+          if-no-files-found: ignore
+  mobile-browsers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/generate-specialty-options.mjs --check
+      - run: node --test netlify/functions/__tests__/specialty-products.test.cjs netlify/functions/__tests__/specialty-proposed-pricing.test.cjs netlify/functions/__tests__/specialty-quote-validation.test.cjs netlify/functions/__tests__/specialty-production-job.test.cjs
+      - run: npx vitest run --config vitest.ai.config.ts src/lib/specialtyGallery.test.ts src/components/specialty/SpecialtyGallery.test.tsx src/lib/specialtyArtwork.test.ts src/lib/specialtyDiscount.test.ts src/store/cart.specialty.test.ts src/components/specialty/SpecialtyPreview.test.tsx src/pages/SpecialtyProductPage.test.tsx netlify/functions/__tests__/specialty-ai-layout.test.mjs
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Resolve the local HTTPS fixture for all browser engines
+        run: echo '127.0.0.1 deploy-preview-0--bof-local.netlify.app' | sudo tee -a /etc/hosts
+      - name: Verify all specialty artwork and cart flows in iphone
+        run: node scripts/test-specialty-browser.mjs
+        env:
+          BOF_QA_BROWSER: webkit
+          BOF_QA_DEVICE: "iPhone 15 Pro"
+          BOF_QA_TEST_CHECKOUT: '1'
+          BOF_QA_DIR: pricing-browser-results/iphone
+      - name: Verify all specialty artwork and cart flows in ipad
+        run: node scripts/test-specialty-browser.mjs
+        env:
+          BOF_QA_BROWSER: webkit
+          BOF_QA_DEVICE: "iPad (gen 11)"
+          BOF_QA_TEST_CHECKOUT: '1'
+          BOF_QA_DIR: pricing-browser-results/ipad
+      - name: Verify all specialty artwork and cart flows in android
+        run: node scripts/test-specialty-browser.mjs
+        env:
+          BOF_QA_BROWSER: chromium
+          BOF_QA_DEVICE: "Pixel 8"
+          BOF_QA_TEST_CHECKOUT: '1'
+          BOF_QA_DIR: pricing-browser-results/android
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: specialty-release-mobile-browsers
+          path: pricing-browser-results
+          if-no-files-found: ignore

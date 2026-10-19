@@ -1,7 +1,7 @@
 import React from 'react';
-import ProductVisual from '@/components/product/ProductVisual';
+import LightProductHero from './LightProductHero';
+import BannerDiscountOffer from '@/components/design/BannerDiscountOffer';
 import {
-  ArrowRight,
   Clock3,
   Copy,
   Layers3,
@@ -10,8 +10,6 @@ import {
   Truck,
   type LucideIcon,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import type { CityProductSlug } from '@/lib/seo/cityData';
 
 type HeroProductSlug = CityProductSlug | 'double-sided-banners' | 'large-banners-fast';
@@ -91,12 +89,6 @@ const HERO_DEFINITIONS: Record<HeroProductSlug, ProductHeroDefinition> = {
   },
 };
 
-const ProductScene: React.FC<{ productSlug: HeroProductSlug; alt: string; className: string }> = ({ productSlug, alt, className }) => (
-  productSlug === 'double-sided-banners'
-    ? <div className={className}><img src="/images/double-sided-banner-hero.webp" alt={alt} width="1536" height="1024" fetchPriority="high" loading="eager" className="h-full w-full object-cover" /></div>
-    : <ProductVisual productSlug={productSlug === 'large-banners-fast' ? 'vinyl-banners' : productSlug} priority className={className} />
-);
-
 interface ProductPageHeroProps {
   productSlug: HeroProductSlug;
   ctaUrl: string;
@@ -108,84 +100,20 @@ const ProductPageHero: React.FC<ProductPageHeroProps> = ({ productSlug, ctaUrl, 
   const isLargeBanner = productSlug === 'large-banners-fast';
 
   return (
-    <section
-      data-product-page-hero={productSlug}
-      className="relative isolate overflow-hidden border-t-4 border-[#F45B08] bg-[#F45B08] text-[#061A31]"
-      aria-labelledby={`${productSlug}-hero-heading`}
-    >
-      <ProductScene
-        productSlug={productSlug}
-        alt={hero.imageAlt}
-        className="absolute inset-y-0 right-0 hidden w-[61%] lg:block"
-      />
-      <div
-        className="absolute inset-0 hidden bg-[linear-gradient(90deg,#F45B08_0%,#F45B08_34%,rgba(244,91,8,.96)_43%,rgba(244,91,8,.72)_51%,rgba(244,91,8,.12)_66%,transparent_79%)] lg:block"
-        aria-hidden="true"
-      />
-      <div
-        className="absolute inset-0 hidden bg-[linear-gradient(180deg,rgba(255,141,28,.2),transparent_42%,rgba(6,26,49,.08))] lg:block"
-        aria-hidden="true"
-      />
-
-      <div className="relative mx-auto w-full max-w-[1740px] px-5 py-9 sm:px-8 sm:py-12 lg:flex lg:min-h-[650px] lg:items-center lg:px-12 lg:py-14 xl:px-16">
-        <div className="relative z-10 max-w-[690px] lg:w-[47%]">
-          {!isLargeBanner && <p className="text-[11px] font-black uppercase tracking-[0.17em] text-[#061A31] sm:text-sm lg:text-base">
-            {hero.eyebrow}
-          </p>}
-          <h1
-            id={`${productSlug}-hero-heading`}
-            className={`${isLargeBanner ? 'mt-0' : 'mt-5'} homepage-condensed [--homepage-mobile-size:clamp(3.55rem,17vw,5.2rem)] text-[5.2rem] font-black uppercase leading-[0.84] tracking-[-0.018em] text-[#061A31] sm:text-[6.35rem] lg:text-[6.4rem] xl:text-[7.15rem]`}
-          >
-            {hero.title.map((line) => (
-              <span key={line} className="block">{line}</span>
-            ))}
-          </h1>
-
-          {!isLargeBanner && hero.intro && <p className="mt-5 max-w-lg text-base font-medium leading-relaxed sm:text-lg">{hero.intro}</p>}
-
-          <div className="mt-7 flex flex-col items-start gap-5 sm:mt-8">
-            <Link
-              to={ctaUrl}
-              onClick={onStart ? (event) => { event.preventDefault(); onStart(); } : undefined}
-              className="inline-flex min-h-14 w-full items-center justify-center gap-4 rounded-md bg-[#061A31] px-7 py-3.5 text-center text-sm font-black uppercase tracking-[0.035em] text-white shadow-[0_12px_30px_rgba(6,26,49,.22)] transition-colors hover:bg-[#0C2B50] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:w-auto sm:text-base"
-            >
-              {hero.primaryLabel}
-              <ArrowRight className="h-5 w-5 flex-none" aria-hidden="true" />
-            </Link>
-            {!isLargeBanner && <a
-              href={hero.secondaryUrl ?? ((productSlug === 'double-sided-banners' || productSlug === 'large-banners-fast') ? '#order-builder' : '#sizes-pricing')}
-              className="inline-flex min-h-11 items-center border-b-2 border-[#061A31] pb-0.5 text-sm font-black uppercase tracking-[0.035em] text-[#061A31] transition-colors hover:border-white hover:text-white sm:text-base"
-            >
-              {hero.secondaryLabel}
-            </a>}
-          </div>
-          {isLargeBanner && (<div className="mt-5 grid w-full max-w-[505px] grid-cols-[auto_1fr] items-center gap-4 rounded-md border border-white/70 bg-white px-5 py-4 text-[#071C35] shadow-[0_9px_20px_rgba(57,20,0,.2)] sm:gap-5 sm:px-6">
-          <p className="homepage-condensed whitespace-nowrap [--homepage-mobile-size:3rem] text-5xl font-black uppercase leading-none text-[#E95413] sm:text-[4rem]">20% off</p>
-          <div className="border-l-2 border-[#E95413] pl-4 text-sm font-bold uppercase leading-5 tracking-[0.04em] sm:text-base sm:leading-6">
-            First order<br />Automatically applied
-          </div>
-        </div>)}
-          <HeroDeliveryStatus className={isLargeBanner ? "mt-5 w-full max-w-[505px]" : "mt-6 w-full max-w-[570px]"} />
-        </div>
-      </div>
-
-      <ProductScene
-        productSlug={productSlug}
-        alt={hero.imageAlt}
-        className="relative block aspect-[4/3] w-full overflow-hidden border-t border-[#061A31]/20 lg:hidden"
-      />
-
-      <div className="relative z-20 bg-[#171B20]/95 text-white shadow-[0_-10px_30px_rgba(0,0,0,.16)]">
-        <div className="mx-auto grid max-w-[1740px] divide-y divide-white/20 px-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:px-8 lg:px-12 xl:px-16">
-          {hero.benefits.map(({ label, icon: Icon }) => (
-            <div key={label} className="flex min-h-[72px] items-center gap-4 py-4 sm:px-6 lg:min-h-[88px] lg:justify-center lg:gap-5">
-              <Icon className="h-7 w-7 flex-none stroke-[1.7] text-[#F45B08] lg:h-9 lg:w-9" aria-hidden="true" />
-              <span className="text-xs font-bold uppercase leading-5 tracking-[0.025em] text-white lg:text-sm">{label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
+    <LightProductHero
+      attributes={{ 'data-product-page-hero': productSlug }}
+      productSlug={isLargeBanner || productSlug === 'double-sided-banners' ? 'vinyl-banners' : productSlug}
+      title={hero.title.join(' ')}
+      accentText={hero.title[hero.title.length - 1]}
+      eyebrow={hero.eyebrow}
+      description={isLargeBanner ? 'Big visibility for your next opening, event, or deadline. Choose your size, upload artwork, and see your price before ordering.' : hero.intro}
+      primaryLabel={hero.primaryLabel}
+      ctaUrl={ctaUrl}
+      onStart={onStart}
+      secondary={{ label: hero.secondaryLabel, href: hero.secondaryUrl ?? (productSlug === 'double-sided-banners' ? '#order-builder' : '#sizes-pricing') }}
+      offer={isLargeBanner ? <BannerDiscountOffer /> : undefined}
+      benefits={hero.benefits}
+    />
   );
 };
 

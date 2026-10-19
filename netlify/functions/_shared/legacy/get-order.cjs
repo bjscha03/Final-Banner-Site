@@ -210,6 +210,7 @@ exports.handler = async (event, context) => {
       ['final_render_height_px'],
       ['final_render_dpi'],
       ['canvas_state_json'],
+      ['specialty_config'],
       ['design_service_enabled'],
       ['design_request_text'],
       ['design_draft_preference'],
@@ -265,11 +266,13 @@ exports.handler = async (event, context) => {
       checkout_idempotency_key: _checkoutIdempotencyKey,
       stripe_payment_intent_id: _stripePaymentIntentId,
       stripe_charge_id: _stripeChargeId,
+      partial_refund_history: _partialRefundHistory,
       ...publicOrder
     } = order;
     if (session?.admin) {
       publicOrder.stripe_payment_intent_id = _stripePaymentIntentId || null;
       publicOrder.stripe_charge_id = _stripeChargeId || null;
+      publicOrder.partial_refund_history = _partialRefundHistory || [];
     }
     const trackingNumbers = normalizeTrackingEntries(order);
     const rawStatus = String(order.status || '').trim().toLowerCase();

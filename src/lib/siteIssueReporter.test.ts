@@ -6,6 +6,16 @@ beforeEach(() => { vi.resetModules(); vi.useFakeTimers(); localStorage.clear(); 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('operational issue reporter', () => {
+  it('includes our deploy-pinned JavaScript without accepting unrelated remote scripts', async () => {
+    const { isFirstPartyScriptSource } = await import('./siteIssueReporter');
+    const page = 'https://bannersonthefly.com';
+    const deploy = 'https://6acd5524dc72013d7b6fa4de--bannersonthefly.netlify.app/';
+    expect(isFirstPartyScriptSource(page + '/assets/index.js', page, deploy)).toBe(true);
+    expect(isFirstPartyScriptSource(deploy + 'assets/index.js', page, deploy)).toBe(true);
+    expect(isFirstPartyScriptSource('https://example.com/assets/index.js', page, deploy)).toBe(false);
+    expect(isFirstPartyScriptSource(deploy + 'unrelated.js', page, deploy)).toBe(false);
+    expect(isFirstPartyScriptSource('', page, deploy)).toBe(true);
+  });
   it('sends a sanitized error without waiting in the customer flow and deduplicates repeats', async () => {
     const { reportSiteIssue } = await import('./siteIssueReporter');
     reportSiteIssue('upload_error', { phase: 'direct_upload', mimeType: 'png', message: 'secret', file: 'private.png' });
@@ -65,4 +75,20 @@ it('captures actionable crash evidence and redacts sensitive URL data', async ()
   expect(sent.details.componentStack).toContain('BannerPreview');
   expect(sent.details.breadcrumbs).toContain('upload_success');
   expect(JSON.stringify(sent)).not.toContain('token=private');
+});
+
+it('deduplicates crashes despite intervening breadcrumbs', async () => {
+  const { reportSiteIssue, recordIssueAction } = await import('./siteIssueReporter');
+  reportSiteIssue('page_crash', { errorMessage: 'Unable to preload CSS for /assets/page.css' });
+  recordIssueAction('button_clicked');
+  reportSiteIssue('page_crash', { errorMessage: 'Unable to preload CSS for /assets/page.css' });
+  await vi.advanceTimersByTimeAsync(1);
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+it('preserves asset/request evidence and strips secrets', async () => {
+  const { issueDetails } = await import('./siteIssueSchema');
+  const details = issueDetails({ source: '/assets/page-123.css', requestId: '01M532TRJ5XEWWYC17T0V802B2', attempt: 3, chunkIndex: 4, canonicalQuoteApplied: true, password: 'secret', errorMessage: 'Unable to preload CSS for https://deploy.netlify.app/assets/page-123.css?token=secret' });
+  expect(details).toMatchObject({ source: '/assets/page-123.css', attempt: 3, chunkIndex: 4, canonicalQuoteApplied: true });
+  expect(details.errorMessage).toContain('/assets/page-123.css');
+  expect(JSON.stringify(details)).not.toMatch(/secret|password|token=/);
 });

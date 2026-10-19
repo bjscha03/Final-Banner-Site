@@ -64,6 +64,30 @@ describe('large artwork chunk transfer', () => {
   });
 });
 
+it('uploads a large raster without decoding or drawing it in the browser', async () => {
+  vi.stubGlobal('window', { setTimeout, clearTimeout });
+  vi.stubGlobal('Image', class { constructor() { throw new Error('Large raster must not use browser canvas'); } });
+  vi.stubGlobal('XMLHttpRequest', class extends ChunkXhr {
+    send(body: Blob) { this.body = body; queueMicrotask(() => this.onload()); }
+  });
+  const fetchMock = vi.fn(async (url: string) => {
+    if (url.includes('action=start')) return Response.json({ id: 'raster-session', token: 'token', chunkBytes: 3 * 1024 * 1024 });
+    if (url.includes('action=complete')) return Response.json({
+      secureUrl: 'https://bannersonthefly.com/artwork-original/saved/original.png',
+      publicId: 'saved', width: 6300, height: 9900,
+      previewUrl: 'https://res.cloudinary.com/test/image/upload/server.png',
+    });
+    throw new Error('Raster preview must not be uploaded by the client');
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  const { uploadLargeArtworkFile } = await import('./uploadLargeArtworkFile');
+  const result = await uploadLargeArtworkFile(new File(['original bytes'], 'large.png', { type: 'image/png' }), {});
+  expect(result.previewUrl).toBe('https://res.cloudinary.com/test/image/upload/server.png');
+  expect(result.width).toBe(6300);
+  expect(result.height).toBe(9900);
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+
 describe('customer retry resumes the same original', () => {
   it.each(['chunk', 'complete'])('retains accepted chunks after a failed %s response', async failureAt => {
     vi.useFakeTimers();

@@ -276,8 +276,11 @@ export const estimateOrderProfit = (order: Order) => {
   const totalCostCents = productionCostCents + shippingCostCents;
   const bofRewardReserveCents = Math.max(0, Math.round(Number(order.bof_reward_reserve_cents) || 0));
   const bofReserveReleasedCents = Math.max(0, Math.round(Number(order.bof_reserve_released_cents) || 0));
-  const estimatedNetProfitCents = retailSubtotalCents - totalCostCents - bofRewardReserveCents + bofReserveReleasedCents;
-  const contributionRevenueCents = retailSubtotalCents + bofReserveReleasedCents;
+  const partialRefundCents = Math.max(0, Math.round(Number(order.partial_refund_cents) || 0));
+  const refundedTaxCents = Math.min(partialRefundCents, Math.max(0, Math.round(Number(order.partial_refund_tax_cents) || 0)));
+  const refundRevenueCents = partialRefundCents - refundedTaxCents;
+  const estimatedNetProfitCents = retailSubtotalCents - refundRevenueCents - totalCostCents - bofRewardReserveCents + bofReserveReleasedCents;
+  const contributionRevenueCents = retailSubtotalCents - refundRevenueCents + bofReserveReleasedCents;
   const marginPct = contributionRevenueCents > 0 ? (estimatedNetProfitCents / contributionRevenueCents) * 100 : 0;
 
   return {
@@ -292,6 +295,9 @@ export const estimateOrderProfit = (order: Order) => {
     totalCostCents,
     bofRewardReserveCents,
     bofReserveReleasedCents,
+    partialRefundCents,
+    refundedTaxCents,
+    refundRevenueCents,
     estimatedNetProfitCents,
     // Backwards-compatible alias used across existing admin UI surfaces.
     netProfitCents: estimatedNetProfitCents,

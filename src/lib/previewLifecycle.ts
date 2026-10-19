@@ -1,5 +1,6 @@
 import type {
   ArtworkFitMode,
+  ArtworkCrop,
   PlacementPreviewManifest,
 } from '@/types/artwork';
 
@@ -10,6 +11,7 @@ export type NormalizedArtworkTransform = {
   yPct: number;
   scaleX: number;
   scaleY: number;
+  crop?: ArtworkCrop;
 };
 
 export type ArtworkCompositionSpec = {
@@ -24,7 +26,7 @@ export type ArtworkCompositionSpec = {
   revision: number;
 };
 
-export type ReadyPlacementPreviewManifest = PlacementPreviewManifest & {
+export type ReadyPlacementPreviewManifest = Omit<PlacementPreviewManifest, 'error'> & {
   version: typeof PREVIEW_ARTIFACT_VERSION;
   uploadStatus: 'uploaded';
   sourceIdentity: string;
@@ -88,7 +90,7 @@ const finite = (value: unknown): value is number => (
 export const canonicalPreviewNumber = (value: number) => Number(value.toFixed(6));
 
 export function normalizedTransformFromPixels(
-  value: { x: number; y: number; scaleX: number; scaleY: number },
+  value: { x: number; y: number; scaleX: number; scaleY: number; crop?: ArtworkCrop },
   canvas: { width: number; height: number },
 ): NormalizedArtworkTransform {
   if (!finite(canvas.width) || !finite(canvas.height) || canvas.width <= 0 || canvas.height <= 0) {
@@ -104,6 +106,7 @@ export function normalizedTransformFromPixels(
     yPct: canonicalPreviewNumber((value.y / canvas.height) * 100),
     scaleX: canonicalPreviewNumber(value.scaleX),
     scaleY: canonicalPreviewNumber(value.scaleY),
+    ...(value.crop ? { crop: value.crop } : {}),
   };
 }
 
@@ -139,6 +142,10 @@ export function validateCompositionSpec(spec: ArtworkCompositionSpec): ArtworkCo
     );
   }
   const { xPct, yPct, scaleX, scaleY } = spec.transform;
+  const crop = spec.transform.crop;
+  if (crop && (![crop.x, crop.y, crop.width, crop.height].every(finite) || crop.x < 0 || crop.y < 0 || crop.width <= 0 || crop.height <= 0 || crop.x + crop.width > 1.000001 || crop.y + crop.height > 1.000001)) {
+    throw new PreviewLifecycleError('INVALID_ARTWORK_TRANSFORM', 'The artwork crop is outside its original image.');
+  }
   if (![xPct, yPct, scaleX, scaleY].every(finite) || scaleX <= 0 || scaleY <= 0) {
     throw new PreviewLifecycleError(
       'INVALID_ARTWORK_TRANSFORM',
@@ -180,6 +187,7 @@ export function buildCompositionSignature(spec: ArtworkCompositionSpec): string 
     canonicalPreviewNumber(spec.transform.scaleX),
     canonicalPreviewNumber(spec.transform.scaleY),
     Math.trunc(spec.revision),
+    ...(spec.transform.crop ? ['crop', ...[spec.transform.crop.x, spec.transform.crop.y, spec.transform.crop.width, spec.transform.crop.height].map(canonicalPreviewNumber)] : []),
   ].join('|');
   return `placement-v${spec.version}-${hashCanonicalPayload(payload)}`;
 }
@@ -230,6 +238,7 @@ export function isReadyPlacementPreview(
         yPct: position!.y,
         scaleX: preview.scaleX!,
         scaleY: preview.scaleY!,
+        ...(preview.crop ? { crop: preview.crop } : {}),
       },
       revision: preview.compositionRevision!,
     });
@@ -259,6 +268,7 @@ export function toCheckoutTransform(spec: ArtworkCompositionSpec) {
     },
     scale: canonicalPreviewNumber(spec.transform.scaleX),
     scaleY: canonicalPreviewNumber(spec.transform.scaleY),
+    ...(spec.transform.crop ? { crop: spec.transform.crop } : {}),
   };
 }
 

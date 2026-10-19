@@ -1,3 +1,4 @@
+import { availableSpecialtyProducts, specialtyCategories } from '@/lib/specialtyProducts';
 import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, Mail, UserCheck, Users, Gift } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -13,12 +14,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 interface HeaderProps {
+  checkoutMode?: boolean;
   compactMobile?: boolean;
   cartCount?: number;
   onCartClick?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobile = false }) => {
+const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobile = false, checkoutMode = false }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const { user, loading, signOut } = useAuth();
@@ -43,14 +45,14 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
   useEffect(() => {
     setIsMenuOpen(false);
     setIsAccountMenuOpen(false);
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   const navItems = [
     { name: 'Home', href: '/' },
-    { name: 'Vinyl Banners', href: '/vinyl-banners' },
-    { name: 'Double-Sided Banners', href: '/design?product=banner&sides=double' },
-    { name: 'Yard Signs', href: '/yard-signs' },
-    { name: 'Car Magnets', href: '/car-magnets' },
+    { name: 'Vinyl Banners', href: '/design?product=banner' },
+    { name: 'Yard Signs', href: '/design?product=yard-signs' },
+    { name: 'Car Magnets', href: '/design?product=car-magnets' },
+    ...(availableSpecialtyProducts.length ? [{ name: 'Displays & Signs', href: '/products' }] : []),
     { name: 'Shipping', href: '/shipping' },
     { name: 'Blog', href: '/blog' },
     { name: 'Design Tool', href: '/design' },
@@ -91,12 +93,12 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
   return (
     <header
       data-site-header
+      {...(checkoutMode ? { 'data-checkout-header': '' } : {})}
       {...(isHomepage ? { 'data-homepage-header': '' } : {})}
       className={isHomepage
-        ? 'relative z-50 -mb-[72px] border-b border-white/10 bg-[#061A31]/90 text-white shadow-[0_10px_35px_rgba(0,0,0,0.16)] backdrop-blur-sm lg:-mb-[92px]'
-        : 'sticky top-0 z-50 border-b border-white/10 bg-[#061A31]/95 text-white shadow-[0_8px_28px_rgba(6,26,49,0.18)] backdrop-blur'}
+        ? 'relative z-50 border-b border-[#e5dfd6] bg-white text-[#061A31]'
+        : 'sticky top-0 z-50 border-b border-[#e5dfd6] bg-white text-[#061A31]'}
     >
-      {!isHomepage && <div className="h-1 bg-[#F45B08]" />}
       <div className="mx-auto max-w-[1740px] px-4 sm:px-6 lg:px-8">
         <div className={isHomepage ? 'flex h-[72px] items-center justify-between lg:h-[92px]' : compactMobile ? 'flex h-[52px] items-center justify-between lg:h-[78px]' : 'flex h-[72px] items-center justify-between lg:h-[78px]'}>
           {/* Compact navigation for mobile and tablet */}
@@ -106,7 +108,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
                 setIsAccountMenuOpen(false);
                 setIsMenuOpen((open) => !open);
               }}
-              className="min-h-11 min-w-11 rounded-md p-2 text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
+              className="min-h-11 min-w-11 rounded-md p-2 text-[#061A31] transition-colors hover:bg-[#f3f0eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
               aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
               aria-expanded={isMenuOpen}
               aria-controls="mobile-navigation"
@@ -138,15 +140,17 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
                       key={item.name}
                       to={item.href}
                       className={`block border-b border-slate-100 px-5 py-3.5 text-sm font-semibold ${
-                        location.pathname === item.href
+                        (item.href==='/products'?location.pathname.startsWith('/products'):location.pathname+location.search===item.href)
                           ? 'border-l-4 border-l-[#FF6A00] bg-slate-50 text-[#0B1F3A]'
                           : 'text-slate-700 hover:bg-slate-50 hover:text-[#0B1F3A]'
                       }`}
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      {item.name}
+                      {item.name}{item.href==='/products'&&<span className="ml-1.5 rounded bg-orange-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-orange-800">New</span>}
                     </ScrollToTopLink>
                   ))}
+
+                  {availableSpecialtyProducts.length>0&&<div className="border-t border-slate-200 px-5 py-4"><p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">Displays & signs</p>{Object.entries(specialtyCategories).filter(([key])=>availableSpecialtyProducts.some(p=>p.category===key)).map(([key,category])=><a key={key} href={`/products#${key}`} onClick={()=>setIsMenuOpen(false)} className="flex min-h-11 items-center text-sm font-semibold text-slate-700">{category.label}</a>)}</div>}
 
                   {/* Account section in menu */}
                   <div className="border-t border-slate-200 mt-2 pt-2">
@@ -251,34 +255,35 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
           <div className="flex-shrink-0">
             <ScrollToTopLink to="/" className="flex items-center">
               <img
-                src="/images/homepage/header-logo-reverse.png"
+                src="/images/header-logo.png"
                 alt="Banners On The Fly"
                 width="248"
                 height="70"
                 className={isHomepage ? 'h-10 w-auto max-w-[205px] object-contain sm:h-12 sm:max-w-[260px] lg:h-[58px]' : compactMobile ? 'h-8 w-auto max-w-[175px] object-contain sm:max-w-[220px] lg:h-[54px]' : 'h-10 w-auto max-w-[205px] object-contain sm:h-12 sm:max-w-[250px] lg:h-[54px]'}
               />
             </ScrollToTopLink>
+            {checkoutMode && <p className="text-center text-[10px] font-semibold text-slate-600">Secure checkout</p>}
           </div>
 
-          <nav className="hidden items-center gap-6 lg:flex" aria-label="Primary navigation">
+          <nav className="hidden items-center gap-3 xl:gap-4 2xl:gap-6 lg:flex" aria-label="Primary navigation">
             {[
-              { name: 'Vinyl Banners', href: '/vinyl-banners' },
-    { name: 'Double-Sided Banners', href: '/design?product=banner&sides=double' },
-              { name: 'Yard Signs', href: '/yard-signs' },
-              { name: 'Car Magnets', href: '/car-magnets' },
+              { name: 'Vinyl Banners', href: '/design?product=banner' },
+              { name: 'Yard Signs', href: '/design?product=yard-signs' },
+              { name: 'Car Magnets', href: '/design?product=car-magnets' },
+    ...(availableSpecialtyProducts.length ? [{ name: 'Displays & Signs', href: '/products' }] : []),
               { name: 'Shipping', href: '/shipping' },
               { name: 'Custom Quote', href: '/custom-quote' },
             ].map((item) => (
               <ScrollToTopLink
                 key={item.href}
                 to={item.href}
-                className={`relative py-2 text-sm font-semibold transition-colors after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:origin-left after:bg-[#FF6A00] after:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] ${
-                  location.pathname === item.href
-                    ? 'text-white after:scale-x-100'
-                    : 'text-white/85 hover:text-white after:scale-x-0 hover:after:scale-x-100'
+                className={`relative whitespace-nowrap py-2 text-xs font-semibold transition-colors after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:origin-left after:bg-[#FF6A00] after:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] xl:text-sm ${
+                  (item.href==='/products'?location.pathname.startsWith('/products'):location.pathname+location.search===item.href)
+                    ? 'text-[#061A31] after:scale-x-100'
+                    : 'text-[#26374a] hover:text-[#b84300] after:scale-x-0 hover:after:scale-x-100'
                 }`}
               >
-                {item.name}
+                {item.name}{item.href==='/products'&&<span className="ml-1.5 rounded bg-orange-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-orange-800">New</span>}
               </ScrollToTopLink>
             ))}
           </nav>
@@ -287,7 +292,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
           <div className="flex items-center justify-end gap-1 lg:w-auto lg:gap-2">
             <ScrollToTopLink
               to="/design"
-                className="mr-1 hidden min-h-11 items-center rounded-md bg-[#C94E00] px-4 text-sm font-bold text-white transition-colors hover:bg-[#B84300] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 xl:inline-flex"
+                className="mr-1 hidden min-h-11 items-center rounded-md bg-brand-orange px-4 text-sm font-bold text-white transition-colors hover:bg-brand-orange-hover hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 xl:inline-flex"
             >
               Start designing
             </ScrollToTopLink>
@@ -303,7 +308,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
               >
                 <DropdownMenuTrigger asChild>
                   <button
-                    className="min-h-11 min-w-11 rounded-md p-2 text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
+                    className="min-h-11 min-w-11 rounded-md p-2 text-[#061A31] transition-colors hover:bg-[#f3f0eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
                     aria-label="Account"
                   >
                     <User className="h-5 w-5" />
@@ -386,11 +391,11 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
             <button
               onClick={handleCartClick}
               aria-label="Shopping cart"
-              className="relative min-h-11 min-w-11 rounded-md p-2 text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
+              className="relative min-h-11 min-w-11 rounded-md p-2 text-[#061A31] transition-colors hover:bg-[#f3f0eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
             >
               <ShoppingCart className="h-5 w-5" />
               {cartCount > 0 && (
-                <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#C94E00] px-1 text-[10px] font-bold text-white">
+                <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-orange px-1 text-[10px] font-bold text-white">
                   {cartCount}
                 </span>
               )}

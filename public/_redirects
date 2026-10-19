@@ -1,3 +1,18 @@
+# Retired product details open their product configurator directly.
+/yard-signs   /design?product=yard-signs   301!
+/car-magnets   /design?product=car-magnets   301!
+/trade-show-banners   /design?product=banner   301!
+/food-truck-banners   /design?product=banner   301!
+/outdoor-banners   /design?product=banner   301!
+/indoor-banners   /design?product=banner   301!
+/event-banners   /design?product=banner   301!
+/custom-banners   /design?product=banner   301!
+/construction-banners   /design?product=banner   301!
+
+# Retired material pages now open the banner designer with a material selected.
+/vinyl-banners   /design?product=banner&material=13oz   301!
+/mesh-banners    /design?product=banner&material=mesh   301!
+
 # Double-sided printing is now an option in the main banner designer.
 /double-sided-banners   /.netlify/functions/redirect-double-sided-banner   200!
 
@@ -25,15 +40,16 @@
 # Retired seasonal campaign pages and server functions. These rules belong
 # here as well as netlify.toml so production, branch, and preview contexts all
 # resolve them before the SPA catch-all below.
-/graduation-signs/*   /custom-banners   301!
-/graduation-signs     /custom-banners   301!
-/proof/*              /custom-banners   301!
+/graduation-signs/*   /design?product=banner   301!
+/graduation-signs     /design?product=banner   301!
+/proof/*              /design?product=banner   301!
 
-# Product hubs and generated city pages are physical HTML files. Unknown
-# children under these namespaces must return a real 404 instead of the SPA.
+# Retired city pages and unknown children
+# under these namespaces return a real 404 instead of the SPA.
 /vinyl-banners/*   /404.html   404
 /yard-signs/*      /404.html   404
 /car-magnets/*     /404.html   404
+/products/*        /404.html   404
 /trade-shows       /404.html   404!
 /trade-shows/*     /404.html   404!
 

@@ -17,8 +17,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   centered = true,
 }) => {
   return (
-    <div data-page-header className="relative overflow-hidden border-t-4 border-[#F45B08] bg-[#FBF8F2] text-[#061A31]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_20%,rgba(244,91,8,.10),transparent_28%)]" aria-hidden="true" />
+    <div data-page-header className="relative border-b border-[#e5dfd6] bg-[#f8f6f1] text-[#061A31]">
       <div className="relative mx-auto max-w-[1500px] px-5 py-12 sm:px-8 sm:py-16 lg:px-12 lg:py-20">
         <div className={centered ? 'text-center' : ''}>
           <div className={`flex flex-col gap-4 sm:flex-row sm:items-center ${centered ? 'justify-center' : ''}`}>
@@ -27,7 +26,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
                 <Icon className="h-6 w-6 text-[#F45B08]" />
               </div>
             )}
-            <h1 className="homepage-condensed break-words [--homepage-mobile-size:3.8rem] text-6xl font-black uppercase leading-[0.9] tracking-[-0.015em] text-[#061A31] sm:text-7xl lg:text-[6rem]">
+            <h1 className="max-w-5xl break-words font-sans text-[clamp(2.3rem,5vw,4.75rem)] font-bold leading-[1.06] tracking-[-0.045em] text-[#061A31]">
               {title}
             </h1>
           </div>
@@ -41,10 +40,10 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           )}
 
           <div className={`mt-7 ${centered ? 'flex justify-center' : ''}`}>
-            <div className="h-1 w-16 bg-[#F45B08]" />
+            <div className="h-1 w-16 bg-brand-orange text-white" />
           </div>
           <div className={`mt-7 ${centered ? 'flex justify-center' : ''}`}>
-            <HeroDeliveryStatus className="w-full max-w-[570px] text-left" />
+            <HeroDeliveryStatus variant="light" className="w-full max-w-[570px] text-left" />
           </div>
         </div>
       </div>

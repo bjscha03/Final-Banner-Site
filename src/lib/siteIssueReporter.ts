@@ -73,11 +73,15 @@ export function reportSiteIssue(kind: SiteIssueKind, details: Record<string, unk
     if (sentInWindow >= 10) return;
     const safeDetails = issueDetails({ ...details,
       breadcrumbs: breadcrumbs.join('\n'),
+      viewportWidth: window.innerWidth, viewportHeight: window.innerHeight,
+      recoveryAttempted: new URLSearchParams(window.location.search).has('_botf_refresh'),
+      assetHost: new URL(import.meta.env.BASE_URL || '/', window.location.origin).hostname,
       clientBuild: import.meta.env.VITE_COMMIT_REF || 'unknown',
       browserVersion: navigator.userAgent.match(/(?:Chrome|CriOS|Firefox|FxiOS|Version|Edg)\/([\d.]+)/)?.[1],
     });
     const page = issuePage(window.location.pathname);
-    const fingerprint = JSON.stringify([kind, page, safeDetails]);
+    const { breadcrumbs: _breadcrumbs, ...stableDetails } = safeDetails;
+    const fingerprint = JSON.stringify([kind, page, stableDetails]);
     if (now - (recent.get(fingerprint) || 0) < 5000) return;
     recent.set(fingerprint, now); sentInWindow += 1;
     getQueue().push({ id: crypto.randomUUID(), kind, occurredAt: new Date(now).toISOString(), page,
@@ -101,8 +105,17 @@ export function reportPageIssue(kind: 'page_error' | 'page_crash', error: unknow
     const errorName = err && ['Error', 'TypeError', 'ReferenceError', 'RangeError', 'SyntaxError', 'ChunkLoadError'].includes(err.name) ? err.name : 'Error';
     const frame = (err?.stack || '').match(/(\/assets\/[A-Za-z0-9_.-]+\.js):(\d+):(\d+)/);
     const sourcePath = source ? new URL(source, window.location.origin).pathname : frame?.[1];
-    reportSiteIssue(kind, { errorMessage: err?.message || (typeof error === 'string' ? error : 'Non-Error rejection'), stack: err?.stack, componentStack, errorName, source: sourcePath, line: line || Number(frame?.[2] || 0), column: column || Number(frame?.[3] || 0) });
+    reportSiteIssue(kind, { errorMessage: err?.message || (typeof error === 'string' ? error : 'Non-Error rejection'), stack: err?.stack, componentStack, errorName, source: sourcePath, recovery: /^Script error\.?$/.test(err?.message || String(error)) ? 'browser_details_withheld' : undefined, line: line || Number(frame?.[2] || 0), column: column || Number(frame?.[3] || 0) });
   } catch { /* Error reporting itself must remain safe. */ }
+}
+export function isFirstPartyScriptSource(source: string, pageOrigin: string, assetBase = import.meta.env.BASE_URL): boolean {
+  if (!source) return true; // Opaque reports must stay visible for investigation.
+  try {
+    const url = new URL(source, pageOrigin);
+    if (url.origin === pageOrigin) return true;
+    const assets = new URL(assetBase || '/', pageOrigin);
+    return url.origin === assets.origin && /^\/assets\/[A-Za-z0-9_.-]+\.js$/.test(url.pathname);
+  } catch { return false; }
 }
 export function installSiteIssueMonitoring() {
   if (!enabled() || installed) return;
@@ -114,14 +127,41 @@ export function installSiteIssueMonitoring() {
     // Record control type and safe destination, never text, input values or artwork.
     if (target instanceof HTMLAnchorElement && target.origin === window.location.origin) {
       recordIssueAction('link_clicked');
-    } else recordIssueAction(target.tagName === 'BUTTON' ? 'button_clicked' : 'control_clicked');
+    } else {
+      const knownActions: Record<string, string> = {
+        'Create with AI': 'open_ai_designer', 'Upload artwork': 'choose_artwork',
+        'Upload your artwork': 'choose_artwork', 'Custom size': 'choose_custom_size',
+        'Inches': 'size_units_inches', 'Feet': 'size_units_feet',
+        'Choose finishing': 'choose_finishing', 'Retry upload': 'retry_artwork',
+        'Keep current artwork': 'keep_current_artwork', 'Checkout': 'checkout',
+        'Add & design another': 'add_design_another',
+      };
+      const action = target.getAttribute('data-issue-action') || knownActions[(target.textContent || '').trim()];
+      recordIssueAction(action && /^[a-z_]{1,60}$/.test(action) ? action : target.tagName === 'BUTTON' ? 'button_clicked' : 'control_clicked');
+    }
   }, { capture: true, passive: true });
+  window.addEventListener('error', event => {
+    const element = event.target;
+    if (!(element instanceof HTMLScriptElement || element instanceof HTMLLinkElement)) return;
+    const raw = element instanceof HTMLScriptElement ? element.src : element.href;
+    try {
+      const url = new URL(raw);
+      const base = new URL(import.meta.env.BASE_URL || '/', window.location.origin);
+      if (![window.location.origin, base.origin].includes(url.origin) || !/^\/assets\/[A-Za-z0-9_.-]+\.(js|css|mjs)$/.test(url.pathname)) return;
+      reportSiteIssue('page_error', { phase: 'asset_load', source: url.pathname, assetHost: url.hostname, errorMessage: 'A required site asset failed to load.' });
+    } catch { /* Ignore non-site resources. */ }
+  }, true);
+  window.addEventListener('vite:preloadError', event => {
+    const reason = (event as Event & { payload?: unknown }).payload;
+    reportPageIssue('page_error', reason);
+  });
   window.addEventListener('popstate', () => recordIssueAction('navigation'));
 
   window.addEventListener('error', event => {
-    // Ignore image loading failures, extensions, and opaque third-party errors.
+    // Ignore resource events and known third-party sources. Include our public
+    // deploy-pinned JS as first-party; opaque browser errors remain unresolved.
     if (!(event instanceof ErrorEvent) || (!event.error && !event.message)) return;
-    if (event.filename && !event.filename.startsWith(window.location.origin + '/')) return;
+    if (!isFirstPartyScriptSource(event.filename, window.location.origin)) return;
     reportPageIssue('page_error', event.error || event.message, event.filename, event.lineno, event.colno);
   });
   window.addEventListener('unhandledrejection', event => {

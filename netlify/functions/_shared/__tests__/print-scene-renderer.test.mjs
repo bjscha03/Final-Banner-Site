@@ -1,12 +1,34 @@
 import { describe, it, expect } from 'vitest';
 import assert from 'assert';
 import sharp from 'sharp';
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, PDFRawStream, PDFArray, PDFName } from 'pdf-lib';
+import { inflateSync } from 'node:zlib';
 import renderer from '../print-scene-renderer.cjs';
 
 const { renderPrintSceneToPdfBuffer, effectiveResolution } = renderer;
 
 describe('print scene v2 renderer', () => {
+
+  it('clips the crop window in print coordinates while embedding full-resolution original pixels', async () => {
+    const png = await sharp({ create: { width: 1200, height: 600, channels: 4, background: '#e11d48' } }).png().toBuffer();
+    const previousFetch = global.fetch;
+    global.fetch = async () => ({ ok: true, arrayBuffer: async () => png });
+    try {
+      const result = await renderPrintSceneToPdfBuffer({ sceneVersion: 2, widthIn: 12, heightIn: 6, backgroundColor: '#ffffff', objects: [{
+        id: 'cropped', type: 'image', xIn: 1, yIn: 1, widthIn: 10, heightIn: 4,
+        crop: { x: 0.1, y: 0.25, width: 0.6, height: 0.5 },
+        source: { originalUrl: 'https://assets.example/original.png', mimeType: 'image/png', format: 'png', originalWidth: 1200, originalHeight: 600 },
+      }] });
+      const pdf = await PDFDocument.load(result.buffer);
+      const page = pdf.getPages()[0];
+      const contents = page.node.lookup(PDFName.of('Contents'), PDFArray);
+      const streams = contents.asArray().map(ref => pdf.context.lookup(ref, PDFRawStream));
+      const operators = streams.map(stream => inflateSync(stream.getContents()).toString()).join('\n');
+      expect(operators).toContain('144 144 432 144 re\nW\nn');
+      const imageStreams = pdf.context.enumerateIndirectObjects().map(([, obj]) => obj).filter(obj => obj instanceof PDFRawStream && obj.dict.get(PDFName.of('Subtype'))?.toString() === '/Image');
+      expect(imageStreams.some(stream => stream.dict.get(PDFName.of('Width'))?.toString() === '1200' && stream.dict.get(PDFName.of('Height'))?.toString() === '600')).toBe(true);
+    } finally { global.fetch = previousFetch; }
+  });
 
   async function createVectorPdf() {
     const pdf = await PDFDocument.create();

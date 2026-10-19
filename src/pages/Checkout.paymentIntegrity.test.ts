@@ -24,7 +24,7 @@ describe('provider-neutral checkout integrity', () => {
 
   it('locks cart and provider mutations during an unresolved authorization', () => {
     expect(checkout).toContain('disabled={checkoutLocked || item.quantity <= 1}');
-    expect(checkout).toContain('disabled={checkoutLocked || item.quantity >= 999}');
+    expect(checkout).toContain("disabled={checkoutLocked || item.quantity >= (item.product_type === 'specialty' ? 100 : 999)}");
     expect(checkout).toContain('<SameDayHitServiceCard disabled={checkoutLocked} />');
     expect(checkout).toContain('disabled={checkoutLocked}');
     expect(checkout).toContain('if (!checkoutLocked) setPaymentProvider');
@@ -58,8 +58,9 @@ describe('provider-neutral checkout integrity', () => {
     expect(checkout).not.toContain('setSaturdayDelivery(state.saturdayDelivery)');
   });
 
-  it('uses one clear Card and PayPal selector without duplicate payment hierarchies', () => {
-    expect(checkout).toContain('Choose a payment method');
+  it('keeps PayPal beside eligible wallets and supports returning to card without changing payment locks', () => {
+    expect(checkout).toContain('alternativePayment={paypalChoice}');
+    expect(checkout).toContain('checkout-provider-back');
     expect(checkout).toContain('Card &amp; wallets');
     expect(checkout).toContain('aria-label="PayPal"');
     expect(checkout).toContain('bg-[#FFC439]');
@@ -90,7 +91,7 @@ describe('provider-neutral checkout integrity', () => {
 
   it('shows the safe provider message and keeps desktop failure toasts fully on screen', () => {
     expect(checkout).toContain('description: error?.userMessage');
-    expect(toast).toContain('sm:inset-x-auto sm:bottom-4 sm:right-4 sm:top-auto');
-    expect(toast).toContain('sm:w-[calc(100vw-2rem)] sm:max-w-[420px]');
+    expect(toast).toContain('lg:inset-x-auto lg:bottom-4 lg:right-4 lg:top-auto');
+    expect(toast).toContain('lg:w-[calc(100vw-2rem)] lg:max-w-[420px]');
   });
 });

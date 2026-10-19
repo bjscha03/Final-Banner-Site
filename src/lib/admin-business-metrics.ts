@@ -165,7 +165,9 @@ export const summarizeAdminBusinessMetrics = (
   periodReportableOrders.forEach((order) => {
     const totalCents = safeTotalCents(order);
     grossSalesCents += totalCents;
-    if (normalizeStatus(order.status) === 'refunded') recordedRefundsCents += totalCents;
+    recordedRefundsCents += normalizeStatus(order.status) === 'refunded'
+      ? totalCents
+      : Math.min(totalCents, Math.max(0, Math.round(Number(order.partial_refund_cents) || 0)));
   });
 
   periodSuccessfulOrders.forEach((order) => {

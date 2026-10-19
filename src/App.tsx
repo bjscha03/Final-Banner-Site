@@ -23,7 +23,7 @@ const PageLoader = () => (
 );
 
 // Route-level splitting is important even for the homepage: paid-design traffic
-// must not download homepage, city-page, trade-show, and blog dependencies before
+// must not download homepage, trade-show, and blog dependencies before
 // its configurator can render.
 const Index = lazy(() => import("./pages/Index"));
 const Design = lazy(() => import("./pages/Design"));
@@ -57,6 +57,8 @@ const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Shipping = lazy(() => import("./pages/Shipping"));
 const CustomQuote = lazy(() => import("./pages/CustomQuote"));
+const SpecialtyCatalog = lazy(() => import("./pages/SpecialtyCatalog"));
+const SpecialtyProductPage = lazy(() => import("./pages/SpecialtyProductPage"));
 
 // Blog pages - lazy load
 const Blog = lazy(() => import("./pages/Blog"));
@@ -64,9 +66,6 @@ const BlogPostPage = lazy(() => import("./pages/BlogPostPage"));
 const BlogTagPage = lazy(() => import("./pages/BlogTagPage"));
 
 // Category/SEO pages - lazy load
-const CategoryPage = lazy(() => import("./pages/CategoryPage"));
-const CityProductPage = lazy(() => import("./pages/CityProductPage"));
-const ProductHubPage = lazy(() => import("./pages/ProductHubPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Google Ads landing page - lazy load
@@ -178,7 +177,7 @@ export const RoutedApplication = () => (
             <Route path="/design" element={<Design />} />
             {/* Legacy design-editor route — redirect to /design to prevent old designer page from loading */}
             <Route path="/design-editor" element={<Navigate to="/design" replace />} />
-            <Route path="/halloween-banner" element={<Design />} />
+            <Route path="/halloween-banner" element={<><PromoBanner /><GoogleAdsBanner key="halloween-banner" /></>} />
             <Route path="/design/complete" element={<DesignComplete />} />
             <Route path="/design/canva-editor" element={<Layout><CanvaEditor /></Layout>} />
             <Route path="/canva-test" element={<Layout><CanvaTest /></Layout>} />
@@ -213,6 +212,8 @@ export const RoutedApplication = () => (
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/shipping" element={<Shipping />} />
             <Route path="/custom-quote" element={<CustomQuote />} />
+            <Route path="/products" element={<SpecialtyCatalog />} />
+            <Route path="/products/:slug" element={<SpecialtyProductPage />} />
             
             {/* Blog */}
             <Route path="/blog" element={<Blog />} />
@@ -255,18 +256,18 @@ export const RoutedApplication = () => (
             <Route path="/logo-showcase" element={<LogoShowcase />} />
             <Route path="/pdf-diagnostic" element={<Layout><PdfDiagnostic /></Layout>} />
             
-            {/* SEO Category Pages */}
-            <Route path="/vinyl-banners" element={<ProductHubPage productSlug="vinyl-banners" />} />
-            <Route path="/yard-signs" element={<ProductHubPage productSlug="yard-signs" />} />
-            <Route path="/car-magnets" element={<ProductHubPage productSlug="car-magnets" />} />
-            <Route path="/mesh-banners" element={<CategoryPage />} />
-            <Route path="/trade-show-banners" element={<CategoryPage />} />
-            <Route path="/food-truck-banners" element={<CategoryPage />} />
-            <Route path="/outdoor-banners" element={<CategoryPage />} />
-            <Route path="/indoor-banners" element={<CategoryPage />} />
-            <Route path="/event-banners" element={<CategoryPage />} />
-            <Route path="/custom-banners" element={<CategoryPage />} />
-            <Route path="/construction-banners" element={<CategoryPage />} />
+            {/* Retired product-detail URLs open the matching designer. */}
+            <Route path="/vinyl-banners" element={<Navigate to="/design?product=banner&material=13oz" replace />} />
+            <Route path="/yard-signs" element={<Navigate to="/design?product=yard-signs" replace />} />
+            <Route path="/car-magnets" element={<Navigate to="/design?product=car-magnets" replace />} />
+            <Route path="/mesh-banners" element={<Navigate to="/design?product=banner&material=mesh" replace />} />
+            <Route path="/trade-show-banners" element={<Navigate to="/design?product=banner" replace />} />
+            <Route path="/food-truck-banners" element={<Navigate to="/design?product=banner" replace />} />
+            <Route path="/outdoor-banners" element={<Navigate to="/design?product=banner" replace />} />
+            <Route path="/indoor-banners" element={<Navigate to="/design?product=banner" replace />} />
+            <Route path="/event-banners" element={<Navigate to="/design?product=banner" replace />} />
+            <Route path="/custom-banners" element={<Navigate to="/design?product=banner" replace />} />
+            <Route path="/construction-banners" element={<Navigate to="/design?product=banner" replace />} />
 
             {/* Google Ads landing page intentionally bypasses Layout, so mount the shared notice here. */}
             <Route
@@ -290,10 +291,6 @@ export const RoutedApplication = () => (
               }
             />
 
-            {/* Programmatic SEO city pages (vinyl banners, yard signs, car magnets) */}
-            <Route path="/vinyl-banners/:citySlug" element={<CityProductPage productSlug="vinyl-banners" />} />
-            <Route path="/yard-signs/:citySlug" element={<CityProductPage productSlug="yard-signs" />} />
-            <Route path="/car-magnets/:citySlug" element={<CityProductPage productSlug="car-magnets" />} />
 
             <Route path="/political-signs" element={<PoliticalSigns />} />
 

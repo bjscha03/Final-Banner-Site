@@ -1,7 +1,7 @@
 import { Truck } from 'lucide-react';
 
 interface ShippingBenefitBadgeProps {
-  variant?: 'summary' | 'sticky';
+  variant?: 'summary' | 'sticky' | 'price';
   className?: string;
 }
 
@@ -10,6 +10,14 @@ export default function ShippingBenefitBadge({
   variant = 'summary',
   className = '',
 }: ShippingBenefitBadgeProps) {
+  if (variant === 'price') {
+    return <p data-testid="free-next-day-air-badge" data-variant="price"
+      title="Next-Day Air begins after production. See the estimated ship and delivery dates for your order."
+      className={`flex items-center gap-1.5 text-[11px] font-semibold leading-4 text-emerald-800 ${className}`}>
+      <Truck aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+      <span>Free Next Day Air Shipping<span className="sr-only"> after production</span></span>
+    </p>;
+  }
   const compact = variant === 'sticky';
 
   return (

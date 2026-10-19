@@ -46,6 +46,7 @@ function buildCompositionSignatureFromPreview(preview) {
     canonicalPreviewNumber(preview.scaleX),
     canonicalPreviewNumber(preview.scaleY),
     Math.trunc(preview.compositionRevision),
+    ...(preview.crop ? ['crop', ...[preview.crop.x, preview.crop.y, preview.crop.width, preview.crop.height].map(canonicalPreviewNumber)] : []),
   ].join('|');
   return `placement-v${preview.version}-${hashCanonicalPayload(payload)}`;
 }
@@ -58,6 +59,10 @@ function assertReadyPlacementPreview(preview, label = 'placement_preview') {
   const url = preview && (preview.previewUrl || preview.url);
   const publicId = preview && (preview.previewPublicId || preview.publicId);
   const position = preview && preview.positionPct;
+  const crop = preview && preview.crop;
+  if (crop && (![crop.x, crop.y, crop.width, crop.height].every(finite) || crop.x < 0 || crop.y < 0 || crop.width <= 0 || crop.height <= 0 || crop.x + crop.width > 1.000001 || crop.y + crop.height > 1.000001)) {
+    throw new PreviewArtifactValidationError(`${label} has an invalid artwork crop.`, { label });
+  }
   const valid = preview
     && typeof preview === 'object'
     && preview.version === PREVIEW_ARTIFACT_VERSION
@@ -119,6 +124,13 @@ function normalizeReadyPlacementPreview(preview, label) {
 }
 
 function normalizeCartItemPlacement(item = {}) {
+  if(item.product_type==='specialty') {
+    // Specialty artwork has a distinct identity per panel. Validate every panel,
+    // then expose the first permanent artifact to existing cart/email consumers.
+    const normalized=require('./specialty-products.cjs').normalizeSpecialtyItem(item);
+    const preview=normalizeReadyPlacementPreview(normalized.specialty_config.panels[0].preview,'specialty preview');
+    return {...normalized,placement_preview:preview,thumbnail_url:preview.previewUrl,web_preview_url:preview.previewUrl,composition_signature:preview.compositionSignature,composition_revision:preview.compositionRevision};
+  }
   const normalized = { ...item };
   if (normalized.placement_preview != null) {
     normalized.placement_preview = normalizeReadyPlacementPreview(

@@ -1,12 +1,15 @@
+import SavedSpecialtyPreview from '@/components/specialty/SavedSpecialtyPreview';
+import {specialtyItemHasIncludedShipping, specialtyItemHasVerifiedPrice, specialtyItemPrice} from '@/lib/specialtyProducts';
 import BOFCashCheckout from '@/components/checkout/BOFCashCheckout';
 import {saveBofReferral,bofPricingItems} from '@/lib/bofCash';
 import { readCheckoutCustomerDraft } from '@/components/checkout/checkoutCustomerDraft';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { cartEditUrl } from '@/lib/cartEditUrl';
 import CartLinePrice from '@/components/cart/CartLinePrice';
+import SpecialtyPendingPrice from '@/components/specialty/SpecialtyPendingPrice';
 import { trackAIEvent } from '@/lib/aiAnalytics';
 import { getCartDisplayPrices, getEnteredPromoLabel } from '@/lib/cartDisplayPricing';
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useSyncExternalStore } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useCartStore, type CanonicalCartQuote } from '@/store/cart';
 import { useAuth, getCurrentUser } from '@/lib/auth';
@@ -18,6 +21,7 @@ import PriceDeliveryEstimate from '@/components/delivery/PriceDeliveryEstimate';
 import { usd, formatDimensions, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
 import PayPalCheckout from '@/components/checkout/PayPalCheckoutReliable';
+import { shouldUseDeployPreviewTestCheckout } from '@/components/checkout/checkoutEnvironment';
 import StripeCheckout from '@/components/checkout/StripeCheckout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,10 +68,21 @@ import {
   terminateCurrentStartupCartRecovery,
 } from '@/lib/cartRecoveryStartup';
 
+import '@/styles/checkout.css';
+
+const subscribeCheckoutViewport = (notify: () => void) => {
+  const query = window.matchMedia('(min-width: 1024px)');
+  query.addEventListener('change', notify);
+  return () => query.removeEventListener('change', notify);
+};
+const checkoutDesktopSnapshot = () => window.matchMedia('(min-width: 1024px)').matches;
+const checkoutServerSnapshot = () => false;
+
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
+  const desktopCheckout = useSyncExternalStore(subscribeCheckoutViewport, checkoutDesktopSnapshot, checkoutServerSnapshot);
   const location = useLocation();
   const { items: rawItems, getMigratedItems, isLoading, syncToServer, replaceItemsFromRecovery, restoreRecoveredCheckoutPreferences, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, applyCanonicalPricingQuote, discountCode, applyDiscountCode, removeDiscountCode, getResolvedDiscount, sameDayHitService, saturdayDelivery, getSameDayFeeCents, getSaturdayDeliveryFeeCents } = useCartStore();
 
@@ -398,7 +413,11 @@ const Checkout: React.FC = () => {
     ? 'Please upload at least one design for your yard sign order.'
     : '';
 
-  const canProceed = minimumOrderValidation.isValid && !yardSignInvalid;
+  const specialtyInCart = items.some(item => item.product_type === 'specialty');
+  const pricingPending = items.some(item => !specialtyItemHasVerifiedPrice(item));
+  const shippingPending = items.some(item => !specialtyItemHasIncludedShipping(item));
+  const specialtyPending = pricingPending || shippingPending;
+  const canProceed = minimumOrderValidation.isValid && !yardSignInvalid && !specialtyPending;
   const providerTotalCents = activeCheckout?.totalCents || totalCents;
   const paymentSubmissionBlocked = !canProceed || Boolean(staleCartReview);
   if (flags.freeShipping || flags.minOrderFloor) {
@@ -450,7 +469,7 @@ const Checkout: React.FC = () => {
   const handleIncreaseQuantity = (itemId: string) => {
     if (checkoutLocked) return;
     const item = items.find(i => i.id === itemId);
-    if (item && item.quantity < 999) {
+    if (item && item.quantity < (item.product_type === 'specialty' ? 100 : 999)) {
       updateQuantity(itemId, item.quantity + 1);
     }
   };
@@ -829,16 +848,23 @@ const Checkout: React.FC = () => {
     subtotalCents,
     minOrderAdjustmentCents: showMinOrderAdjustment ? minOrderAdjustmentCents : 0,
     discountAmountCents: resolvedDiscount.appliedDiscountAmountCents,
-    discountLabel: resolvedDiscount.appliedDiscountLabel,
+    discountLabel: discountCode?.automaticFirstOrder && resolvedDiscount.appliedDiscountType === 'promo' && resolvedDiscount.promoDiscountCode?.toUpperCase() === 'NEW20' ? 'First-order savings · 20%' : resolvedDiscount.appliedDiscountLabel,
     discountHelperMessage: resolvedDiscount.helperMessage,
-    shippingLabel: flags.freeShipping ? flags.shippingMethodLabel : 'Shipping',
+    pricingPending,
+    shippingPending,
+    shippingLabel: specialtyInCart && !shippingPending ? 'Next Day Air shipping after production' : flags.freeShipping ? flags.shippingMethodLabel : 'Next-Day Air Shipping',
     taxCents,
     sameDayFeeCents,
     saturdayFeeCents,
     totalCents,
   };
 
-  const orderTotals = <div className="space-y-3"><PriceDeliveryEstimate /><CheckoutOrderTotals {...orderTotalsProps} /></div>;
+  const specialtyPendingNotice = specialtyPending && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+    <strong>Your artwork is saved. These selections need confirmed prices or shipping before payment.</strong>
+    <ul className="mt-2 list-disc pl-5">{items.filter(item=>!specialtyItemHasVerifiedPrice(item)||!specialtyItemHasIncludedShipping(item)).map(item=><li key={item.id}>{item.specialty_config?.productName||'Product'}: {[...(!specialtyItemHasVerifiedPrice(item)?specialtyItemPrice(item)?.missing||['Configuration unavailable']:[]),...(!specialtyItemHasIncludedShipping(item)?['Shipping']:[])].join('; ')}.</li>)}</ul>
+    <p className="mt-2">Use Edit order to change these selections or remove them, then check out with your other items.</p>
+  </div>;
+  const orderTotals = <div className="space-y-3"><CheckoutOrderTotals {...orderTotalsProps} />{specialtyPendingNotice}</div>;
 
   const orderReviewContent = (
     <>
@@ -890,7 +916,7 @@ const Checkout: React.FC = () => {
                     return (
                     <div key={item.id} className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)] last:mb-0 sm:p-5">
                       <div className="grid gap-5 md:grid-cols-[200px_minmax(0,1fr)] md:items-start lg:gap-6">
-                        {isYardSign ? (
+                        {item.product_type === 'specialty' && item.specialty_config ? <SavedSpecialtyPreview configuration={item.specialty_config} /> : isYardSign ? (
                           <div className="flex justify-center shrink-0">
                             <ThumbnailPreviewWrapper
                               title={getItemDisplayName(item)}
@@ -1029,7 +1055,7 @@ const Checkout: React.FC = () => {
                                 </span>
                               </div>
                             </div>
-                            <CartLinePrice {...displayPrice} quantity={item.quantity} />
+                            {specialtyItemHasVerifiedPrice(item) ? <CartLinePrice {...displayPrice} quantity={item.quantity} /> : <SpecialtyPendingPrice item={item}/>}
                           </div>
 
                           <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -1065,7 +1091,7 @@ const Checkout: React.FC = () => {
                               size="sm"
                               aria-label={`Increase quantity for ${getItemDisplayName(item)}`}
                               onClick={() => handleIncreaseQuantity(item.id)}
-                              disabled={checkoutLocked || item.quantity >= 999}
+                              disabled={checkoutLocked || item.quantity >= (item.product_type === 'specialty' ? 100 : 999)}
                               className="h-11 w-11 p-0 border-2 hover:bg-[#18448D] hover:text-white hover:border-[#18448D] transition-all"
                             >
                               <Plus className="h-4 w-4" />
@@ -1183,97 +1209,12 @@ const Checkout: React.FC = () => {
     </>
   );
 
-  const paymentOrderSummary = (
-    <section aria-label="Review order before payment" data-testid="payment-order-summary" className="space-y-3">
-      <CheckoutArtworkSummary showTotal={false} items={items} totalCents={totalCents}
-        editAction={<CheckoutReviewDialog label="Edit order">{orderReviewContent}</CheckoutReviewDialog>} />
-      {orderTotals}
-    </section>
-  );
-
-  return (
-    <Layout showFooterBanner={false} checkoutMode>
-      <div className="min-h-[calc(100vh-4rem)] bg-[#F7F7F7] py-5 sm:py-12">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <div className="mb-4 sm:mb-10">
-            <Button
-              variant="ghost"
-              onClick={() => { if (!checkoutLocked) { const returnTo = location.state?.returnTo; const saved = items.find(item => cartEditUrl(item) === returnTo) || items[items.length - 1]; navigate(saved ? cartEditUrl(saved) : (isFromGoogleAds ? "/google-ads-banner" : "/design")); } }}
-              disabled={checkoutLocked}
-              className="mb-3 hover:bg-gray-100 transition-colors sm:mb-6"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to designer
-            </Button>
-            <div className="text-center sm:mb-8">
-              <div className="mb-3 inline-flex items-center gap-2 border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                <span>Design</span><span>→</span><span>Finishing</span><span>→</span><span className="text-[#18448D]" aria-current="step">Checkout</span>
-              </div>
-              <h1 className="mb-2 font-display text-3xl font-bold tracking-[-0.035em] text-[#0B1F3A] sm:text-4xl">Secure checkout</h1>
-              <p className="text-sm text-gray-600 sm:hidden">Add your details, then review your order before you pay.</p>
-              <p className="hidden text-base text-gray-600 sm:block">Most standard orders are produced within 24 hours; free next-day air begins after production.</p>
-              <p className="hidden text-sm text-[#18448D] font-medium sm:block">Your expected shipping and delivery dates are shown below.</p>
-            </div>
-
-          </div>
-
-          <div data-testid="checkout-flow" className="space-y-6">
-            <div className="w-full space-y-4">
-            {/* Minimum Order Warning */}
-            {!minimumOrderValidation.isValid && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg shadow-sm p-6 mb-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0">
-                    <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                      <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-amber-800 mb-2">Minimum Order Required</h3>
-                    <p className="text-amber-700 mb-4">{minimumOrderValidation.message}</p>
-                    {minimumOrderValidation.suggestions.length > 0 && (
-                      <div className="bg-amber-100 rounded-lg p-4">
-                        <p className="font-medium text-amber-800 mb-2">Suggestions to reach minimum:</p>
-                        <ul className="list-disc list-inside space-y-1 text-sm text-amber-700">
-                          {minimumOrderValidation.suggestions.slice(0, 3).map((suggestion, index) => (
-                            <li key={index}>{suggestion}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Yard Sign Validation Warning */}
-            {yardSignInvalid && (
-              <div className="bg-red-50 border border-red-200 rounded-lg shadow-sm p-6 mb-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0">
-                    <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                      <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-red-800 mb-2">Yard Sign Order Issue</h3>
-                    <p className="text-red-700">{yardSignValidationMessage}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-            {/* Payment */}
-            <div className="w-full space-y-4 lg:space-y-6">
-              <div className="rounded-xl border border-slate-200 bg-white px-4 pb-4">
+  const checkoutAdjustments = (
+    <div className="checkout-adjustments">
                 {/* Discount Code Section */}
                 <div className="pt-3">
                   <BOFCashCheckout locked={checkoutLocked}/>
-                  {discountCode?.automaticFirstOrder && <p className="mb-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">{getEnteredPromoLabel(discountCode, resolvedDiscount)}</p>}
+                  {discountCode?.automaticFirstOrder && <p className="checkout-savings-note">{getEnteredPromoLabel(discountCode, resolvedDiscount)}</p>}
                   {firstOrderOffer.message && (!discountCode || discountCode.code === 'NEW20') && <p role="status" data-testid="first-order-eligibility" className="mb-2 text-xs leading-snug text-slate-600">{firstOrderOffer.message}{firstOrderOffer.status === 'unavailable' && <button type="button" onClick={firstOrderOffer.retry} className="ml-2 min-h-11 font-semibold underline">Retry offer</button>}</p>}
                   {!discountCode || discountCode.automaticFirstOrder ? (
                     <div className="space-y-3">
@@ -1326,8 +1267,8 @@ const Checkout: React.FC = () => {
                       )}
                     </div>
                   ) : (
-                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                      <span className="text-sm font-semibold text-green-800 flex items-center gap-1.5">
+                    <div className="checkout-applied-promo">
+                      <span className="text-sm font-semibold text-[#c94e00] flex items-center gap-1.5">
                         <Tag className="h-3.5 w-3.5" />
                         {getEnteredPromoLabel(discountCode, resolvedDiscount)}
                       </span>
@@ -1344,18 +1285,112 @@ const Checkout: React.FC = () => {
 
                 {/* Same-Day Hit Service upsell — production priority (NOT shipping) */}
                 <SameDayHitServiceCard disabled={checkoutLocked} />
+                {specialtyInCart && items.some(item=>item.product_type!=='specialty') && <p className="text-xs leading-5 text-slate-600">Priority services apply only to eligible banners, yard signs and magnets. Displays and event gear have separate production times.</p>}
               </div>
-              <div className="relative z-0 rounded-xl border border-gray-100 bg-white p-4 shadow-md sm:p-5">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-[#18448D]">Complete your order</h2>
-                  <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-full">
-                    <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                <span className="text-sm font-bold text-green-700">Secure</span>
+  );
+
+  const paymentOrderSummary = desktopCheckout ? null : (
+    <section id="checkout-price-details" aria-label="Review order before payment" data-testid="payment-order-summary" className="checkout-mobile-pricing">
+      {orderTotals}
+      {checkoutAdjustments}
+    </section>
+  );
+
+  const paypalChoice = (
+    <button type="button" className="checkout-paypal-choice bg-[#FFC439]" aria-label="PayPal" aria-pressed={paymentProvider === 'paypal'}
+      disabled={checkoutLocked} onClick={() => { if (!checkoutLocked) setPaymentProvider('paypal'); }}>
+      <span aria-hidden="true"><span className="text-[#003087]">Pay</span><span className="text-[#0070BA]">Pal</span></span>
+    </button>
+  );
+
+  return (
+    <Layout showFooterBanner={false} checkoutMode>
+      <div className="checkout-page">
+        <div className="checkout-container">
+          <div className="checkout-heading">
+            <div className="checkout-heading-top">
+            <Button
+              variant="ghost"
+              onClick={() => { if (!checkoutLocked) { const returnTo = location.state?.returnTo; const saved = items.find(item => cartEditUrl(item) === returnTo) || items[items.length - 1]; navigate(saved ? cartEditUrl(saved) : (isFromGoogleAds ? "/google-ads-banner" : "/design")); } }}
+              disabled={checkoutLocked}
+              className="checkout-back"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to designer
+            </Button>
+              <ol className="checkout-progress" aria-label="Checkout progress">
+                <li><CircleCheck aria-hidden="true" />Design</li>
+                <li><CircleCheck aria-hidden="true" />Finishing</li>
+                <li aria-current="step"><span>3</span>Checkout</li>
+              </ol>
+            </div>
+            <h1>Let’s make it official.</h1>
+            <p>Your design is ready. Finish your order below.</p>
+          </div>
+
+          <div data-testid="checkout-flow" className="checkout-grid">
+            <aside className="checkout-order-panel" aria-label="Order summary">
+              <CheckoutArtworkSummary showTotal={false} items={items} totalCents={totalCents} linePrices={displayPrices}
+                editAction={<CheckoutReviewDialog label="Edit order">{orderReviewContent}</CheckoutReviewDialog>} />
+              {specialtyInCart ? <p className="p-4 text-sm text-slate-600">Production time varies by product. {shippingPending ? 'Shipping needs confirmation before payment.' : 'Free Next Day Air shipping is included after production.'}</p> : <PriceDeliveryEstimate variant="checkout" />}
+              {desktopCheckout ? <div id="checkout-price-details">{orderTotals}{checkoutAdjustments}</div> : (
+                <div className="checkout-arrival-total">
+                  <div><strong>Total</strong><p>Incl. tax · <a href="#checkout-price-details">View price details ↓</a></p></div>
+                  <strong>{specialtyPending ? 'Pending' : usd(totalCents / 100)}</strong>
+                </div>
+              )}
+            </aside>
+            <div className="checkout-main space-y-4">
+            {/* Minimum Order Warning */}
+            {!minimumOrderValidation.isValid && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg shadow-sm p-6 mb-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-amber-800 mb-2">Minimum Order Required</h3>
+                    <p className="text-amber-700 mb-4">{minimumOrderValidation.message}</p>
+                    {minimumOrderValidation.suggestions.length > 0 && (
+                      <div className="bg-amber-100 rounded-lg p-4">
+                        <p className="font-medium text-amber-800 mb-2">Suggestions to reach minimum:</p>
+                        <ul className="list-disc list-inside space-y-1 text-sm text-amber-700">
+                          {minimumOrderValidation.suggestions.slice(0, 3).map((suggestion, index) => (
+                            <li key={index}>{suggestion}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
-                
+              </div>
+            )}
+
+            {/* Yard Sign Validation Warning */}
+            {yardSignInvalid && (
+              <div className="bg-red-50 border border-red-200 rounded-lg shadow-sm p-6 mb-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-red-800 mb-2">Yard Sign Order Issue</h3>
+                    <p className="text-red-700">{yardSignValidationMessage}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Payment */}
+            <div className="w-full space-y-4 lg:space-y-6">
+              <div className="checkout-payment-panel">
                 {cartRecoveryError ? (
                   <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3" role="alert">
                     <p className="text-sm font-medium text-red-900">{cartRecoveryError}</p>
@@ -1438,39 +1473,14 @@ const Checkout: React.FC = () => {
                   </div>
                 ) : stripeAvailable && stripeRuntime.publishableKey ? (
                   <div className="space-y-5">
-                    <div>
-                      <p className="mb-2 text-sm font-bold text-[#0B1F3A]">Choose a payment method</p>
-                      <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1" role="group" aria-label="Choose a payment method">
-                        <button
-                          type="button"
-                          aria-pressed={paymentProvider === 'stripe'}
-                          className={`min-h-11 rounded-lg px-3 text-sm font-bold transition ${paymentProvider === 'stripe'
-                            ? 'bg-white text-[#18448D] shadow-sm ring-1 ring-slate-200'
-                            : 'text-slate-600 hover:bg-white/70 hover:text-[#18448D]'}`}
-                          disabled={checkoutLocked}
-                          onClick={() => { if (!checkoutLocked) setPaymentProvider('stripe'); }}
-                        >
-                          Card &amp; wallets
-                        </button>
-                        <button
-                          type="button"
-                          aria-pressed={paymentProvider === 'paypal'}
-                          aria-label="PayPal"
-                          className={`min-h-11 rounded-lg px-3 text-sm font-bold transition ${paymentProvider === 'paypal'
-                            ? 'bg-[#FFC439] shadow-sm ring-1 ring-[#D9A400]'
-                            : 'text-slate-600 hover:bg-[#FFF3C4]'}`}
-                          disabled={checkoutLocked}
-                          onClick={() => { if (!checkoutLocked) setPaymentProvider('paypal'); }}
-                        >
-                          <span aria-hidden="true" className="inline-flex items-baseline font-extrabold italic tracking-tight">
-                            <span className="text-[#003087]">Pay</span><span className="text-[#0070BA]">Pal</span>
-                          </span>
-                        </button>
-                      </div>
-                    </div>
+                    {paymentProvider === 'paypal' && <button type="button" className="checkout-provider-back" disabled={checkoutLocked}
+                      aria-pressed={paymentProvider === 'stripe'} onClick={() => { if (!checkoutLocked) setPaymentProvider('stripe'); }}>
+                      ← Card &amp; wallets
+                    </button>}
 
                     {paymentProvider === 'stripe' ? (
                       <StripeCheckout
+                        alternativePayment={paypalChoice}
                         orderSummary={paymentOrderSummary}
                         publishableKey={stripeRuntime.publishableKey}
                         disabled={firstOrderOffer.checking || paymentSubmissionBlocked || checkoutLocked}
@@ -1498,7 +1508,7 @@ const Checkout: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="space-y-2 rounded-lg border border-[#E7D9C7] bg-[#FCF7F0] p-3 shadow-sm">
+                    {!shouldUseDeployPreviewTestCheckout() && <div className="checkout-fallback-methods">
                       <p className="text-xs text-gray-600">
                         Pay securely by card or PayPal. No PayPal account required.
                       </p>
@@ -1511,7 +1521,7 @@ const Checkout: React.FC = () => {
                           decoding="async"
                         />
                       </div>
-                    </div>
+                    </div>}
                     <PayPalCheckout
                         orderSummary={paymentOrderSummary}
                       disabled={firstOrderOffer.checking || paymentSubmissionBlocked || (checkoutLocked && activeCheckout?.provider !== 'paypal')}
@@ -1527,66 +1537,12 @@ const Checkout: React.FC = () => {
                   </div>
                 )}
 
-                <div className="mt-4 border-t border-gray-100 pt-4">
-                  <div className="flex flex-wrap gap-1.5">
-                    {[
-                      { icon: <Lock className="h-3 w-3" />, label: 'Secure encrypted checkout' },
-                      { icon: <CircleCheck className="h-3 w-3" />, label: 'Most standard orders: 24-hour production' },
-                      { icon: <Truck className="h-3 w-3" />, label: 'Free next-day air anywhere in the U.S.' },
-                    ].map((badge) => (
-                      <span key={badge.label} className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-600">
-                        {badge.icon}
-                        {badge.label}
-                      </span>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-xs text-gray-600">Secure checkout · No PayPal account required · Upload almost any file type · We check your file before production.</p>
-                  <p className="text-xs text-gray-600">Production time and carrier transit are separate; delivery dates are estimates.</p>
-                </div>
+                <div className="checkout-payment-note"><Lock aria-hidden="true" />Secure, encrypted payment <span>·</span><a href="/terms">Terms</a><span>·</span><a href="/privacy">Privacy</a></div>
               </div>
 
-              {user && (
-                <div className="border-l-4 border-[#FF6A00] bg-white p-6 shadow-sm">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex h-10 w-10 items-center justify-center bg-[#0B1F3A]">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    </div>
-                    <h3 className="font-bold text-[#18448D] text-lg">Account</h3>
-                  </div>
-                  <p className="text-gray-700 font-semibold mb-1">{user.email}</p>
-                  <p className="text-sm text-gray-600">
-                    Order will be saved to your account
-                  </p>
-                </div>
-              )}
-
-              {!user && (
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 sm:p-5">
-                  <h3 className="font-semibold text-gray-900 text-base mb-2">Checking Out as a Guest</h3>
-                  <p className="text-sm text-gray-600 leading-relaxed">
-                    You can optionally create a free account after purchase to save your order history and reorder faster next time.
-                  </p>
-                  <div className="flex items-center gap-3 mt-3 text-sm">
-                    <Button
-                      variant="link"
-                      onClick={() => navigate('/sign-in?from=checkout&next=/checkout')}
-                      className="p-0 h-auto text-[#18448D]"
-                    >
-                      Sign In
-                    </Button>
-                    <span className="text-gray-300">•</span>
-                    <Button
-                      variant="link"
-                      onClick={() => navigate('/sign-up?from=checkout&next=/checkout')}
-                      className="p-0 h-auto text-gray-600 hover:text-[#18448D]"
-                    >
-                      Create Account
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <div className="checkout-account">
+                {user ? <p>{user.email ? `Order saved to ${user.email}` : 'Your order will be saved to your account.'}</p> : <p>Checking out as a guest. <button type="button" onClick={() => navigate('/sign-in?from=checkout&next=/checkout')}>Sign in</button></p>}
+              </div>
             </div>
             </div>
           </div>

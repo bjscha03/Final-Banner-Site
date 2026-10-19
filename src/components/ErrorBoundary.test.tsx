@@ -17,6 +17,7 @@ afterEach(() => { vi.restoreAllMocks(); vi.clearAllMocks(); });
 
 it.each([
   ['Failed to fetch dynamically imported module: /assets/Terms-old.js', true],
+  ['Unable to preload CSS for /assets/GoogleAdsBanner-BcFuyzJd.css', true],
   ['Unrelated application failure', false],
 ])('handles caught lazy rejection: %s', async (message, shouldRecover) => {
   // React catches lazy import rejections itself, so global rejection listeners

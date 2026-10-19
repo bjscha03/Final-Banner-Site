@@ -21,23 +21,23 @@ for (const path of ['/google-ads-banner', '/design']) {
         }
       });
       await page.goto(path, { waitUntil: 'domcontentloaded' });
-      const summary = page.locator('[data-testid="price-breakdown"]:visible').first();
-      const summaryBadge = summary.getByTestId('free-next-day-air-badge');
-      await expect(summaryBadge).toBeVisible();
-      await expect(summaryBadge).toContainText(/FREE\s+Next-Day Air/);
-      await expect(summaryBadge).toContainText('Shipping after production');
-      await expect(summary).toContainText(/\$[\d,]+\.\d{2}/);
-      await expect.poll(() => summaryBadge.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
-      if ([390, 1440].includes(width)) {
-        await summary.screenshot({ path: testInfo.outputPath(`summary-${width}.png`) });
-      }
-
       const bar = page.getByTestId('mobile-subtotal-bar');
-      if (width < 768) {
+      if (width >= 1024) {
+        const summary = page.locator('[data-testid="price-breakdown"]:visible').first();
+        const summaryBadge = summary.getByTestId('free-next-day-air-badge');
+        await expect(summaryBadge).toBeVisible();
+        await expect(summaryBadge).toContainText(/FREE\s+Next-Day Air/);
+        await expect(summaryBadge).toContainText('Shipping after production');
+        await expect(summary).toContainText(/\$[\d,]+\.\d{2}/);
+        await expect.poll(() => summaryBadge.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+        await expect(bar).toBeHidden();
+        if (width === 1440) await summary.screenshot({ path: testInfo.outputPath(`summary-${width}.png`) });
+      } else {
         await expect(bar).toBeVisible();
         const badge = bar.getByTestId('free-next-day-air-badge');
         await expect(badge).toBeVisible();
-        await expect(badge).toContainText(/FREE\s+Next-Day Air/);
+        await expect(badge).toContainText('Free Next Day Air Shipping');
+        await expect(bar).toContainText(/\$[\d,]+\.\d{2}/);
         const button = bar.getByRole('button').last();
         const buttonBox = await button.boundingBox();
         const badgeBox = await badge.boundingBox();
@@ -45,7 +45,10 @@ for (const path of ['/google-ads-banner', '/design']) {
         expect(badgeBox).not.toBeNull();
         expect(buttonBox!.height).toBeGreaterThanOrEqual(44);
         expect(badgeBox!.x).toBeGreaterThanOrEqual(0);
-        expect(badgeBox!.x + badgeBox!.width).toBeLessThanOrEqual(buttonBox!.x);
+        expect(badgeBox!.x + badgeBox!.width).toBeLessThanOrEqual(width);
+        expect(badgeBox!.y).toBeGreaterThanOrEqual(buttonBox!.y + buttonBox!.height);
+        expect(badgeBox!.y + badgeBox!.height).toBeLessThanOrEqual(900);
+        await expect(bar.getByRole('button', { name: 'Upload artwork', exact: true })).toBeVisible();
         expect(buttonBox!.x + buttonBox!.width).toBeLessThanOrEqual(width);
         await expect.poll(() => bar.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
         await expect.poll(async () => {

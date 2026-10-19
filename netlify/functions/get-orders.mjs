@@ -112,6 +112,7 @@ const orderBaseCteSql = () => {
              o.user_id::text AS user_id,
              o.created_at,
              COALESCE(o.total_cents, 0)::bigint AS total_cents,
+             LEAST(GREATEST(COALESCE(o.total_cents, 0), 0), GREATEST(COALESCE((to_jsonb(o)->>'partial_refund_cents')::bigint, 0), 0)) AS partial_refund_cents,
              LOWER(BTRIM(COALESCE(o.status, ''))) AS raw_status,
              LOWER(BTRIM(COALESCE(to_jsonb(o)->>'payment_method', ''))) AS payment_method,
              LOWER(BTRIM(COALESCE(to_jsonb(o)->>'payment_reconciliation_status', ''))) AS reconciliation_status,
@@ -224,6 +225,8 @@ const buildAdminSummaryQuery = () => `${orderBaseCteSql()},
          AND ($2::timestamptz IS NULL OR created_at < $2::timestamptz)
     ), period_profit_orders AS (
       SELECT o.id, o.subtotal_cents,
+             COALESCE((to_jsonb(o)->>'partial_refund_cents')::bigint, 0) AS partial_refund_cents,
+             COALESCE((to_jsonb(o)->>'partial_refund_tax_cents')::bigint, 0) AS partial_refund_tax_cents,
              COALESCE((to_jsonb(o)->>'applied_discount_cents')::bigint, 0) AS applied_discount_cents,
              COALESCE((to_jsonb(o)->>'same_day_fee_cents')::bigint, 0) AS same_day_fee_cents,
              COALESCE((to_jsonb(o)->>'saturday_fee_cents')::bigint, 0) AS saturday_fee_cents,
@@ -263,7 +266,7 @@ const buildAdminSummaryQuery = () => `${orderBaseCteSql()},
     ), period_totals AS (
       SELECT COUNT(*) FILTER (WHERE effective_status IN ('paid', 'in_production', 'shipped', 'delivered', 'fulfilled'))::integer AS total_orders,
              COALESCE(SUM(GREATEST(total_cents, 0)), 0)::bigint AS gross_sales_cents,
-             COALESCE(SUM(GREATEST(total_cents, 0)) FILTER (WHERE effective_status = 'refunded'), 0)::bigint AS recorded_refunds_cents
+             COALESCE(SUM(CASE WHEN effective_status = 'refunded' THEN GREATEST(total_cents, 0) ELSE partial_refund_cents END), 0)::bigint AS recorded_refunds_cents
         FROM period_reportable
     ), customer_totals AS (
       SELECT COUNT(*)::integer AS identified_customers,
@@ -288,11 +291,11 @@ const buildAdminSummaryQuery = () => `${orderBaseCteSql()},
                  AND effective_status NOT IN ('shipped', 'delivered', 'fulfilled')
              )::integer AS overview_pending_orders,
              COUNT(*) FILTER (WHERE effective_status = 'refunded' AND is_test_order = FALSE)::integer AS overview_refunded_orders,
-             COALESCE(SUM(GREATEST(total_cents, 0)) FILTER (
+             COALESCE(SUM(GREATEST(total_cents, 0) - partial_refund_cents) FILTER (
                WHERE is_test_order = FALSE AND effective_status IN ('paid', 'in_production', 'shipped', 'delivered', 'fulfilled')
              ), 0)::bigint AS overview_total_revenue_cents,
-             COALESCE(SUM(GREATEST(total_cents, 0)) FILTER (
-               WHERE is_test_order = FALSE AND effective_status = 'refunded'
+             COALESCE(SUM(CASE WHEN effective_status = 'refunded' THEN GREATEST(total_cents, 0) ELSE partial_refund_cents END) FILTER (
+               WHERE is_test_order = FALSE
              ), 0)::bigint AS overview_refunded_revenue_cents
         FROM visible_orders
     )
@@ -333,6 +336,9 @@ const buildAdminHydrationQuery = () => `
          COALESCE((to_jsonb(o)->>'subtotal_cents')::bigint, 0) AS subtotal_cents,
          COALESCE((to_jsonb(o)->>'tax_cents')::bigint, 0) AS tax_cents,
          COALESCE(o.total_cents, 0)::bigint AS total_cents,
+         COALESCE((to_jsonb(o)->>'partial_refund_cents')::bigint, 0) AS partial_refund_cents,
+         COALESCE((to_jsonb(o)->>'partial_refund_tax_cents')::bigint, 0) AS partial_refund_tax_cents,
+         COALESCE(to_jsonb(o)->'partial_refund_history', '[]'::jsonb) AS partial_refund_history,
          LEFT(COALESCE(o.status, ''), 40) AS status,
          o.created_at,
          LEFT(to_jsonb(o)->>'tracking_number', 500) AS tracking_number,

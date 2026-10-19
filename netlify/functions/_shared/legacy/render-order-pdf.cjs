@@ -1052,6 +1052,10 @@ exports.handler = async (event) => {
       } catch (parseErr) {
         console.warn('[PRINT_SCENE_V2] Failed to parse canvasStateJson:', parseErr.message);
       }
+      if(parsedScene?.kind==='specialty')return {statusCode:409,headers:{'Content-Type':'application/json'},body:JSON.stringify({error:'USE_SPECIALTY_PANELS',message:'Use the individually approved product print panels in the order. They must not be rebuilt with the banner renderer.'})};
+      parsedScene = require('../stored-original-print-scene.cjs').toStoredOriginalPrintScene(
+        parsedScene, req.bannerWidthIn, req.bannerHeightIn,
+      );
       if (parsedScene && parsedScene.sceneVersion === 2) {
         const hash = sceneHash(parsedScene);
         if (req.itemId && !req.forceRegenerate) {
@@ -1492,24 +1496,19 @@ exports.handler = async (event) => {
             let compLeft = drawX;
             let compTop = drawY;
 
-            if (drawX < 0 || drawY < 0 || drawX + drawW > targetPxW || drawY + drawH > targetPxH) {
-              const cropLeft = Math.max(0, -drawX);
-              const cropTop = Math.max(0, -drawY);
-              const cropWidth = Math.min(drawW - cropLeft, targetPxW - Math.max(0, drawX));
-              const cropHeight = Math.min(drawH - cropTop, targetPxH - Math.max(0, drawY));
-
-              if (cropWidth > 0 && cropHeight > 0) {
-                compositeInput = await sharp(resizedOriginal)
-                  .extract({
-                    left: cropLeft,
-                    top: cropTop,
-                    width: Math.max(1, Math.floor(cropWidth)),
-                    height: Math.max(1, Math.floor(cropHeight)),
-                  })
-                  .toBuffer();
-                compLeft = Math.max(0, drawX);
-                compTop = Math.max(0, drawY);
-              }
+            const crop = designState.canonicalComposition?.transform?.crop || designState.crop;
+            if (crop && (![crop.x, crop.y, crop.width, crop.height].every(Number.isFinite)
+              || crop.x < 0 || crop.y < 0 || crop.width <= 0 || crop.height <= 0
+              || crop.x + crop.width > 1.000001 || crop.y + crop.height > 1.000001)) throw new Error('Invalid production artwork crop');
+            const cropLeft = Math.max(0, -drawX, crop ? Math.round(crop.x * drawW) : 0);
+            const cropTop = Math.max(0, -drawY, crop ? Math.round(crop.y * drawH) : 0);
+            const cropRight = Math.min(drawW, targetPxW - drawX, crop ? Math.round((crop.x + crop.width) * drawW) : drawW);
+            const cropBottom = Math.min(drawH, targetPxH - drawY, crop ? Math.round((crop.y + crop.height) * drawH) : drawH);
+            if (cropRight <= cropLeft || cropBottom <= cropTop) throw new Error('Artwork is outside the printable area');
+            if (cropLeft || cropTop || cropRight !== drawW || cropBottom !== drawH) {
+              compositeInput = await sharp(resizedOriginal).extract({ left: cropLeft, top: cropTop, width: cropRight - cropLeft, height: cropBottom - cropTop }).toBuffer();
+              compLeft = drawX + cropLeft;
+              compTop = drawY + cropTop;
             }
             resizedOriginal = null; // free memory
 

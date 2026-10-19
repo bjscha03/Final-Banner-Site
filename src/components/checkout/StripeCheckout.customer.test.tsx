@@ -30,6 +30,8 @@ vi.mock('@paypal/react-paypal-js', () => ({
 vi.mock('./checkoutEnvironment', () => ({ shouldUseDeployPreviewTestCheckout: () => true }));
 vi.mock('@/components/ui/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock('@/lib/auth', () => ({ useAuth: () => ({ user: null }) }));
+// Responsive wallet sizing is exercised with real media queries in browser QA.
+vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }));
 vi.mock('@/store/cart', () => ({ useCartStore: () => mocks.cart }));
 vi.mock('@/hooks/useAbandonedCartCapture', () => ({ useAbandonedCartCapture: (input: any) => {
   mocks.capture(input);
@@ -67,7 +69,11 @@ describe('checkout contact form', () => {
     const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
     await act(async () => root.render(<PayPalCheckoutReliable total={3392} onSuccess={vi.fn()} onError={vi.fn()} />));
     expect(host.querySelector('input')?.id).toBe('checkout-email');
-    expect(host.textContent).toContain('Place Test Order — No Payment');
+    expect(host.textContent).toContain('Place test order · $33.92');
+    expect(host.textContent).toContain('No payment will be taken.');
+    expect(host.querySelector<HTMLButtonElement>('[aria-label="Apple Pay — preview only"]')?.disabled).toBe(true);
+    expect(host.querySelector<HTMLButtonElement>('[aria-label="PayPal — preview only"]')?.disabled).toBe(true);
+    expect(host.querySelector('.checkout-preview-card input')).toBeNull();
     expect(host.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(true);
     expect(mocks.paypalProvider).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();

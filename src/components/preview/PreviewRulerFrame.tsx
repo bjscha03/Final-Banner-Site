@@ -15,7 +15,7 @@
  * the same logic powers PreviewCanvas and this in-page wrapper.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getRulerTicks, type RulerUnit } from '@/lib/dimensions/rulers';
 
 interface PreviewRulerFrameProps {
@@ -54,15 +54,30 @@ const PreviewRulerFrame: React.FC<PreviewRulerFrameProps> = ({
       window.removeEventListener('orientationchange', onResize);
     };
   }, []);
-  const maxMajorLabels = isNarrowViewport ? 4 : 12;
+  const rulerRef = useRef<HTMLDivElement>(null);
+  const [renderedWidth, setRenderedWidth] = useState<number>();
+  useEffect(() => {
+    const node = rulerRef.current;
+    if (!node || typeof ResizeObserver === 'undefined') return;
+    const measure = () => setRenderedWidth(node.getBoundingClientRect().width);
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    measure();
+    return () => observer.disconnect();
+  }, []);
+  const labelLimit = isNarrowViewport ? 4 : 12;
+  // A landscape phone can have a wide viewport but a small fitted canvas.
+  const canvasWidth = renderedWidth == null ? undefined : Math.max(0, renderedWidth - bandPx);
+  const horizontalLabelLimit = canvasWidth == null ? labelLimit : Math.max(2, Math.min(labelLimit, Math.floor(canvasWidth / 60) + 1));
+  const verticalLabelLimit = canvasWidth == null ? labelLimit : Math.max(2, Math.min(labelLimit, Math.floor(canvasWidth * heightIn / widthIn / 32) + 1));
 
   const horizontalTicks = useMemo(
-    () => getRulerTicks(widthIn, unit, { maxMajorLabels }),
-    [widthIn, unit, maxMajorLabels]
+    () => getRulerTicks(widthIn, unit, { maxMajorLabels: horizontalLabelLimit }),
+    [widthIn, unit, horizontalLabelLimit]
   );
   const verticalTicks = useMemo(
-    () => getRulerTicks(heightIn, unit, { maxMajorLabels }),
-    [heightIn, unit, maxMajorLabels]
+    () => getRulerTicks(heightIn, unit, { maxMajorLabels: verticalLabelLimit }),
+    [heightIn, unit, verticalLabelLimit]
   );
 
   // Lightweight debug to confirm rulers/unit propagation in the live UI.
@@ -122,6 +137,7 @@ const PreviewRulerFrame: React.FC<PreviewRulerFrameProps> = ({
 
   return (
     <div
+      ref={rulerRef}
       className={className}
       style={{
         boxSizing: 'border-box',

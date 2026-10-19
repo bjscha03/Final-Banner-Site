@@ -2,6 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { getRulerTicks } from '../rulers';
 
 describe('getRulerTicks', () => {
+  it.each([96, 120, 480])('keeps large inch dimensions readable on a narrow fitted ruler (%i in)', length => {
+    const majors = getRulerTicks(length, 'in', { maxMajorLabels: 2 }).filter(t => t.major);
+    expect(majors.map(t => t.pos)).toEqual([0, length]);
+  });
+  it('retains sparse endpoints when a foot ruler exceeds the preset steps', () => {
+    const majors = getRulerTicks(2400, 'ft', { maxMajorLabels: 2 }).filter(t => t.major);
+    expect(majors.map(t => t.label)).toEqual(['0 ft', '200 ft']);
+  });
   it('returns empty array for non-positive lengths', () => {
     expect(getRulerTicks(0, 'in')).toEqual([]);
     expect(getRulerTicks(-5, 'ft')).toEqual([]);

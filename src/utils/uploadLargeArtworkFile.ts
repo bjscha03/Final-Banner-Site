@@ -37,7 +37,7 @@ export function sendArtworkChunk(url: string, body: Blob, token: string, signal:
     xhr.upload.onprogress = event => {
       if (event.lengthComputable && event.total > 0) onProgress?.(Math.min(1, event.loaded / event.total));
     };
-    xhr.onload = () => finish(() => resolve(new Response(xhr.responseText, { status: xhr.status })));
+    xhr.onload = () => finish(() => resolve(new Response(xhr.responseText, { status: xhr.status, headers: { 'x-nf-request-id': xhr.getResponseHeader?.('x-nf-request-id') || '' } })));
     xhr.onerror = () => finish(() => reject(new ArtworkUploadError('Artwork upload connection interrupted.', { phase: 'chunked', retryable: true })));
     xhr.ontimeout = () => finish(() => reject(new ArtworkUploadError('Artwork chunk timed out.', { phase: 'chunked', retryable: true })));
     xhr.onabort = () => finish(() => reject(new DOMException('Upload cancelled', 'AbortError')));
@@ -54,6 +54,7 @@ async function request(action: string, body: BodyInit, options: UploadArtworkOpt
   for (let attempt = 1; attempt <= 3; attempt++) {
     if (options.signal?.aborted) throw new DOMException('Upload cancelled', 'AbortError');
     options.onAttempt?.(attempt, 3);
+    let requestId = '';
     try {
       // Control requests must fail before the page's idle watchdog so retries
       // can run. Include response parsing: abort alone may leave it pending.
@@ -67,11 +68,13 @@ async function request(action: string, body: BodyInit, options: UploadArtworkOpt
         const data = await response.json().catch(() => ({}));
         return { response, data };
       }, action === 'start' ? 30_000 : action === 'complete' ? 90_000 : 120_000, options.signal);
+      requestId = response.headers.get('x-nf-request-id') || '';
       if (!response.ok) throw new ArtworkUploadError(data.error || `Artwork upload failed (${response.status}).`, {
         phase: 'chunked', status: response.status, retryable: response.status >= 500 || response.status === 408 || response.status === 429,
       });
       return data;
     } catch (error) {
+      if (error instanceof ArtworkUploadError) error.evidence = { operation: action, attempt, ...(index != null ? { chunkIndex: index } : {}), ...(requestId ? { requestId } : {}) };
       if (options.signal?.aborted || attempt === 3 || (error instanceof ArtworkUploadError && !error.retryable)) throw error;
       await new Promise(resolve => window.setTimeout(resolve, 600 * attempt));
     }
@@ -121,15 +124,25 @@ export async function uploadLargeArtworkFile(file: File, options: UploadArtworkO
     state = undefined;
   }
   if (!state) {
-    const preview = await makePreview(file, options);
-    // Preview upload uses the established small-file path. Production always
-    // points to the untouched original below, never to this display image.
-    const savedPreview = await uploadArtworkFile(preview.file, { signal: options.signal, onAttempt: options.onAttempt });
+    // Raster previews are made server-side from the intact original. A mobile
+    // canvas may silently draw a large PNG as entirely transparent pixels.
+    // PDFs retain their existing bounded first-page browser renderer.
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    let previewUrl = '';
+    let width = options.originalWidth || 0;
+    let height = options.originalHeight || 0;
+    if (isPdf) {
+      const preview = await makePreview(file, options);
+      const savedPreview = await uploadArtworkFile(preview.file, { signal: options.signal, onAttempt: options.onAttempt });
+      previewUrl = savedPreview.secureUrl;
+      width = preview.width;
+      height = preview.height;
+    }
     const session = await request('start', JSON.stringify({ fileName: file.name, size: file.size }), options);
     if (!session.id || !session.token || !Number.isSafeInteger(session.chunkBytes) || session.chunkBytes <= 0 || session.chunkBytes > 3 * 1024 * 1024) {
       throw new ArtworkUploadError('Artwork upload session was incomplete.', { phase: 'ticket', retryable: true });
     }
-    state = { session, previewUrl: savedPreview.secureUrl, width: preview.width, height: preview.height, nextOffset: 0, createdAt: Date.now() };
+    state = { session, previewUrl, width, height, nextOffset: 0, createdAt: Date.now() };
     pendingOriginals.set(file, state);
   }
   const { session } = state;

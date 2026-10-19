@@ -5,7 +5,7 @@ test('expanded prompt stays above the copy button at narrow and desktop widths',
   await installDesignerHarness(page, 'ai-help-layout');
   for (const width of [320, 390, 667, 1440]) {
     await page.setViewportSize({ width, height: 800 });
-    await page.goto('/google-ads-banner', { waitUntil: 'domcontentloaded' });
+    await page.goto('/design', { waitUntil: 'domcontentloaded' });
     if (width < 1024) {
       await expect(page.getByRole('heading', { name: 'Build Your Banner', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Open AI artwork help' })).not.toBeVisible();
@@ -125,19 +125,9 @@ test('AI artwork help stays optional, updates prompts, copies, and preserves the
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
 });
 
-test('Google Ads banner page serves the same dimension-aware AI artwork help', async ({ page }, testInfo) => {
-  test.skip((page.viewportSize()?.width ?? 0) < 1024, 'AI artwork help is intentionally hidden on smaller screens');
+test('Google Ads banner page removes the artwork-help dialog', async ({ page }, testInfo) => {
   await installDesignerHarness(page, `ai-help-landing-${testInfo.project.name}`);
   await page.goto('/google-ads-banner?product=banner', { waitUntil: 'domcontentloaded' });
-
-  const size = page.locator('#size-section');
-  await size.getByRole('button', { name: "6' × 3' — Most popular", exact: true }).click();
-  await page.getByRole('button', { name: 'Open AI artwork help' }).click();
-
-  const dialog = page.getByRole('dialog');
-  await expect(dialog.getByText('72 × 36 inches', { exact: true })).toBeVisible();
-  await dialog.getByRole('tab', { name: 'Fix Existing Artwork with AI' }).click();
-  await expect(dialog.locator('[data-ai-prompt]')).toContainText('72:36 shape');
-  await expect(dialog.locator('[data-ai-prompt]')).toContainText('high-quality JPEG/JPG');
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+  await expect(page.getByRole('button', { name: 'Open AI artwork help' })).toHaveCount(0);
+  await expect(page.locator('#upload-section')).toBeVisible();
 });

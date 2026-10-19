@@ -24,6 +24,7 @@ describe('PaymentSuccess confirmation credential recovery', () => {
 
     expect(gate).toBeGreaterThan(-1);
     expect(successHeading).toBeGreaterThan(gate);
+    expect(source.indexOf('<OrderCelebration key={verifiedOrderId} orderId={verifiedOrderId} />')).toBeGreaterThan(gate);
     expect(source).toContain('No successful payment status has been assumed.');
     expect(source).not.toContain("orderId?.slice(-8)");
   });

@@ -180,32 +180,18 @@ async function selectLargeBannerAndUpload(page: Page, fileBytes: Buffer, filenam
     buffer: fileBytes,
   });
   await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole('button', { name: 'Add to Cart', exact: true }).last()).toBeEnabled({ timeout: 30_000 });
+  await expect(page.getByRole('button', { name: /Show entire design/ }).first()).toBeEnabled({ timeout: 30_000 });
 }
 
 async function completeActualCartToCheckout(page: Page, harness: UploadHarness) {
-  await page.getByRole('button', { name: 'Add to Cart', exact: true }).last().click();
-  const upsell = page.locator('[data-upsell-modal]');
-  await expect(upsell).toBeVisible({ timeout: 30_000 });
-  await expect(upsell.locator(`img[src="${harness.artifactUrl}"]`).first()).toBeVisible();
-  await expect(upsell.locator(`img[src="${harness.originalUrl}"]`)).toHaveCount(0);
-  await upsell.getByRole('button', { name: 'No thanks, continue without' }).click();
-
-  const headerCart = page.getByRole('button', { name: 'Shopping cart' }).first();
-  await expect(headerCart).toBeVisible({ timeout: 20_000 });
-  await headerCart.click();
-  const cart = page.getByRole('dialog', { name: 'Shopping cart' });
-  await expect(cart).toBeVisible();
-  await expect(cart.locator(`img[src="${harness.artifactUrl}"]`).first()).toBeVisible();
-  await expect(cart.locator(`img[src="${harness.originalUrl}"]`)).toHaveCount(0);
-  await cart.getByRole('button', { name: 'Enlarge preview' }).click();
-  const cartLightbox = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Close preview' }) });
-  await expect(cartLightbox.locator(`img[src="${harness.artifactUrl}"]`).first()).toBeVisible();
-  await cartLightbox.getByRole('button', { name: 'Close preview' }).last().click();
-  await cart.getByRole('button', { name: 'Proceed to Checkout' }).click();
+  const mobile = page.viewportSize()!.width < 1024;
+  if (mobile) await page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Review & finish', exact: true }).click();
+  const choices = mobile ? page.getByTestId('mobile-finishing-step') : page.locator('#options-section');
+  await choices.getByRole('button', { name: /No hanging hardware/ }).click();
+  await page.getByRole('button', { name: mobile ? 'Checkout' : 'Continue to checkout', exact: true }).filter({ visible: true }).click();
 
   await expect(page).toHaveURL(/\/checkout(?:[?#]|$)/, { timeout: 20_000 });
-  await expect(page.getByRole('heading', { name: 'Secure Checkout' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Let’s make it official.' })).toBeVisible();
   await expect(page.locator(`img[src="${harness.artifactUrl}"]`).first()).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(`img[src="${harness.originalUrl}"]`)).toHaveCount(0);
 
@@ -235,11 +221,11 @@ test.beforeEach(async ({ page }, testInfo) => {
   });
 });
 
-test('120×48 Fill keeps the baked placement—not the larger original—through real checkout', async ({ page }, testInfo) => {
+test('120×48 artwork keeps its baked placement through direct checkout', async ({ page }, testInfo) => {
   const artwork = await asymmetricArtwork();
   const harness = await installUploadAndFunctionHarness(page, artwork, 'asymmetric');
   await selectLargeBannerAndUpload(page, artwork, 'asymmetric-1080x305.png');
-  await page.getByRole('button', { name: 'Fill', exact: true }).first().click();
+  // The initial uploaded composition is preserved through the direct checkout handoff.
   await completeActualCartToCheckout(page, harness);
 
   expect(harness.artifactBuffer).not.toBeNull();
@@ -258,7 +244,7 @@ test('sparse visible artwork reaches real checkout without the exact-preview err
   const artwork = await sparseArtwork();
   const harness = await installUploadAndFunctionHarness(page, artwork, 'sparse');
   await selectLargeBannerAndUpload(page, artwork, 'sparse-1672x941.png');
-  await page.getByRole('button', { name: 'Fit', exact: true }).first().click();
+  await page.getByRole('button', { name: /Show entire design/ }).first().click();
   await completeActualCartToCheckout(page, harness);
 
   await expect(page.getByText(/Could not prepare your exact preview/i)).toHaveCount(0);

@@ -7,6 +7,7 @@
  */
 import { uploadCanvasImageToCloudinary } from './uploadCanvasImage';
 import { PreviewLifecycleError } from '@/lib/previewLifecycle';
+import type { ArtworkCrop } from '@/types/artwork';
 
 export interface PositionedThumbnailInput {
   imageUrl: string;
@@ -15,7 +16,9 @@ export interface PositionedThumbnailInput {
   imgPosPercent: { x: number; y: number };
   imgScale: number;
   imgScaleY?: number;
+  crop?: ArtworkCrop;
   backgroundColor?: string;
+  mimeType?: 'image/jpeg' | 'image/png';
   maxOutputPx?: number;
   maxOutputPixels?: number;
 }
@@ -151,7 +154,8 @@ export function measureVisibleArtworkFraction(
   } catch (error) {
     throw new PreviewLifecycleError('CANVAS_ALLOCATION_FAILED', 'The verification canvas could not be allocated.', { error: String(error) });
   }
-  const context = audit.getContext('2d', { alpha: false, willReadFrequently: true });
+  const transparent = backgroundColor.trim().toLowerCase() === 'transparent';
+  const context = audit.getContext('2d', { alpha: transparent, willReadFrequently: true });
   if (!context) {
     throw new PreviewLifecycleError('CANVAS_CONTEXT_UNAVAILABLE', 'The verification canvas has no 2D context.');
   }
@@ -174,6 +178,7 @@ export function measureVisibleArtworkFraction(
   let visible = 0;
   const total = pixels.length / 4;
   for (let offset = 0; offset < pixels.length; offset += 4) {
+    if (transparent) { if (pixels[offset + 3] >= 16) visible += 1; continue; }
     const delta = Math.abs(pixels[offset] - backgroundR)
       + Math.abs(pixels[offset + 1] - backgroundG)
       + Math.abs(pixels[offset + 2] - backgroundB);
@@ -182,7 +187,7 @@ export function measureVisibleArtworkFraction(
   return total > 0 ? visible / total : 0;
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+function canvasToBlob(canvas: HTMLCanvasElement, mimeType: string = PREVIEW_MIME_TYPE): Promise<Blob> {
   return new Promise((resolve, reject) => {
     try {
       canvas.toBlob((blob) => {
@@ -194,7 +199,7 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
           return;
         }
         resolve(blob);
-      }, PREVIEW_MIME_TYPE, PREVIEW_QUALITY);
+      }, mimeType, PREVIEW_QUALITY);
     } catch (error) {
       reject(new PreviewLifecycleError(
         'CANVAS_EXPORT_FAILED',
@@ -224,6 +229,7 @@ export async function renderPositionedThumbnailBlob(
     imgPosPercent,
     imgScale,
     imgScaleY,
+    crop,
     backgroundColor = '#ffffff',
   } = input;
   if (!imageUrl) {
@@ -266,7 +272,7 @@ export async function renderPositionedThumbnailBlob(
   }
 
   try {
-    const context = canvas.getContext('2d', { alpha: false });
+    const context = canvas.getContext('2d', { alpha: backgroundColor.trim().toLowerCase() === 'transparent' });
     if (!context) throw new PreviewLifecycleError('CANVAS_CONTEXT_UNAVAILABLE', 'The preview canvas has no 2D context.');
     context.fillStyle = backgroundColor;
     context.fillRect(0, 0, widthPx, heightPx);
@@ -286,6 +292,11 @@ export async function renderPositionedThumbnailBlob(
     context.beginPath();
     context.rect(0, 0, widthPx, heightPx);
     context.clip();
+    if (crop) {
+      context.beginPath();
+      context.rect(drawX + drawWidth * crop.x, drawY + drawHeight * crop.y, drawWidth * crop.width, drawHeight * crop.height);
+      context.clip();
+    }
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = 'high';
     context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
@@ -305,7 +316,7 @@ export async function renderPositionedThumbnailBlob(
         error: error instanceof Error ? error.message : String(error),
       });
     }
-    const blob = await canvasToBlob(canvas);
+    const blob = await canvasToBlob(canvas, input.mimeType);
     return { blob, widthPx, heightPx, visiblePixelFraction };
   } finally {
     canvas.width = 0;

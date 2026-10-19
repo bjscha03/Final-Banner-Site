@@ -49,7 +49,7 @@ const handler = async (event = {}) => {
         JOIN order_items i ON i.order_id = o.id
        WHERE o.status IN ('paid', 'in_production', 'shipped')
          AND o.created_at >= NOW() - INTERVAL '7 days'
-         AND COALESCE(i.production_pdf_status, 'pending') <> 'generated'
+         AND COALESCE(i.production_pdf_status, 'pending') NOT IN ('generated', 'not_required')
        ORDER BY o.id
        LIMIT 25
     `;

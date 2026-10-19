@@ -1,3 +1,5 @@
+import { useDeliveryAddressCheck } from './useDeliveryAddressCheck';
+import { CheckoutAddressInput, applySuggestedAddress, type SuggestedAddress } from './CheckoutAddressInput';
 import { trackCheckoutDiagnostic } from '@/lib/checkoutDiagnostics';
 import {readBofReferral} from '@/lib/bofCash';
 import {authorizedHeaders} from '@/lib/serverAuth';
@@ -10,10 +12,11 @@ import {
   useStripe,
 } from '@stripe/react-stripe-js';
 import { loadStripe, type StripeElementsOptions } from '@stripe/stripe-js';
-import { CircleAlert, Clock3, CreditCard, Loader2, RefreshCw } from 'lucide-react';
+import { CircleAlert, Clock3, CreditCard, Lock, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useAbandonedCartCapture } from '@/hooks/useAbandonedCartCapture';
 import { getStoredAttribution } from '@/lib/attribution';
 import {
@@ -57,9 +60,11 @@ import type {
 import { getStripeExpressShippingRates } from './stripeExpressShipping';
 import { isValidCheckoutPhone, selectWalletCheckoutPhone } from './stripeWalletPhone';
 import { stripeCardPaymentElementOptions } from './stripePaymentElementOptions';
+import { CheckoutCardDivider } from './CheckoutCardDivider';
 
 interface StripeCheckoutProps {
   orderSummary?: React.ReactNode;
+  alternativePayment?: React.ReactNode;
   publishableKey: string;
   total: number;
   onSuccess: (orderId: string, orderData?: any) => void;
@@ -163,10 +168,10 @@ const fetchWithTimeout = async (
   }
 };
 
-const hasSupportedWallet = (event: any): boolean => {
+const countSupportedWallets = (event: any): number => {
   const methods = event?.availablePaymentMethods || event?.paymentMethods || {};
   const available = (value: any) => value === true || value?.available === true;
-  return available(methods.applePay) || available(methods.googlePay);
+  return Number(available(methods.applePay)) + Number(available(methods.googlePay));
 };
 
 const humanizeStripeError = (error: any): string => {
@@ -301,13 +306,16 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   onCanonicalQuote,
   signature,
   orderSummary,
+  alternativePayment,
 }) => {
   const stripe = useStripe();
   const elements = useElements();
+  const isMobile = useIsMobile();
   const { user } = useAuth();
   const { items, discountCode, sameDayHitService, saturdayDelivery } = useCartStore();
   const resumedStripe = resumeCheckout?.provider === 'stripe' ? resumeCheckout : null;
-  const [walletsAvailable, setWalletsAvailable] = useState(false);
+  const [availableWalletCount, setAvailableWalletCount] = useState(0);
+  const walletsAvailable = availableWalletCount > 0;
   const [walletsReady, setWalletsReady] = useState(false);
   useEffect(() => {
     // Card checkout remains available if a wallet provider never reports readiness.
@@ -333,6 +341,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   const [customer, setCustomer] = useState<CustomerFormState>(() => (
     readCheckoutCustomerDraft(user?.email || '')
   ));
+  const addressCheck = useDeliveryAddressCheck(customer, setCustomer);
   const {
     markPaymentStarted,
     getCartId: getAbandonedCartId,
@@ -500,6 +509,15 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       setCheckoutError(message || null);
     }
   }, [persistRecovery]);
+
+  const selectAddress = (address: SuggestedAddress, shipping: boolean) => {
+    setCustomer(current => {
+      const next = applySuggestedAddress(current, address, shipping);
+      writeCheckoutCustomerDraft(next);
+      return next;
+    });
+    setCheckoutError(null);
+  };
 
   const updateCustomer = <K extends keyof CustomerFormState>(
     field: K,
@@ -967,6 +985,8 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
         : 'The server found updated pricing, but this cart could not be updated safely. Refresh checkout before paying.'), {
         code: 'STALE_CART_TOTAL',
         canonicalQuoteApplied: applied,
+        expectedTotalCents: total, serverTotalCents,
+        requestId: response.headers.get('x-nf-request-id') || undefined,
       });
     }
     if (
@@ -1086,7 +1106,11 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           return;
         }
         const message = humanizeStripeError(error);
-        trackCheckoutDiagnostic('provider_error', { provider: 'stripe', method, code: error?.code || error?.details?.providerCode });
+        trackCheckoutDiagnostic('provider_error', { provider: 'stripe', method, code: error?.code || error?.details?.providerCode }, {
+          expectedTotalCents: error?.expectedTotalCents, serverTotalCents: error?.serverTotalCents,
+          canonicalQuoteApplied: error?.canonicalQuoteApplied, requestId: error?.requestId,
+          stage: error?.code === 'STALE_CART_TOTAL' ? 'price_review_before_charge' : 'payment_submission',
+        });
         resetForRetry(message);
         onError(Object.assign(new Error(message), {
           userMessage: message,
@@ -1122,6 +1146,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       });
       return;
     }
+    if (!(await addressCheck.check())) return;
     let submitResult;
     try {
       submitResult = await withStripeStageTimeout(elements.submit());
@@ -1173,7 +1198,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   ];
 
   const currentValidation = checkoutError ? validateCheckoutCustomer(customer) : null;
-  const busy = isProcessing || isPolling || Boolean(verificationMessage);
+  const busy = isProcessing || isPolling || addressCheck.checking || Boolean(verificationMessage);
   const expressCheckoutVisible = walletsAvailable && !verificationMessage;
   const walletPhoneIsInvalid = walletPhoneRequired && !isValidCheckoutPhone(customer.phone);
   const focusWalletPhone = () => {
@@ -1189,19 +1214,21 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   };
 
   return (
-    <div className="relative space-y-5">
+    <div className="checkout-stripe relative space-y-5">
+      {!verificationMessage && <p className="checkout-express-label">Express checkout</p>}
+      <div className={`checkout-express-options ${expressCheckoutVisible ? 'has-wallet' : ''} ${availableWalletCount > 1 ? 'has-multiple-wallets' : ''}`}>
       <section
         aria-labelledby="express-checkout-heading"
         aria-hidden={walletsReady && !expressCheckoutVisible}
-        className={!walletsReady ? "relative min-h-36" : expressCheckoutVisible
+        className={!walletsReady ? "relative min-h-12" : expressCheckoutVisible
           ? 'block animate-in fade-in duration-200'
           : 'pointer-events-none absolute inset-x-0 top-0 invisible -z-10'}
       >
         {!walletsReady && <p role="status" className="absolute inset-x-0 top-0 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Checking available express payment options…</p>}
         <div className={!walletsReady ? 'invisible' : undefined}>
-          <div className="mb-3">
+          <div className="sr-only">
             <h3 id="express-checkout-heading" className="text-base font-bold text-[#0B1F3A]">
-              Fast checkout
+              Express checkout
             </h3>
             <p className="mt-0.5 text-xs text-slate-600">Pay instantly with an available wallet.</p>
           </div>
@@ -1236,12 +1263,11 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                   billingAddressRequired: true,
                   buttonHeight: 48,
                   buttonTheme: { applePay: 'black', googlePay: 'black' },
-                  buttonType: { applePay: 'buy', googlePay: 'buy' },
+                  buttonType: { applePay: 'plain', googlePay: 'plain' },
                   emailRequired: true,
-                  // Stripe requires `overflow: "auto"` when maxRows is non-zero.
-                  // Keep both eligible wallet buttons on one row while allowing
-                  // Stripe to manage constrained widths without failing to mount.
-                  layout: { maxColumns: 2, maxRows: 1, overflow: 'auto' },
+                  // Give each phone wallet its own full-width row. Unlimited rows
+                  // keep eligible wallets visible without a cramped overflow menu.
+                  layout: { maxColumns: isMobile ? 1 : 2, maxRows: 0, overflow: 'never' },
                   paymentMethodOrder: ['apple_pay', 'google_pay'],
                   paymentMethods: {
                     applePay: 'always',
@@ -1257,17 +1283,17 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                 }}
                 onReady={(event: any) => {
                   setWalletsReady(true);
-                  setWalletsAvailable(hasSupportedWallet(event));
-                  if (hasSupportedWallet(event)) trackCheckoutDiagnostic('payment_fields_ready', { provider: 'stripe', method: 'wallet' });
+                  setAvailableWalletCount(countSupportedWallets(event));
+                  if (countSupportedWallets(event)) trackCheckoutDiagnostic('payment_fields_ready', { provider: 'stripe', method: 'wallet' });
                 }}
                 onAvailablePaymentMethodsChange={(event: any) => {
                   setWalletsReady(true);
-                  setWalletsAvailable(hasSupportedWallet(event));
+                  setAvailableWalletCount(countSupportedWallets(event));
                 }}
                 onLoadError={() => {
                   trackCheckoutDiagnostic('payment_fields_load_failed', { provider: 'stripe', method: 'wallet' });
                   setWalletsReady(true);
-                  setWalletsAvailable(false);
+                  setAvailableWalletCount(0);
                 }}
                 onClick={(event: any) => {
                   trackCheckoutDiagnostic('pay_clicked', { provider: 'stripe', method: event.expressPaymentType || 'wallet' });
@@ -1314,7 +1340,8 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                     event.paymentFailed?.({ reason: 'invalid_payment_data', message });
                     return;
                   }
-                  let submitResult;
+                  if (!(await addressCheck.check())) return;
+    let submitResult;
                   try {
                     submitResult = await withStripeStageTimeout(elements.submit());
                   } catch (error) {
@@ -1343,13 +1370,11 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           </div>
         </div>
       </section>
+      {!verificationMessage && alternativePayment}
+      </div>
 
-      {!verificationMessage && walletsAvailable ? (
-        <div className="flex items-center gap-3" aria-hidden="true">
-          <span className="h-px flex-1 bg-slate-200" />
-          <span className="text-xs font-medium text-slate-500">or pay another way</span>
-          <span className="h-px flex-1 bg-slate-200" />
-        </div>
+      {!verificationMessage && (walletsAvailable || alternativePayment) ? (
+        <CheckoutCardDivider />
       ) : null}
 
       {verificationMessage ? (
@@ -1405,21 +1430,28 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
 
       {!verificationMessage ? (
         <section aria-labelledby="card-payment-heading" className="space-y-4">
-          <div className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4 text-[#18448D]" aria-hidden="true" />
-            <h3 id="card-payment-heading" className="text-base font-bold text-[#0B1F3A]">Pay securely by card</h3>
-          </div>
+          <h3 id="card-payment-heading" className="sr-only">Pay securely by card</h3>
 
-          <div ref={customerDetailsRef} className="rounded-lg bg-slate-50/80 p-3 sm:p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#18448D] text-xs font-bold text-white" aria-hidden="true">1</span>
-              <h4 className="text-sm font-bold text-[#0B1F3A]">Contact &amp; address</h4>
+          <div ref={customerDetailsRef} className="checkout-contact">
+            <div className="checkout-section-title">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#071C35] text-xs font-bold text-white" aria-hidden="true">1</span>
+              <h4 className="text-sm font-bold text-[#0B1F3A]">Contact &amp; delivery</h4>
             </div>
-            <p className="mb-3 text-xs text-slate-600">Enter your address once for billing and delivery.</p>
             <div className="grid grid-cols-2 gap-3">
               {customerFields
                 .filter(({ field }) => field !== 'phone' || !walletPhoneRequired)
                 .map(({ field, label, type = 'text', inputMode, autoComplete, wide }) => {
+                if (field === 'street') return (
+                  <div key={field} className="col-span-2 text-sm font-medium text-slate-800">
+                    <label htmlFor="stripe-street">{label}{label.includes('*') ? '' : ' *'}</label>
+                    <CheckoutAddressInput id="stripe-street" name="billing-street" data-stripe-field="street"
+                      className="mt-1 h-11 bg-white text-base sm:text-sm" placeholder="Start typing your street address"
+                      autoComplete="billing address-line1" required value={customer.street}
+                      aria-invalid={currentValidation?.field === 'street' || undefined}
+                      onChange={event => { updateCustomer('street', event.target.value); setCheckoutError(null); }}
+                      onAddressSelected={address => selectAddress(address, false)} />
+                  </div>
+                );
                 const required = field !== 'street2';
                 const isInvalid = currentValidation?.field === field;
                 const fieldInput = (
@@ -1428,6 +1460,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                     <Input
                       id={`stripe-${field}`}
                       name={`billing-${field}`}
+                      placeholder={field === 'email' ? 'you@example.com' : field === 'phone' ? '(555) 555-5555' : field === 'street' ? 'Street address' : label}
                       data-stripe-field={field}
                       className="mt-1 h-11 bg-white text-base sm:text-sm"
                       type={type}
@@ -1440,8 +1473,8 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                       value={String(customer[field])}
                       onChange={(event) => updateCustomer(field, event.target.value as never)}
                     />
-                    {field === 'phone' && <span className="mt-1 block text-xs font-normal text-slate-500">For delivery or artwork questions.</span>}
-                    {field === 'email' && <span className="mt-1 block text-xs font-normal text-slate-500">For your receipt and order updates.</span>}
+                    {field === 'phone' && <span className="sr-only">For delivery or artwork questions.</span>}
+                    {field === 'email' && <span className="sr-only">For your receipt and order updates.</span>}
                   </label>
                 );
                 return field === 'street2' ? (
@@ -1452,21 +1485,32 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                 ) : fieldInput;
               })}
 
-              <p className="col-span-2 text-xs text-slate-500">Delivery within the United States.</p>
+              <div className="col-span-2 checkout-country"><span>Country</span><p>United States</p></div>
 
               <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium text-slate-800 col-span-2">
                 <input
                   type="checkbox"
-                  className="h-5 w-5 flex-none accent-[#18448D]"
+                  className="h-5 w-5 flex-none accent-[#ec5700]"
                   checked={customer.shippingSame}
                   onChange={(event) => updateCustomer('shippingSame', event.target.checked)}
                 />
-                Use this address for delivery
+                Billing address is the same as shipping
               </label>
 
               {!customer.shippingSame ? <>
                 {shippingFields.map(({ field, label, inputMode, autoComplete, wide }) => {
-                const required = field !== 'shippingStreet2';
+                if (field === 'shippingStreet') return (
+                    <div key={field} className="col-span-2 text-sm font-medium text-slate-800">
+                      <label htmlFor="stripe-shippingStreet">{label}{label.includes('*') ? '' : ' *'}</label>
+                      <CheckoutAddressInput id="stripe-shippingStreet" name="shipping-street" data-stripe-field="shippingStreet"
+                        className="mt-1 h-11 bg-white text-base sm:text-sm" placeholder="Start typing the shipping address"
+                        autoComplete="shipping address-line1" required value={customer.shippingStreet}
+                        aria-invalid={currentValidation?.field === 'shippingStreet' || undefined}
+                        onChange={event => { updateCustomer('shippingStreet', event.target.value); setCheckoutError(null); }}
+                        onAddressSelected={address => selectAddress(address, true)} />
+                    </div>
+                  );
+                  const required = field !== 'shippingStreet2';
                 const isInvalid = currentValidation?.field === field;
                 return (
                   <label key={field} htmlFor={`stripe-${field}`} className={`text-sm font-medium text-slate-800 ${wide ? 'col-span-2' : ''}`}>
@@ -1497,10 +1541,12 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
             </div>
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-white p-3 sm:p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#18448D] text-xs font-bold text-white" aria-hidden="true">2</span>
-              <h4 className="text-sm font-bold text-[#0B1F3A]">Card details</h4>
+          {addressCheck.reviewPanel}
+
+          <div className="checkout-card-fields">
+            <div className="checkout-section-title">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#071C35] text-xs font-bold text-white" aria-hidden="true">2</span>
+              <h4 className="text-sm font-bold text-[#0B1F3A]">Payment</h4>
             </div>
             <PaymentElement
               options={stripeCardPaymentElementOptions}
@@ -1517,13 +1563,13 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           <Button
             type="button"
             size="lg"
-            className="h-12 w-full bg-[#FF6A00] text-base font-bold text-white shadow-sm hover:bg-[#E85F00] focus-visible:ring-[#18448D]"
+            className="checkout-pay-button h-12 w-full bg-brand-orange text-base font-bold text-white hover:bg-brand-orange-hover focus-visible:ring-[#18448D]"
             disabled={disabled || busy || !stripe || !elements}
             onClick={() => void submitCard()}
           >
             {isProcessing
               ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Completing secure payment…</>
-              : `Pay $${(total / 100).toFixed(2)}`}
+              : <><Lock className="mr-2 h-4 w-4" aria-hidden="true" />{`Pay $${(total / 100).toFixed(2)}`}</>}
           </Button>
         </section>
       ) : null}
@@ -1550,12 +1596,12 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({ publishableKey, total, 
     appearance: {
       theme: 'stripe',
       variables: {
-        colorPrimary: '#18448D',
+        colorPrimary: '#071C35',
         colorBackground: '#ffffff',
         colorText: '#0B1F3A',
         colorDanger: '#B42318',
         fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
-        borderRadius: '8px',
+        borderRadius: '6px',
         spacingUnit: '4px',
       },
       rules: {

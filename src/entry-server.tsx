@@ -5,19 +5,12 @@ import { StaticRouter } from 'react-router-dom/server';
 import type { HelmetServerState } from 'react-helmet-async';
 import { RoutedApplication } from '@/App';
 import AppProviders from '@/components/AppProviders';
-import { getAllCityProductPaths, getIndexableCityProductPaths } from '@/lib/seo/cityData';
+import { availableSpecialtyProducts as specialtyProducts } from '@/lib/specialtyProducts';
 
-const productHubPaths = ['/vinyl-banners', '/yard-signs', '/car-magnets'] as const;
-
-export const prerenderRoutes = [
-  ...productHubPaths,
-  ...getAllCityProductPaths().map(({ product, citySlug }) => `/${product}/${citySlug}`),
-];
-
-export const indexablePrerenderRoutes = [
-  ...productHubPaths,
-  ...getIndexableCityProductPaths().map(({ product, citySlug }) => `/${product}/${citySlug}`),
-];
+// Retired product/city routes stay retired; only the new specialty catalog is prerendered.
+const specialtyPaths = specialtyProducts.length ? ['/products', ...specialtyProducts.map(product => `/products/${product.slug}`)] : [];
+export const prerenderRoutes: string[] = specialtyPaths;
+export const indexablePrerenderRoutes: string[] = specialtyPaths;
 
 export interface RenderedRoute {
   appHtml: string;

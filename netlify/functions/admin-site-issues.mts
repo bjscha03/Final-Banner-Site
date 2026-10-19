@@ -1,3 +1,4 @@
+import { diagnosticText } from '../../src/lib/siteIssueSchema';
 import type { Context } from '@netlify/functions';
 import { getStore } from '@netlify/blobs';
 import auth from './_shared/server-auth.cjs';
@@ -13,12 +14,14 @@ export default async (request: Request, context: Context) => {
     if (request.method === 'GET') return await listIssues(store, request.headers.get('if-none-match'));
     if (!validOrigin(request)) return reply(403, { ok: false });
     const text = await request.text();
-    if (text.length > 1024) return reply(413, { ok: false });
+    if (text.length > 4096) return reply(413, { ok: false });
     let body; try { body = JSON.parse(text); } catch { return reply(400, { ok: false }); }
-    if (!validIssueKey(body.key) || !['new', 'reviewed'].includes(body.status)) return reply(400, { ok: false });
+    if (!validIssueKey(body.key) || !['new', 'reviewed', 'resolved'].includes(body.status)) return reply(400, { ok: false });
+    const resolution = diagnosticText(body.resolution, 1500).trim();
+    if (body.status === 'resolved' && resolution.length < 20) return reply(400, { ok: false, error: 'Describe the fix and verification before resolving.' });
     const issue = await store.get(body.key, { type: 'json' });
     if (!issue) return reply(404, { ok: false });
-    await store.setJSON(body.key, { ...issue, status: body.status, reviewedAt: body.status === 'reviewed' ? new Date().toISOString() : null });
+    await store.setJSON(body.key, { ...issue, status: body.status, reviewedAt: body.status !== 'new' ? new Date().toISOString() : null, resolvedAt: body.status === 'resolved' ? new Date().toISOString() : null, resolution: resolution || issue.resolution || null });
     return reply(200, { ok: true });
   } catch { return reply(503, { ok: false, error: 'Issue monitoring is temporarily unavailable. Please retry.' }); }
 };

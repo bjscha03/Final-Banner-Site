@@ -11,6 +11,11 @@ on:
       - 'src/components/cart/**'
       - 'src/components/home/**'
       - 'src/components/product/**'
+      - 'src/components/specialty/**'
+      - 'src/pages/Specialty*'
+      - 'src/lib/specialty*'
+      - 'src/store/cart.specialty.test.ts'
+      - 'shared/specialty-*'
       - 'src/components/CartModal.tsx'
       - 'src/components/HeroSection.tsx'
       - 'src/components/Header.tsx'
@@ -126,6 +131,8 @@ jobs:
             netlify/functions/__tests__/stripe-payment-handlers.test.mjs \
             netlify/functions/__tests__/stripe-runtime-config.test.cjs \
             netlify/functions/__tests__/stripe-server-pricing.test.cjs \
+            netlify/functions/__tests__/specialty-products.test.cjs \
+            netlify/functions/__tests__/specialty-production-job.test.cjs \
             netlify/functions/__tests__/paypal-preview-containment.test.mjs \
             netlify/functions/__tests__/paypal-capture-final-handler.test.mjs \
             netlify/functions/__tests__/payment-access-handler.test.mjs \
@@ -157,6 +164,9 @@ jobs:
             netlify/functions/__tests__/recovery-discount-identity.test.cjs \
             netlify/functions/__tests__/security-data-integrity-regressions.test.mjs
 
+      - name: Verify specialty AI geometry and existing AI behavior
+        run: npx vitest run --config vitest.ai.config.ts netlify/functions/__tests__/specialty-ai-layout.test.mjs netlify/functions/__tests__/ai-artwork-fit.test.mjs netlify/functions/__tests__/ai-designer.test.mjs
+
       - name: Run preview source-selection unit tests
         run: |
           npx vitest run --config vitest.ai.config.ts \
@@ -176,6 +186,10 @@ jobs:
             src/lib/sessionArtworkPreviewSource.test.ts \
             src/lib/order-thumbnail.test.ts \
             src/store/cart.previewLifecycle.test.ts \
+            src/store/cart.specialty.test.ts \
+            src/lib/specialtyArtwork.test.ts \
+            src/components/specialty/SpecialtyPreview.test.tsx \
+            src/pages/SpecialtyProductPage.test.tsx \
             src/components/checkout/PayPalCheckoutReliable.identity.test.ts \
             src/components/checkout/StripeCheckout.flow.test.ts \
             src/components/checkout/stripeCheckoutState.test.ts \
@@ -409,7 +423,7 @@ jobs:
             headers=$(mktemp)
             code=$(curl -sS -o /dev/null -D "$headers" -w '%{http_code}' "$PREVIEW_URL$route")
             test "$code" = "301"
-            tr -d '\r' < "$headers" | grep -qi '^location: /custom-banners$'
+            tr -d '\r' < "$headers" | grep -qi '^location: /design?product=banner$'
           done
 
           for endpoint in \
@@ -462,14 +476,26 @@ jobs:
             grep -q 'UNAUTHORIZED' "/tmp/${endpoint}.json"
           done
 
-          for endpoint in ai-designer-status ai-designer-brief ai-designer-generate ai-designer-edit ai-designer-job; do
+          # Status GET requires an existing session. Status POST is the
+          # customer-session bootstrap and rejects requests without an origin.
+          code=$(curl -sS -o /tmp/ai-designer-status.json -w '%{http_code}' \
+            "$PREVIEW_URL/.netlify/functions/ai-designer-status")
+          test "$code" = "401"
+          grep -q 'AI_SESSION_REQUIRED' /tmp/ai-designer-status.json
+          code=$(curl -sS -o /tmp/ai-designer-bootstrap.json -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' --data '{}' \
+            "$PREVIEW_URL/.netlify/functions/ai-designer-status")
+          test "$code" = "403"
+          grep -q 'FORBIDDEN_ORIGIN' /tmp/ai-designer-bootstrap.json
+
+          for endpoint in ai-designer-brief ai-designer-generate ai-designer-edit ai-designer-job; do
             code=$(curl -sS -o "/tmp/${endpoint}.json" -w '%{http_code}' \
               -X POST \
               -H 'Content-Type: application/json' \
               --data '{}' \
               "$PREVIEW_URL/.netlify/functions/${endpoint}")
             test "$code" = "401"
-            grep -q 'UNAUTHORIZED' "/tmp/${endpoint}.json"
+            grep -q 'AI_SESSION_REQUIRED' "/tmp/${endpoint}.json"
           done
 
           # A background function acknowledges immediately with 202. This

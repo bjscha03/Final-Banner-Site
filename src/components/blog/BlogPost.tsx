@@ -12,6 +12,7 @@ import { TableOfContents } from './TableOfContents';
 import { BlogCard } from './BlogCard';
 import type { BlogPost as BlogPostType, BlogListItem } from '@/lib/blog';
 import { gtag, trackFBViewContent } from '@/lib/analytics';
+import { formatBlogDate } from '@/lib/blog/formatBlogDate';
 import { withResponsiveTables } from '@/lib/blog/responsiveTables';
 
 interface BlogPostProps {
@@ -102,11 +103,7 @@ export function BlogPost({ post, relatedPosts }: BlogPostProps) {
           
           <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm sm:text-base text-gray-600 mb-6">
             <time dateTime={frontmatter.publishDate || frontmatter.date}>
-              {new Date(frontmatter.publishDate || frontmatter.date).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
+              {formatBlogDate(frontmatter.publishDate || frontmatter.date)}
             </time>
             {readingTime && <span>• {readingTime}</span>}
             <span>• By {frontmatter.author}</span>

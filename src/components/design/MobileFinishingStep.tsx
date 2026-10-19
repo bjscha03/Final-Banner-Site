@@ -1,8 +1,12 @@
 import type { ReactNode } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
+import MobileBannerReviewStep from './MobileBannerReviewStep';
 
-interface MobileFinishingStepProps {
+export interface MobileFinishingStepProps {
+  reviewLayout?: boolean;
+  finishingSummary?: ReactNode;
+  onReplaceArtwork?: (file: File) => void;
   open: boolean;
   onBack: () => void;
   children: ReactNode;
@@ -22,9 +26,11 @@ interface MobileFinishingStepProps {
 
 /** A full-screen step: the artwork editor stays mounted behind it so its
  * normalized placement and final render remain intact when saving the item. */
-export default function MobileFinishingStep({ open, onBack, children, preview, summary,
+export default function MobileFinishingStep(props: MobileFinishingStepProps) {
+  const { open, onBack, children, preview, summary,
   price, promotionNote, description, ready, busy, editing, cartItemCount,
-  onViewCart, onCheckout, onAddAnother }: MobileFinishingStepProps) {
+  onViewCart, onCheckout, onAddAnother } = props;
+  if (props.reviewLayout) return <MobileBannerReviewStep {...props} />;
   return (
     <Dialog.Root open={open} onOpenChange={(next) => { if (!next && !busy) onBack(); }}>
       <Dialog.Portal>
@@ -64,17 +70,17 @@ export default function MobileFinishingStep({ open, onBack, children, preview, s
               </div>
             </div>
           </div>
-          <footer className="shrink-0 border-t border-slate-200 bg-white px-4 pt-2 shadow-[0_-4px_20px_rgba(15,23,42,0.06)]" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
+          <footer data-testid="finishing-subtotal-bar" className="banner-order-bar shrink-0 px-4 pt-2" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
             <div className="mx-auto max-w-xl">
               <div className="mb-1 flex items-center justify-between gap-3">
-                <div><p className="text-xs text-slate-500">This banner · Before tax</p>{price}</div>
+                <div><p className="text-xs text-[#B8C8DC]">This banner · Before tax</p><div className="[&_span]:!text-white [&_p]:!text-[#B8C8DC]">{price}</div></div>
                 <button type="button" disabled={busy} onClick={onViewCart} className="min-h-11 px-2 text-sm font-semibold underline underline-offset-4 disabled:opacity-50">View cart ({cartItemCount})</button>
               </div>
-              {promotionNote && <p className="mb-1 text-xs font-semibold text-emerald-700">{promotionNote}</p>}
-              <button type="button" onClick={onCheckout} disabled={!ready || busy} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 py-3 text-base font-bold text-white disabled:bg-slate-200 disabled:text-slate-500">
+              {promotionNote && <p className="mb-1 text-xs font-semibold text-[#B8C8DC]">{promotionNote}</p>}
+              <button type="button" onClick={onCheckout} disabled={!ready || busy} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 py-3 text-base font-bold text-white disabled:bg-slate-600 disabled:text-slate-200">
                 {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving your design…</> : ready ? <>Continue to checkout <ArrowRight className="h-4 w-4" /></> : 'Choose a finishing option'}
               </button>
-              <button type="button" onClick={onAddAnother} disabled={!ready || busy} className="mt-1 min-h-11 w-full px-4 text-sm font-semibold text-[#18448D] disabled:text-slate-400">{editing ? 'Save & design another' : 'Add & design another'}</button>
+              <button type="button" onClick={onAddAnother} disabled={!ready || busy} className="mt-1 min-h-11 w-full px-4 text-sm font-semibold text-white disabled:text-slate-400">{editing ? 'Save & design another' : 'Add & design another'}</button>
             </div>
           </footer>
         </Dialog.Content>

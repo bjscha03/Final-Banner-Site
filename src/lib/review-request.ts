@@ -21,6 +21,9 @@ export const getReviewRequestEligibility = (order: Order): { eligible: boolean; 
   }
 
   const customerEmail = getReviewRequestCustomerEmail(order);
+  if (Number(order.partial_refund_cents || 0) > 0) {
+    return { eligible: false, reason: 'Review emails are disabled because a partial refund is recorded for this order.', customerEmail };
+  }
   if (!customerEmail) {
     return { eligible: false, reason: 'No valid customer email is available for this order.', customerEmail: '' };
   }
