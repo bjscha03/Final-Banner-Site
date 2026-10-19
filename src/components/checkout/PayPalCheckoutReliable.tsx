@@ -291,7 +291,7 @@ const isDefinitiveFailure = (payload: any, status: number): boolean => Boolean(
   ),
 );
 
-const trackPaymentClick = (method: 'card' | 'paypal') => {
+const trackPaymentClick = (method: 'card' | 'paypal' | 'venmo') => {
   gtag('event', 'payment_button_click', {
     payment_method: method,
     device_type: typeof window !== 'undefined' && window.innerWidth < 768 ? 'mobile' : 'desktop',
@@ -355,7 +355,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   const activeBindingRef = useRef(Boolean(resumedPayPal));
   const recoveryHydratedKeyRef = useRef<string | null>(null);
   const shippingInfoTrackedRef = useRef(false);
-  const paymentInfoTrackedRef = useRef(new Set<'card' | 'paypal'>());
+  const paymentInfoTrackedRef = useRef(new Set<'card' | 'paypal' | 'venmo'>());
   const paymentSnapshotRef = useRef<ReturnType<typeof markPaymentStarted> | null>(null);
   const analyticsItems = useMemo<AnalyticsItem[]>(() => items.map((item) => {
     const quantity = Math.max(1, Number(item.quantity || 1));
@@ -1069,7 +1069,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     || isCapturing
     || Boolean(verificationMessage);
 
-  const trackValidatedCheckoutDetails = (method: 'card' | 'paypal') => {
+  const trackValidatedCheckoutDetails = (method: 'card' | 'paypal' | 'venmo') => {
     if (!shippingInfoTrackedRef.current) {
       shippingInfoTrackedRef.current = trackShippingInfoEntered({
         items: analyticsItems,
@@ -1088,7 +1088,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     }
   };
 
-  const prepareCustomerForPayment = async (method: 'card' | 'paypal'): Promise<boolean> => {
+  const prepareCustomerForPayment = async (method: 'card' | 'paypal' | 'venmo'): Promise<boolean> => {
     trackCheckoutDiagnostic('pay_clicked', { provider: 'paypal', method });
     const validation = validateCustomer();
     if (validation) {
@@ -1115,22 +1115,22 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     return true;
   };
 
-  const renderPayPalButton = () => (
+  const renderWalletButton = (fundingSource: 'paypal' | 'venmo') => (
     <PayPalButtons
-      key={`paypal-${hash(checkoutSignature)}`}
-      fundingSource="paypal"
-      onInit={() => trackCheckoutDiagnostic('payment_fields_ready', { provider: 'paypal', method: 'paypal' })}
-      style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal', height: 42 }}
+      key={`${fundingSource}-${hash(checkoutSignature)}`}
+      fundingSource={fundingSource}
+      onInit={() => trackCheckoutDiagnostic('payment_fields_ready', { provider: 'paypal', method: fundingSource })}
+      style={{ layout: 'vertical', color: fundingSource === 'venmo' ? 'blue' : 'gold', shape: 'rect', height: 48 }}
       disabled={buttonsDisabled}
       onClick={async (_data, actions) => {
-        trackPaymentClick('paypal');
-        if (!(await prepareCustomerForPayment('paypal'))) return actions.reject();
+        trackPaymentClick(fundingSource);
+        if (!(await prepareCustomerForPayment(fundingSource))) return actions.reject();
         return actions.resolve();
       }}
       createOrder={handleCreateOrder}
       onApprove={handleApprove}
       onError={handleProviderError}
-      onShippingChange={(data: any, actions: any) => {
+      onShippingChange={fundingSource === 'venmo' ? undefined : (data: any, actions: any) => {
         shippingChangeDataRef.current = data?.shipping_address
           || data?.shippingAddress
           || data
@@ -1144,6 +1144,13 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         toast({ title: 'Payment Cancelled', description: 'No payment was completed.' });
       }}
     />
+  );
+
+  const renderPayPalButton = () => (
+    <div className="space-y-2.5">
+      {renderWalletButton('paypal')}
+      {renderWalletButton('venmo')}
+    </div>
   );
 
   const customerFields: Array<{
@@ -1413,6 +1420,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     components: paypalOnly ? 'buttons' : 'buttons,card-fields',
     dataClientToken: paypalConfig.clientToken,
     disableFunding: 'paylater,credit',
+    enableFunding: 'venmo',
   };
 
   return (
@@ -1470,7 +1478,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         <PayPalScriptProvider options={initialOptions}>
           <h3 className="mb-1 text-sm font-bold text-[#0B1F3A]">Choose payment method</h3>
           <p className="mb-3 text-xs text-gray-600">
-            {paypalOnly ? 'Complete your order securely with PayPal.' : 'Pay securely by card or PayPal. No PayPal account required.'}
+            {paypalOnly ? 'Complete your order securely with PayPal or Venmo.' : 'Pay securely by card, PayPal or Venmo.'}
           </p>
           {(!cardFieldsExpanded || paypalOnly) && orderSummary}
           {paypalOnly ? (

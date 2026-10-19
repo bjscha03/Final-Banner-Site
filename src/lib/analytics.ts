@@ -410,7 +410,7 @@ export const trackShippingInfoEntered = (params: {
 };
 
 export const trackPaymentInfoAdded = (params: {
-  paymentType: 'paypal' | 'card' | 'stripe';
+  paymentType: 'paypal' | 'venmo' | 'card' | 'stripe';
   items: AnalyticsItem[];
   value: number;
   coupon?: string | null;
