@@ -165,12 +165,6 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   const initialCompositionRevisionRef = useRef(initialCompositionRevision);
   initialCompositionRevisionRef.current = initialCompositionRevision;
 
-  const [sizeReviewNeeded, setSizeReviewNeeded] = useState(false);
-  const previousShapeRef = useRef(paddingPct);
-  useEffect(() => {
-    if (previousShapeRef.current !== paddingPct && naturalSizeRef.current) setSizeReviewNeeded(true);
-    previousShapeRef.current = paddingPct;
-  }, [paddingPct]);
   const [selected, setSelected] = useState(autoSelect);
   const [naturalSize, setNaturalSize] = useState<Size | null>(null);
   const [canvasSize, setCanvasSize] = useState<Size | null>(null);
@@ -641,12 +635,11 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     return () => document.removeEventListener('click', outside, true);
   }, [selected]);
 
-  const reset = useCallback(() => { beginHistory(); setSizeReviewNeeded(false); setCropMode(false); onConstrainChange(true); commitTransform({ x: 0, y: 0, scaleX: 1, scaleY: 1 }); finishHistory(); }, [commitTransform, onConstrainChange, beginHistory, finishHistory]);
+  const reset = useCallback(() => { beginHistory(); setCropMode(false); onConstrainChange(true); commitTransform({ x: 0, y: 0, scaleX: 1, scaleY: 1 }); finishHistory(); }, [commitTransform, onConstrainChange, beginHistory, finishHistory]);
   const fit = reset;
   const fill = useCallback(() => {
     beginHistory();
     onConstrainChange(true);
-    setSizeReviewNeeded(false);
     if (!naturalSize || !canvasSizeRef.current) {
       commitTransform({ x: 0, y: 0, scaleX: 1.5, scaleY: 1.5 });
       finishHistory();
@@ -666,18 +659,12 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       onClick={(event) => event.stopPropagation()}
       className={`pointer-events-auto w-full max-w-xl rounded-xl border border-slate-200 bg-white shadow-sm ${compactControls ? 'p-3' : 'p-3 sm:p-4'}`}
     >
-      {sizeReviewNeeded && <div role="status" className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-slate-800">
-        <p>Your {productLabel} shape changed. Check for cropped edges or blank margins.</p>
-        <div className="mt-2 flex flex-wrap gap-2"><button type="button" onClick={fit} className="min-h-11 rounded-lg bg-white px-3 font-semibold text-orange-700">Fit entire artwork</button><button type="button" onClick={() => setSizeReviewNeeded(false)} className="min-h-11 rounded-lg px-3 font-medium">Keep current placement</button></div>
-      </div>}
       <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={fit} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600">
-          <span className="inline-flex items-center gap-1.5"><Minimize2 aria-hidden="true" className="h-4 w-4 shrink-0" />Show entire design</span>
-          <span className="text-[11px] font-normal text-slate-500">May leave blank margins</span>
+        <button type="button" onClick={fit} className="flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-full border border-slate-200 px-2 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600">
+          <span className="inline-flex items-center gap-1 whitespace-nowrap"><Minimize2 aria-hidden="true" className="h-4 w-4 shrink-0" />Show full image</span>
         </button>
-        {primaryFitControl || <button type="button" onClick={fill} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600">
-          <span className="inline-flex items-center gap-1.5"><Maximize2 aria-hidden="true" className="h-4 w-4 shrink-0" />Fill {productLabel}</span>
-          <span className="text-[11px] font-normal text-slate-500">Edges may crop</span>
+        {primaryFitControl || <button type="button" onClick={fill} className="flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-full border border-slate-200 px-2 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600">
+          <span className="inline-flex items-center gap-1 whitespace-nowrap"><Maximize2 aria-hidden="true" className="h-4 w-4 shrink-0" />Fill {productLabel}</span>
         </button>}
       </div>
       {fitControls}

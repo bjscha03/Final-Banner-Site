@@ -301,7 +301,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
         toast({
           title: 'PDF processed successfully',
-          description: `Converted to ${pdfResult.actualDPI} DPI bitmap for preview.`
+          description: 'Your artwork is ready to preview.'
         });
 
       } catch (error) {
@@ -1139,7 +1139,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
       toast({
         title: 'Print-ready version generated!',
-        description: `Created high-resolution file at ${result.dimensions?.dpi || 150} DPI for ${widthIn}×${heightIn}" banner`,
+        description: 'Your artwork is ready to preview at your selected size.',
         variant: 'default'
       });
 
@@ -1886,16 +1886,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                 )}
               </div>
               
-              <div className="mt-6 sm:mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl text-left max-w-md mx-auto w-full">
-                <p className="text-sm sm:text-xs text-blue-700 font-medium mb-2 sm:mb-1">File requirements:</p>
-                <p className="text-sm sm:text-xs text-blue-600 leading-relaxed">
-                  High-resolution files (300 DPI) work best. We'll review your artwork and contact you if any adjustments are needed.
-                </p>
-                <p className="text-sm sm:text-xs text-blue-600 leading-relaxed mt-2 flex items-center gap-1">
-                  <span className="inline-block w-4 h-4 text-blue-500">ℹ️</span>
-                  After uploading or generating an image, you can add custom text to your banner.
-                </p>
-              </div>
             </div>
           </div>
         ) : (

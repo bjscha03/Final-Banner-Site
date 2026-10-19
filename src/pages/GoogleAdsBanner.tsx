@@ -3113,9 +3113,9 @@ const GoogleAdsBanner: React.FC = () => {
   };
   const primaryArtworkFitControl = !isYardSign && !isCarMagnet && ENABLE_AI && uploadedFile ? (
     <button type="button" onClick={() => setFitModalOpen(true)} disabled={artworkFitDisabled}
-      className="flex min-h-14 items-center justify-center gap-1.5 rounded-lg bg-orange-600 px-2 py-2 text-xs font-bold leading-snug text-white hover:bg-orange-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600 disabled:cursor-not-allowed disabled:opacity-50">
+      className="flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-full bg-[var(--brand-orange)] px-2 py-2 text-xs font-bold leading-snug text-white hover:bg-[var(--brand-orange-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600 disabled:cursor-not-allowed disabled:opacity-50">
       <Sparkles aria-hidden="true" className="h-4 w-4 shrink-0" />
-      <span>Fit my banner with AI</span>
+      <span className="whitespace-nowrap">Fit with AI</span>
     </button>
   ) : null;
   const artworkFitControls = !isYardSign && ENABLE_AI && uploadedFile ? (isCarMagnet ? (
