@@ -1297,9 +1297,9 @@ const Checkout: React.FC = () => {
   );
 
   const paypalChoice = (
-    <button type="button" className="checkout-paypal-choice bg-[#FFC439]" aria-label="PayPal" aria-pressed={paymentProvider === 'paypal'}
+    <button type="button" className="checkout-paypal-choice bg-[#FFC439]" aria-label="PayPal or Venmo" aria-pressed={paymentProvider === 'paypal'}
       disabled={checkoutLocked} onClick={() => { if (!checkoutLocked) setPaymentProvider('paypal'); }}>
-      <span aria-hidden="true"><span className="text-[#003087]">Pay</span><span className="text-[#0070BA]">Pal</span></span>
+      <span aria-hidden="true"><span className="text-[#003087]">Pay</span><span className="text-[#0070BA]">Pal</span><span className="mx-2 text-[#003087]">/</span><span className="text-[#008CFF]">Venmo</span></span>
     </button>
   );
 
