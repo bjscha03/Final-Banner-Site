@@ -7,7 +7,6 @@ import {
   PackageCheck,
   Truck,
   Check,
-  CheckCircle2,
   ChevronDown,
   Clock3,
   ImagePlus,
@@ -27,7 +26,6 @@ import { trackAIEvent } from '@/lib/aiAnalytics';
 import { useAuth } from '@/lib/auth';
 import { loadDraft, saveDraft } from './draftStore';
 import { collectVersions } from './versions';
-import { getPrintReview } from './printReview';
 import {aiProductContext,sameAIProduct} from './productContext';
 import SpecialtyPreview, {SpecialtyTemplateGuide} from '@/components/specialty/SpecialtyPreview';
 import { fetchAIRequest } from './jobRequest';
@@ -213,7 +211,6 @@ function AIWorkspaceSession(props: Props) {
   const [activeImageJob, setActiveImageJob] = useState(false);
   const [improvingPrompt, setImprovingPrompt] = useState(false);
   const [confirmNewDesign, setConfirmNewDesign] = useState(false);
-  const [confirmValidationOverride, setConfirmValidationOverride] = useState(false);
   const [progressPreview, setProgressPreview] = useState<string | null>(null);
   const [pendingImageJob, setPendingImageJob] = useState<PendingImageJob | null>(null);
   const [error, setError] = useState('');
@@ -229,7 +226,6 @@ function AIWorkspaceSession(props: Props) {
     || concepts.find((concept) => concept.id === selectedId)
     || concepts[0]
     || null;
-  const printReview = getPrintReview(selected?.validation);
   const ratio = (Number(brief.widthIn) || 1) / (Number(brief.heightIn) || 1);
   const requirementsMet = brief.widthIn > 0 && brief.heightIn > 0 && Boolean(brief.material) && Boolean(brief.description.trim());
   const draftKey = `${user?.is_admin && user.id ? `admin:${user.id}` : `customer:${access.sessionKey || 'pending'}`}:${props.productType}:${props.widthIn}:${props.heightIn}`;
@@ -440,7 +436,7 @@ function AIWorkspaceSession(props: Props) {
       setRevealResult(value => value + 1);
       setSaveNotice('Your updated design is selected. Keep editing, choose an earlier version, or use this design.');
       trackAIEvent('ai_edit_succeeded', { validation_passed: edited.validation.passed, version_id: edited.versionId, version_number: concepts.length + 1 });
-      if (getPrintReview(body.concept.validation).requiresConfirmation) trackAIEvent('ai_validation_failed', { count: 1 });
+      if (!body.concept.validation.passed) trackAIEvent('ai_validation_failed', { count: 1 });
     } else {
       const nextConcepts = Array.isArray(body.concepts) ? body.concepts.map((concept: AIConcept) => ({ ...concept, ...context })) : [];
       if (!nextConcepts.length) throw new Error('No artwork was returned.');
@@ -453,7 +449,7 @@ function AIWorkspaceSession(props: Props) {
       setSaveNotice('Your new design is selected. Use it below or choose another version.');
       setHistory([]);
       setRedo([]);
-      const failed = nextConcepts.filter((concept: AIConcept) => getPrintReview(concept.validation).requiresConfirmation).length;
+      const failed = nextConcepts.filter((concept: AIConcept) => !concept.validation.passed).length;
       trackAIEvent('ai_generation_succeeded', { concept_count: nextConcepts.length, validation_failures: failed });
       if (failed) trackAIEvent('ai_validation_failed', { count: failed });
     }
@@ -584,7 +580,6 @@ function AIWorkspaceSession(props: Props) {
     setSelectedId(version.versionId);
     setEditInstruction('');
     setError('');
-    setConfirmValidationOverride(false);
     trackAIEvent('ai_concept_selected', { version_id: version.versionId, version_number: concepts.indexOf(version) + 1 });
   };
 
@@ -605,7 +600,6 @@ function AIWorkspaceSession(props: Props) {
   };
 
   const startNewDesign = async () => {
-    setConfirmValidationOverride(false);
     if (stage || controllerRef.current) return;
     const fresh = makeBrief(props);
     const emptyDraft = { brief: fresh, concepts: [], selectedId: '', history: [], redo: [], logoImage: null, referenceImage: null, photoImages: [] };
@@ -622,12 +616,11 @@ function AIWorkspaceSession(props: Props) {
     catch { setSaveNotice('The new draft could not be saved. Keep this window open.'); }
   };
 
-  const apply = async (validationOverride = false) => {
-    if (!selected || (getPrintReview(selected.validation).requiresConfirmation && !validationOverride) || hasUnappliedChanges || stage || controllerRef.current) return;
+  const apply = async () => {
+    if (!selected || hasUnappliedChanges || stage || controllerRef.current) return;
     if (!sameAIProduct(brief,props)||!sameAIProduct(selected.brief||{...selected,productType:brief.productType},props)) {
       setError('This artwork belongs to a different product or size. Create a design for the current selection.'); return;
     }
-    setConfirmValidationOverride(false);
     setError('');
     setStage('Preparing your artwork for the product designer');
     const session: AIDesignSession = {
@@ -639,7 +632,7 @@ function AIWorkspaceSession(props: Props) {
       versionHistory: concepts,
       photoImages,
     };
-    trackAIEvent('ai_design_approved', { concept_id: selected.id, version_id: selected.versionId, validation_override: validationOverride, version_number: concepts.indexOf(selected) + 1 });
+    trackAIEvent('ai_design_approved', { concept_id: selected.id, version_id: selected.versionId, validation_override: !selected.validation.passed, version_number: concepts.indexOf(selected) + 1 });
     try {
     let imageBase64 = selected.imageBase64;
     if (selected.artworkRef) {
@@ -860,14 +853,6 @@ function AIWorkspaceSession(props: Props) {
             </div>
             <div className="mt-2 flex flex-wrap gap-2">{['Make the background lighter', 'Use the colors from my logo', ...(logoImage ? ['Move the logo to the upper-left'] : []), 'Remove the people', 'Make it more professional', 'Keep everything else exactly the same'].map((value) => <button key={value} type="button" disabled={Boolean(stage)} onClick={() => setEditInstruction(value)} className="min-h-11 rounded-full border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700 hover:border-orange-400">{value}</button>)}</div>
 
-            {printReview.messages.length > 0 && <div className={`mt-4 rounded-xl border p-4 ${printReview.requiresConfirmation ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-slate-50'}`} data-testid="ai-print-review">
-              <h5 className="text-sm font-bold text-[#0b1f3a]">{printReview.requiresConfirmation ? 'Review your design' : 'Review your preview'}</h5>
-              <ul className="mt-2 space-y-2 text-sm text-slate-700">{printReview.messages.map(message => <li key={message}>{message}</li>)}</ul>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button type="button" onClick={() => setFullPreview(true)} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">View full design</button>
-              </div>
-            </div>}
-
             {concepts.length > 1 && <div className="mt-4" aria-label="Saved design versions">
               <h5 className="text-sm font-bold text-[#0b1f3a]">Your designs</h5>
               <p className="mt-1 text-sm text-slate-600">Every finished edit is saved here. Select any version to keep editing or continue.</p>
@@ -894,13 +879,6 @@ function AIWorkspaceSession(props: Props) {
             {hasUnappliedChanges && !stage && <button type="button" onClick={() => { if (selected.brief) setBrief(selected.brief); setLogoImage(selected.logoImage || null); setPhotoImages(selected.photoImages || []); setReferenceImage(selected.referenceImage || null); }} className="mt-2 min-h-11 text-xs text-slate-500 underline underline-offset-4">Discard unapplied changes</button>}
 
 
-            {user?.is_admin && <details className="mt-5 border-t border-slate-200 pt-3"><summary className="cursor-pointer py-2 text-sm text-slate-500">Print check diagnostics</summary><div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className={`rounded-xl border p-4 ${selected.validation.passed ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}><div className="flex items-center gap-2 font-black text-[#0b1f3a]">{selected.validation.passed ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <AlertCircle className="h-5 w-5 text-amber-700" />} Print-readiness validation</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Dimensions: {selected.validation.checks.dimensions.passed ? 'Exact' : 'Failed'}</li><li>Full edge coverage: {selected.validation.checks.edgeCoverage.passed ? 'Passed' : 'Failed'}</li><li>Flat artwork / no hardware: {!selected.validation.vision.available ? 'Not checked' : selected.validation.checks.flatArtwork.passed ? 'Passed' : 'Needs review'}</li><li>Wording check: {!selected.validation.vision.available ? 'Not checked' : selected.validation.checks.exactText.passed ? 'Passed' : 'Needs review'}</li><li>Text spacing: {printReview.unavailable ? 'Not checked' : printReview.spacing ? 'Review spacing' : 'Passed'}</li><li>Output canvas resolution: {selected.validation.checks.resolution.effectivePpi} PPI ({selected.validation.checks.resolution.passed ? 'passed' : 'failed'})</li></ul>{selected.validation.reasons.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-900">{selected.validation.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>}</div>
-              {user?.is_admin && (<div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex items-center gap-2 font-black text-[#0b1f3a]"><Clock3 className="h-5 w-5 text-slate-500" /> Version and output</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Output: {selected.diagnostics.outputDimensions}px</li><li>Ratio method: {selected.diagnostics.ratioStrategy.replace(/-/g, ' ')}</li><li>Model: {selected.diagnostics.modelSnapshot || selected.diagnostics.model}</li><li>Artwork processing: {formatDuration(selected.diagnostics.durationMs)}</li>{selected.diagnostics.clientDurationMs != null && <li>Total wait: {formatDuration(selected.diagnostics.clientDurationMs)}</li>}<li>Estimated image API cost: {selected.diagnostics.estimatedCostUsd == null ? 'Unavailable' : `$${selected.diagnostics.estimatedCostUsd.toFixed(4)}`}</li><li>Auto-repaired: {selected.diagnostics.repaired ? 'Yes' : 'No'}</li></ul></div>)}
-            </div>
-
-            </details>}
-
               {user?.is_admin && (<details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-bold text-[#0b1f3a]">Admin diagnostics <ChevronDown className="h-4 w-4" /></summary><dl className="grid grid-cols-1 gap-x-4 gap-y-2 pt-3 text-xs text-slate-600 sm:grid-cols-2"><div><dt className="font-bold">Generation ID</dt><dd className="break-all">{selected.generationId || generationId}</dd></div><div><dt className="font-bold">Version ID</dt><dd className="break-all">{selected.versionId}</dd></div><div><dt className="font-bold">Provider request ID</dt><dd className="break-all">{selected.diagnostics.providerRequestId || 'Not returned'}</dd></div><div><dt className="font-bold">Validation model</dt><dd>{selected.validation.vision.model}</dd></div>{selected.diagnostics.stageTimings?.map((timing, index) => <div key={index}><dt className="font-bold">{timing.stage}</dt><dd>{formatDuration(timing.durationMs)}</dd></div>)}</dl></details>)}
 
             </div>
@@ -911,19 +889,8 @@ function AIWorkspaceSession(props: Props) {
 
       {selected && <div className="ai-studio-footer sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white p-4 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] sm:px-6" data-testid="ai-selection-footer">
         <div className="flex min-w-0 items-center gap-3"><img src={imageSrc(selected)} alt="Selected version to continue with" className="h-12 w-24 rounded border border-slate-200 object-contain" /><div><p className="text-sm font-bold text-[#0b1f3a]">Version {concepts.findIndex(item => item.versionId === selected.versionId) + 1} selected</p><p className="text-xs text-slate-600">{hasUnappliedChanges ? 'Apply or discard your changes first.' : 'Your selected artwork goes with you.'}</p></div></div>
-        <button type="button" onClick={() => printReview.requiresConfirmation ? setConfirmValidationOverride(true) : void apply()} disabled={hasUnappliedChanges || Boolean(stage)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-black text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"><ArrowRight className="h-5 w-5" /> {stage ? 'Please wait…' : hasUnappliedChanges ? 'Apply your changes before continuing' : printReview.requiresConfirmation ? 'Review design & continue' : 'Use this design'}</button>
+        <button type="button" onClick={() => void apply()} disabled={hasUnappliedChanges || Boolean(stage)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-black text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"><ArrowRight className="h-5 w-5" /> {stage ? 'Please wait…' : hasUnappliedChanges ? 'Apply your changes before continuing' : 'Approve design & continue'}</button>
       </div>}
-
-      <Dialog open={confirmValidationOverride} onOpenChange={setConfirmValidationOverride}>
-        <DialogContent className="z-[10020] max-h-[90dvh] max-w-lg overflow-y-auto bg-white">
-          <DialogTitle>Review your design before continuing</DialogTitle>
-          <DialogDescription>Check these details in your artwork. You can return to the editor to make changes.</DialogDescription>
-          <ul className="space-y-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{printReview.messages.map(message => <li key={message}>{message}</li>)}</ul>
-          {selected && <img src={imageSrc(selected)} alt="Design to review before continuing" className="max-h-[30dvh] w-full object-contain" />}
-          <p className="text-sm text-slate-700">Check the full preview for readable wording, complete edge-to-edge artwork, and nothing important cut off. If it looks right, you can continue.</p>
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setConfirmValidationOverride(false)} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold">Go back</button><button type="button" onClick={() => void apply(true)} className="min-h-11 rounded-lg bg-orange-600 px-4 text-sm font-black text-white hover:bg-orange-700">Approve design & continue</button></div>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={fullPreview && Boolean(selected)} onOpenChange={setFullPreview}>
         <DialogContent className="z-[10020] w-[96vw] max-w-[96vw] border-0 bg-slate-950 p-4 pt-12 text-white [&>button]:text-white">

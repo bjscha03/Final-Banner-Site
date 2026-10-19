@@ -20,10 +20,16 @@ it('saves a customer-reviewed layout even though cosmetic checks raised warnings
 });
 it.each([
   { canApply: false }, { missing: ['5'] }, { added: ['15'] }, { blockingIssues: ['Logo missing'] },
-])('rejects a blocked result before an upload: %j', async changed => {
+])('allows customer-approved images regardless of internal diagnostics: %j', async changed => {
   const result = { ...reviewable, verification: { ...reviewable.verification, ...changed } };
+  expect(canApplyArtworkFit(result)).toBe(true);
+  await saveFittedArtwork(result);
+  expect(uploadArtworkFile).toHaveBeenCalledOnce();
+});
+it.each([{ imageBase64: '' }, { mimeType: 'text/html' }, { widthIn: 0 }])('rejects missing or invalid image data before upload: %j', async changed => {
+  const result = { ...reviewable, ...changed };
   expect(canApplyArtworkFit(result)).toBe(false);
-  await expect(saveFittedArtwork(result)).rejects.toThrow('another attempt');
+  await expect(saveFittedArtwork(result)).rejects.toThrow('No fitted image');
   expect(uploadArtworkFile).not.toHaveBeenCalled();
 });
 it('preserves compatibility with an earlier fully passed result', () => {
