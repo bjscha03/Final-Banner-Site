@@ -1151,7 +1151,6 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   const renderPayPalButton = () => (
     <div className="checkout-paypal-wallets">
       <div>{renderWalletButton(preferredFunding)}</div>
-      <div>{renderWalletButton(preferredFunding === 'venmo' ? 'paypal' : 'venmo')}</div>
     </div>
   );
 
@@ -1476,7 +1475,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
 
       {!verificationMessage ? (
         <PayPalScriptProvider options={initialOptions}>
-          <p className="checkout-express-label">Express checkout</p>
+          <p className="checkout-express-label">Pay with {preferredFunding === 'venmo' ? 'Venmo' : 'PayPal'}</p>
           {renderPayPalButton()}
           {renderCustomerDetails()}
           {orderSummary}
