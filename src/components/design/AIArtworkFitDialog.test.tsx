@@ -82,12 +82,15 @@ it('keeps the original if saving fails and retries approval without technical er
   expect(props.onApply).toHaveBeenCalledOnce();
 });
 
-it('does not open a setup dialog or submit twice while work is running', async () => {
+it('shows centered progress without a setup step or duplicate requests', async () => {
   let resolve!: (value: any) => void;
   vi.mocked(runBackgroundJob).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
   await render(); await render();
-  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(document.querySelector('[role="dialog"]')).not.toBeNull();
   expect(document.body.textContent).toContain('Fitting your design');
+  expect(document.body.textContent).toContain('This can take a few minutes. Please keep this window open.');
+  expect(button('Create fitted version')).toBeUndefined();
+  expect(button('Approve design')).toBeUndefined();
   props = { ...props, open: false }; await render(); props = { ...props, open: true }; await render();
   expect(runBackgroundJob).toHaveBeenCalledOnce();
   await act(async () => resolve({ fit: success }));
@@ -145,4 +148,29 @@ it.each(['yard_sign', 'car_magnet'] as const)('automatically fits %s and saves i
   vi.mocked(runBackgroundJob).mockResolvedValue({ fit: { ...success, productType, widthIn: 24, heightIn: 18 } });
   await render(); await click('Approve design');
   expect(props.onApply).toHaveBeenCalledExactlyOnceWith(fitted, `original-1|24|18|${productType}`);
+});
+
+it('updates actual progress and rotates patience messages until the preview is ready', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+  try {
+    let updateStage!: (message: string) => void;
+    let resolve!: (value: any) => void;
+    vi.mocked(runBackgroundJob).mockImplementationOnce((_path, _payload, _signal, _waiting, onStage) => {
+      updateStage = onStage;
+      return new Promise(done => { resolve = done; });
+    });
+    await render();
+    await act(async () => updateStage('Rearranging your design for the selected size'));
+    expect(document.querySelector('[role="status"]')?.textContent).toContain('Rearranging your design');
+    await act(async () => vi.advanceTimersByTime(15000));
+    expect(document.body.textContent).toContain('You’ll be able to review and approve the finished preview.');
+    await act(async () => vi.advanceTimersByTime(15000));
+    expect(document.body.textContent).toContain('Thanks for your patience');
+    await act(async () => updateStage('Checking the complete fitted design again'));
+    expect(document.querySelector('[role="status"]')?.textContent).toContain('Checking the complete fitted design again');
+    expect(runBackgroundJob).toHaveBeenCalledOnce();
+    await act(async () => resolve({ fit: success }));
+    expect(button('Approve design')).toBeTruthy();
+    expect(document.body.textContent).not.toContain('This can take a few minutes');
+  } finally { vi.useRealTimers(); }
 });

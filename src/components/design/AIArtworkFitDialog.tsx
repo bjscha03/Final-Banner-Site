@@ -38,6 +38,8 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
   const [busy, setBusy] = useState(false);
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState('');
+  const [stage, setStage] = useState('Preparing your artwork…');
+  const [waitMessageIndex, setWaitMessageIndex] = useState(0);
   const preparedIdentity = useRef('');
   const autoStartedIdentity = useRef('');
   const [attempt, setAttempt] = useState(0);
@@ -52,7 +54,7 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
 
   useEffect(() => {
     controller.current?.abort(); inFlight.current = false; savedResult.current = null;
-    setSource(''); setResult(null); setReady(false); setBusy(false); setApplying(false); setAttempt(0); setError(''); setZoom(false);
+    setSource(''); setResult(null); setReady(false); setBusy(false); setApplying(false); setAttempt(0); setError(''); setZoom(false); setStage('Preparing your artwork…');
     setRetryPending(false); setRetryAt(0); setRetrySeconds(0);
     preparedIdentity.current = ''; autoStartedIdentity.current = '';
   }, [identity]);
@@ -103,7 +105,9 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
       logUx('ai_fit_start', { widthIn, heightIn });
       const response = await runBackgroundJob('/.netlify/functions/ai-designer-fit', {
         sourceImage: source, widthIn, heightIn, productType, attempt: nextAttempt,
-      }, activeController.signal, 'Fitting your design', () => {}, undefined, undefined, requestIdentity);
+      }, activeController.signal, 'Creating your fitted layout…', message => {
+        if (!activeController.signal.aborted && requestIdentity === identityRef.current) setStage(message);
+      }, undefined, undefined, requestIdentity);
       if (activeController.signal.aborted || requestIdentity !== identityRef.current) return;
       if (Math.abs(response.fit?.widthIn-widthIn)>.001 || Math.abs(response.fit?.heightIn-heightIn)>.001
         || (productType.startsWith('specialty:')&&response.fit?.productType!==productType)) {
@@ -152,15 +156,30 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
   const proposed = result ? `data:${result.mimeType};base64,${result.imageBase64}` : '';
   const canApply = canApplyArtworkFit(result);
   const working = loading || busy || (!result && !error);
+  useEffect(() => {
+    setWaitMessageIndex(0);
+    if (!open || !working) return;
+    const timer = window.setInterval(() => setWaitMessageIndex(value => (value + 1) % 3), 15000);
+    return () => window.clearInterval(timer);
+  }, [open, working, identity]);
+  const waitMessage = [
+    'Your original artwork stays safe while we work.',
+    'You’ll be able to review and approve the finished preview.',
+    'Thanks for your patience — some designs take a little longer.',
+  ][waitMessageIndex];
   return <>
-    {open && working && <div role="status" aria-live="polite" className="fixed bottom-5 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-3 whitespace-nowrap rounded-xl bg-white px-5 py-4 text-sm font-semibold text-slate-800 shadow-lg ring-1 ring-slate-200"><Loader2 className="h-5 w-5 animate-spin text-orange-600" aria-hidden="true" />Fitting your design…</div>}
-    <Dialog open={open && !working && (canApply || Boolean(error))} onOpenChange={value => { if (!applying) onOpenChange(value); }}>
-      <DialogContent className="max-h-[94dvh] w-[calc(100%_-_1rem)] overflow-y-auto p-4 sm:max-w-3xl sm:p-6" onInteractOutside={event => { if (applying) event.preventDefault(); }}>
-        <DialogHeader>
-          <DialogTitle className="pr-7 text-xl font-bold text-slate-900">{canApply ? 'Approve your fitted design' : 'Fit your design'}</DialogTitle>
-          <DialogDescription className="sr-only">Review the fitted preview at {widthIn} by {heightIn} inches and approve your design.</DialogDescription>
+    <Dialog open={open && (working || canApply || Boolean(error))} onOpenChange={value => { if (!applying) onOpenChange(value); }}>
+      <DialogContent className={`max-h-[94dvh] w-[calc(100%_-_1rem)] overflow-y-auto rounded-2xl p-5 sm:p-7 ${working ? 'sm:max-w-md' : 'sm:max-w-3xl'}`} onInteractOutside={event => { if (working || applying) event.preventDefault(); }}>
+        <DialogHeader className={working ? 'items-center text-center sm:text-center' : undefined}>
+          {working && <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-orange-50"><Loader2 className="h-8 w-8 animate-spin text-orange-600" aria-hidden="true" /></div>}
+          <DialogTitle className={`text-xl font-bold text-slate-900 ${working ? '' : 'pr-7'}`}>{working ? 'Fitting your design…' : canApply ? 'Approve your fitted design' : 'Fit your design'}</DialogTitle>
+          <DialogDescription className={working ? 'pt-2 text-base leading-relaxed text-slate-600' : 'sr-only'}>{working ? 'This can take a few minutes. Please keep this window open.' : `Review the fitted preview at ${widthIn} by ${heightIn} inches and approve your design.`}</DialogDescription>
         </DialogHeader>
-        {canApply && <div className="flex items-center justify-center rounded-xl bg-slate-100 p-3">
+        {working && <div role="status" aria-live="polite" aria-atomic="true" className="rounded-xl bg-slate-50 px-4 py-5 text-center">
+          <p className="text-base font-semibold text-slate-900">{loading ? 'Preparing your artwork…' : stage}</p>
+          <p className="mt-3 min-h-10 text-sm leading-relaxed text-slate-600">{waitMessage}</p>
+        </div>}
+        {!working && canApply && <div className="flex items-center justify-center rounded-xl bg-slate-100 p-3">
           <div className="relative w-full overflow-hidden bg-white shadow-sm" style={{ aspectRatio: `${widthIn} / ${heightIn}`, maxHeight: '65dvh', maxWidth: `calc(65dvh * ${widthIn / heightIn})` }}>
             <button type="button" onClick={() => setZoom(true)} aria-label="Enlarge fitted design" className="block h-full w-full"><img src={proposed} alt="Your fitted design" className="h-full w-full object-contain" /></button>
             {productContext.template && <SpecialtyTemplateGuide template={productContext.template} />}
@@ -168,11 +187,11 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
         </div>}
         {/* Technical details stay in diagnostics. A failed save never pretends
             that approval succeeded or replaces the customer's original. */}
-        {error && <p role="status" className="text-sm text-slate-600">{canApply ? 'Your preview is ready. Tap Approve design to finish.' : 'Your original design is saved. Tap Try again to continue.'}</p>}
-        <div className="flex flex-wrap justify-end gap-2">
+        {!working && error && <p role="status" className="text-sm text-slate-600">{canApply ? 'Your preview is ready. Tap Approve design to finish.' : 'Your original design is saved. Tap Try again to continue.'}</p>}
+        {!working && <div className="flex flex-wrap justify-end gap-2">
           {canApply ? <button type="button" disabled={applying} onClick={() => void apply()} className="min-h-11 rounded-lg bg-orange-600 px-6 py-3 text-sm font-bold text-white hover:bg-orange-700 disabled:opacity-50">{applying ? 'Saving your design…' : 'Approve design'}</button>
             : <button type="button" disabled={loading || retrySeconds > 0} onClick={() => { if (!ready) setReadinessAttempt(value => value + 1); else void generate(!retryPending); }} className="min-h-11 rounded-lg bg-orange-600 px-6 py-3 text-sm font-bold text-white disabled:opacity-50">{retrySeconds > 0 ? 'Please wait…' : 'Try again'}</button>}
-        </div>
+        </div>}
         <Dialog open={zoom} onOpenChange={setZoom}><DialogContent className="max-h-[94dvh] w-[98vw] max-w-7xl overflow-auto p-3"><DialogTitle>Your fitted design</DialogTitle><DialogDescription className="sr-only">Enlarged preview of your fitted design.</DialogDescription><img src={proposed} alt="Full fitted artwork for detailed review" className="h-auto w-full" /></DialogContent></Dialog>
       </DialogContent>
     </Dialog>
