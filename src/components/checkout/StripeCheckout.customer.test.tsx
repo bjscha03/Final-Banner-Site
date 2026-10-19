@@ -9,15 +9,17 @@ import { trackCheckoutDiagnostic } from '@/lib/checkoutDiagnostics';
 
 const mocks = vi.hoisted(() => ({
   stripe: { createConfirmationToken: vi.fn() },
+  elementsOptions: vi.fn(),
+  paymentOptions: vi.fn(),
   elements: { submit: vi.fn() },
   capture: vi.fn(),
   paypalProvider: vi.fn(() => null),
   cart: { items: [], discountCode: null, sameDayHitService: false, saturdayDelivery: false },
 }));
 vi.mock('@stripe/react-stripe-js', () => ({
-  Elements: ({ children }: any) => children,
+  Elements: ({ children, options }: any) => { mocks.elementsOptions(options); return children; },
   ExpressCheckoutElement: () => null,
-  PaymentElement: () => <div>Secure card fields</div>,
+  PaymentElement: ({ options }: any) => { mocks.paymentOptions(options); return <div>Secure card fields</div>; },
   useStripe: () => mocks.stripe,
   useElements: () => mocks.elements,
 }));
@@ -65,6 +67,18 @@ afterEach(async () => {
 });
 
 describe('checkout contact form', () => {
+  it('selects Cash App through Stripe and retains entered contact details when switching methods', async () => {
+    await enter('email', 'cashapp-test@example.com');
+    await act(async () => root.render(<StripeCheckout publishableKey="pk_test_mock" total={3392} paymentMethod="cashapp" onSuccess={vi.fn()} onError={vi.fn()} />));
+    expect(mocks.elementsOptions).toHaveBeenLastCalledWith(expect.objectContaining({ allowedPaymentMethodTypes: ['cashapp'] }));
+    expect(mocks.paymentOptions).toHaveBeenLastCalledWith(expect.objectContaining({ paymentMethodOrder: ['cashapp'] }));
+    expect(host.querySelector<HTMLInputElement>('#stripe-email')?.value).toBe('cashapp-test@example.com');
+    const button = Array.from(host.querySelectorAll('button')).find(b => b.textContent?.includes('Continue with Cash App'))!;
+    await act(async () => button.click());
+    expect(mocks.stripe.createConfirmationToken).not.toHaveBeenCalled();
+    expect(host.textContent).toContain('Enter your first name');
+  });
+
   it('makes the real contact form reviewable in preview without mounting a payment provider', async () => {
     const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
     await act(async () => root.render(<PayPalCheckoutReliable total={3392} onSuccess={vi.fn()} onError={vi.fn()} />));

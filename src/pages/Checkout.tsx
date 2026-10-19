@@ -120,6 +120,8 @@ const Checkout: React.FC = () => {
     serverTotalCents: number;
     applyFailed: boolean;
   } | null>(null);
+  const [stripePaymentMethod, setStripePaymentMethod] = useState<'card' | 'cashapp'>('card');
+  const [paypalFunding, setPaypalFunding] = useState<'paypal' | 'venmo'>('paypal');
   const [paymentProvider, setPaymentProvider] = useState<'stripe' | 'paypal'>(
     initialActiveCheckout?.provider || 'stripe',
   );
@@ -1297,10 +1299,22 @@ const Checkout: React.FC = () => {
   );
 
   const paypalChoice = (
-    <button type="button" className="checkout-paypal-choice bg-[#FFC439]" aria-label="PayPal or Venmo" aria-pressed={paymentProvider === 'paypal'}
-      disabled={checkoutLocked} onClick={() => { if (!checkoutLocked) setPaymentProvider('paypal'); }}>
-      <span aria-hidden="true"><span className="text-[#003087]">Pay</span><span className="text-[#0070BA]">Pal</span><span className="mx-2 text-[#003087]">/</span><span className="text-[#008CFF]">Venmo</span></span>
-    </button>
+    <>
+      <button type="button" className="checkout-wallet-choice checkout-paypal-choice" aria-label="PayPal"
+        disabled={checkoutLocked} onClick={() => { if (!checkoutLocked) { setPaypalFunding('paypal'); setPaymentProvider('paypal'); } }}>
+        <span aria-hidden="true"><span className="text-[#003087]">Pay</span><span className="text-[#0070BA]">Pal</span></span>
+      </button>
+      <button type="button" className="checkout-wallet-choice checkout-venmo-choice" aria-label="Venmo"
+        disabled={checkoutLocked} onClick={() => { if (!checkoutLocked) { setPaypalFunding('venmo'); setPaymentProvider('paypal'); } }}>
+        <span aria-hidden="true">venmo</span>
+      </button>
+      <button type="button" className="checkout-wallet-choice checkout-cashapp-choice" aria-label="Cash App Pay" aria-pressed={stripePaymentMethod === 'cashapp'}
+        disabled={checkoutLocked} onClick={() => { if (!checkoutLocked) { setStripePaymentMethod('cashapp'); setPaymentProvider('stripe'); } }}>
+        <span className="checkout-cashapp-icon" aria-hidden="true">$</span><span>Cash App</span>
+      </button>
+      {stripePaymentMethod === 'cashapp' && <button type="button" className="checkout-provider-back" disabled={checkoutLocked}
+        onClick={() => { if (!checkoutLocked) setStripePaymentMethod('card'); }}>Pay by card</button>}
+    </>
   );
 
   return (
@@ -1481,6 +1495,7 @@ const Checkout: React.FC = () => {
                     {paymentProvider === 'stripe' ? (
                       <StripeCheckout
                         alternativePayment={paypalChoice}
+                        paymentMethod={stripePaymentMethod}
                         orderSummary={paymentOrderSummary}
                         publishableKey={stripeRuntime.publishableKey}
                         disabled={firstOrderOffer.checking || paymentSubmissionBlocked || checkoutLocked}
@@ -1499,6 +1514,7 @@ const Checkout: React.FC = () => {
                         total={providerTotalCents}
                         onSuccess={handlePaymentSuccess}
                         onError={handlePaymentError}
+                        preferredFunding={paypalFunding}
                         paypalOnly
                         resumeCheckout={activeCheckout}
                         onPaymentStateChange={handlePaymentStateChange}

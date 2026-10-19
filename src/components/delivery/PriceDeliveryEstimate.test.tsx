@@ -12,7 +12,7 @@ it('shows real ship and arrival dates beside the price without an exceptions acc
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-10-04T16:00:00.000Z'));
   const html = renderToStaticMarkup(<PriceDeliveryEstimate />);
-  expect(html).toContain('Estimated delivery: Tue, Oct 6');
+  expect(html).toContain('Delivery date: Tue, Oct 6');
   expect(html).toContain('Ships Mon, Oct 5');
   expect(html).not.toContain('<details');
   expect(html).not.toContain('Exceptions');
@@ -24,7 +24,7 @@ it('updates the arrival date when same-day production is selected', () => {
   const standard = renderToStaticMarkup(<PriceDeliveryEstimate compact />);
   selection.sameDayHitService = true;
   const expedited = renderToStaticMarkup(<PriceDeliveryEstimate compact />);
-  expect(standard).toContain('Estimated delivery: Thu, Oct 8');
-  expect(expedited).toContain('Estimated delivery: Wed, Oct 7');
+  expect(standard).toContain('Delivery date: Thu, Oct 8');
+  expect(expedited).toContain('Delivery date: Wed, Oct 7');
   expect(expedited).not.toContain('Ships');
 });

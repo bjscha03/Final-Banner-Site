@@ -139,7 +139,7 @@ describe('Stripe ConfirmationToken client flow', () => {
   });
 
   it('uses a Stripe-supported express-wallet overflow contract', () => {
-    expect(source).toContain("layout: { maxColumns: isMobile ? 1 : 2, maxRows: 0, overflow: 'never' }");
+    expect(source).toContain("layout: { maxColumns: 2, maxRows: 0, overflow: 'never' }");
     expect(source).not.toMatch(/maxRows:\s*[1-9]\d*[^}]*overflow:\s*['"]never['"]/);
   });
 
@@ -156,7 +156,7 @@ describe('Stripe ConfirmationToken client flow', () => {
   });
 
   it('uses the current Stripe Payment Element layout contract', () => {
-    expect(source).toContain('options={stripeCardPaymentElementOptions}');
+    expect(source).toContain("paymentMethodOrder: ['cashapp'] } : stripeCardPaymentElementOptions");
     expect(paymentOptionsSource).toContain("radios: 'never'");
     expect(paymentOptionsSource).not.toContain('radios: false');
   });

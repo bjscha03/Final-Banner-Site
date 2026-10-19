@@ -50,14 +50,22 @@
 .checkout-savings-note { color: #c94e00; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
 .checkout-applied-promo { display: flex; gap: 12px; justify-content: space-between; padding-block: 8px; }
 .checkout-express-label { font-size: 14px; font-weight: 500; margin-bottom: 6px; }
-.checkout-express-options { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; position: relative; margin-top: 0 !important; }
-.checkout-express-options.has-wallet { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.checkout-express-options.has-wallet.has-multiple-wallets { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
-.checkout-express-options > section { min-width: 0; }
-.checkout-express-options:has(#stripe-wallet-phone) { grid-template-columns: 1fr; }
-.checkout-paypal-choice { height: 48px; min-width: 0; border-radius: 6px; background: #ffc439; display: flex; justify-content: center; align-items: center; }
-.checkout-paypal-choice > span { font-size: 25px; font-weight: 800; font-style: italic; letter-spacing: -.04em; }
+.checkout-express-options,
+.checkout-express-options.has-wallet,
+.checkout-express-options.has-wallet.has-multiple-wallets { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; position: relative; margin-top: 0 !important; }
+.checkout-express-options > section { flex: 0 1 auto; min-width: 120px; max-width: 100%; }
+.checkout-express-options:has(#stripe-wallet-phone) > section { width: 100% !important; }
+.checkout-wallet-choice, .checkout-paypal-choice { height: 48px; width: 120px; flex: 0 0 120px; border-radius: 12px; display: flex; justify-content: center; align-items: center; gap: 6px; }
+.checkout-paypal-choice { background: #ffc439; }
+.checkout-paypal-choice > span { font-size: 22px; font-weight: 800; font-style: italic; letter-spacing: -.04em; }
 .checkout-paypal-choice:hover { background: #f1b82a; }
+.checkout-venmo-choice { background: #008cff; color: white; font-size: 23px; font-weight: 800; font-style: italic; }
+.checkout-venmo-choice:hover { background: #0079df; }
+.checkout-cashapp-choice { background: #00d64f; color: #000; font-size: 15px; font-weight: 750; }
+.checkout-cashapp-choice:hover { background: #00c348; }
+.checkout-cashapp-icon { font-size: 27px; font-weight: 900; line-height: 1; transform: rotate(-8deg); }
+.checkout-paypal-wallets { display: flex; flex-wrap: wrap; gap: 10px; }
+.checkout-paypal-wallets > div { width: 140px; min-width: 0; }
 .checkout-provider-back { min-height: 44px; color: #18448d; font-size: 14px; font-weight: 600; }
 .checkout-section-title, .checkout-contact > div:first-child { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
 .checkout-section-title h4, .checkout-contact h3 { font-size: 20px; font-weight: 750; line-height: 1.3; letter-spacing: -.025em; }
