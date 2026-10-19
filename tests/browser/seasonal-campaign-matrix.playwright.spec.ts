@@ -32,7 +32,7 @@ test('New Year campaign passes responsive creative QA', async ({ page }, testInf
   await expect(hero).toBeVisible();
   await expect(hero.getByRole('heading', { level: 1, name: 'Make the final celebration impossible to miss.' })).toBeVisible();
   await expect(hero.getByRole('button', { name: /Create a New Year's banner/i })).toBeVisible();
-  await expect(hero.getByRole('link', { name: /Explore vinyl banners/i })).toBeVisible();
+  await expect(hero.getByRole('link', { name: /Design your banner/i })).toBeVisible();
   await expect(hero.locator('[data-hero-delivery-status]')).toBeVisible();
 
   const mobile = (testInfo.project.use.viewport?.width || 0) < 640;
