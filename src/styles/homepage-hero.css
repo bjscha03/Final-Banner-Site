@@ -41,3 +41,21 @@
   [data-homepage-header] nav[aria-label="Primary navigation"] { gap: 16px; }
   [data-homepage-header] nav[aria-label="Primary navigation"] a { font-size: 12px; }
 }
+
+.homepage-hero-eyebrow { margin: 0 0 14px; color: #b84300; font-size: 13px; font-weight: 850; letter-spacing: .14em; line-height: 1.35; text-transform: uppercase; }
+.homepage-hero--seasonal h1 { max-width: 720px; font-size: clamp(38px, 4.1vw, 66px); }
+.homepage-hero-actions { display: grid; gap: 12px; margin-top: 22px; }
+.homepage-hero-secondary { display: inline-flex; width: fit-content; align-items: center; gap: 10px; border-bottom: 2px solid var(--brand-orange); padding: 4px 0; color: #061a31; font-size: 16px; font-weight: 800; }
+.homepage-hero-secondary:hover { color: #b84300; }
+.homepage-hero-secondary:focus-visible { outline: 3px solid #061a31; outline-offset: 4px; }
+.homepage-hero-secondary svg { width: 18px; height: 18px; }
+.homepage-hero-art { display: block; width: 100%; height: 100%; }
+.homepage-hero-art--mobile { display: none; }
+.homepage-hero--seasonal .homepage-hero-image { object-position: right center; }
+@media (max-width: 1000px) {
+  .homepage-hero--seasonal h1 { font-size: clamp(34px, 9vw, 54px); }
+  .homepage-hero-art--desktop { display: none; }
+  .homepage-hero-art--mobile { display: block; height: auto; }
+  .homepage-hero-art--mobile .homepage-hero-image { height: auto; object-fit: contain; object-position: center; }
+  .homepage-hero-eyebrow { margin-bottom: 10px; }
+}

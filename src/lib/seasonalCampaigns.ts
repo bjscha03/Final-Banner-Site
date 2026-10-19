@@ -52,7 +52,7 @@ export const EVERGREEN_HERO: HomepageHeroCampaign = {
   description:
     'Choose your product, upload artwork, and review a live print preview before checkout. Most standard orders are produced within 24 hours, followed by free next-day air.',
   primaryCta: { label: 'Start your order', href: '/design' },
-  secondaryCta: { label: 'Compare products & pricing', href: '/vinyl-banners' },
+  secondaryCta: { label: 'Design your banner', href: '/design?product=banner' },
   valueProps: ['Live print preview', 'Current pricing shown', 'Ships nationwide'],
 };
 
@@ -75,7 +75,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
     description:
       'Welcome students, promote open houses, and get fall events ready with custom banners. Most standard orders are produced within 24 hours, followed by free next-day air.',
     primaryCta: { label: 'Create a school banner', href: '/design' },
-    secondaryCta: { label: 'Explore vinyl banners', href: '/vinyl-banners' },
+    secondaryCta: { label: 'Design your banner', href: '/design?product=banner' },
     valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
     artwork: {
       desktopSrc: '/images/homepage/school-hero-desktop.webp',
@@ -101,7 +101,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
         title: 'Fall sports & senior night',
         description: 'Create team, sponsor, schedule, and athlete-recognition banners before game day.',
         label: 'Shop vinyl banners',
-        href: '/vinyl-banners',
+        href: '/design?product=banner',
       },
       {
         icon: 'store',
@@ -119,21 +119,23 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
     priority: 90,
     startDate: '2026-08-25',
     endDate: '2026-10-31',
-    eyebrow: 'Halloween events · Trunk-or-treat · Fall promotions',
+    eyebrow: 'Made for your next big moment',
     headline: 'Make every fall event easy to find.',
     description:
-      'Welcome families, guide traffic, and promote October events with bright custom banners and yard signs.',
+      'Beautiful custom banners, printed in 24 hours. Free Next-Day Air shipping on orders $20+.',
     primaryCta: { label: 'Design your banner', href: '/design' },
-    secondaryCta: { label: 'Explore vinyl banners', href: '/vinyl-banners' },
+    secondaryCta: { label: 'Design your banner', href: '/design?product=banner' },
     valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
     artwork: {
-      desktopSrc: '/images/seasonal-halloween-2026-desktop.webp',
-      desktopWidth: 1400,
-      desktopHeight: 875,
-      mobileSrc: '/images/seasonal-halloween-2026-mobile.webp',
+      desktopSrc: '/images/homepage/freshfield-fall-desktop.webp',
+      desktopAvifSrc: '/images/homepage/freshfield-fall-desktop.avif',
+      desktopWidth: 1536,
+      desktopHeight: 1024,
+      mobileSrc: '/images/homepage/freshfield-fall-mobile.webp',
+      mobileAvifSrc: '/images/homepage/freshfield-fall-mobile.avif',
       mobileWidth: 900,
-      mobileHeight: 1125,
-      alt: 'Maple Hollow Community Center trunk-or-treat vinyl banner mounted to an outdoor railing',
+      mobileHeight: 600,
+      alt: 'Cream and forest-green Freshfield Fall Market vinyl banner with reinforced hems and silver grommets, mounted between timber posts in natural daylight',
     },
     merchandising: [
       {
@@ -148,14 +150,14 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
         title: 'Parking & event directions',
         description: 'Use matching yard signs to guide cars, mark entrances, and keep activity areas clear.',
         label: 'Shop yard signs',
-        href: '/yard-signs',
+        href: '/design?product=yard-signs',
       },
       {
         icon: 'store',
         title: 'October business promotions',
         description: 'Make seasonal sales, attractions, and special hours visible from the street.',
-        label: 'Explore vinyl banners',
-        href: '/vinyl-banners',
+        label: 'Design your banner',
+        href: '/design?product=banner',
       },
     ],
   },
@@ -171,7 +173,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
     description:
       'Honor those who served at schools, ceremonies, parades, and community gatherings with clear, respectful custom signage.',
     primaryCta: { label: 'Create a recognition banner', href: '/design' },
-    secondaryCta: { label: 'Explore vinyl banners', href: '/vinyl-banners' },
+    secondaryCta: { label: 'Design your banner', href: '/design?product=banner' },
     valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
     artwork: {
       desktopSrc: '/images/seasonal-veterans-day-2026-desktop.webp',
@@ -195,14 +197,14 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
         title: 'School & community tributes',
         description: 'Recognize service with readable welcome, appreciation, and event banners.',
         label: 'Shop vinyl banners',
-        href: '/vinyl-banners',
+        href: '/design?product=banner',
       },
       {
         icon: 'map',
         title: 'Arrival & viewing directions',
         description: 'Mark parking, entrances, ceremony areas, and route changes with matching yard signs.',
         label: 'Shop yard signs',
-        href: '/yard-signs',
+        href: '/design?product=yard-signs',
       },
     ],
   },
@@ -218,7 +220,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
     description:
       'Promote collection dates, welcome guests, and guide volunteers with custom banners and signs made for busy community events.',
     primaryCta: { label: 'Create Thanksgiving signage', href: '/design' },
-    secondaryCta: { label: 'Shop yard signs', href: '/yard-signs' },
+    secondaryCta: { label: 'Shop yard signs', href: '/design?product=yard-signs' },
     valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
     artwork: {
       desktopSrc: '/images/seasonal-thanksgiving-2026-desktop.webp',
@@ -242,14 +244,14 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
         title: 'Community dinner directions',
         description: 'Guide guests, volunteers, and deliveries with clear entrance and parking signs.',
         label: 'Shop yard signs',
-        href: '/yard-signs',
+        href: '/design?product=yard-signs',
       },
       {
         icon: 'store',
         title: 'Seasonal business messages',
         description: 'Promote holiday hours, pickup areas, catering, and fall offers before Thanksgiving week.',
-        label: 'Explore vinyl banners',
-        href: '/vinyl-banners',
+        label: 'Design your banner',
+        href: '/design?product=banner',
       },
     ],
   },
@@ -265,7 +267,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
     description:
       'Bring Black Friday and holiday-weekend offers to the street with clear custom banners and directional signs.',
     primaryCta: { label: 'Create a holiday sale banner', href: '/design' },
-    secondaryCta: { label: 'Explore vinyl banners', href: '/vinyl-banners' },
+    secondaryCta: { label: 'Design your banner', href: '/design?product=banner' },
     valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
     artwork: {
       desktopSrc: '/images/seasonal-holiday-sales-2026-desktop.webp',
@@ -289,7 +291,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
         title: 'Pickup & entrance directions',
         description: 'Guide online orders and holiday traffic with matching entrance, curbside, and pickup signs.',
         label: 'Shop yard signs',
-        href: '/yard-signs',
+        href: '/design?product=yard-signs',
       },
       {
         icon: 'calendar',
@@ -300,6 +302,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
       },
     ],
   },
+
   {
     id: 'holiday-events-2026',
     status: 'ready',
@@ -311,8 +314,8 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
     headline: 'Bring every holiday gathering into view.',
     description:
       'Welcome guests, share event times, and guide holiday traffic with bright custom banners and yard signs.',
-    primaryCta: { label: 'Design holiday signage', href: '/design' },
-    secondaryCta: { label: 'Explore vinyl banners', href: '/vinyl-banners' },
+    primaryCta: { label: 'Design holiday signage', href: '/design?product=banner' },
+    secondaryCta: { label: 'Design your banner', href: '/design?product=banner' },
     valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
     artwork: {
       desktopSrc: '/images/seasonal-holiday-events-2026-desktop.webp',
@@ -329,21 +332,21 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
         title: 'Festivals & holiday programs',
         description: 'Put the event name, date, and time where guests can understand the plan before they arrive.',
         label: 'Create an event banner',
-        href: '/design',
+        href: '/design?product=banner',
       },
       {
         icon: 'heart',
         title: 'Services, concerts & school events',
         description: 'Share schedules and welcoming messages with signage designed to stay readable from the street.',
-        label: 'Shop vinyl banners',
-        href: '/vinyl-banners',
+        label: 'Design your banner',
+        href: '/design?product=banner',
       },
       {
         icon: 'map',
         title: 'Parking, entrances & pickup',
         description: 'Guide guests, deliveries, and seasonal traffic with matching entrance and directional yard signs.',
         label: 'Shop yard signs',
-        href: '/yard-signs',
+        href: '/design?product=yard-signs',
       },
     ],
   },
@@ -358,8 +361,8 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
     headline: 'Make the final celebration impossible to miss.',
     description:
       "Promote New Year's events, year-end offers, and January openings with custom banners and yard signs made fast.",
-    primaryCta: { label: "Create a New Year's banner", href: '/design' },
-    secondaryCta: { label: 'Explore vinyl banners', href: '/vinyl-banners' },
+    primaryCta: { label: "Create a New Year's banner", href: '/design?product=banner' },
+    secondaryCta: { label: 'Design your banner', href: '/design?product=banner' },
     valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
     artwork: {
       desktopSrc: '/images/seasonal-new-year-2027-desktop.webp',
@@ -376,21 +379,21 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
         title: "New Year's Eve events",
         description: 'Lead with the event name, date, and time so guests can understand the plan at a glance.',
         label: 'Create an event banner',
-        href: '/design',
+        href: '/design?product=banner',
       },
       {
         icon: 'store',
         title: 'Year-end sales & clearances',
         description: 'Make one offer and its deadline readable from the street before the calendar turns.',
-        label: 'Shop vinyl banners',
-        href: '/vinyl-banners',
+        label: 'Design your banner',
+        href: '/design?product=banner',
       },
       {
         icon: 'map',
         title: 'Entrances, parking & pickup',
         description: 'Guide celebration traffic and holiday orders with matching directional yard signs.',
         label: 'Shop yard signs',
-        href: '/yard-signs',
+        href: '/design?product=yard-signs',
       },
     ],
   },
