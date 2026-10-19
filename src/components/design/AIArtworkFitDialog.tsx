@@ -171,12 +171,12 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
     <Dialog open={open && (working || canApply || Boolean(error))} onOpenChange={value => { if (!applying) onOpenChange(value); }}>
       <DialogContent className={`max-h-[94dvh] w-[calc(100%_-_1rem)] overflow-y-auto rounded-2xl p-5 sm:p-7 ${working ? 'sm:max-w-md' : 'sm:max-w-3xl'}`} onInteractOutside={event => { if (working || applying) event.preventDefault(); }}>
         <DialogHeader className={working ? 'items-center text-center sm:text-center' : undefined}>
-          {working && <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-orange-50"><Loader2 className="h-8 w-8 animate-spin text-orange-600" aria-hidden="true" /></div>}
+          {working && <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-orange-50"><Loader2 className="h-8 w-8 animate-spin text-[var(--brand-orange)]" aria-hidden="true" /></div>}
           <DialogTitle className={`text-xl font-bold text-slate-900 ${working ? '' : 'pr-7'}`}>{working ? 'Fitting your design…' : canApply ? 'Approve your fitted design' : 'Fit your design'}</DialogTitle>
           <DialogDescription className={working ? 'pt-2 text-base leading-relaxed text-slate-600' : 'sr-only'}>{working ? 'This can take a few minutes. Please keep this window open.' : `Review the fitted preview at ${widthIn} by ${heightIn} inches and approve your design.`}</DialogDescription>
         </DialogHeader>
         {working && <div role="status" aria-live="polite" aria-atomic="true" className="rounded-xl bg-slate-50 px-4 py-5 text-center">
-          <p className="text-base font-semibold text-slate-900">{loading ? 'Preparing your artwork…' : stage}</p>
+          <p className="text-base font-semibold text-[var(--brand-orange)]">{loading ? 'Preparing your artwork…' : stage}</p>
           <p className="mt-3 min-h-10 text-sm leading-relaxed text-slate-600">{waitMessage}</p>
         </div>}
         {!working && canApply && <div className="flex items-center justify-center rounded-xl bg-slate-100 p-3">

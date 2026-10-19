@@ -1,5 +1,6 @@
+import ProductionShippingBenefits from '@/components/delivery/ProductionShippingBenefits';
 import React from 'react';
-import { ArrowRight, Plane, Timer } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import '@/styles/homepage-hero.css';
 
@@ -9,10 +10,7 @@ const HeroSection: React.FC = () => (
       <div className="homepage-hero-content">
         <h1>Big impact.<span>Fast turnaround.</span></h1>
         <p className="homepage-hero-description">Custom banners. Printed fast. Built to stand out.</p>
-        <ul className="homepage-hero-promises" aria-label="Ordering benefits">
-          <li><Timer aria-hidden="true" /><div><strong>24 HOUR</strong><span>PRODUCTION</span></div></li>
-          <li><Plane aria-hidden="true" /><div><strong>FREE NEXT-DAY</strong><span>AIR SHIPPING</span><small>On orders $20+</small></div></li>
-        </ul>
+        <ProductionShippingBenefits />
         <Link to="/design" className="homepage-hero-primary">Design your banner<ArrowRight aria-hidden="true" /></Link>
         <p className="homepage-hero-note">Your design. Your size.</p>
       </div>

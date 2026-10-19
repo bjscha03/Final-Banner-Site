@@ -76,6 +76,7 @@ const PoliticalSigns: React.FC = () => {
         productSlug="yard-signs"
         eyebrow="Campaign print essentials"
         title="Make your message part of the neighborhood."
+        accentText="part of the neighborhood."
         description="Custom political banners, yard signs, and car magnets. Choose your product, upload your artwork, and review your print online."
         primaryLabel="Order political signs"
         onStart={() => document.getElementById('choose-product')?.scrollIntoView({ behavior: 'smooth' })}

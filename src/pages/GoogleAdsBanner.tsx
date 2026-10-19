@@ -145,6 +145,7 @@ const FastBannerAdHero: React.FC<{ onStart: () => void; halloween?: boolean }> =
     productSlug="vinyl-banners"
     eyebrow={halloween ? "Custom Halloween banners for parties, haunted houses & trunk-or-treats." : "Beautiful custom banners. Made for your next big moment."}
     title={halloween ? "Halloween banners. Without the wait." : "Custom banners. Without the wait."}
+    accentText="Without the wait."
     description={halloween ? "Create your Halloween design with our new AI tool, or upload artwork. Preview your banner and order online." : undefined}
     primaryLabel={halloween ? "Build my Halloween banner" : "Build & price my banner"}
     photo={halloween ? <img src="/images/product-heroes/halloween-banner-1440.webp" srcSet="/images/product-heroes/halloween-banner-640.webp 640w, /images/product-heroes/halloween-banner-1440.webp 1440w" sizes="(min-width: 1024px) 60vw, 100vw" alt="Happy Halloween witch-and-pumpkin vinyl banner with reinforced grommets mounted on a wooden fence" width="1440" height="960" fetchPriority="high" /> : undefined}
@@ -159,6 +160,7 @@ const FallFestivalHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
     productSlug="vinyl-banners"
     eyebrow="Custom banners for autumn events"
     title="Make your fall event easy to find."
+    accentText="easy to find."
     description="Full-color vinyl banners for festivals, harvest markets, and trunk-or-treats. Upload your artwork or create a design online."
     primaryLabel="Create my fall festival banner"
     onStart={onStart}
@@ -3378,6 +3380,7 @@ const GoogleAdsBanner: React.FC = () => {
           attributes={{ 'data-google-product-hero': isYardSign ? 'yard-signs' : 'car-magnets' }}
           productSlug={isYardSign ? 'yard-signs' : 'car-magnets'}
           title={heroContent.headline}
+          accentText={isCarMagnet ? "made fast." : "produced fast."}
           eyebrow={heroContent.eyebrow}
           description={heroContent.intro}
           primaryLabel={heroContent.cta}

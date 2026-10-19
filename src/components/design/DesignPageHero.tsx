@@ -64,6 +64,7 @@ const DesignPageHero: React.FC<DesignPageHeroProps> = ({ productType, onStart })
       attributes={{ 'data-design-page-hero': productType }}
       productSlug={definition.productSlug}
       title={definition.title.join(' ')}
+      accentText={definition.title[definition.title.length - 1]}
       eyebrow={productType === 'yard_sign' ? 'Custom yard signs · Made to stand out' : productType === 'car_magnet' ? 'Custom car magnets · Your business, on the move' : 'Custom banners · Made for your next big moment'}
       primaryLabel={definition.cta}
       onStart={onStart}
