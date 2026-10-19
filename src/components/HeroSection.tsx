@@ -38,6 +38,22 @@ const HeroSection: React.FC = () => {
         <div className="homepage-hero-content">
           <p className="homepage-hero-eyebrow">{campaign.eyebrow}</p>
           <h1 className="homepage-hero-seasonal-heading">{campaign.headline}</h1>
+          <div className="homepage-hero-mobile-media">
+            <picture data-seasonal-hero-art="mobile" className="homepage-hero-art homepage-hero-art--mobile">
+              {artwork.mobileAvifSrc ? <source srcSet={artwork.mobileAvifSrc} type="image/avif" /> : null}
+              <img
+                className="homepage-hero-image"
+                src={artwork.mobileSrc}
+                alt={artwork.alt}
+                width={artwork.mobileWidth}
+                height={artwork.mobileHeight}
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
+              />
+            </picture>
+            <div className="homepage-hero-discount" aria-label="20% off your first order"><strong>20%<br />OFF</strong><span>YOUR FIRST<br />ORDER</span></div>
+          </div>
           <p className="homepage-hero-description">{campaign.description}</p>
           <div data-hero-delivery-status>
             <ProductionShippingBenefits />
@@ -60,19 +76,6 @@ const HeroSection: React.FC = () => {
               alt={artwork.alt}
               width={artwork.desktopWidth}
               height={artwork.desktopHeight}
-              loading="eager"
-              decoding="async"
-              fetchPriority="high"
-            />
-          </picture>
-          <picture data-seasonal-hero-art="mobile" className="homepage-hero-art homepage-hero-art--mobile">
-            {artwork.mobileAvifSrc ? <source srcSet={artwork.mobileAvifSrc} type="image/avif" /> : null}
-            <img
-              className="homepage-hero-image"
-              src={artwork.mobileSrc}
-              alt={artwork.alt}
-              width={artwork.mobileWidth}
-              height={artwork.mobileHeight}
               loading="eager"
               decoding="async"
               fetchPriority="high"
