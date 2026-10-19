@@ -144,7 +144,7 @@ describe('ArtworkPreviewEditor proportional fitting', () => {
       expect(parseFloat(frame.style.width)).toBeCloseTo(width * fitScale * fillScale);
       expect(parseFloat(frame.style.height)).toBeCloseTo(height * fitScale * fillScale);
       expect(toolbarSlot.textContent).not.toContain('will be cropped');
-      const fit = Array.from(toolbarSlot.querySelectorAll('button')).find(b => b.textContent?.startsWith('Show entire design'))!;
+      const fit = Array.from(toolbarSlot.querySelectorAll('button')).find(b => b.textContent?.startsWith('Show full image'))!;
       await act(async () => fit.click());
       expect(parseFloat(frame.style.width)).toBeCloseTo(width * fitScale);
       expect(parseFloat(frame.style.height)).toBeCloseTo(height * fitScale);
@@ -159,8 +159,8 @@ describe('ArtworkPreviewEditor proportional fitting', () => {
 });
 
 
-describe('banner size change review', () => {
-  it('offers Fit or Keep placement after a shape change without changing placement on dismissal', async () => {
+describe('customer-controlled artwork placement', () => {
+  it.each(['inline', 'mobile'] as const)('keeps %s size changes free of technical notices while preserving placement and fit controls', async (toolbar) => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
     const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
@@ -173,23 +173,28 @@ describe('banner size change review', () => {
     const originalElementFromPoint = document.elementFromPoint;
     document.elementFromPoint = () => host.querySelector('img');
     const change = vi.fn();
-    const props = { src: 'size-review.png', value: { x: 20, y: 10, scaleX: 1, scaleY: 1 }, onChange: change, constrain: true, onConstrainChange: vi.fn(), mobileToolbarContainer: slot };
+    const props = { src: `size-review-${toolbar}.png`, value: { x: 20, y: 10, scaleX: 1, scaleY: 1 }, onChange: change, constrain: true, onConstrainChange: vi.fn(), mobileToolbarContainer: toolbar === 'mobile' ? slot : null };
+    const controls = toolbar === 'mobile' ? slot : host;
     try {
       await act(async () => root.render(React.createElement(ArtworkPreviewEditor, { ...props, paddingPct: '50%' })));
       const img = host.querySelector('img')!;
       Object.defineProperties(img, { complete: { value: true }, naturalWidth: { value: 800 }, naturalHeight: { value: 800 } });
       await act(async () => img.dispatchEvent(new Event('load')));
-      expect(slot.textContent).not.toContain('Your banner shape changed');
-      await act(async () => root.render(React.createElement(ArtworkPreviewEditor, { ...props, paddingPct: '100%' })));
-      expect(slot.textContent).toContain('Your banner shape changed');
-      expect(slot.textContent).toContain('Fit entire artwork');
-      change.mockClear();
       const before = img.parentElement!.getAttribute('style');
-      const keep = Array.from(slot.querySelectorAll('button')).find(b => b.textContent === 'Keep current placement')!;
-      await act(async () => keep.click());
-      expect(slot.textContent).not.toContain('Your banner shape changed');
+      change.mockClear();
+      await act(async () => root.render(React.createElement(ArtworkPreviewEditor, { ...props, paddingPct: '100%' })));
+      for (const copy of ['shape changed', 'cropped edges', 'blank margins', 'Edges may crop', 'Keep current placement']) {
+        expect(controls.textContent).not.toContain(copy);
+      }
+      expect(controls.querySelector('[role="alert"], [role="status"]')).toBeNull();
       expect(change).not.toHaveBeenCalled();
       expect(img.parentElement!.getAttribute('style')).toBe(before);
+      const fit = Array.from(controls.querySelectorAll('button')).find(b => b.textContent === 'Show full image')!;
+      const fill = Array.from(controls.querySelectorAll('button')).find(b => b.textContent === 'Fill banner')!;
+      expect(fit.disabled).toBe(false);
+      expect(fill.disabled).toBe(false);
+      await act(async () => fit.click());
+      expect(change).toHaveBeenLastCalledWith({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
     } finally {
       await act(async () => root.unmount());
       host.remove(); slot.remove(); bounds.mockRestore(); vi.unstubAllGlobals();
