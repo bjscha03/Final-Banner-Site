@@ -52,11 +52,10 @@
 .checkout-express-label { font-size: 14px; font-weight: 500; margin-bottom: 6px; }
 .checkout-express-options,
 .checkout-express-options.has-wallet,
-.checkout-express-options.has-wallet.has-multiple-wallets { display: grid; grid-template-columns: repeat(2, minmax(0, 120px)); grid-auto-flow: row dense; align-items: start; gap: 8px; width: 248px; max-width: 100%; position: relative; margin-top: 0 !important; }
-.checkout-express-options > section { min-width: 0; max-width: 100%; }
-.checkout-native-wallets { width: 120px; max-width: 100%; }
-.checkout-express-options:has(#stripe-wallet-phone) { width: 100%; }
-.checkout-express-options:has(#stripe-wallet-phone) > section { grid-column: 1 / -1; }
+.checkout-express-options.has-wallet.has-multiple-wallets { display: flex; flex-wrap: nowrap; align-items: flex-start; gap: 8px; width: 100%; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; position: relative; margin-top: 0 !important; padding-bottom: 4px; }
+.checkout-express-options > section { flex: 0 0 auto; min-width: 0; }
+.checkout-native-wallets { display: flex; flex-wrap: nowrap; gap: 8px; }
+.checkout-native-wallet { flex: 0 0 120px; width: 120px; }
 .checkout-wallet-choice, .checkout-paypal-choice { height: 48px; width: 120px; flex: 0 0 120px; border-radius: 12px; display: flex; justify-content: center; align-items: center; gap: 6px; }
 .checkout-paypal-choice { background: #ffc439; }
 .checkout-paypal-choice > span { font-size: 22px; font-weight: 800; font-style: italic; letter-spacing: -.04em; }

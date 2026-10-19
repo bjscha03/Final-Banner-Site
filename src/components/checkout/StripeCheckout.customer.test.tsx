@@ -70,7 +70,7 @@ describe('checkout contact form', () => {
   it('selects Cash App through Stripe and retains entered contact details when switching methods', async () => {
     await enter('email', 'cashapp-test@example.com');
     await act(async () => root.render(<StripeCheckout publishableKey="pk_test_mock" total={3392} paymentMethod="cashapp" onSuccess={vi.fn()} onError={vi.fn()} />));
-    expect(mocks.elementsOptions).toHaveBeenLastCalledWith(expect.objectContaining({ allowedPaymentMethodTypes: ['cashapp'] }));
+    expect(mocks.elementsOptions).toHaveBeenCalledWith(expect.objectContaining({ allowedPaymentMethodTypes: ['cashapp'] }));
     expect(mocks.paymentOptions).toHaveBeenLastCalledWith(expect.objectContaining({ paymentMethodOrder: ['cashapp'] }));
     expect(host.querySelector<HTMLInputElement>('#stripe-email')?.value).toBe('cashapp-test@example.com');
     const button = Array.from(host.querySelectorAll('button')).find(b => b.textContent?.includes('Continue with Cash App'))!;

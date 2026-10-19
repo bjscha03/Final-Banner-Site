@@ -112,7 +112,7 @@ describe('Stripe ConfirmationToken client flow', () => {
   });
 
   it('always releases a wallet sheet when Elements is unavailable or another payment is active', () => {
-    expect(source).toContain('if (!elements || busy) {');
+    expect(source).toContain('if (!walletElements || busy) {');
     expect(source).toContain("event.paymentFailed?.({ reason: 'fail', message })");
     expect(source).toContain('Another payment is already being securely verified. Check its status before trying again.');
     expect(source).toContain('Secure payment fields are not ready. Close the wallet and try again.');
@@ -127,14 +127,14 @@ describe('Stripe ConfirmationToken client flow', () => {
 
   it('prioritizes eligible Apple Pay and Google Pay without rendering fake wallet buttons', () => {
     expect(source).toContain("paymentMethodOrder: ['apple_pay', 'google_pay']");
-    expect(source).toContain("applePay: 'always'");
-    expect(source).toContain("googlePay: 'always'");
+    expect(source).toContain("applePay: wallet === 'applePay' ? 'always' : 'never'");
+    expect(source).toContain("googlePay: wallet === 'googlePay' ? 'always' : 'never'");
     expect(source).toContain("buttonTheme: { applePay: 'black', googlePay: 'black' }");
     expect(source).toContain('aria-hidden={walletsReady && !expressCheckoutVisible}');
     expect(source).toContain("'pointer-events-none absolute inset-x-0 top-0 invisible -z-10'");
     expect(source).not.toContain('Wallet checkout appears automatically on supported devices with an eligible wallet.');
     expect(source).not.toContain('Loading available express payment methods');
-    expect(source).toContain('<ExpressCheckoutElement');
+    expect(source).toContain('<IsolatedExpressWallet');
     expect(source).not.toMatch(/<button[^>]*>\s*(?:Apple Pay|Google Pay)\s*<\/button>/);
   });
 
@@ -144,10 +144,10 @@ describe('Stripe ConfirmationToken client flow', () => {
   });
 
   it('keeps the wallet Element mounted throughout confirmation', () => {
-    expect(source).toContain('const expressCheckoutVisible = walletsAvailable && !verificationMessage');
+    expect(source).toContain("const expressCheckoutVisible = walletsAvailable && paymentMethod === 'card' && !verificationMessage");
     expect(source).toContain('aria-hidden={walletsReady && !expressCheckoutVisible}');
     expect(source).not.toContain('{!verificationMessage ? <section');
-    expect(source).toMatch(/<section[\s\S]*<ExpressCheckoutElement[\s\S]*<\/section>/);
+    expect(source).toMatch(/<section[\s\S]*<IsolatedExpressWallet[\s\S]*<\/section>/);
   });
 
   it('silently clears a checkout key that never reached payment creation', () => {
@@ -163,7 +163,7 @@ describe('Stripe ConfirmationToken client flow', () => {
 
   it('stops before payment creation when a wallet omits its phone and focuses a safe fallback', () => {
     const phoneGuard = source.indexOf('if (!isValidCheckoutPhone(submittedWalletCustomer.phone))');
-    const elementsSubmit = source.indexOf('withStripeStageTimeout(elements.submit())', phoneGuard);
+    const elementsSubmit = source.indexOf('withStripeStageTimeout(walletElements.submit())', phoneGuard);
     const paymentStart = source.indexOf("await startPayment(event.expressPaymentType || 'wallet'", phoneGuard);
 
     expect(phoneGuard).toBeGreaterThan(-1);
