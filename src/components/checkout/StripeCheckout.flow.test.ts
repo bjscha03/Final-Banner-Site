@@ -139,7 +139,7 @@ describe('Stripe ConfirmationToken client flow', () => {
   });
 
   it('uses a Stripe-supported express-wallet overflow contract', () => {
-    expect(source).toContain("layout: { maxColumns: 2, maxRows: 0, overflow: 'never' }");
+    expect(source).toContain("layout: { maxColumns: 1, maxRows: 0, overflow: 'never' }");
     expect(source).not.toMatch(/maxRows:\s*[1-9]\d*[^}]*overflow:\s*['"]never['"]/);
   });
 

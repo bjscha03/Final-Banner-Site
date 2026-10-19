@@ -52,9 +52,11 @@
 .checkout-express-label { font-size: 14px; font-weight: 500; margin-bottom: 6px; }
 .checkout-express-options,
 .checkout-express-options.has-wallet,
-.checkout-express-options.has-wallet.has-multiple-wallets { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; position: relative; margin-top: 0 !important; }
-.checkout-express-options > section { flex: 0 1 auto; min-width: 120px; max-width: 100%; }
-.checkout-express-options:has(#stripe-wallet-phone) > section { width: 100% !important; }
+.checkout-express-options.has-wallet.has-multiple-wallets { display: grid; grid-template-columns: repeat(2, minmax(0, 120px)); grid-auto-flow: row dense; align-items: start; gap: 8px; width: 248px; max-width: 100%; position: relative; margin-top: 0 !important; }
+.checkout-express-options > section { min-width: 0; max-width: 100%; }
+.checkout-native-wallets { width: 120px; max-width: 100%; }
+.checkout-express-options:has(#stripe-wallet-phone) { width: 100%; }
+.checkout-express-options:has(#stripe-wallet-phone) > section { grid-column: 1 / -1; }
 .checkout-wallet-choice, .checkout-paypal-choice { height: 48px; width: 120px; flex: 0 0 120px; border-radius: 12px; display: flex; justify-content: center; align-items: center; gap: 6px; }
 .checkout-paypal-choice { background: #ffc439; }
 .checkout-paypal-choice > span { font-size: 22px; font-weight: 800; font-style: italic; letter-spacing: -.04em; }
@@ -102,10 +104,6 @@
 .checkout-payment-divider > p { flex: none; }
 .checkout-accepted-cards { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; }
 .checkout-accepted-cards img { display: block; width: 47px; height: 30px; flex: none; border-radius: 4px; box-shadow: 0 0 0 1px rgb(7 28 53 / 10%); }
-@media (max-width: 767px) {
-  .checkout-express-options.has-wallet,
-  .checkout-express-options.has-wallet.has-multiple-wallets { grid-template-columns: minmax(0, 1fr); }
-}
 .checkout-preview-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; font-size: 13px; color: #334155; }
 .checkout-preview-card-number { grid-column: 1 / -1; }
 .checkout-preview-card > div > div { display: flex; align-items: center; justify-content: space-between; min-height: 44px; margin-top: 5px; border: 1px solid #cdd6e2; border-radius: 5px; padding: 10px 12px; color: #8a98ac; font-size: 16px; }
