@@ -143,9 +143,15 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
             {/* Order Items */}
             <Section style={{ backgroundColor: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '10px', padding: '16px', margin: '16px 0' }}>
               <Text style={{ fontSize: '12px', fontWeight: '700', color: '#9a3412', margin: '0 0 6px' }}>EXPECTED DELIVERY</Text>
+              {delivery.shipments ? delivery.shipments.map(shipment => <Section key={shipment.label}>
+                <Text style={{ fontSize: '13px', fontWeight: '700', margin: '12px 0 4px' }}>{shipment.label}</Text>
+                <Text style={{ fontSize: '20px', fontWeight: '700', color: '#0f172a', margin: '0' }}>{shipment.deliveryLabel}</Text>
+                <Text style={{ fontSize: '13px', color: '#475569', margin: '6px 0 0' }}>Expected shipment: {shipment.shipLabel}</Text>
+              </Section>) : <>
               <Text style={{ fontSize: '20px', fontWeight: '700', color: '#0f172a', margin: '0' }}>{delivery.deliveryLabel || 'We will confirm your delivery estimate'}</Text>
               {delivery.shipLabel && <Text style={{ fontSize: '13px', color: '#475569', margin: '6px 0 0' }}>Expected shipment: {delivery.shipLabel}</Text>}
-              {order.items.some(item => item.design_service_enabled) && <Text style={{ fontSize: '12px', color: '#64748b', margin: '6px 0 0' }}>{delivery.note}</Text>}
+              </>}
+              {(delivery.shipments || order.items.some(item => item.design_service_enabled)) && <Text style={{ fontSize: '12px', color: '#64748b', margin: '6px 0 0' }}>{delivery.note}</Text>}
               <Text style={{ fontSize: '12px', lineHeight: '1.6', color: '#64748b', margin: '10px 0 0' }}>{CARRIER_DELIVERY_NOTE}</Text>
             </Section>
             <Section style={itemsSection}>
