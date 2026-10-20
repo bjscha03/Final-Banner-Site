@@ -64,7 +64,7 @@ exports.handler = async (event, context) => {
 
     // SPECIAL HANDLING: NEW20 is a hardcoded first-order-only promo code
     // It's not in the database, so we handle it as a special case
-    if (normalizedCode === 'NEW20') {
+    if (normalizedCode === 'NEW20' || normalizedCode === 'POSTCARD25') {
       console.log('[apply-discount] NEW20 code - no database tracking needed (virtual promo)');
       // NEW20 doesn't need to be marked as used in discount_codes table
       // The first-order validation in validate-discount-code.cjs uses the orders table directly
@@ -72,8 +72,8 @@ exports.handler = async (event, context) => {
         statusCode: 200, headers,
         body: JSON.stringify({
           success: true,
-          code: 'NEW20',
-          discountPercentage: 20,
+          code: normalizedCode,
+          discountPercentage: normalizedCode === 'POSTCARD25' ? 25 : 20,
           discountAmountCents: null
         })
       };

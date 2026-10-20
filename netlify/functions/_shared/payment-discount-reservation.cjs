@@ -133,7 +133,7 @@ async function claimNew20(sql, order) {
              OR (candidate.status = 'pending' AND candidate.payment_reconciliation_status IN ('complete', 'completed'))
              OR (
                candidate.status = 'pending'
-               AND UPPER(COALESCE(candidate.discount_code, '')) = 'NEW20'
+               AND UPPER(COALESCE(candidate.discount_code, '')) IN ('NEW20', 'POSTCARD25')
                AND candidate.payment_reconciliation_status = 'discount_reserved'
              )
            )
@@ -269,7 +269,7 @@ async function claimPaymentDiscount(sql, order) {
     else if (code === SMALL_BANNER_DISCOUNT_CODE) kind = 'small_banner_promo';
     return { ok: true, claimed: false, kind };
   }
-  return code === 'NEW20'
+  return (code === 'NEW20' || code === 'POSTCARD25')
     ? claimNew20(sql, order)
     : claimStoredCode(sql, order, code);
 }
@@ -283,7 +283,7 @@ async function releasePaymentDiscount(sql, order, reconciliationStatus = 'paymen
     await require('./bof-service.cjs').release(sql, order);
   }
   const code = normalizedCode(order);
-  if (code && !require('./bof-service.cjs').isBofCode(code) && code !== 'NEW20' && !isNonStoredCampaignCode(code)
+  if (code && !require('./bof-service.cjs').isBofCode(code) && code !== 'NEW20' && code !== 'POSTCARD25' && !isNonStoredCampaignCode(code)
       && hasAppliedPromo(order) && !isTestOrder(order)) {
     await sql`
       UPDATE discount_codes dc
@@ -315,7 +315,7 @@ async function completePaymentDiscount(sql, order) {
   if (require('./bof-service.cjs').isBofCode(order.discount_code)) return {ok:true,kind:'bof'};
   const code = normalizedCode(order);
   if (!code || isTestOrder(order) || !hasAppliedPromo(order)
-      || code === 'NEW20' || isNonStoredCampaignCode(code)) {
+      || code === 'NEW20' || code === 'POSTCARD25' || isNonStoredCampaignCode(code)) {
     return { ok: true, kind: code ? 'not_stored' : 'none' };
   }
 
