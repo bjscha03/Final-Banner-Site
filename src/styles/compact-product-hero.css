@@ -1,4 +1,4 @@
-.delivery-date-card { display:grid; grid-template-columns:1fr 1fr; border-top:3px solid #ff6a00; border-radius:10px; padding:10px 12px; background:#061a31; color:white; }
+.delivery-date-card { display:grid; grid-template-columns:1fr 1fr; container-type:inline-size; border-top:3px solid #ff6a00; border-radius:10px; padding:10px 12px; background:#061a31; color:white; }
 .delivery-date-cell { display:flex; align-items:center; gap:10px; min-width:0; }
 .delivery-date-cell + .delivery-date-cell { border-left:1px solid #ffffff35; padding-left:12px; }
 .delivery-date-cell > svg { width:28px; height:28px; flex:none; color:#ff6a00; stroke-width:1.8; }
@@ -59,11 +59,11 @@
 }
 @media(min-width:1024px) {
   .delivery-date-card { padding:16px 22px; }
-  .delivery-date-cell { gap:16px; }
-  .delivery-date-cell > svg { width:38px; height:38px; }
+  .delivery-date-cell { gap:clamp(8px, 2.5cqw, 16px); }
+  .delivery-date-cell > svg { width:clamp(24px, 7cqw, 38px); height:clamp(24px, 7cqw, 38px); }
   .delivery-date-label { font-size:11px; }
   .delivery-date-weekday { font-size:13px; }
-  .delivery-date-value { font-size:25px; }
+  .delivery-date-value { font-size:clamp(18px, 4.5cqw, 25px); }
 }
 
 .product-hero-copy .specialty-shipping-overview { flex-direction:column; gap:8px; }
