@@ -34,7 +34,7 @@ export default function SpecialtyDeliveryStatus({ compact = false }: { compact?:
         </div>
       </div>
       <div className="min-w-0">
-        <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-600"><Clock3 aria-hidden="true" className="h-3.5 w-3.5" />Order within to ship {ship}</p>
+        <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-600"><Clock3 aria-hidden="true" className="h-3.5 w-3.5" />Order within</p>
         <p role="timer" aria-live="off" aria-label="Time remaining to order for the shipping date shown" className={`mt-1 font-mono font-bold tabular-nums tracking-wide text-[#c94e00] ${compact ? 'text-xl' : 'text-2xl sm:text-3xl'}`}>
           {formatCountdown(estimate.remainingMs)}
         </p>
