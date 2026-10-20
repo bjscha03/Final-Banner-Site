@@ -36,7 +36,8 @@ import RealisticBannerPreview from '@/components/preview/RealisticBannerPreview'
 import BannerDimensions from '@/components/preview/BannerDimensions';
 import { formatBannerDimensions } from '@/lib/preview/realisticBanner';
 import CheckoutOrderTotals, { type CheckoutOrderTotalsProps } from '@/components/checkout/CheckoutOrderTotals';
-import CheckoutReviewDialog from '@/components/checkout/CheckoutReviewDialog';
+import { CheckoutReviewTrigger, CheckoutReviewContent } from '@/components/checkout/CheckoutReviewDialog';
+import { Dialog } from '@/components/ui/dialog';
 import CheckoutArtworkSummary from '@/components/checkout/CheckoutArtworkSummary';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
@@ -1295,7 +1296,7 @@ const Checkout: React.FC = () => {
 
   const orderIntro = <div className="checkout-order-intro">
     <CheckoutArtworkSummary showTotal={false} items={items} totalCents={totalCents} linePrices={displayPrices}
-      editAction={<CheckoutReviewDialog label="Edit order">{orderReviewContent}</CheckoutReviewDialog>} />
+      editAction={<CheckoutReviewTrigger />} />
     <CheckoutDeliverySummary shippingPending={shippingPending} />
   </div>;
 
@@ -1326,6 +1327,7 @@ const Checkout: React.FC = () => {
   );
 
   return (
+    <Dialog>
     <Layout showFooterBanner={false} checkoutMode>
       <div className="checkout-page">
         <div className="checkout-container">
@@ -1562,6 +1564,9 @@ const Checkout: React.FC = () => {
         </div>
       </div>
     </Layout>
+    {/* Keep review state outside payment fields, which remount when the order amount changes. */}
+    <CheckoutReviewContent>{orderReviewContent}</CheckoutReviewContent>
+    </Dialog>
   );
 };
 
