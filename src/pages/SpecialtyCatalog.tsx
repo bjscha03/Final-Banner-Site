@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight, Image, PencilLine, Truck } from 'lucide-react';
 import Layout from '@/components/Layout';
 import SEO from '@/components/SEO';
+import SpecialtyDeliveryStatus from '@/components/delivery/SpecialtyDeliveryStatus';
 import '@/styles/product-hero.css';
 import '@/styles/specialty-catalog-hero.css';
 import { formatSpecialtyPrice, specialtyCategories, availableSpecialtyProducts as specialtyProducts, specialtyStartingPrice, type SpecialtyCategory } from '@/lib/specialtyProducts';
@@ -37,6 +38,8 @@ export default function SpecialtyCatalog() {
       </ul></div>
     </section>
 
+    <div className="brand-shell py-6"><SpecialtyDeliveryStatus /></div>
+
     <nav className="sticky top-[72px] z-30 border-b border-slate-200 bg-white/95 backdrop-blur" aria-label="Specialty product categories">
       <div className="brand-shell flex gap-6 overflow-x-auto py-4 text-sm font-bold text-[#0B1F3A]">
         {groups.map(([key, group]) => <a className="whitespace-nowrap border-b-2 border-transparent hover:border-[#ff6a00] focus-visible:border-[#ff6a00]" key={key} href={`#${key}`}>{group.label}</a>)}
@@ -62,7 +65,7 @@ export default function SpecialtyCatalog() {
           })}
         </div>
       </section>)}
-      <div className="brand-shell mt-14"><div className="border-l-4 border-[#ff6a00] bg-white p-6 text-sm leading-7 text-slate-600 shadow-sm sm:p-8"><strong className="block text-base text-[#0B1F3A]">About production and delivery</strong>Every product includes free Next Day Air shipping after production. Production times vary by product. Choose your size and options on the product page, then upload and approve each required artwork panel.</div></div>
+      <div className="brand-shell mt-14"><div className="border-l-4 border-[#ff6a00] bg-white p-6 text-sm leading-7 text-slate-600 shadow-sm sm:p-8"><strong className="block text-base text-[#0B1F3A]">About production and delivery</strong>All displays and signs on this page follow the same schedule: order and approve your artwork before 2 p.m. Pacific / 5 p.m. Eastern on a business day for shipment the next business day. Orders after the cutoff take one additional business day; orders after Friday’s cutoff and over the weekend ship Tuesday, excluding holidays. Free FedEx Next-Day Air shipping is included in the price after production. Choose your size and options on the product page, then upload and approve each required artwork panel.</div></div>
     </div>
   </Layout>;
 }

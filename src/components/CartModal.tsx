@@ -1,3 +1,4 @@
+import SpecialtyCartDelivery from '@/components/delivery/SpecialtyCartDelivery';
 import SavedSpecialtyPreview from '@/components/specialty/SavedSpecialtyPreview';
 import {specialtyItemHasIncludedShipping, specialtyItemHasVerifiedPrice} from '@/lib/specialtyProducts';
 import { cartEditUrl } from '@/lib/cartEditUrl';
@@ -532,6 +533,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                 })}
               </div>
             )}
+            {specialtyInCart && <div className="mt-4"><SpecialtyCartDelivery compact /></div>}
           </div>
 
           {items.length > 0 && (

@@ -5,13 +5,14 @@ exports.CARRIER_DELIVERY_NOTE = void 0;
 exports.getOrderDeliveryEstimate = getOrderDeliveryEstimate;
 const engine_1 = require("./engine.cjs");
 const timezone_1 = require("./timezone.cjs");
+const specialty_1 = require("./specialty.cjs");
 exports.CARRIER_DELIVERY_NOTE = 'Delivery dates are estimates, not guarantees. In rare cases, FedEx delays or delivery issues may occur outside our control. Banners On The Fly is not responsible for carrier-caused delays. Please contact us if your shipment needs attention.';
 function getOrderDeliveryEstimate(order) {
     const placedAt = order.created_at ? new Date(order.created_at) : null;
     if (!placedAt || !Number.isFinite(placedAt.getTime())) {
         return { shipDate: null, deliveryDate: null, shipLabel: '', deliveryLabel: '', note: 'Delivery estimate unavailable: order time is missing.' };
     }
-    const estimate = (0, engine_1.getDeliveryEstimate)({
+    const regular = (0, engine_1.getDeliveryEstimate)({
         nowET: (0, timezone_1.etPartsOf)(placedAt),
         isHitSelected: order.same_day_hit_service === true,
         isSaturdaySelected: order.saturday_delivery === true,
@@ -19,13 +20,25 @@ function getOrderDeliveryEstimate(order) {
     const label = (ymd) => new Intl.DateTimeFormat('en-US', {
         weekday: 'long', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
     }).format(new Date(`${ymd}T12:00:00Z`));
+    const hasSpecialty = order.items?.some(item => item.product_type === 'specialty');
+    const specialty = hasSpecialty ? (0, specialty_1.getSpecialtyDeliveryEstimate)(placedAt) : null;
+    const hasRegular = order.items?.some(item => item.product_type !== 'specialty');
+    const dates = (estimate) => ({
+        shipDate: estimate.shipDate.ymd, deliveryDate: estimate.deliveryDate.ymd,
+        shipLabel: label(estimate.shipDate.ymd), deliveryLabel: label(estimate.deliveryDate.ymd),
+    });
+    const shipments = specialty && hasRegular ? [
+        { label: 'Displays & signs', ...dates(specialty) },
+        { label: 'Banners, yard signs & car magnets', ...dates(regular) },
+    ] : undefined;
+    const estimate = specialty && (!hasRegular || specialty.deliveryDate.ymd >= regular.deliveryDate.ymd) ? specialty : regular;
     return {
-        shipDate: estimate.shipDate.ymd,
-        deliveryDate: estimate.deliveryDate.ymd,
-        shipLabel: label(estimate.shipDate.ymd),
-        deliveryLabel: label(estimate.deliveryDate.ymd),
+        ...dates(estimate),
+        ...(shipments ? { shipments } : {}),
         note: order.items?.some(item => item.design_service_enabled)
             ? 'Based on the order time. Design approval or artwork changes may move this estimate.'
-            : 'Based on the order time, production cutoff, and selected delivery service.',
+            : shipments ? 'Products follow separate production schedules and may arrive separately.'
+                : hasSpecialty ? 'Based on the order time and the 2 p.m. Pacific / 5 p.m. Eastern cutoff, with included FedEx Next-Day Air after production.'
+                    : 'Based on the order time, production cutoff, and selected delivery service.',
     };
 }

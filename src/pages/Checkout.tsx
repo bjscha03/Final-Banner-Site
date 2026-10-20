@@ -18,6 +18,7 @@ import { OrderItem } from '../lib/orders/types';
 
 import Layout from '@/components/Layout';
 import PriceDeliveryEstimate from '@/components/delivery/PriceDeliveryEstimate';
+import SpecialtyCartDelivery from '@/components/delivery/SpecialtyCartDelivery';
 import { usd, formatDimensions, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
 import PayPalCheckout from '@/components/checkout/PayPalCheckoutReliable';
@@ -1349,7 +1350,7 @@ const Checkout: React.FC = () => {
             <aside className="checkout-order-panel" aria-label="Order summary">
               <CheckoutArtworkSummary showTotal={false} items={items} totalCents={totalCents} linePrices={displayPrices}
                 editAction={<CheckoutReviewDialog label="Edit order">{orderReviewContent}</CheckoutReviewDialog>} />
-              {specialtyInCart ? <p className="p-4 text-sm text-slate-600">Production time varies by product. {shippingPending ? 'Shipping needs confirmation before payment.' : 'Free Next Day Air shipping is included after production.'}</p> : <PriceDeliveryEstimate variant="checkout" />}
+              {specialtyInCart ? <div className="p-4"><SpecialtyCartDelivery /></div> : <PriceDeliveryEstimate variant="checkout" />}
               {desktopCheckout ? <div id="checkout-price-details">{orderTotals}{checkoutAdjustments}</div> : (
                 <div className="checkout-arrival-total">
                   <div><strong>Total</strong><p>Incl. tax · <a href="#checkout-price-details">View price details ↓</a></p></div>
