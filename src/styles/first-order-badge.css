@@ -1,0 +1,16 @@
+.first-order-badge { --badge-size:80px; position:absolute; z-index:3; top:12px; right:12px; width:var(--badge-size); height:var(--badge-size); box-sizing:border-box; border:2px solid white; border-radius:50%; background:#ff6a00; color:white; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; pointer-events:none; box-shadow:0 2px 6px #0002; font-family:Inter,sans-serif; padding:10px; }
+.first-order-badge strong { display:block; font-size:24px; line-height:1; font-weight:850; letter-spacing:-.04em; }
+.first-order-badge b { display:block; font-size:13px; line-height:1.05; font-weight:850; letter-spacing:.01em; }
+.first-order-badge span { display:block; font-size:7px; line-height:1.1; margin-top:3px; font-weight:750; letter-spacing:0; }
+.compact-product-photo .first-order-badge { --badge-size:72px; top:6px; right:max(8px, calc((100cqw - 150cqh) / 2 + 6px)); padding:8px; }
+.compact-product-photo .first-order-badge strong { font-size:21px; }
+.compact-product-photo .first-order-badge b { font-size:12px; }
+.compact-product-photo .first-order-badge span { font-size:6.5px; margin-top:2px; }
+@media(min-width:1024px) {
+  .product-hero-media .first-order-badge { --badge-size:112px; top:20px; right:20px; padding:14px; }
+  .product-hero-media .first-order-badge strong { font-size:34px; }
+  .product-hero-media .first-order-badge b { font-size:19px; }
+  .product-hero-media .first-order-badge span { font-size:10px; margin-top:4px; }
+}
+
+.first-order-badge.gallery-badge-lower { top:auto; bottom:12px; }

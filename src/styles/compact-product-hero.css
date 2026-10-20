@@ -29,9 +29,6 @@
   .compact-product-photo { position:relative; display:flex; justify-content:center; align-items:center; flex:1 1 auto; min-height:80px; container-type:size; overflow:hidden; background:#f8f6f1; }
   .compact-product-photo > picture, .compact-product-photo [data-product-visual], .compact-product-photo [data-product-visual-stage] { display:flex; justify-content:center; align-items:center; width:100%; height:100%; min-height:0; background:transparent; }
   .compact-product-photo img { display:block; width:100%; height:100%; object-fit:contain; object-position:center; }
-  .compact-product-discount { position:absolute; top:8px; right:max(10px, calc((100cqw - 150cqh) / 2 + 8px)); width:72px; height:72px; border:2px solid white; border-radius:50%; background:#ff6a00; color:white; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; pointer-events:none; box-shadow:0 2px 6px #0002; }
-  .compact-product-discount strong { font-size:24px; line-height:.9; font-weight:850; }
-  .compact-product-discount span { font-size:8px; line-height:1.1; margin-top:4px; font-weight:700; }
   .compact-product-delivery { flex:none; padding:8px 12px 6px; }
   .compact-product-hero > .google-review-spotlight { flex:none; }
   .compact-product-hero .google-review-compact-inner { height:34px; padding-inline:12px; gap:7px; }
@@ -59,9 +56,6 @@
   .delivery-date-cell > svg { width:21px; height:21px; }
   .delivery-date-label { font-size:8px; }
   .delivery-date-value { font-size:16px; }
-  .compact-product-discount { width:62px; height:62px; }
-  .compact-product-discount strong { font-size:21px; }
-  .compact-product-discount span { font-size:7px; }
 }
 @media(min-width:1024px) {
   .delivery-date-card { padding:16px 22px; }
@@ -71,3 +65,7 @@
   .delivery-date-weekday { font-size:13px; }
   .delivery-date-value { font-size:25px; }
 }
+
+.product-hero-copy .specialty-shipping-overview { flex-direction:column; gap:8px; }
+.product-hero-copy .specialty-shipping-countdown { justify-content:center; padding:8px; }
+.product-hero-copy .specialty-shipping-countdown strong { font-size:18px; }

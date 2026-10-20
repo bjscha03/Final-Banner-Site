@@ -189,3 +189,17 @@ test('older cropped specialty placements cannot reach payment without a new revi
  const item=itemFor('feather-flags');item.specialty_config.panels[0].composition.transform.crop={x:0,y:0,width:.5,height:1};
  assert.throws(()=>normalizeSpecialtyItem(item),{code:'SPECIALTY_ARTWORK_STALE'});
 });
+
+test('NEW20 applies once to canonical specialty configurations, options and quantity at checkout',()=>{
+ for(const slug of ['standard-retractable-banner','feather-flags','standard-table-throws','aluminum-signs']) {
+  const item=itemFor(slug,0,slug==='feather-flags'?{sides:'2',flaghardware:'PB',carrybag:'1'}:{});
+  const priced=repriceStripeCart([item]);
+  const raw=priced[0].line_total_cents;
+  const totals=computeTotals(priced,.06,{freeShipping:true},{code:'NEW20',discountPercentage:20});
+  const expectedDiscount=Math.round(raw*.2);
+  assert.equal(totals.applied_discount_cents,expectedDiscount,slug);
+  assert.equal(totals.shipping_cents,0,slug);
+  assert.equal(totals.total_cents,raw-expectedDiscount+Math.round((raw-expectedDiscount)*.06),slug);
+  assert.equal(priced[0].line_total_cents,raw,'discount does not mutate the canonical cart price');
+ }
+});

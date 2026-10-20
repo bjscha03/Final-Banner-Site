@@ -13,9 +13,9 @@
 .product-hero-actions :is(a, button):focus-visible { outline: 3px solid var(--brand-orange); outline-offset: 5px; }
 .product-hero-offer { margin-top: 22px; }
 .product-hero-delivery { margin-top: 24px; width: 100%; max-width: 550px; }
-.product-hero-media { position: relative; min-width: 0; overflow: hidden; background: #eeece5; }
+.product-hero-media { align-self:center; aspect-ratio:3 / 2; position: relative; min-width: 0; overflow: hidden; background: #f8f6f1; }
 .product-hero-media > :first-child { width: 100%; height: 100%; }
-.product-hero-media img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.product-hero-media img { width: 100%; height: 100%; object-fit: contain; object-position: center; }
 .product-hero-media::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #f8f6f1 0%, rgba(248,246,241,.55) 5%, transparent 14%); }
 .product-hero-light[data-halloween-hero="true"] .product-hero-media { align-self: center; aspect-ratio: 3 / 2; background: #f8f6f1; }
 .product-hero-light[data-halloween-hero="true"] .product-hero-media img { object-fit: contain; }
