@@ -26,7 +26,7 @@ function normalizedEmail(value) {
 }
 
 async function newCustomerCodeStillEligible(sql, { code, email, userId }) {
-  if (code !== 'NEW20') return true;
+  if (code !== 'NEW20' && code !== 'POSTCARD25') return true;
   const normalized = normalizedEmail(email);
   if (!userId && !normalized) return false;
   const rows = await sql`

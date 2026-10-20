@@ -142,11 +142,11 @@ async function validateDiscountForCheckout({
     return validResult(promotion.discount);
   }
 
-  if (normalizedCode === 'NEW20') {
+  if (normalizedCode === 'NEW20' || normalizedCode === 'POSTCARD25') {
     // A customer may have applied NEW20 before adding a qualifying banner.
     // Resolve that stale state to the automatic 25% offer instead of stacking
     // discounts or failing the provider checkout after the cart is repriced.
-    if (LARGE_BANNER_PROMOTION_ENABLED && hasQualifyingLargeBanner) {
+    if (normalizedCode === 'NEW20' && LARGE_BANNER_PROMOTION_ENABLED && hasQualifyingLargeBanner) {
       return validResult(buildAutomaticLargeBannerDiscount());
     }
 
@@ -171,9 +171,9 @@ async function validateDiscountForCheckout({
       }
     }
     return validResult({
-      id: 'NEW20_PROMO',
-      code: 'NEW20',
-      discountPercentage: 20,
+      id: `${normalizedCode}_PROMO`,
+      code: normalizedCode,
+      discountPercentage: normalizedCode === 'POSTCARD25' ? 25 : 20,
       discountAmountCents: null,
       expiresAt: '2099-12-31T23:59:59Z',
       source: 'new_customer',
