@@ -21,6 +21,7 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction, 
   showTotal?: boolean;
   linePrices?: Map<string,{originalCents:number;totalCents:number}>;
 }) {
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [printLayoutItems, setPrintLayoutItems] = useState<Record<string, boolean>>({});
   return (
     <section aria-label="Your artwork and order" className="checkout-artwork" data-testid="checkout-artwork-summary">
@@ -58,7 +59,7 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction, 
           };
           return (
             <div key={item.id} className="checkout-artwork-item" data-checkout-artwork-item={item.id}>
-              {hasRealisticPreview && <div className="checkout-preview-mode" role="group" aria-label={`Preview style for item ${index + 1}`}>
+              {hasRealisticPreview && expandedItems[item.id] && <div className="checkout-preview-mode" role="group" aria-label={`Preview style for item ${index + 1}`}>
                 <button type="button" aria-pressed={showRealisticPreview} onClick={() => setPrintLayoutItems(current => ({ ...current, [item.id]: false }))}>Realistic preview</button>
                 <button type="button" aria-pressed={!showRealisticPreview} onClick={() => setPrintLayoutItems(current => ({ ...current, [item.id]: true }))}>Print layout</button>
               </div>}
@@ -89,8 +90,12 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction, 
                 {item.product_type === 'specialty' && (specialtyItemHasVerifiedPrice(item)
                   ? <CartLinePrice {...(linePrices?.get(item.id) || {originalCents: item.line_total_cents, totalCents: item.line_total_cents})} quantity={item.quantity} />
                   : <SpecialtyPendingPrice item={item} />)}
-                {item.specialty_config?.optionSummary?.map(option => <p key={option.key}>{option.label}: {option.value}</p>)}
-                {isBanner && <p className="checkout-artwork-finishing">{item.material === '18oz_double' ? 'Double-sided' : 'Single-sided'} · Grommets: {getGrommetLabelForDisplay(item, details.grommetsDisplay)}</p>}
+                {expandedItems[item.id] && item.specialty_config?.optionSummary?.map(option => <p key={option.key}>{option.label}: {option.value}</p>)}
+                {isBanner && expandedItems[item.id] && <p className="checkout-artwork-finishing">{item.material === '18oz_double' ? 'Double-sided' : 'Single-sided'} · Grommets: {getGrommetLabelForDisplay(item, details.grommetsDisplay)}</p>}
+                <button type="button" className="checkout-artwork-details-toggle" aria-expanded={Boolean(expandedItems[item.id])}
+                  onClick={() => setExpandedItems(current => ({ ...current, [item.id]: !current[item.id] }))}>
+                  {expandedItems[item.id] ? 'Hide details' : 'Artwork & finishing details'}
+                </button>
               </div>
             </div>
           );

@@ -51,7 +51,7 @@ jobs:
       - name: Backend payment and pricing regressions
         run: node --test netlify/functions/__tests__/stripe-checkout-service.test.cjs netlify/functions/__tests__/payment-discount-reservation.test.cjs
       - run: npm run build
-      - run: npx playwright install --with-deps chromium webkit
+      - run: npx playwright install --with-deps chromium webkit firefox
       - name: Desktop and mobile layout, card validation, provider switching and promo totals
         run: npx playwright test --config=playwright.checkout.config.ts
       - uses: actions/upload-artifact@v4

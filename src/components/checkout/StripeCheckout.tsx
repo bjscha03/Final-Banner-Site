@@ -60,8 +60,10 @@ import { isValidCheckoutPhone, selectWalletCheckoutPhone } from './stripeWalletP
 import { stripeCardPaymentElementOptions } from './stripePaymentElementOptions';
 import { CheckoutCardDivider } from './CheckoutCardDivider';
 import IsolatedExpressWallet from './IsolatedExpressWallet';
+import CheckoutPaymentBar from './CheckoutPaymentBar';
 
 interface StripeCheckoutProps {
+  orderIntro?: React.ReactNode;
   orderSummary?: React.ReactNode;
   alternativePayment?: React.ReactNode;
   paymentMethod?: 'card' | 'cashapp';
@@ -305,6 +307,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   onPaymentStateChange,
   onCanonicalQuote,
   signature,
+  orderIntro,
   orderSummary,
   alternativePayment,
   paymentMethod = 'card',
@@ -1382,6 +1385,8 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
         paymentMethod === 'cashapp' ? <p className="text-sm font-semibold">Pay with Cash App</p> : <CheckoutCardDivider />
       ) : null}
 
+      {orderIntro}
+
       {verificationMessage ? (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4" role="status" aria-live="polite">
           <div className="flex items-start gap-2">
@@ -1440,7 +1445,8 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           <div ref={customerDetailsRef} className="checkout-contact">
             <div className="checkout-section-title">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#071C35] text-xs font-bold text-white" aria-hidden="true">1</span>
-              <h4 className="text-sm font-bold text-[#0B1F3A]">Contact &amp; delivery</h4>
+              <h4 className="text-sm font-bold text-[#0B1F3A]">Contact</h4>
+              {!user && <a href="/sign-in?from=checkout&next=/checkout" className="checkout-sign-in">Sign in</a>}
             </div>
             <div className="grid grid-cols-2 gap-3">
               {customerFields
@@ -1448,6 +1454,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                 .map(({ field, label, type = 'text', inputMode, autoComplete, wide }) => {
                 if (field === 'street') return (
                   <div key={field} className="col-span-2 text-sm font-medium text-slate-800">
+                    <div className="checkout-section-title checkout-address-title"><span aria-hidden="true">2</span><h4>{customer.shippingSame ? 'Shipping address' : 'Billing address'}</h4></div>
                     <label htmlFor="stripe-street">{label}{label.includes('*') ? '' : ' *'}</label>
                     <CheckoutAddressInput id="stripe-street" name="billing-street" data-stripe-field="street"
                       className="mt-1 h-11 bg-white text-base sm:text-sm" placeholder="Start typing your street address"
@@ -1550,7 +1557,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
 
           <div className="checkout-card-fields">
             <div className="checkout-section-title">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#071C35] text-xs font-bold text-white" aria-hidden="true">2</span>
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#071C35] text-xs font-bold text-white" aria-hidden="true">3</span>
               <h4 className="text-sm font-bold text-[#0B1F3A]">Payment</h4>
             </div>
             <PaymentElement
@@ -1565,6 +1572,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
 
           {orderSummary}
 
+          <CheckoutPaymentBar total={total}>
           <Button
             type="button"
             size="lg"
@@ -1576,6 +1584,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
               ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Completing secure payment…</>
               : <><Lock className="mr-2 h-4 w-4" aria-hidden="true" />{`${paymentMethod === 'cashapp' ? 'Continue with Cash App · ' : 'Pay '}$${(total / 100).toFixed(2)}`}</>}
           </Button>
+          </CheckoutPaymentBar>
         </section>
       ) : null}
 

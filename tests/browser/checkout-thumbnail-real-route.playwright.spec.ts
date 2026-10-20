@@ -191,7 +191,7 @@ async function completeActualCartToCheckout(page: Page, harness: UploadHarness) 
   await page.getByRole('button', { name: mobile ? 'Checkout' : 'Continue to checkout', exact: true }).filter({ visible: true }).click();
 
   await expect(page).toHaveURL(/\/checkout(?:[?#]|$)/, { timeout: 20_000 });
-  await expect(page.getByRole('heading', { name: 'Let’s make it official.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Checkout', exact: true })).toBeVisible();
   await expect(page.locator(`img[src="${harness.artifactUrl}"]`).first()).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(`img[src="${harness.originalUrl}"]`)).toHaveCount(0);
 

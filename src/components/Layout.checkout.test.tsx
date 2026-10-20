@@ -12,11 +12,11 @@ vi.mock('./ScrollToTop', () => ({ default: () => null }));
 import Layout from './Layout';
 
 describe('checkout navigation', () => {
-  it.each([undefined, true])('keeps navigation and passes checkout mode during all checkout states (mode %s)', (checkoutMode) => {
+  it.each([undefined, true])('uses a compact distraction-free header during all checkout states (mode %s)', (checkoutMode) => {
     const html = renderToStaticMarkup(<MemoryRouter initialEntries={['/checkout']}><Layout checkoutMode={checkoutMode}>Checkout content</Layout></MemoryRouter>);
-    expect(html).toContain('Secure encrypted checkout');
-    expect(html).toContain('data-checkout-mode="true"');
-    expect(html).toContain('Store navigation');
+    expect(html).toContain('Encrypted payment');
+    expect(html).toContain('data-checkout-header');
+    expect(html).not.toContain('Store navigation');
     expect(html).not.toContain('Store footer');
     expect(html).toContain('Checkout help');
   });

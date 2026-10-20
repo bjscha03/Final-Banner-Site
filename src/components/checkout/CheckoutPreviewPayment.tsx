@@ -31,7 +31,7 @@ export function PreviewCardPayment() {
   return (
     <section className="checkout-card-fields" aria-labelledby="checkout-preview-payment-heading">
       <div className="checkout-section-title">
-        <span className="flex items-center justify-center rounded-full bg-[#071C35] font-bold text-white" aria-hidden="true">2</span>
+        <span className="flex items-center justify-center rounded-full bg-[#071C35] font-bold text-white" aria-hidden="true">3</span>
         <h4 id="checkout-preview-payment-heading">Payment</h4>
         <CreditCard className="ml-auto h-5 w-5 text-slate-500" aria-hidden="true" />
       </div>

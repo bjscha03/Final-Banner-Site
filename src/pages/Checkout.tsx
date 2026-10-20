@@ -17,8 +17,7 @@ import { getOrdersAdapter } from '../lib/orders/adapter';
 import { OrderItem } from '../lib/orders/types';
 
 import Layout from '@/components/Layout';
-import PriceDeliveryEstimate from '@/components/delivery/PriceDeliveryEstimate';
-import SpecialtyCartDelivery from '@/components/delivery/SpecialtyCartDelivery';
+import CheckoutDeliverySummary from '@/components/checkout/CheckoutDeliverySummary';
 import { usd, formatDimensions, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
 import PayPalCheckout from '@/components/checkout/PayPalCheckoutReliable';
@@ -1220,7 +1219,6 @@ const Checkout: React.FC = () => {
                 {/* Discount Code Section */}
                 <div className="pt-3">
                   <BOFCashCheckout locked={checkoutLocked}/>
-                  {discountCode?.automaticFirstOrder && <p className="checkout-savings-note">{getEnteredPromoLabel(discountCode, resolvedDiscount)}</p>}
                   {firstOrderOffer.message && (!discountCode || discountCode.code === 'NEW20') && <p role="status" data-testid="first-order-eligibility" className="mb-2 text-xs leading-snug text-slate-600">{firstOrderOffer.message}{firstOrderOffer.status === 'unavailable' && <button type="button" onClick={firstOrderOffer.retry} className="ml-2 min-h-11 font-semibold underline">Retry offer</button>}</p>}
                   {!discountCode || discountCode.automaticFirstOrder ? (
                     <div className="space-y-3">
@@ -1230,7 +1228,7 @@ const Checkout: React.FC = () => {
                         disabled={checkoutLocked}
                         className="text-sm font-semibold text-[#18448D] underline underline-offset-2"
                       >
-                        Have a promo code?
+                        + Add promo code
                       </button>
                       {showPromoCode && (
                       <>
@@ -1295,6 +1293,12 @@ const Checkout: React.FC = () => {
               </div>
   );
 
+  const orderIntro = <div className="checkout-order-intro">
+    <CheckoutArtworkSummary showTotal={false} items={items} totalCents={totalCents} linePrices={displayPrices}
+      editAction={<CheckoutReviewDialog label="Edit order">{orderReviewContent}</CheckoutReviewDialog>} />
+    <CheckoutDeliverySummary shippingPending={shippingPending} />
+  </div>;
+
   const paymentOrderSummary = desktopCheckout ? null : (
     <section id="checkout-price-details" aria-label="Review order before payment" data-testid="payment-order-summary" className="checkout-mobile-pricing">
       {orderTotals}
@@ -1334,30 +1338,17 @@ const Checkout: React.FC = () => {
               className="checkout-back"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to designer
+              Back to order
             </Button>
-              <ol className="checkout-progress" aria-label="Checkout progress">
-                <li><CircleCheck aria-hidden="true" />Design</li>
-                <li><CircleCheck aria-hidden="true" />Finishing</li>
-                <li aria-current="step"><span>3</span>Checkout</li>
-              </ol>
             </div>
-            <h1>Let’s make it official.</h1>
-            <p>Your design is ready. Finish your order below.</p>
+            <div className="checkout-title-row"><h1>Checkout</h1><span>Final step</span></div>
           </div>
 
           <div data-testid="checkout-flow" className="checkout-grid">
-            <aside className="checkout-order-panel" aria-label="Order summary">
-              <CheckoutArtworkSummary showTotal={false} items={items} totalCents={totalCents} linePrices={displayPrices}
-                editAction={<CheckoutReviewDialog label="Edit order">{orderReviewContent}</CheckoutReviewDialog>} />
-              {specialtyInCart ? <div className="p-4"><SpecialtyCartDelivery /></div> : <PriceDeliveryEstimate variant="checkout" />}
-              {desktopCheckout ? <div id="checkout-price-details">{orderTotals}{checkoutAdjustments}</div> : (
-                <div className="checkout-arrival-total">
-                  <div><strong>Total</strong><p>Incl. tax · <a href="#checkout-price-details">View price details ↓</a></p></div>
-                  <strong>{specialtyPending ? 'Pending' : usd(totalCents / 100)}</strong>
-                </div>
-              )}
-            </aside>
+            {desktopCheckout && <aside className="checkout-order-panel" aria-label="Order summary">
+              {orderIntro}
+              <div id="checkout-price-details">{orderTotals}{checkoutAdjustments}</div>
+            </aside>}
             <div className="checkout-main space-y-4">
             {/* Minimum Order Warning */}
             {!minimumOrderValidation.isValid && (
@@ -1488,6 +1479,7 @@ const Checkout: React.FC = () => {
                       Loading secure payment options…
                     </div>
                     <div className="mt-4 h-12 animate-pulse rounded-md bg-slate-200/70" aria-hidden="true" />
+                    {!desktopCheckout && orderIntro}
                   </div>
                 ) : stripeAvailable && stripeRuntime.publishableKey ? (
                   <div className="space-y-5">
@@ -1500,6 +1492,7 @@ const Checkout: React.FC = () => {
                       <StripeCheckout
                         alternativePayment={paypalChoice}
                         paymentMethod={stripePaymentMethod}
+                        orderIntro={desktopCheckout ? null : orderIntro}
                         orderSummary={paymentOrderSummary}
                         publishableKey={stripeRuntime.publishableKey}
                         disabled={firstOrderOffer.checking || paymentSubmissionBlocked || checkoutLocked}
@@ -1512,6 +1505,7 @@ const Checkout: React.FC = () => {
                       />
                     ) : (
                       <PayPalCheckout
+                        orderIntro={desktopCheckout ? null : orderIntro}
                         orderSummary={paymentOrderSummary}
                         disabled={firstOrderOffer.checking || paymentSubmissionBlocked || (checkoutLocked && activeCheckout?.provider !== 'paypal')}
                         providerLocked={checkoutLocked}
@@ -1543,6 +1537,7 @@ const Checkout: React.FC = () => {
                       </div>
                     </div>}
                     <PayPalCheckout
+                        orderIntro={desktopCheckout ? null : orderIntro}
                         orderSummary={paymentOrderSummary}
                       disabled={firstOrderOffer.checking || paymentSubmissionBlocked || (checkoutLocked && activeCheckout?.provider !== 'paypal')}
                       providerLocked={checkoutLocked}
@@ -1557,12 +1552,10 @@ const Checkout: React.FC = () => {
                   </div>
                 )}
 
-                <div className="checkout-payment-note"><Lock aria-hidden="true" />Secure, encrypted payment <span>·</span><a href="/terms">Terms</a><span>·</span><a href="/privacy">Privacy</a></div>
+
               </div>
 
-              <div className="checkout-account">
-                {user ? <p>{user.email ? `Order saved to ${user.email}` : 'Your order will be saved to your account.'}</p> : <p>Checking out as a guest. <button type="button" onClick={() => navigate('/sign-in?from=checkout&next=/checkout')}>Sign in</button></p>}
-              </div>
+
             </div>
             </div>
           </div>
