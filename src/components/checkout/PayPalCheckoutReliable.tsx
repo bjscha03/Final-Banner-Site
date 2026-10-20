@@ -44,8 +44,10 @@ import type {
   CheckoutPaymentStateEvent,
 } from './checkoutPaymentState';
 import { togglePayPalCardFields } from './paypalCardDisclosure';
+import CheckoutPaymentBar from './CheckoutPaymentBar';
 
 interface PayPalCheckoutProps {
+  orderIntro?: React.ReactNode;
   orderSummary?: React.ReactNode;
   total: number;
   onSuccess: (orderId: string, orderData?: any) => void;
@@ -105,11 +107,13 @@ type SubmittedCustomer = {
 
 const InlineCardSubmit: React.FC<{
   disabled: boolean;
+  total: number;
   beforeSubmit: () => Promise<boolean>;
-}> = ({ disabled, beforeSubmit }) => {
+}> = ({ disabled, total, beforeSubmit }) => {
   const { cardFieldsForm } = usePayPalCardFields();
 
   return (
+    <CheckoutPaymentBar total={total}>
     <Button
       type="button"
       className="checkout-pay-button mt-3 w-full"
@@ -119,8 +123,9 @@ const InlineCardSubmit: React.FC<{
         if (await beforeSubmit()) void cardFieldsForm?.submit();
       }}
     >
-      Pay Now
+      <Lock className="mr-2 h-4 w-4" aria-hidden="true" />Pay ${(total / 100).toFixed(2)}
     </Button>
+    </CheckoutPaymentBar>
   );
 };
 
@@ -311,6 +316,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   resumeCheckout = null,
   onPaymentStateChange,
   onCanonicalQuote,
+  orderIntro,
   orderSummary,
 }) => {
   const { toast } = useToast();
@@ -1199,15 +1205,17 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         <div className="checkout-section-title">
           <span className="flex items-center justify-center rounded-full bg-[#071C35] font-bold text-white" aria-hidden="true">1</span>
           <h3 id="checkout-customer-heading" className="text-base font-bold text-[#0B1F3A]">
-            Contact &amp; delivery
+            Contact
           </h3>
 
+          {!user && <a href="/sign-in?from=checkout&next=/checkout" className="checkout-sign-in">Sign in</a>}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           {customerFields.map(({ field, label, type = 'text', inputMode, autoComplete, wide }) => {
             if (field === 'street') return (
                   <div key={field} className="col-span-2 text-sm font-medium text-slate-800">
+                    <div className="checkout-section-title checkout-address-title"><span aria-hidden="true">2</span><h4>{customer.shippingSame ? 'Shipping address' : 'Billing address'}</h4></div>
                     <label htmlFor="checkout-street">{label}{label.includes('*') ? '' : ' *'}</label>
                     <CheckoutAddressInput id="checkout-street" name="billing-street" data-checkout-field="street"
                       className="mt-1 h-11 bg-white text-base sm:text-sm" placeholder="Start typing your street address"
@@ -1361,6 +1369,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
             <PayPalCardFieldsForm />
             {orderSummary}
             <InlineCardSubmit
+              total={total}
               disabled={buttonsDisabled}
               beforeSubmit={() => prepareCustomerForPayment('card')}
             />
@@ -1374,9 +1383,11 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     return (
       <div className="space-y-4">
         <PreviewExpressCheckout />
+        {orderIntro}
         {renderCustomerDetails()}
         <PreviewCardPayment />
         {orderSummary}
+        <CheckoutPaymentBar total={total}>
         <Button
           type="button"
           onClick={handleTestPayment}
@@ -1388,6 +1399,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
             ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing Test Order...</>
             : <><Lock className="mr-2 h-4 w-4" aria-hidden="true" />Place test order · ${(total / 100).toFixed(2)}</>}
         </Button>
+        </CheckoutPaymentBar>
         <p className="checkout-preview-note text-center">Test order only. No payment will be taken.</p>
         {checkoutError ? <p className="text-sm text-red-700">{checkoutError}</p> : null}
       </div>
@@ -1396,16 +1408,17 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
 
   if (isLoadingConfig) {
     return (
-      <div className="flex items-center justify-center py-8">
+      <div>{orderIntro}<div className="flex items-center justify-center py-8">
         <Loader2 className="mr-2 h-6 w-6 animate-spin" />
         <span>Loading secure checkout…</span>
-      </div>
+      </div></div>
     );
   }
 
   if (!paypalConfig?.enabled || !paypalConfig.clientId || !paypalConfig.clientToken) {
     return (
       <div className="space-y-4">
+        {orderIntro}
         <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Secure checkout is temporarily unavailable. Please refresh the page or contact support.</div>
         {orderSummary}
       </div>
@@ -1477,8 +1490,9 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         <PayPalScriptProvider options={initialOptions}>
           <p className="checkout-express-label">Pay with {preferredFunding === 'venmo' ? 'Venmo' : 'PayPal'}</p>
           {renderPayPalButton()}
+          {orderIntro}
           {renderCustomerDetails()}
-          {orderSummary}
+          {(paypalOnly || !cardFieldsExpanded) && orderSummary}
           {!paypalOnly && renderInlineCardFields()}
         </PayPalScriptProvider>
       ) : null}

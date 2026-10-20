@@ -1,4 +1,5 @@
 import React from 'react';
+import { Lock } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useCartStore } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
@@ -32,25 +33,21 @@ const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false, compact
   return (
     <div className="brand-page max-w-[100vw] overflow-x-clip">
       <ScrollToTop />
-      {!location.pathname.startsWith('/admin') && <PromoBanner showStandardPromo={isHomepage} />}
-      <Header compactMobile={compactMobileHeader} checkoutMode={isCheckout} cartCount={hasMounted ? getItemCount() : 0} onCartClick={openCart} />
+      {!isCheckout && !location.pathname.startsWith('/admin') && <PromoBanner showStandardPromo={isHomepage} />}
+      {isCheckout ? <header data-site-header data-checkout-header className="checkout-simple-header">
+        <div><img src="/images/header-logo.png" alt="Banners On The Fly" width="248" height="70" /><span><Lock aria-hidden="true" />Secure checkout</span></div>
+      </header> : <Header compactMobile={compactMobileHeader} cartCount={hasMounted ? getItemCount() : 0} onCartClick={openCart} />}
       <main className="w-full max-w-[100vw] overflow-x-clip">
         {location.pathname.startsWith('/admin') && location.pathname !== '/admin/setup' && location.pathname !== '/admin/site-issues' && <React.Suspense fallback={null}><SiteIssueAlert /></React.Suspense>}
         {children}
       </main>
 
       {isCheckout ? (
-        <footer className="border-t border-slate-200 bg-white">
-          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-6 text-center text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:text-left lg:px-8">
-            <p>Secure encrypted checkout · Nationwide U.S. delivery</p>
-            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 sm:justify-end">
-              <a href="mailto:support@bannersonthefly.com" className="font-semibold text-[#18448D] hover:underline">
-                Checkout help
-              </a>
-              <ScrollToTopLink to="/terms" className="hover:text-[#18448D] hover:underline">Terms</ScrollToTopLink>
-              <ScrollToTopLink to="/privacy" className="hover:text-[#18448D] hover:underline">Privacy</ScrollToTopLink>
-            </div>
-          </div>
+        <footer className="checkout-simple-footer">
+          <Lock aria-hidden="true" /><span>Encrypted payment</span><span>·</span>
+          <ScrollToTopLink to="/terms">Terms</ScrollToTopLink><span>·</span>
+          <ScrollToTopLink to="/privacy">Privacy</ScrollToTopLink><span>·</span>
+          <a href="mailto:support@bannersonthefly.com">Checkout help</a>
         </footer>
       ) : (
         <Footer />

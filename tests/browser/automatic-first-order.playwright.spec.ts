@@ -63,10 +63,10 @@ test('checkout refresh preserves first-order pricing and updates before payment 
   await page.goto('/checkout');
   const totals = page.getByTestId('checkout-order-totals').first();
   await expect(totals).toContainText('$33.92');
-  await expect(page.getByText('20% off first order applied', { exact: true })).toBeVisible();
+  await expect(totals.getByText('First-order savings · 20%', { exact: true })).toBeVisible();
   // Exercise the same draft-change signal emitted by both provider email forms.
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('bof:checkout-customer-draft-changed', { detail: { email: 'returning@example.com' } })));
   await expect(page.getByTestId('first-order-eligibility')).toContainText('price has been updated');
   await expect(totals).toContainText('$42.40');
-  await expect(page.getByText('20% off first order applied', { exact: true })).toHaveCount(0);
+  await expect(totals.getByText('First-order savings · 20%', { exact: true })).toHaveCount(0);
 });

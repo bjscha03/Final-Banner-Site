@@ -29,10 +29,10 @@ test('checkout preserves the reliable inline PayPal implementation', () => {
     'ZIP *',
     'Billing address is the same as shipping',
     'Shipping Address *',
-    'Pay Now',
   ]) {
     assert.ok(paypalCheckout.includes(label), `missing PayPal checkout copy: ${label}`);
   }
+  assert.ok(paypalCheckout.includes('Pay ${(total / 100).toFixed(2)}'));
 
   assert.match(paypalCheckout, /PayPalCardFieldsProvider/);
   assert.match(paypalCheckout, /PayPalCardFieldsForm/);
@@ -88,17 +88,19 @@ test('PayPal pending orders use the same registry repricer before persistence', 
   assert.match(forward, /STALE_CART_TOTAL/);
 });
 
-test('Stripe UI uses deferred Elements with one Express wallet surface and one card surface', () => {
+test('Stripe UI uses deferred Elements with isolated native wallets and one card surface', () => {
   const packageJson = JSON.parse(read('package.json'));
   const stripeCheckout = read('src/components/checkout/StripeCheckout.tsx');
   const paymentElementOptions = read('src/components/checkout/stripePaymentElementOptions.ts');
+  const isolatedWallet = read('src/components/checkout/IsolatedExpressWallet.tsx');
 
   assert.ok(packageJson.dependencies?.['@stripe/stripe-js']);
   assert.ok(packageJson.dependencies?.['@stripe/react-stripe-js']);
   assert.ok(packageJson.dependencies?.stripe);
   assert.match(stripeCheckout, /@stripe\/react-stripe-js/);
   assert.match(stripeCheckout, /loadStripe/);
-  assert.match(stripeCheckout, /ExpressCheckoutElement/);
+  assert.match(stripeCheckout, /IsolatedExpressWallet/);
+  assert.match(isolatedWallet, /ExpressCheckoutElement/);
   assert.match(stripeCheckout, /PaymentElement/);
   assert.match(stripeCheckout, /createConfirmationToken/);
   assert.match(stripeCheckout, /elements\.submit\(\)/);

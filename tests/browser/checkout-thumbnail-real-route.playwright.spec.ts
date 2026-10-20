@@ -180,7 +180,7 @@ async function selectLargeBannerAndUpload(page: Page, fileBytes: Buffer, filenam
     buffer: fileBytes,
   });
   await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole('button', { name: /Show entire design/ }).first()).toBeEnabled({ timeout: 30_000 });
+  await expect(page.getByRole('button', { name: 'Show full image', exact: true }).first()).toBeEnabled({ timeout: 30_000 });
 }
 
 async function completeActualCartToCheckout(page: Page, harness: UploadHarness) {
@@ -191,7 +191,7 @@ async function completeActualCartToCheckout(page: Page, harness: UploadHarness) 
   await page.getByRole('button', { name: mobile ? 'Checkout' : 'Continue to checkout', exact: true }).filter({ visible: true }).click();
 
   await expect(page).toHaveURL(/\/checkout(?:[?#]|$)/, { timeout: 20_000 });
-  await expect(page.getByRole('heading', { name: 'Let’s make it official.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Checkout', exact: true })).toBeVisible();
   await expect(page.locator(`img[src="${harness.artifactUrl}"]`).first()).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(`img[src="${harness.originalUrl}"]`)).toHaveCount(0);
 
@@ -244,7 +244,7 @@ test('sparse visible artwork reaches real checkout without the exact-preview err
   const artwork = await sparseArtwork();
   const harness = await installUploadAndFunctionHarness(page, artwork, 'sparse');
   await selectLargeBannerAndUpload(page, artwork, 'sparse-1672x941.png');
-  await page.getByRole('button', { name: /Show entire design/ }).first().click();
+  await page.getByRole('button', { name: 'Show full image', exact: true }).first().click();
   await completeActualCartToCheckout(page, harness);
 
   await expect(page.getByText(/Could not prepare your exact preview/i)).toHaveCount(0);

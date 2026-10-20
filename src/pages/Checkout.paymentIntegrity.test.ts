@@ -63,7 +63,7 @@ describe('provider-neutral checkout integrity', () => {
     expect(checkout).toContain('checkout-provider-back');
     expect(checkout).toContain('Card &amp; wallets');
     expect(checkout).toContain('aria-label="PayPal"');
-    expect(checkout).toContain('bg-[#FFC439]');
+    expect(checkout).toContain('checkout-paypal-choice');
     expect(checkout).toContain('text-[#003087]');
     expect(checkout).toContain('text-[#0070BA]');
     expect(checkout).toContain('aria-pressed={paymentProvider');

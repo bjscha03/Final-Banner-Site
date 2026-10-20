@@ -9,6 +9,8 @@ export default defineConfig({
     { name: 'desktop', use: { browserName: 'chromium', viewport: { width: 1440, height: 1050 } } },
     { name: 'tablet', use: { browserName: 'chromium', viewport: { width: 1024, height: 1000 } } },
     { name: 'mobile', use: { ...devices['iPhone 15 Pro'], browserName: 'webkit' } },
+    { name: 'firefox', use: { browserName: 'firefox', viewport: { width: 1440, height: 1050 } } },
+    { name: 'android', use: { browserName: 'chromium', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
     { name: 'small-phone', use: { browserName: 'chromium', viewport: { width: 320, height: 740 } } },
   ],
 });

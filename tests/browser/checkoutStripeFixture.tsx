@@ -10,19 +10,16 @@ export const useElements = () => elements;
 export function ExpressCheckoutElement({ onReady, options }: any) {
   const ready = useRef(onReady);
   const walletMode = new URLSearchParams(window.location.search).get('walletFixture') || 'both';
+  const apple = walletMode !== 'none' && options.paymentMethods.applePay !== 'never';
+  const google = walletMode === 'both' && options.paymentMethods.googlePay !== 'never';
   useEffect(() => {
-    ready.current?.({ availablePaymentMethods: { applePay: walletMode !== 'none', googlePay: walletMode === 'both' } });
-  }, [walletMode]);
-  if (walletMode === 'none') return null;
-  const wallet = (label: string, type: string) => (
-    <button type="button" aria-label={`${label} test fixture`} style={{ background: '#000', color: '#fff', borderRadius: 6, height: options.buttonHeight, width: '100%', minWidth: type === 'plain' ? 100 : 140, whiteSpace: 'nowrap', fontSize: 21 }}>{type === 'plain' ? label : `Buy with ${label}`}</button>
-  );
-  // Model both eligible native buttons and their minimum widths. A one-wallet
-  // fixture missed the real two-wallet clipping regression on phones.
-  return <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(walletMode === 'both' ? 2 : 1, options.layout.maxColumns)}, minmax(0, 1fr))`, gap: 12 }}>
-    {wallet('Apple Pay', options.buttonType.applePay)}
-    {walletMode === 'both' && wallet('Google Pay', options.buttonType.googlePay)}
-  </div>;
+    ready.current?.({ availablePaymentMethods: { applePay: apple, googlePay: google } });
+  }, [apple, google]);
+  if (!apple && !google) return null;
+  return <button type="button" aria-label={`${apple ? 'Apple Pay' : 'Google Pay'} test fixture`}
+    style={{ background: '#000', color: '#fff', borderRadius: 6, height: options.buttonHeight, width: '100%', minWidth: 100, whiteSpace: 'nowrap', fontSize: 19 }}>
+    {apple ? 'Apple Pay' : 'G Pay'}
+  </button>;
 }
 export function PaymentElement({ onReady }: any) {
   const ready = useRef(onReady);
