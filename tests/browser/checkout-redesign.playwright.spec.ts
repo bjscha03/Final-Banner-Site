@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import sharp from 'sharp';
-import catalog from '../../shared/specialty-catalog.json';
+import { readFileSync } from 'node:fs';
+const catalog = JSON.parse(readFileSync(new URL('../../shared/specialty-catalog.json', import.meta.url), 'utf8'));
 import { CHECKOUT_ITEM, installCheckoutHarness } from './checkoutHarness';
 
 async function expectCardLogos(page: import('@playwright/test').Page) {
