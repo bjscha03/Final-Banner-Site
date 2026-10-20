@@ -31,6 +31,7 @@ export default function CompactProductHero({ title, accent, photo, delivery, spe
         const barHeight = bar && getComputedStyle(bar).position === 'fixed' ? bar.getBoundingClientRect().height : 0;
         // Keep the dates and review strip above the real sticky order bar,
         // including safe-area padding and wrapping on narrower phones.
+        hero.dataset.hasOrderBar = String(barHeight > 0);
         const top = hero.getBoundingClientRect().top + window.scrollY;
         hero.style.setProperty('--compact-available-height', `${Math.max(320, window.innerHeight - top - barHeight)}px`);
       });

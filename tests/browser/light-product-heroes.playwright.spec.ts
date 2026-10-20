@@ -49,6 +49,13 @@ for (const route of routes) {
       await expect(review.getByRole('button', { name: 'Play Google reviews' })).toBeVisible();
     }
     await page.screenshot({ path: testInfo.outputPath('hero.png') });
+    if (await compact.count() && route.startsWith('/products')) {
+      await compact.locator('summary').click();
+      await expect(compact).toContainText('2 p.m. Pacific / 5 p.m. Eastern');
+      await compact.locator('summary').click();
+      await compact.locator('.compact-product-action a').click();
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
+    }
     const start = page.locator('button.product-hero-cta:visible');
     if (await start.count()) {
       await start.click();

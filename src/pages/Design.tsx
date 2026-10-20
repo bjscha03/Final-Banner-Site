@@ -2991,7 +2991,7 @@ const Design: React.FC = () => {
         <link rel="canonical" href="https://bannersonthefly.com/design" />
       </Helmet>
 
-      {productType === 'banner' && <GoogleReviewSpotlight />}
+      {productType === 'banner' && <div className="hidden lg:block"><GoogleReviewSpotlight /></div>}
 
       <DesignPageHero productType={productType} onStart={scrollToOrder} />
 

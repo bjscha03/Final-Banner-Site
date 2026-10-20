@@ -62,7 +62,7 @@ test('banner finishing preserves the artwork, price and cart through add-another
     await expect(page.getByRole('button', { name: /I need a design/ })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Back to banner', exact: true })).toHaveCount(0);
     await expect(page.locator('#options-section')).toHaveCount(0);
-    await expect(page.getByTestId('mobile-banner-hero')).toContainText('Estimated delivery');
+    await expect(page.getByTestId('mobile-banner-hero')).toContainText('Delivery date');
     await expect(page.getByTestId('mobile-banner-hero').getByTestId('google-reviews')).toBeVisible();
     const arrivalBox = (await page.getByTestId('mobile-banner-hero').locator('[data-hero-delivery-status]').boundingBox())!;
     const reviewBox = (await page.getByTestId('mobile-banner-hero').getByTestId('google-reviews').boundingBox())!;
@@ -73,7 +73,7 @@ test('banner finishing preserves the artwork, price and cart through add-another
     await expect(page.getByRole('button', { name: 'Open AI artwork help' })).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('landing-first-screen.png') });
     const heroBox = await page.getByTestId('mobile-banner-hero').boundingBox();
-    expect(heroBox!.height).toBeLessThan(440);
+    expect(heroBox!.y + heroBox!.height).toBeLessThanOrEqual((await footer.boundingBox())!.y + 1);
     const sixByTwo = size.getByRole('button', { name: "6' × 2' — $48.00", exact: true });
     await sixByTwo.click();
     await expect(sixByTwo.locator('del')).toHaveText('$60.00');
