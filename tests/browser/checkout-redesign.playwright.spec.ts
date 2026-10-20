@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import sharp from 'sharp';
+import catalog from '../../shared/specialty-catalog.json';
 import { CHECKOUT_ITEM, installCheckoutHarness } from './checkoutHarness';
 
 async function expectCardLogos(page: import('@playwright/test').Page) {
@@ -12,8 +13,16 @@ async function expectCardLogos(page: import('@playwright/test').Page) {
   }
 }
 
-test.beforeEach(async ({ page }) => {
-  await installCheckoutHarness(page, [{ ...CHECKOUT_ITEM, grommets: 'every-2-3ft', width_in: 72, height_in: 36, area_sqft: 18, unit_price_cents: 9000, line_total_cents: 9000 }]);
+test.beforeEach(async ({ page }, info) => {
+  const items: any[] = [{ ...CHECKOUT_ITEM, grommets: 'every-2-3ft', width_in: 72, height_in: 36, area_sqft: 18, unit_price_cents: 9000, line_total_cents: 9000 }];
+  if (info.title.startsWith('mixed cart')) {
+    const product = catalog.find(product => product.slug === 'aluminum-composite-signs')!;
+    items.push({ ...CHECKOUT_ITEM, id: 'mixed-specialty', product_type: 'specialty', width_in: 24, height_in: 18,
+      line_total_cents: 6000, unit_price_cents: 6000,
+      specialty_config: { version: 1, productSlug: product.slug, productName: product.name, variantId: product.variants[0].id,
+        variantLabel: product.variants[0].label, materialLabel: 'Aluminum composite', panels: [], options: {} } });
+  }
+  await installCheckoutHarness(page, items);
   await page.route('**/.netlify/functions/stripe-config', route => route.fulfill({ json: { enabled: true, environment: 'test', publishableKey: 'pk_test_visual_fixture' } }));
   await page.route('**/.netlify/functions/validate-discount-code', route => {
     const input = route.request().postDataJSON();
@@ -161,4 +170,22 @@ test('deploy preview matches the wallet and card layout without accepting paymen
   await expect(page.getByText('Preview order requires admin access.', { exact: true }).first()).toBeVisible();
   expect(testOrder).toMatchObject({ checkout_mode: 'admin_deploy_preview_test', payment_method: 'admin_deploy_preview_test', total_cents: 7632 });
   expect(providerRequests).toEqual([]);
+});
+
+
+test('mixed cart keeps separate shipping dates compact and expands the full policy', async ({page}, info) => {
+  await page.goto('/checkout');
+  const shipping = page.getByRole('region', {name: 'Shipping schedule', exact: true});
+  await expect(shipping.getByRole('heading', {name: 'Banners, yard signs & car magnets', exact: true})).toBeVisible();
+  await expect(shipping.getByRole('heading', {name: 'Displays & signs', exact: true})).toBeVisible();
+  await expect(shipping.locator('.checkout-shipment-dates')).toHaveCount(2);
+  await expect(shipping.getByRole('timer')).toBeVisible();
+  const policy = shipping.locator('details');
+  await expect(policy).not.toHaveAttribute('open', '');
+  expect((await shipping.boundingBox())!.height).toBeLessThan(330);
+  await page.screenshot({path: info.outputPath('mixed-shipping.png'), fullPage: true});
+  await policy.locator('summary').click();
+  await expect(policy).toContainText('2 p.m. Pacific / 5 p.m. Eastern');
+  await expect(policy).toContainText('Orders after Friday’s cutoff and over the weekend ship Tuesday');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 });

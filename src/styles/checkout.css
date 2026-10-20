@@ -287,7 +287,7 @@
   body:has(.checkout-payment-bar) .checkout-simple-footer { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
   .checkout-page:has(.checkout-payment-bar) .checkout-mobile-pricing .checkout-final-total { display: none; }
   .checkout-page input, .checkout-page button, .checkout-page summary, .checkout-page [role=alert] { scroll-margin-top: 16px; scroll-margin-bottom: 120px; }
-  .checkout-page:has(input:focus, iframe:focus) .checkout-payment-bar { position: static; margin-top: 16px; border-radius: 8px; }
+  .checkout-payment-bar[data-keyboard-open] { visibility: hidden; pointer-events: none; }
 }
 @media (max-width: 359px) {
   .checkout-shipment-dates svg { width: 18px; height: 18px; }
