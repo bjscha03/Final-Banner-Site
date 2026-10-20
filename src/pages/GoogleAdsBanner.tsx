@@ -3342,9 +3342,9 @@ const GoogleAdsBanner: React.FC = () => {
         {isFallFestivalLanding && <link rel="canonical" href="https://bannersonthefly.com/fall-festival-banners" />}
       </Helmet>
       <div className="min-h-screen bg-white text-gray-900">
-        {/* Only the paid landing route omits navigation. Sharing its mobile
+        {/* Paid landing routes omit navigation. Sharing their mobile
             designer must not remove the storefront's menu or home link. */}
-        {location.pathname.replace(/\/+$/, "") === "/google-ads-banner" ? (
+        {(location.pathname.replace(/\/+$/, "") === "/google-ads-banner" || isHalloweenLanding) ? (
         <header data-site-header className="w-full border-b border-[#e5dfd6] bg-white py-2 px-4 sticky top-0 z-50 lg:py-3">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div className={mobilePaidLayout ? "hidden w-10 lg:block" : "w-10"} />
