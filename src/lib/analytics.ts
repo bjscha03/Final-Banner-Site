@@ -96,6 +96,7 @@ export const trackGoogleAdsPurchaseConversion = (params: {
   transaction_id: string;
   value: number; // cents
   currency?: string;
+  onProcessed?: () => void;
 }) => {
   const conversionId = import.meta.env.VITE_GOOGLE_ADS_CONVERSION_ID;
   const purchaseLabel = import.meta.env.VITE_GOOGLE_ADS_PURCHASE_LABEL;
@@ -107,6 +108,7 @@ export const trackGoogleAdsPurchaseConversion = (params: {
     value: params.value / 100,
     currency: params.currency || 'USD',
     transaction_id: params.transaction_id,
+    ...(params.onProcessed ? { event_callback: params.onProcessed, event_timeout: 2000 } : {}),
   });
 };
 
@@ -120,6 +122,7 @@ export const trackPurchase = (params: {
   shipping?: number;
   items: AnalyticsItem[];
   coupon?: string | null;
+  onProcessed?: () => void;
 }) => {
   return gtag('event', 'purchase', {
     transaction_id: params.transaction_id,
@@ -129,6 +132,7 @@ export const trackPurchase = (params: {
     shipping: (params.shipping || 0) / 100,
     ...(params.coupon ? { coupon: params.coupon } : {}),
     items: params.items.map(toGA4Item),
+    ...(params.onProcessed ? { event_callback: params.onProcessed, event_timeout: 2000 } : {}),
   });
 };
 

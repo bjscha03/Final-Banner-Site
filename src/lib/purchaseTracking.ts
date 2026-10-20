@@ -21,6 +21,9 @@ export type PurchaseTrackingResult = { tracked: boolean; duplicate: boolean; key
 
 const PAID_STATUSES = new Set(['paid', 'completed', 'complete', 'succeeded']);
 const inFlight = new Set<string>();
+// Queued commands live only in this page. Do not persist them as delivered:
+// a blocked/failed Google script never drains the queue, which disappears on reload.
+const pendingGoogleCommands = new Set<string>();
 
 const buildProviderTrackingKey = (key: string, provider: ProviderAttempt['provider']) => `${key}_${provider}`;
 
@@ -103,6 +106,38 @@ const attempt = (provider: ProviderAttempt['provider'], fn: () => boolean): Prov
   }
 };
 
+const attemptGoogle = (
+  provider: 'ga4' | 'google_ads',
+  providerKey: string,
+  send: (onProcessed: () => void) => boolean,
+): Promise<ProviderAttempt> => {
+  if (pendingGoogleCommands.has(providerKey)) {
+    return Promise.resolve({ provider, attempted: false, ok: false, status: 'queued' });
+  }
+  return new Promise((resolve) => {
+    pendingGoogleCommands.add(providerKey);
+    // Allow the loader's initial attempt and single retry to finish. This only
+    // delays the audit; it never blocks the confirmation page or payment.
+    const timer = setTimeout(() => resolve({
+      provider, attempted: true, ok: false, status: 'queued',
+      error: 'google_tag_processing_timeout',
+    }), 20_000);
+    const result = attempt(provider, () => send(() => {
+      clearTimeout(timer);
+      pendingGoogleCommands.delete(providerKey);
+      setStoredKey(providerKey);
+      // Google's callback means the tag processed the command, NOT that GA4
+      // accepted/attributed the sale. Only Google's reporting verifies that.
+      resolve({ provider, attempted: true, ok: true, status: 'attempted' });
+    }));
+    if (!result.ok) {
+      clearTimeout(timer);
+      pendingGoogleCommands.delete(providerKey);
+      resolve(result);
+    }
+  });
+};
+
 export const attemptPurchaseTracking = async (order: PurchaseTrackingOrder): Promise<PurchaseTrackingResult> => {
   const key = buildPurchaseTrackingKey(order.orderId);
   const transactionId = getPurchaseTransactionId(order);
@@ -122,32 +157,30 @@ export const attemptPurchaseTracking = async (order: PurchaseTrackingOrder): Pro
   const alreadyTracked = hasStoredKey(key);
 
   if (inFlight.has(key)) return { tracked: false, duplicate: true, key, attempts: [] };
-  // A provider gets its own durable success key. If GA4/Meta succeeded but the
-  // direct Ads call threw or was interrupted, a revisit must retry Ads without
-  // replaying either successful provider.
-  if (alreadyTracked && (!hasGoogleAdsConfig || hasStoredKey(googleAdsKey))) {
+  // One successful provider must never suppress another provider's retry.
+  if (hasStoredKey(ga4Key) && hasStoredKey(metaKey) && (!hasGoogleAdsConfig || hasStoredKey(googleAdsKey))) {
     return { tracked: false, duplicate: true, key, attempts: [] };
   }
 
   inFlight.add(key);
   const attempts: ProviderAttempt[] = [];
   try {
-    if (!alreadyTracked && !hasStoredKey(ga4Key)) {
-      const ga4Attempt = attempt('ga4', () => trackPurchase({
+    const googleAttempts: Promise<ProviderAttempt>[] = [];
+    if (!hasStoredKey(ga4Key)) {
+      googleAttempts.push(attemptGoogle('ga4', ga4Key, (onProcessed) => trackPurchase({
         transaction_id: transactionId,
         value: order.totalCents,
         tax: order.taxCents || 0,
         shipping: order.shippingCents || 0,
         items: order.items,
         coupon: order.coupon || null,
-      }));
-      attempts.push(ga4Attempt);
-      if (ga4Attempt.ok) setStoredKey(ga4Key);
+        onProcessed,
+      })));
     } else {
       attempts.push({ provider: 'ga4', attempted: false, ok: true, status: 'blocked' });
     }
 
-    if (!alreadyTracked && !hasStoredKey(metaKey)) {
+    if (!hasStoredKey(metaKey)) {
       const metaAttempt = attempt('meta', () => trackFBPurchase({ value: order.totalCents, transaction_id: transactionId }));
       attempts.push(metaAttempt);
       if (metaAttempt.ok) setStoredKey(metaKey);
@@ -166,16 +199,15 @@ export const attemptPurchaseTracking = async (order: PurchaseTrackingOrder): Pro
     } else if (hasStoredKey(googleAdsKey)) {
       attempts.push({ provider: 'google_ads', attempted: false, ok: true, status: 'blocked' });
     } else {
-      const googleAdsAttempt = attempt('google_ads', () => trackGoogleAdsPurchaseConversion({
+      googleAttempts.push(attemptGoogle('google_ads', googleAdsKey, (onProcessed) => trackGoogleAdsPurchaseConversion({
         transaction_id: transactionId,
         value: order.totalCents,
         currency: 'USD',
-      }));
-      if (googleAdsAttempt.ok) {
-        setStoredKey(googleAdsKey);
-      }
-      attempts.push(googleAdsAttempt);
+        onProcessed,
+      })));
     }
+
+    attempts.push(...await Promise.all(googleAttempts));
 
     const ga4Attempt = attempts.find((a) => a.provider === 'ga4');
     const metaAttempt = attempts.find((a) => a.provider === 'meta');

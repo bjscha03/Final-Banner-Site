@@ -16,6 +16,8 @@ import {
   removeOrderConfirmationToken,
 } from '@/lib/orderConfirmationStorage';
 import { verifiedPaidOrderId } from '@/lib/paymentSuccessGate';
+import { isAdmin, useAuth } from '@/lib/auth';
+import { initializeCustomerAnalytics } from '@/lib/analyticsLoader';
 
 type ConfirmationState = 'verifying' | 'verified' | 'unavailable';
 
@@ -23,6 +25,7 @@ const PaymentSuccess: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const location = useLocation();
+  const { user, loading: authLoading } = useAuth();
   
   const orderId = searchParams.get('orderId');
   const state = location.state as {
@@ -165,13 +168,17 @@ const PaymentSuccess: React.FC = () => {
   // Track purchase event for analytics from canonical server-loaded order data.
   useEffect(() => {
     const canonicalOrderId = loadedOrder?.id || null;
+    if (authLoading || isAdmin(user)) return;
     if (confirmationState !== 'verified' || !canonicalOrderId || !loadedOrder) return;
+    // A fast order response must not queue purchase before GA's destination
+    // is configured while AnalyticsController is still waiting on auth.
+    if (!initializeCustomerAnalytics()) return;
     void attemptCanonicalPurchaseTracking(canonicalOrderId, loadedOrder, window.location.href).then((result) => {
       if (import.meta.env.DEV) {
         console.log('[PaymentSuccess] Purchase tracking result', result);
       }
     });
-  }, [confirmationState, loadedOrder]);
+  }, [authLoading, user, confirmationState, loadedOrder]);
   const calculatePricingBreakdown = () => {
     if (items.length === 0) {
       return { subtotal: 0, tax: 0, total: 0, discountCents: 0, discountLabel: "", shippingCents: 0, sameDayFeeCents: 0, saturdayFeeCents: 0 };

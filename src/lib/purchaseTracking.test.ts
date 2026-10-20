@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { attemptPurchaseTracking, buildPurchaseTrackingKey } from './purchaseTracking';
 
 const createStorage = () => {
@@ -24,6 +24,10 @@ const baseOrder = (overrides: any = {}) => ({
   ...overrides,
 });
 
+const processGoogleEvent = (_command: unknown, _name: unknown, params: any) => params?.event_callback?.();
+
+afterEach(() => vi.useRealTimers());
+
 const clearGoogleAdsConfig = () => {
   vi.stubEnv('VITE_GOOGLE_ADS_CONVERSION_ID', '');
   vi.stubEnv('VITE_GOOGLE_ADS_PURCHASE_LABEL', '');
@@ -48,7 +52,7 @@ beforeEach(() => {
   vi.stubEnv('VITE_GOOGLE_ADS_PURCHASE_LABEL', 'purchaseLabel');
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) })));
   window.dataLayer = [];
-  window.gtag = vi.fn();
+  window.gtag = vi.fn(processGoogleEvent);
   (window as any).fbq = vi.fn();
 });
 
@@ -156,7 +160,9 @@ describe('purchase tracking', () => {
 
   it('queues events when gtag loads late', async () => {
     window.gtag = undefined as any;
-    await attemptPurchaseTracking(baseOrder());
+    const tracking = attemptPurchaseTracking(baseOrder());
+    for (const command of window.dataLayer as any[]) command[2]?.event_callback?.();
+    await tracking;
     expect(window.dataLayer?.some((args: any) => args[0] === 'event' && args[1] === 'purchase')).toBe(true);
   });
 
@@ -168,7 +174,7 @@ describe('purchase tracking', () => {
   });
 
   it('still attempts Google Ads when GA4 throws', async () => {
-    window.gtag = vi.fn((cmd, name) => { if (name === 'purchase') throw new Error('ga4 down'); });
+    window.gtag = vi.fn((cmd, name, params) => { if (name === 'purchase') throw new Error('ga4 down'); processGoogleEvent(cmd, name, params); });
     const result = await attemptPurchaseTracking(baseOrder());
     expect(result.attempts.find(a => a.provider === 'ga4')?.ok).toBe(false);
     expect(result.attempts.find(a => a.provider === 'google_ads')?.attempted).toBe(true);
@@ -197,8 +203,9 @@ describe('purchase tracking', () => {
   });
 
   it('retries a failed direct Google Ads call without replaying successful GA4 or Meta', async () => {
-    window.gtag = vi.fn((_command, eventName) => {
+    window.gtag = vi.fn((_command, eventName, params) => {
       if (eventName === 'conversion') throw new Error('ads unavailable');
+      processGoogleEvent(_command, eventName, params);
     });
 
     const first = await attemptPurchaseTracking(baseOrder());
@@ -210,7 +217,7 @@ describe('purchase tracking', () => {
     expect(localStorage.getItem('purchase_tracked_order-1_google_ads')).toBeNull();
     expect((window as any).fbq).toHaveBeenCalledTimes(1);
 
-    window.gtag = vi.fn();
+    window.gtag = vi.fn(processGoogleEvent);
     const retry = await attemptPurchaseTracking(baseOrder());
 
     expect(retry.duplicate).toBe(true);
@@ -223,5 +230,58 @@ describe('purchase tracking', () => {
     expect(window.gtag).toHaveBeenCalledTimes(1);
     expect(window.gtag).toHaveBeenCalledWith('event', 'conversion', expect.anything());
     expect((window as any).fbq).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+describe('independent Google delivery retries', () => {
+  it('retries GA4 after Meta succeeded, without resending Meta', async () => {
+    clearGoogleAdsConfig();
+    window.gtag = vi.fn(() => { throw new Error('Google unavailable'); });
+    await attemptPurchaseTracking(baseOrder());
+    expect(localStorage.getItem('purchase_tracked_order-1_ga4')).toBeNull();
+    expect(localStorage.getItem('purchase_tracked_order-1_meta')).toBe('1');
+
+    window.gtag = vi.fn(processGoogleEvent);
+    const result = await attemptPurchaseTracking(baseOrder());
+    expect(result.attempts.find(a => a.provider === 'ga4')).toMatchObject({ attempted: true, ok: true });
+    expect(window.gtag).toHaveBeenCalledTimes(1);
+    expect(window.fbq).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not persist a Google queue entry as successful before the tag processes it', async () => {
+    vi.useFakeTimers();
+    clearGoogleAdsConfig();
+    window.gtag = vi.fn();
+    const order = baseOrder({ orderId: 'delayed-order' });
+    const tracking = attemptPurchaseTracking(order);
+    expect(localStorage.getItem('purchase_tracked_delayed-order_ga4')).toBeNull();
+    await vi.advanceTimersByTimeAsync(20_000);
+    const result = await tracking;
+    expect(result.attempts.find(a => a.provider === 'ga4')).toMatchObject({ status: 'queued', ok: false });
+    expect(localStorage.getItem('purchase_tracked_delayed-order_ga4')).toBeNull();
+    await attemptPurchaseTracking(order);
+    expect(window.gtag).toHaveBeenCalledTimes(1); // Do not enqueue again in the same page.
+
+    const params = (window.gtag as any).mock.calls[0][2];
+    params.event_callback(); // A late script load still drains the original queue.
+    expect(localStorage.getItem('purchase_tracked_delayed-order_ga4')).toBe('1');
+  });
+
+  it('retries an unprocessed Google event after a page reload with the same transaction ID', async () => {
+    vi.useFakeTimers();
+    clearGoogleAdsConfig();
+    window.gtag = vi.fn();
+    const order = baseOrder({ orderId: 'reload-order' });
+    const first = attemptPurchaseTracking(order);
+    await vi.advanceTimersByTimeAsync(20_000);
+    await first;
+    expect(localStorage.getItem('purchase_tracked_reload-order')).toBe('1'); // Meta succeeded.
+    vi.resetModules(); // New page; storage survives, the old dataLayer does not.
+    window.gtag = vi.fn(processGoogleEvent);
+    const reloaded = await import('./purchaseTracking');
+    await reloaded.attemptPurchaseTracking(order);
+    expect(window.gtag).toHaveBeenCalledWith('event', 'purchase', expect.objectContaining({ transaction_id: 'BOTF-1001' }));
+    expect(window.fbq).toHaveBeenCalledTimes(1);
   });
 });
