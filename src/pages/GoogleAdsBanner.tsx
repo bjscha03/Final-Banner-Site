@@ -3374,7 +3374,7 @@ const GoogleAdsBanner: React.FC = () => {
 
         {/* HERO */}
         {!isYardSign && !isCarMagnet ? (
-          isLargeBannerLanding ? <ProductPageHero productSlug="large-banners-fast" ctaUrl="#order-builder" onStart={scrollToOrder} /> : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <><MobileBannerLandingHero redesigned={paidBannerLanding} halloween={isHalloweenLanding} /><div className="hidden lg:block"><FastBannerAdHero onStart={scrollToOrder} halloween={isHalloweenLanding} /></div></>
+          isLargeBannerLanding ? <ProductPageHero productSlug="large-banners-fast" ctaUrl="#order-builder" onStart={scrollToOrder} /> : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <><MobileBannerLandingHero redesigned={paidBannerLanding} halloween={isHalloweenLanding} showFirstOrderBadge={!isHalloweenLanding && bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20'} /><div className="hidden lg:block"><FastBannerAdHero onStart={scrollToOrder} halloween={isHalloweenLanding} /></div></>
         ) : (
         <LightProductHero
           attributes={{ 'data-google-product-hero': isYardSign ? 'yard-signs' : 'car-magnets' }}
@@ -3397,7 +3397,7 @@ const GoogleAdsBanner: React.FC = () => {
               {isDoubleSidedBanner ? 'Double-sided · 18 oz vinyl' : isYardSign ? '24″ × 18″ yard signs' : isCarMagnet ? 'Custom car magnets' : 'Custom vinyl banners'}
             </p>
             {compactMobileLanding && !paidBannerLanding && <p className="mb-2 flex items-center justify-between gap-2 text-xs font-medium text-slate-500 lg:hidden" aria-label="Ordering steps"><span className="font-bold text-orange-700" aria-current="step">1 Design</span><span aria-hidden="true">→</span><span>2 Finishing</span><span aria-hidden="true">→</span><span>3 Checkout</span></p>}
-            {mobilePaidLayout && <>
+            {mobilePaidLayout && isHalloweenLanding && <>
               {bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' && <p className="mb-4 rounded-full bg-orange-50 px-3 py-2 text-center text-xs font-bold text-orange-700">20% off your first order</p>}
             </>}
             <h2

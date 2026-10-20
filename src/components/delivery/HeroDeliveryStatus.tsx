@@ -1,10 +1,11 @@
 import React, { useSyncExternalStore } from 'react';
+import { PackageCheck, Truck } from 'lucide-react';
 import { useDeliveryCountdown } from '@/hooks/useDeliveryCountdown';
 import { type ETParts } from '@/lib/delivery';
 
 interface HeroDeliveryStatusProps {
   className?: string;
-  variant?: 'compact' | 'editorial' | 'light' | 'arrival';
+  variant?: 'compact' | 'editorial' | 'light' | 'arrival' | 'featured';
   condensed?: boolean;
 }
 
@@ -14,6 +15,29 @@ const LiveHeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className, 
   const dateLabel = (parts: ETParts) => new Intl.DateTimeFormat('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC',
   }).format(new Date(Date.UTC(parts.year, parts.month - 1, parts.day)));
+  if (variant === 'featured') {
+    return (
+      <div data-hero-delivery-status data-state={estimate.state} data-variant={variant}
+        className={`rounded-xl border-t-4 border-[#FF6A00] bg-[#061A31] p-3 text-white shadow-sm ${className || ''}`}
+        aria-label="Shipping and delivery dates">
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label: 'Shipping date', date: estimate.shipDate, Icon: Truck },
+            { label: 'Delivery date', date: estimate.deliveryDate, Icon: PackageCheck },
+          ].map(({ label, date, Icon }) => {
+            const [weekday, monthDay] = dateLabel(date).split(', ');
+            return (
+              <div key={label} className="min-w-0 rounded-lg bg-white/[0.08] px-2.5 py-3">
+                <p className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wide text-[#FFC499]"><Icon aria-hidden="true" className="h-4 w-4 shrink-0" />{label}</p>
+                <p className="mt-2 text-xs font-medium text-[#D3DEEB]">{weekday}</p>
+                <p className="mt-0.5 text-[17px] font-extrabold leading-tight sm:text-xl">{monthDay}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
   return (
     <div data-hero-delivery-status data-state={estimate.state} data-variant={variant}
       className={`rounded-xl border px-3 ${condensed ? 'py-2' : 'py-3 sm:px-4'} ${light ? 'border-[#e5dfd6] bg-white text-[#061A31]' : 'border-white/20 bg-[#061A31] text-white'} ${className || ''}`}
