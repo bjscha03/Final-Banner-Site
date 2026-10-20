@@ -33,7 +33,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium firefox webkit
       - name: Verify storefront heroes at phone, tablet and desktop sizes
         run: npx playwright test --config=playwright.hero.config.ts
       - uses: actions/upload-artifact@v4

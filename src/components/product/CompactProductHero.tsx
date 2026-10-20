@@ -33,7 +33,13 @@ export default function CompactProductHero({ title, accent, photo, delivery, spe
         // including safe-area padding and wrapping on narrower phones.
         hero.dataset.hasOrderBar = String(barHeight > 0);
         const top = hero.getBoundingClientRect().top + window.scrollY;
-        hero.style.setProperty('--compact-available-height', `${Math.max(320, window.innerHeight - top - barHeight)}px`);
+        const photo = hero.querySelector('.compact-product-photo');
+        const copyHeight = Array.from(hero.children).filter(child => child !== photo)
+          .reduce((total, child) => total + child.getBoundingClientRect().height, 0);
+        // Do not stretch a landscape photo into a tall empty stage on larger phones.
+        const naturalHeight = copyHeight + hero.clientWidth * 2 / 3;
+        const availableHeight = window.innerHeight - top - barHeight;
+        hero.style.setProperty('--compact-available-height', `${Math.max(280, Math.min(naturalHeight, availableHeight))}px`);
       });
     };
     const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(measure);
@@ -41,6 +47,9 @@ export default function CompactProductHero({ title, accent, photo, delivery, spe
     const bar = document.querySelector('[data-testid="mobile-subtotal-bar"]');
     if (header) observer?.observe(header);
     if (bar) observer?.observe(bar);
+    for (const child of Array.from(hero.children)) {
+      if (!child.classList.contains('compact-product-photo')) observer?.observe(child);
+    }
     measure();
     window.addEventListener('resize', measure);
     window.visualViewport?.addEventListener('resize', measure);

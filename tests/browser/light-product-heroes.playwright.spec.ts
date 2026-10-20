@@ -36,6 +36,8 @@ for (const route of routes) {
     const compact = page.locator('.compact-product-hero:visible');
     if (await compact.count()) {
       const review = compact.getByTestId('google-reviews');
+      const photoBox = await compact.locator('.compact-product-photo').boundingBox();
+      expect(photoBox!.height).toBeLessThanOrEqual(photoBox!.width * 2 / 3 + 1);
       const bar = page.getByTestId('mobile-subtotal-bar');
       await expect(review).toBeVisible();
       await expect(compact).toContainText('Shipping date');
