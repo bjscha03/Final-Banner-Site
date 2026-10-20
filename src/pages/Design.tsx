@@ -47,6 +47,7 @@ import RealOrdersStrip from '@/components/design/RealOrdersStrip';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
 import {
   calcYardSignPricing,
+  yardSignCartPricing,
   getTotalDesignQuantity,
   validateYardSignQuantity,
   type YardSignSidedness,
@@ -2027,12 +2028,7 @@ const Design: React.FC = () => {
         canvasStateJson,
       });
 
-      const pricing = {
-        unit_price_cents: yardSignPricing.unitPriceCents,
-        rope_cost_cents: 0,
-        pole_pocket_cost_cents: 0,
-        line_total_cents: yardSignPricing.totalCents,
-      };
+      const pricing = yardSignCartPricing(yardSignPricing);
       const quoteState = useQuoteStore.getState();
       (quoteState as any).product_type = 'yard_sign';
       (quoteState as any).yard_sign_metadata = yardSignMetadata;

@@ -47,7 +47,7 @@ jobs:
       - name: First-order eligibility and provider reservation tests
         run: node --test netlify/functions/__tests__/automatic-first-order-eligibility.test.cjs netlify/functions/__tests__/payment-discount-reservation.test.cjs netlify/functions/__tests__/stripe-checkout-service.test.cjs
       - name: First-order pricing and UI regressions
-        run: npx vitest run src/hooks/useAutomaticFirstOrderDiscount.test.tsx src/components/pricing src/components/design/MobileSubtotalBar.test.tsx src/components/checkout/checkoutCustomerDraft.test.ts src/lib/__tests__/promoEngine.test.ts src/lib/cartDisplayPricing.test.ts
+        run: npx vitest run src/hooks/useAutomaticFirstOrderDiscount.test.tsx src/components/pricing src/components/design/MobileSubtotalBar.test.tsx src/components/checkout/checkoutCustomerDraft.test.ts src/lib/__tests__/promoEngine.test.ts src/lib/cartDisplayPricing.test.ts src/lib/yard-sign-first-order.test.ts src/lib/specialtyDisplayPrice.test.ts
       - name: Build the existing production application
         run: npm run build
       - run: npx playwright install --with-deps chromium webkit

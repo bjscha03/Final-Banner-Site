@@ -60,6 +60,7 @@ import PreviewRulerFrame from '@/components/preview/PreviewRulerFrame';
 import ArtworkPreviewEditor, { type ArtworkPreviewEditorHandle } from '@/components/design/ArtworkPreviewEditor';
 import {
   calcYardSignPricing,
+  yardSignCartPricing,
   getYardSignSizes,
   getYardSignMaterials,
   getYardSignQuantityDiscountRate,
@@ -1998,12 +1999,7 @@ const GoogleAdsBanner: React.FC = () => {
         canvasStateJson,
       });
 
-      const pricing = {
-        unit_price_cents: yardSignPricing.unitPriceCents,
-        rope_cost_cents: 0,
-        pole_pocket_cost_cents: 0,
-        line_total_cents: yardSignPricing.totalCents,
-      };
+      const pricing = yardSignCartPricing(yardSignPricing);
       const quoteState = useQuoteStore.getState();
       (quoteState as any).product_type = 'yard_sign';
       (quoteState as any).yard_sign_metadata = yardSignMetadata;
