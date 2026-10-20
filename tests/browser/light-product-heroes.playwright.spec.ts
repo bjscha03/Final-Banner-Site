@@ -24,9 +24,19 @@ for (const route of routes) {
     const headingBox = await heading.boundingBox();
     expect(headingBox!.x).toBeGreaterThanOrEqual(0);
     expect(headingBox!.x + headingBox!.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
-    if (route === '/google-ads-banner' && testInfo.project.name === 'mobile') {
-      expect((await page.getByTestId('mobile-banner-hero').boundingBox())!.height).toBeLessThan(440);
-      await expect(page.getByTestId('mobile-banner-hero')).toContainText('Estimated delivery');
+    if (['/design', '/google-ads-banner'].includes(route) && testInfo.project.name === 'mobile') {
+      const hero = page.getByTestId('mobile-banner-hero');
+      const photo = hero.locator('img');
+      const ratios = await photo.evaluate((image: HTMLImageElement) => ({
+        displayed: image.clientWidth / image.clientHeight,
+        original: image.naturalWidth / image.naturalHeight,
+      }));
+      // Preserve the full mounted banner instead of enforcing the old cropped strip.
+      expect(ratios.displayed).toBeCloseTo(ratios.original, 2);
+      await expect(hero).toContainText('Shipping date');
+      await expect(hero).toContainText('Delivery date');
+      await expect(hero.locator('[data-hero-delivery-status]')).toHaveAttribute('data-variant', 'featured');
+      await expect(page.locator('#order-builder')).not.toContainText('20% off your first order');
     }
     await page.screenshot({ path: testInfo.outputPath('hero.png') });
     const start = page.locator('button.product-hero-cta:visible');
