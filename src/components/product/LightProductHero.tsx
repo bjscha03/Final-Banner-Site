@@ -3,6 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Clock3, Monitor, Truck, type LucideIcon } from 'lucide-react';
 import ProductVisual from './ProductVisual';
+import CompactProductHero from './CompactProductHero';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import type { CityProductSlug } from '@/lib/seo/cityData';
 import '@/styles/product-hero.css';
@@ -33,8 +34,16 @@ interface LightProductHeroProps {
 /** Shared visual treatment; product selection, prices and delivery logic stay with their owners. */
 export default function LightProductHero({ productSlug, title, accentText, eyebrow, description, primaryLabel, ctaUrl = '/design', onStart, secondary, offer, benefits = defaultBenefits, photo, attributes }: LightProductHeroProps) {
   const action = <>{primaryLabel}<ArrowRight aria-hidden="true" /></>;
-  return (
-    <section {...attributes} className="product-hero-light">
+  const isLarge = attributes?.['data-product-page-hero'] === 'large-banners-fast';
+  const specialized = attributes?.['data-political-signs-hero'] || attributes?.['data-fall-festival-hero'] || attributes?.['data-halloween-hero'];
+  const mobileTitle = specialized ? title.replace(accentText, '').trim() : productSlug === 'yard-signs' ? 'Custom yard signs.' : productSlug === 'car-magnets' ? 'Custom car magnets.' : isLarge ? 'Large banners.' : 'Custom banners.';
+  return (<>
+    <CompactProductHero title={mobileTitle} accent={specialized ? accentText : "Without the wait."} freight={isLarge}
+      discount={productSlug === 'vinyl-banners' && Boolean(offer)}
+      photo={photo ?? <ProductVisual productSlug={productSlug} presentation="hero" priority />}
+      action={onStart ? <button type="button" onClick={onStart}>{action}</button> : <Link to={ctaUrl}>{action}</Link>}
+    />
+    <section {...attributes} className="product-hero-light hidden lg:block">
       <div className="product-hero-stage">
         <div className="product-hero-copy">
           {eyebrow && <p className="product-hero-eyebrow">{eyebrow}</p>}
@@ -58,5 +67,5 @@ export default function LightProductHero({ productSlug, title, accentText, eyebr
         </ul>
       </div>
     </section>
-  );
+  </>);
 }

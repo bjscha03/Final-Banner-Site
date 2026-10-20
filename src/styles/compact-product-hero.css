@@ -1,0 +1,72 @@
+.delivery-date-card { display:grid; grid-template-columns:1fr 1fr; border-top:3px solid #ff6a00; border-radius:10px; padding:10px 12px; background:#061a31; color:white; }
+.delivery-date-cell { display:flex; align-items:center; gap:10px; min-width:0; }
+.delivery-date-cell + .delivery-date-cell { border-left:1px solid #ffffff35; padding-left:12px; }
+.delivery-date-cell > svg { width:28px; height:28px; flex:none; color:#ff6a00; stroke-width:1.8; }
+.delivery-date-label { font-size:9px; line-height:1.3; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#b8c8dc; }
+.delivery-date-weekday { margin-top:3px; font-size:11px; line-height:1.3; }
+.delivery-date-value { margin-top:2px; font-size:18px; line-height:1.15; font-weight:850; letter-spacing:-.035em; white-space:nowrap; }
+.compact-product-hero { display:none; }
+.specialty-shipping-featured { color:#061a31; }
+.specialty-shipping-featured .delivery-date-card { flex:1; }
+.specialty-shipping-overview { display:flex; align-items:stretch; gap:12px; }
+.specialty-shipping-countdown { display:flex; align-items:center; gap:12px; padding:12px 18px; border:1px solid #e5dfd6; border-radius:10px; background:#f8f6f1; font-size:12px; }
+.specialty-shipping-countdown strong { color:#b84300; font-size:24px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.specialty-shipping-details { margin-top:8px; font-size:11px; color:#526174; }
+.specialty-shipping-details summary { cursor:pointer; width:fit-content; padding:4px 0; font-weight:650; color:#061a31; }
+.specialty-shipping-details p { margin-top:8px; line-height:1.6; max-width:1000px; }
+@media(max-width:1023px) {
+  .compact-product-hero { display:flex; flex-direction:column; height:min(var(--compact-available-height, calc(100svh - 170px)), 760px); min-height:360px; max-width:640px; margin-inline:auto; background:#f8f6f1; color:#061a31; }
+  .compact-product-copy { flex:none; padding:10px 14px 8px; }
+  .compact-product-copy h1 { margin:0; max-width:none; font-family:Inter,sans-serif; font-size:clamp(26px,7.7vw,38px); line-height:1.04; letter-spacing:-.055em; font-weight:850; }
+  .compact-product-copy h1 > span { display:block; color:#ff6a00; margin-top:2px; }
+  .compact-product-copy .production-shipping-benefits { margin:10px 0 0; gap:10px; }
+  .compact-product-copy .production-shipping-benefits li { padding:0; gap:8px; }
+  .compact-product-copy .production-shipping-benefits li + li { padding-left:12px; }
+  .compact-product-copy .production-shipping-benefits svg { width:25px; height:25px; }
+  .compact-product-copy .production-shipping-benefits strong { font-size:clamp(11px,3vw,15px); line-height:1.1; }
+  .compact-product-copy .production-shipping-benefits span { margin-top:3px; font-size:9px; line-height:1.1; letter-spacing:.08em; }
+  .compact-product-copy .production-shipping-benefits small { margin-top:3px; font-size:10px; line-height:1.1; }
+  .compact-product-photo { position:relative; display:flex; justify-content:center; align-items:center; flex:1 1 auto; min-height:115px; overflow:hidden; background:#f8f6f1; }
+  .compact-product-photo > picture, .compact-product-photo [data-product-visual], .compact-product-photo [data-product-visual-stage] { display:flex; justify-content:center; align-items:center; width:100%; height:100%; min-height:0; background:transparent; }
+  .compact-product-photo img { display:block; width:100%; height:100%; object-fit:contain; object-position:center; }
+  .compact-product-discount { position:absolute; top:8px; right:10px; width:72px; height:72px; border:2px solid white; border-radius:50%; background:#ff6a00; color:white; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; pointer-events:none; box-shadow:0 2px 6px #0002; }
+  .compact-product-discount strong { font-size:24px; line-height:.9; font-weight:850; }
+  .compact-product-discount span { font-size:8px; line-height:1.1; margin-top:4px; font-weight:700; }
+  .compact-product-delivery { flex:none; padding:8px 12px 6px; }
+  .compact-product-hero > .google-review-spotlight { flex:none; }
+  .compact-product-hero .google-review-compact-inner { height:34px; padding-inline:12px; gap:7px; }
+  .compact-product-hero .google-review-compact-inner > button { height:32px; width:28px; }
+  .compact-product-hero .google-review-compact-inner > div:first-child { gap:5px; }
+  .compact-product-hero .google-review-compact-inner > div:first-child > span:first-child { font-size:10px; }
+  .compact-product-hero .google-review-compact-inner svg { width:10px; }
+  .compact-product-action { flex:none; padding:8px 14px; border-top:3px solid #ff6a00; background:#061a31; }
+  .compact-product-action > :is(a,button) { display:flex; justify-content:center; align-items:center; gap:12px; min-height:42px; width:100%; border-radius:8px; background:#ff6a00; color:white; font-size:14px; font-weight:750; padding:10px 12px; }
+  .compact-product-action svg { width:18px; height:18px; }
+  .compact-product-hero:has(details[open]) { height:auto; }
+  .compact-product-hero:has(details[open]) .compact-product-photo { flex:none; height:220px; }
+  .specialty-shipping-overview { flex-direction:column; gap:0; }
+  .specialty-shipping-countdown { justify-content:center; border:0; border-radius:0; padding:5px 0 0; gap:6px; font-size:10px; }
+  .specialty-shipping-countdown strong { font-size:13px; }
+  .specialty-shipping-details { margin-top:0; font-size:10px; }
+  .specialty-shipping-details summary { margin-inline:auto; padding:3px 0 0; }
+  .compact-product-hero .specialty-shipping-details:not([open]) { text-align:center; }
+}
+@media(max-width:359px) {
+  .delivery-date-card { padding:9px 8px; }
+  .delivery-date-cell { gap:6px; }
+  .delivery-date-cell + .delivery-date-cell { padding-left:8px; }
+  .delivery-date-cell > svg { width:21px; height:21px; }
+  .delivery-date-label { font-size:8px; }
+  .delivery-date-value { font-size:16px; }
+  .compact-product-discount { width:62px; height:62px; }
+  .compact-product-discount strong { font-size:21px; }
+  .compact-product-discount span { font-size:7px; }
+}
+@media(min-width:1024px) {
+  .delivery-date-card { padding:16px 22px; }
+  .delivery-date-cell { gap:16px; }
+  .delivery-date-cell > svg { width:38px; height:38px; }
+  .delivery-date-label { font-size:11px; }
+  .delivery-date-weekday { font-size:13px; }
+  .delivery-date-value { font-size:25px; }
+}
