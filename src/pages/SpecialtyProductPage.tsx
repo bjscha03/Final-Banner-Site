@@ -21,7 +21,7 @@ export default function SpecialtyProductPage() {
   const url=`https://bannersonthefly.com/products/${product.slug}`;
   const description=`${product.summary} Upload, design, preview and add to cart.`.slice(0,160);
   const schema=[{'@context':'https://schema.org','@type':'WebPage',name:product.name,url,description},{'@context':'https://schema.org','@type':'Product',name:product.name,description:product.description,image:`https://bannersonthefly.com${product.image}`,url,brand:{'@type':'Brand',name:'Banners On The Fly'}}];
-  return <Layout showFooterBanner={false}><SEO title={`${product.name} | Banners On The Fly`} description={description} canonical={url} ogType="product" schema={schema}/>
+  return <Layout compactMobileHeader showFooterBanner={false}><SEO title={`${product.name} | Banners On The Fly`} description={description} canonical={url} ogType="product" schema={schema}/>
     <main className="bg-[#f7f8fa] pb-16">
       <CompactProductHero title={product.name} accent="Ready to stand out." specialty discount={offer.showBadge}
         photo={<img src={product.image} alt={product.imageAlt} loading="eager" fetchPriority="high" />}

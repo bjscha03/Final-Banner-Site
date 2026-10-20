@@ -19,7 +19,7 @@ export default function SpecialtyCatalog() {
   const {hash}=useLocation();
   const { showBadge, discount } = useProductFirstOrderOffer();
   useEffect(()=>{if(hash)document.getElementById(hash.slice(1))?.scrollIntoView({block:'start'});},[hash]);
-  return <Layout showFooterBanner={false}>
+  return <Layout compactMobileHeader showFooterBanner={false}>
     <SEO title="Displays, Event Gear & Signs | Banners On The Fly" description="Explore retractable banners, flags, table covers, event tents and custom rigid signs. Upload artwork, customize your design and preview your product." canonical="https://bannersonthefly.com/products" schema={[
       { '@context': 'https://schema.org', '@type': 'WebPage', name: 'Displays, Event Gear & Signs', url: 'https://bannersonthefly.com/products', description: 'Portable displays, branded event gear and custom signs.' },
       { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Displays, Event Gear & Signs', url: 'https://bannersonthefly.com/products', mainEntity: { '@type': 'ItemList', itemListElement: specialtyProducts.map((product, index) => ({ '@type': 'ListItem', position: index + 1, name: product.name, url: `https://bannersonthefly.com/products/${product.slug}` })) } },
@@ -52,7 +52,7 @@ export default function SpecialtyCatalog() {
 
     <div className="hidden lg:block"><GoogleReviewSpotlight /></div>
 
-    <nav className="sticky top-[72px] z-30 border-b border-slate-200 bg-white/95 backdrop-blur" aria-label="Specialty product categories">
+    <nav className="sticky top-[52px] lg:top-[78px] z-30 border-b border-slate-200 bg-white/95 backdrop-blur" aria-label="Specialty product categories">
       <div className="brand-shell flex gap-6 overflow-x-auto py-4 text-sm font-bold text-[#0B1F3A]">
         {groups.map(([key, group]) => <a className="whitespace-nowrap border-b-2 border-transparent hover:border-[#ff6a00] focus-visible:border-[#ff6a00]" key={key} href={`#${key}`}>{group.label}</a>)}
       </div>

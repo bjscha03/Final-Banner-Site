@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Clock3, Monitor, Truck, type LucideIcon } from 'lucide-react';
 import ProductVisual from './ProductVisual';
 import CompactProductHero from './CompactProductHero';
+import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
 import FirstOrderBadge from './FirstOrderBadge';
 import { useProductFirstOrderOffer } from '@/hooks/useProductFirstOrderOffer';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
@@ -47,6 +48,7 @@ export default function LightProductHero({ productSlug, title, accentText, eyebr
       action={onStart ? <button type="button" onClick={onStart}>{action}</button> : <Link to={ctaUrl}>{action}</Link>}
     />
     <section {...attributes} className="product-hero-light hidden lg:block">
+      {productSlug !== "vinyl-banners" && <GoogleReviewSpotlight />}
       <div className="product-hero-stage">
         <div className="product-hero-copy">
           {eyebrow && <p className="product-hero-eyebrow">{eyebrow}</p>}

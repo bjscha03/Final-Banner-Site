@@ -37,6 +37,7 @@ for (const route of routes) {
     if (await compact.count()) {
       const review = compact.getByTestId('google-reviews');
       const photoBox = await compact.locator('.compact-product-photo').boundingBox();
+      if(route === '/products/standard-retractable-banner' && testInfo.project.name === 'small-mobile') expect(photoBox!.height).toBeGreaterThanOrEqual(130);
       expect(photoBox!.height).toBeLessThanOrEqual(photoBox!.width * 2 / 3 + 1);
       const bar = page.getByTestId('mobile-subtotal-bar');
       await expect(review).toBeVisible();
