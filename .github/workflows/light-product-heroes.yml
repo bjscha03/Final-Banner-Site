@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'src/components/product/**'
+      - 'src/components/specialty/**'
+      - 'src/styles/first-order-badge.css'
       - 'src/components/design/*Hero.tsx'
       - 'src/components/Header.tsx'
       - 'src/components/PageHeader.tsx'
@@ -40,5 +42,7 @@ jobs:
         if: always()
         with:
           name: product-hero-browser-results
-          path: test-results/
+          path: |
+            test-results/
+            !test-results/**/trace.zip
           retention-days: 7

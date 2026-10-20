@@ -14,9 +14,10 @@ interface LayoutProps {
   children: React.ReactNode;
   showFooterBanner?: boolean;
   checkoutMode?: boolean;
+  compactMobileHeader?: boolean;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false }) => {
+const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false, compactMobileHeader = false }) => {
   const location = useLocation();
   const isHomepage = location.pathname === '/';
   const isCheckout = checkoutMode || location.pathname === '/checkout';
@@ -32,7 +33,7 @@ const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false }) => {
     <div className="brand-page max-w-[100vw] overflow-x-clip">
       <ScrollToTop />
       {!location.pathname.startsWith('/admin') && <PromoBanner showStandardPromo={isHomepage} />}
-      <Header checkoutMode={isCheckout} cartCount={hasMounted ? getItemCount() : 0} onCartClick={openCart} />
+      <Header compactMobile={compactMobileHeader} checkoutMode={isCheckout} cartCount={hasMounted ? getItemCount() : 0} onCartClick={openCart} />
       <main className="w-full max-w-[100vw] overflow-x-clip">
         {location.pathname.startsWith('/admin') && location.pathname !== '/admin/setup' && location.pathname !== '/admin/site-issues' && <React.Suspense fallback={null}><SiteIssueAlert /></React.Suspense>}
         {children}

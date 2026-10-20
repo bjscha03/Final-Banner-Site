@@ -1,3 +1,4 @@
+import { productDisplayPrice } from '@/lib/specialtyDisplayPrice';
 import AIArtworkFitDialog, { ArtworkFitButton } from '@/components/design/AIArtworkFitDialog';
 import { artworkFitIdentity } from '@/components/design/ai/artworkFit';
 import { resolveArtworkPreviewImageSrc } from '@/components/design/artworkPreviewSource';
@@ -59,6 +60,7 @@ import PreviewRulerFrame from '@/components/preview/PreviewRulerFrame';
 import ArtworkPreviewEditor, { type ArtworkPreviewEditorHandle } from '@/components/design/ArtworkPreviewEditor';
 import {
   calcYardSignPricing,
+  yardSignCartPricing,
   getYardSignSizes,
   getYardSignMaterials,
   getYardSignQuantityDiscountRate,
@@ -752,6 +754,8 @@ const GoogleAdsBanner: React.FC = () => {
   // Banner promo math: route through promoEngine so /google-ads-banner uses the SAME
   // best-discount-wins logic as /design, cart and checkout.
   const effectivePromoCode = activeCartPromo?.code || null;
+  const nonBannerOriginalCents = isYardSign ? (yardSignPricing?.subtotalCents || 0) : (carMagnetPricing?.baseSubtotalCents || 0);
+  const nonBannerOffer = productDisplayPrice(nonBannerOriginalCents, firstOrderOffer.checking ? null : activeCartPromo, isYardSign ? 'yard_sign' : 'car_magnet');
   const bannerPromoResolution = useMemo(() => resolvePromo({
     subtotalCents: bannerPricing.subtotalBeforeDiscountCents,
     quantity,
@@ -1995,12 +1999,7 @@ const GoogleAdsBanner: React.FC = () => {
         canvasStateJson,
       });
 
-      const pricing = {
-        unit_price_cents: yardSignPricing.unitPriceCents,
-        rope_cost_cents: 0,
-        pole_pocket_cost_cents: 0,
-        line_total_cents: yardSignPricing.totalCents,
-      };
+      const pricing = yardSignCartPricing(yardSignPricing);
       const quoteState = useQuoteStore.getState();
       (quoteState as any).product_type = 'yard_sign';
       (quoteState as any).yard_sign_metadata = yardSignMetadata;
@@ -3554,12 +3553,15 @@ const GoogleAdsBanner: React.FC = () => {
                     baseSubtotalLabel="Base price"
                     quantityDiscountCents={carMagnetPricing.quantityDiscountCents}
                     quantityDiscountRate={carMagnetPricing.quantityDiscountRate}
+                    promoDiscountCents={nonBannerOffer.discountCents}
+                    promoDiscountRate={nonBannerOriginalCents ? nonBannerOffer.discountCents / nonBannerOriginalCents : 0}
+                    promoDiscountCode={activeCartPromo?.code}
                     sameDayHitServiceCents={previewSameDayFeeCents}
                     saturdayDeliveryCents={previewSaturdayFeeCents}
                     taxCents={0}
                     taxRate={0.06}
-                    adjustedSubtotalCents={carMagnetPricing.subtotalCents}
-                    totalCents={carMagnetPricing.subtotalCents + previewSameDayFeeCents + previewSaturdayFeeCents}
+                    adjustedSubtotalCents={nonBannerOffer.totalCents}
+                    totalCents={nonBannerOffer.totalCents + previewSameDayFeeCents + previewSaturdayFeeCents}
                     taxCalculatedAtCheckout
                     footerNote="Destination-based tax calculated at checkout"
                   />
@@ -3672,11 +3674,11 @@ const GoogleAdsBanner: React.FC = () => {
           {(!activeCartPromo || activeCartPromo.code === 'NEW20') && firstOrderOffer.status === 'unavailable' && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{firstOrderOffer.message} <button type="button" onClick={firstOrderOffer.retry} className="min-h-11 font-semibold underline">Retry offer</button></p>}
         </MobileFinishingStep>
         <MobileSubtotalBar
-          compact={!isYardSign && !isCarMagnet}
-          compactDiscountLabel={mobileDiscountLabel}
-          selectionLabel={`${widthDisplay} × ${heightDisplay} · ${quantity > 1 ? `Qty ${quantity}` : isDoubleSidedBanner ? '18oz · 2 sides' : material}`}
+          compact
+          compactDiscountLabel={isYardSign || isCarMagnet ? nonBannerOffer.label : mobileDiscountLabel}
+          selectionLabel={`${widthDisplay} × ${heightDisplay} · ${isYardSign ? `Qty ${yardSignTotalQty}` : isCarMagnet ? `Qty ${quantity}` : quantity > 1 ? `Qty ${quantity}` : isDoubleSidedBanner ? '18oz · 2 sides' : material}`}
           uploadRecovery={!isYardSign && !isCarMagnet && isUploading ? { onCancel: cancelArtworkUpload } : undefined}
-          primaryAction={!isYardSign && !isCarMagnet ? mobilePaidLayout ? paidMobileAction : mobileBannerAction : undefined}
+          primaryAction={!isYardSign && !isCarMagnet ? mobilePaidLayout ? paidMobileAction : mobileBannerAction : { label: mobileCta.label, disabled: mobileCta.disabled || firstOrderOffer.checking, onClick: mobileCta.onClick || scrollToOrder }}
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
           cartItemCount={cartItemCount}
           onViewCart={openCartDrawer}
@@ -3684,17 +3686,15 @@ const GoogleAdsBanner: React.FC = () => {
           subtotal={
             !isYardSign && !isCarMagnet ? (
               compactBannerPrice(true)
-            ) : isYardSign && yardSignPricing ? (
-              <p className="text-xl font-bold text-gray-900">
-                {yardSignTotalQty > 0 ? usd(yardSignPricing.totalCents / 100) : '—'}
-              </p>
-            ) : bannerPromoActuallyApplied ? (
+            ) : (isYardSign || isCarMagnet) ? (
+            <div className="flex flex-wrap items-baseline gap-2"><strong data-banner-current-price className="text-2xl font-black">{usd((nonBannerOffer.totalCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</strong>{nonBannerOffer.discountCents > 0 && <s className="text-xs text-slate-300">{usd((nonBannerOriginalCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</s>}</div>
+          ) : bannerPromoActuallyApplied ? (
               <div className="flex items-center gap-2">
                 <p className="text-sm text-gray-400 line-through">{usd(totals.materialTotal)}</p>
-                <p className="text-xl font-bold text-[#0B1F3A]">{usd(discountedTotal)}</p>
+                <p className="text-xl font-bold text-white">{usd(discountedTotal)}</p>
               </div>
             ) : (
-              <p className="text-xl font-bold text-gray-900">{usd(totals.materialTotal)}</p>
+              <p className="text-xl font-bold text-white">{usd(totals.materialTotal)}</p>
             )
           }
         />

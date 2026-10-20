@@ -10,6 +10,7 @@ import {
 
 export interface MobileSubtotalBarProps {
   compact?: boolean;
+  shippingBenefit?: ReactNode;
   selectionLabel?: string;
   compactDiscountLabel?: string | null;
   uploadRecovery?: { onCancel: () => void };
@@ -27,6 +28,7 @@ export interface MobileSubtotalBarProps {
  */
 export default function MobileSubtotalBar({
   compact = false,
+  shippingBenefit,
   selectionLabel,
   compactDiscountLabel,
   primaryAction,
@@ -110,7 +112,7 @@ export default function MobileSubtotalBar({
             {primaryAction.label}<ArrowRight aria-hidden="true" className="h-4 w-4 shrink-0" />
           </button>
           </div>
-          <ShippingBenefitBadge variant="price" className="mobile-subtotal-shipping mt-2 !text-xs !text-white [&>svg]:h-4 [&>svg]:w-4" />
+          {shippingBenefit ?? <ShippingBenefitBadge variant="price" className="mobile-subtotal-shipping mt-2 !text-xs !text-white [&>svg]:h-4 [&>svg]:w-4" />}
         </div> : <><div className="flex min-h-[44px] items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5">
             <div className="min-w-0 max-w-full [overflow-wrap:anywhere]">

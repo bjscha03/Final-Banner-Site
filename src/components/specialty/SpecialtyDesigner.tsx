@@ -1,6 +1,9 @@
+import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
+import { specialtyDisplayPrice } from '@/lib/specialtyDisplayPrice';
+import type { useProductFirstOrderOffer } from '@/hooks/useProductFirstOrderOffer';
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Loader2, Upload, ShoppingCart, ArrowRight } from 'lucide-react';
+import { Loader2, Upload, ShoppingCart, ArrowRight, Plane } from 'lucide-react';
 import { useCartStore } from '@/store/cart';
 import { specialtyTemplate, specialtyConfigurationPrice, specialtyOptions, specialtyPanels, specialtyOptionSummary, specialtyMaterialLabel, formatSpecialtyPrice, type SpecialtyProduct } from '@/lib/specialtyProducts';
 import type { UploadedArtworkFile } from '@/lib/cartArtworkForEditor';
@@ -25,7 +28,7 @@ const clearSubstrateStyle = {
   backgroundPosition: '0 0,0 8px,8px -8px,-8px 0',
 };
 
-export default function SpecialtyDesigner({ product }: { product: SpecialtyProduct }) {
+export default function SpecialtyDesigner({ product, offer }: { product: SpecialtyProduct; offer: ReturnType<typeof useProductFirstOrderOffer> }) {
   const navigate=useNavigate(); const [params]=useSearchParams();
   const editId=params.get('editItem'); const existing=useCartStore(s=>s.items.find(x=>x.id===editId && x.specialty_config?.productSlug===product.slug));
   const initialVariant=product.variants.find(v=>v.id===existing?.specialty_config?.variantId) || product.variants.find(v=>v.priceMatch) || product.variants[0];
@@ -56,6 +59,8 @@ export default function SpecialtyDesigner({ product }: { product: SpecialtyProdu
   let pricing:ReturnType<typeof specialtyConfigurationPrice>|undefined,unit=0,priceError='';
   try {pricing=specialtyConfigurationPrice(product,variant,Number(width),Number(height),options);unit=pricing.unitCents;} catch(e) {priceError=(e as Error).message;}
   const priceMatch=pricing?.verified;
+  const displayPrice = specialtyDisplayPrice(unit * quantity, offer.discount);
+  const priceContent = priceError ? "Choose a valid size" : pricing?.baseVerified ? formatSpecialtyPrice(displayPrice.totalCents) : "Price coming soon";
   const needsCustomHoles=options.holespunch?.startsWith('custom');
   function changeHoles(next:typeof customHoles){revision.current++;setCustomHoles(next);setDrafts(d=>Object.fromEntries(Object.entries(d).map(([k,v])=>[k,{...v,reviewed:false}])));}
   function changeOptions(next:Record<string,string>){
@@ -130,7 +135,7 @@ export default function SpecialtyDesigner({ product }: { product: SpecialtyProdu
   const allReviewed=definitions.every(p=>drafts[p.id]?.reviewed);
   return <div className="min-w-0 space-y-8">
     <div className="grid min-w-0 grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-      <SpecialtyProductGallery product={product} variant={variant} options={options} width={Number(width)} height={Number(height)}/>
+      <SpecialtyProductGallery product={product} variant={variant} options={options} width={Number(width)} height={Number(height)} showBadge={offer.showBadge}/>
       <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 sm:p-8" aria-label="Product configuration">
         <p className="text-xs font-black uppercase tracking-widest text-orange-700">1 · Choose options</p><h2 className="mt-2 text-2xl font-bold">Choose your size & options</h2>
         <label htmlFor="specialty-variant" className="mt-6 block text-sm font-bold">Size & configuration</label><select id="specialty-variant" value={variantId} disabled={!!busy} onChange={e=>changeConfiguration(()=>{const next=product.variants.find(v=>v.id===e.target.value)!;setVariantId(next.id);setOptions(specialtyOptions(next));setCustomHoles([]);if(next.customSize){setWidth('96');setHeight('96');}setPanelId('front');})} className="mt-2 min-h-12 min-w-0 max-w-full w-full rounded-lg border border-slate-300 bg-white px-3">{product.variants.map(v=><option key={v.id} value={v.id}>{v.label}</option>)}</select>
@@ -141,11 +146,13 @@ export default function SpecialtyDesigner({ product }: { product: SpecialtyProdu
         <label className="mt-5 block text-sm font-bold" htmlFor="specialty-qty">Quantity</label><input id="specialty-qty" type="number" min="1" max="100" step="1" value={quantity} disabled={!!busy} onChange={e=>setQuantity(Math.max(1,Math.min(100,Math.floor(Number(e.target.value)||1))))} className="mt-2 min-h-12 w-28 rounded-lg border px-3"/>
         <div className="my-6 border-y py-5" aria-live="polite" data-testid="specialty-price">
           <p className="text-sm text-slate-600">{priceMatch?'Product subtotal':pricing?.baseVerified?'Base + priced options':'Product price'}</p>
-          <p className="mt-1 text-3xl font-black tracking-tight" data-testid="specialty-subtotal">{priceError?'Choose a valid size':pricing?.baseVerified?formatSpecialtyPrice(unit*quantity):'Price coming soon'}</p>
+          <p className="mt-1 text-3xl font-black tracking-tight" data-testid="specialty-subtotal">{priceContent}</p>
+          {!!displayPrice.discountCents && pricing?.baseVerified && <p className="mt-1 text-sm font-semibold text-[#b84300]"><s className="mr-2 text-slate-500">{formatSpecialtyPrice(unit*quantity)}</s>{displayPrice.label}</p>}
+          {offer.message && <p className="mt-2 text-xs text-slate-600">{offer.message}</p>}
           {pricing?.baseVerified&&pricing.adjustments.length>0&&<div className="mt-3 flex justify-between gap-4 text-sm text-slate-600"><span>Base product × {quantity}</span><span>{formatSpecialtyPrice(pricing.baseCents*quantity)}</span></div>}
           {pricing?.adjustments.map(a=><div key={a.key} className="mt-2 flex justify-between gap-4 text-sm text-slate-600"><span>{a.label}</span><span className="whitespace-nowrap">{a.cents===0?'Included':`${a.cents<0?'−':'+'}${formatSpecialtyPrice(Math.abs(a.cents)*quantity)}`}</span></div>)}
-          {pricing?.shippingPolicy ? (<div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3" aria-label="Shipping benefit"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-extrabold text-emerald-900">FREE Next-Day Air Shipping</span><span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-emerald-800">$0 shipping</span></div><p className="mt-1 text-xs text-emerald-900">Ships via Next-Day Air after production. Delivery timing begins when your order ships.</p></div>) : (<p className="mt-3 text-sm text-amber-800">Shipping coming soon</p>)}
-          <p className="mt-3 text-xs leading-5 text-slate-500">{priceMatch?`${formatSpecialtyPrice(unit)} each, including selected options. Tax calculated separately.`:pricing?.baseVerified?'The amount above includes the base product and priced options. Options listed below are not included yet.':'Customize your artwork and save it to your cart while pricing is added.'}</p>
+          {pricing?.shippingPolicy ? (<div className="mt-4 rounded-xl border-t-[3px] border-[#ff6a00] bg-[#061a31] px-4 py-3" aria-label="Shipping benefit"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-extrabold text-white">FREE Next-Day Air Shipping</span><span className="rounded-full bg-white/10 px-2 py-1 text-xs font-bold text-white">$0 shipping</span></div><p className="mt-1 text-xs text-white">Ships via Next-Day Air after production. Delivery timing begins when your order ships.</p></div>) : (<p className="mt-3 text-sm text-amber-800">Shipping coming soon</p>)}
+          <p className="mt-3 text-xs leading-5 text-slate-500">{priceMatch?`${formatSpecialtyPrice(unit)} each before discounts, including selected options. Tax calculated separately.`:pricing?.baseVerified?'The amount above includes the base product and priced options. Options listed below are not included yet.':'Customize your artwork and save it to your cart while pricing is added.'}</p>
 
           {!priceMatch&&pricing&&<p className="mt-2 text-xs leading-5 text-amber-800">Price coming soon: {pricing.missing.join('; ')}.</p>}
         </div>
@@ -162,8 +169,15 @@ export default function SpecialtyDesigner({ product }: { product: SpecialtyProdu
       {effectivePpi!==null&&effectivePpi<150&&<p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Image resolution at this placement: approximately {Math.round(effectivePpi)} pixels per inch. For sharper print, use artwork with at least 150 pixels per inch at full size, or a vector PDF. Check small text carefully before approving.</p>}
       {(error||priceError)&&<p role="alert" className="mt-5 rounded-lg bg-red-50 p-4 text-sm text-red-800">{error||priceError}</p>}
       {busy&&<p role="status" className="mt-5 flex items-center gap-2 text-sm"><Loader2 className="h-5 w-5 animate-spin"/>{busy}</p>}
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t pt-6"><div><p className="text-sm text-slate-500">{quantity} × {product.name}</p><p className="text-2xl font-black">{priceError?'Choose a valid size':pricing?.baseVerified?formatSpecialtyPrice(unit*quantity):'Price coming soon'}</p><p className="mt-1 text-xs text-slate-600">{pricing?.shippingPolicy?'Free Next-Day Air after production · ':''}Tax calculated at checkout</p>{pricing?.baseVerified&&!priceMatch&&<p className="text-xs text-amber-800">Base + priced options; other option prices coming soon</p>}</div><button type="button" disabled={!!busy||!!priceError||!allReviewed} onClick={()=>void addToCart()} className="inline-flex min-h-14 items-center gap-3 rounded-lg bg-brand-orange px-7 text-lg font-bold text-white hover:bg-brand-orange-hover disabled:cursor-not-allowed disabled:opacity-40"><ShoppingCart className="h-5 w-5"/>{existing?'Save changes to cart':'Add to cart'}</button></div><p className="mt-3 text-xs text-slate-500">{allReviewed?'Your approved artwork travels with this cart item.':`Next: ${!artwork?'upload your artwork':`review and approve ${definitions.filter(p=>!drafts[p.id]?.reviewed).map(p=>p.label.toLowerCase()).join(', ')}`} to add this product to your cart.`}</p>
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t pt-6"><div><p className="text-sm text-slate-500">{quantity} × {product.name}</p><p className="text-2xl font-black">{priceContent}</p><p className="mt-1 text-xs text-slate-600">{pricing?.shippingPolicy?'Free Next-Day Air after production · ':''}Tax calculated at checkout</p>{pricing?.baseVerified&&!priceMatch&&<p className="text-xs text-amber-800">Base + priced options; other option prices coming soon</p>}</div><button type="button" disabled={!!busy||!!priceError||!allReviewed||offer.checking} onClick={()=>void addToCart()} className="inline-flex min-h-14 items-center gap-3 rounded-lg bg-brand-orange px-7 text-lg font-bold text-white hover:bg-brand-orange-hover disabled:cursor-not-allowed disabled:opacity-40"><ShoppingCart className="h-5 w-5"/>{existing?'Save changes to cart':'Add to cart'}</button></div><p className="mt-3 text-xs text-slate-500">{allReviewed?'Your approved artwork travels with this cart item.':`Next: ${!artwork?'upload your artwork':`review and approve ${definitions.filter(p=>!drafts[p.id]?.reviewed).map(p=>p.label.toLowerCase()).join(', ')}`} to add this product to your cart.`}</p>
     </section>
+    <MobileSubtotalBar compact selectionLabel={`${quantity} × ${variant.label}`}
+      compactDiscountLabel={displayPrice.label}
+      subtotal={<div className="flex flex-wrap items-baseline gap-x-2"><strong data-banner-current-price className="text-2xl font-black">{priceContent}</strong>{!!displayPrice.discountCents && pricing?.baseVerified && <s className="text-sm text-slate-300">{formatSpecialtyPrice(unit*quantity)}</s>}</div>}
+      shippingBenefit={<p className="mobile-subtotal-shipping mt-2 flex items-center gap-2 text-xs font-semibold text-white"><Plane aria-hidden="true" className="h-4 w-4 text-[#ff6a00]"/>Free FedEx Next-Day Air shipping</p>}
+      primaryAction={{ label: busy ? 'Please wait…' : allReviewed ? (existing ? 'Save changes' : 'Add to cart') : artwork ? 'Review artwork' : 'Upload artwork', disabled: !!busy || !!priceError || offer.checking,
+        onClick: () => { if(allReviewed) { void addToCart(); return; } document.getElementById('specialty-artwork')?.scrollIntoView({behavior:'smooth',block:'start'}); if(!artwork) input.current?.click(); } }}
+      cartItemCount={useCartStore.getState().items.length} onViewCart={()=>navigate('/checkout')} />
     <SpecialtyProductResources product={product} variant={variant} options={options} width={Number(width)} height={Number(height)}/>
   </div>;
 }

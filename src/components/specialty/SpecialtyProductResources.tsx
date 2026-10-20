@@ -1,3 +1,4 @@
+import FirstOrderBadge from '@/components/product/FirstOrderBadge';
 import {useEffect,useState} from 'react';
 import {FileDown,ZoomIn} from 'lucide-react';
 import sourceData from '../../../shared/specialty-supplier.json';
@@ -11,7 +12,7 @@ let guideFonts:Promise<{regular:Uint8Array;bold:Uint8Array}>|undefined;
 function loadGuideFonts(){
   return guideFonts ||= Promise.all(['DejaVuSans.ttf','DejaVuSans-Bold.ttf'].map(async file=>{const response=await fetch(`/fonts/artwork-guides/${file}`);if(!response.ok)throw new Error('Font download failed');return new Uint8Array(await response.arrayBuffer());})).then(([regular,bold])=>({regular,bold})).catch(error=>{guideFonts=undefined;throw error;});
 }
-export function SpecialtyProductGallery({product,variant,options,width=24,height=18}:{product:SpecialtyProduct;variant:SpecialtyVariant;options:SpecialtyOptions;width?:number;height?:number}) {
+export function SpecialtyProductGallery({product,variant,options,width=24,height=18,showBadge=false}:{showBadge?:boolean;product:SpecialtyProduct;variant:SpecialtyVariant;options:SpecialtyOptions;width?:number;height?:number}) {
   const [selectedUrl,setSelectedUrl]=useState<string|null>(null),[open,setOpen]=useState(false);
   const images=specialtyGallery(product,variant,options);
   const current=images.find(image=>image.url===selectedUrl)||images[0];
@@ -20,7 +21,7 @@ export function SpecialtyProductGallery({product,variant,options,width=24,height
   useEffect(()=>{setSelectedUrl(null);setOpen(false);},[product.slug,variant.id]);
   const dimensions=(product.priceUnit==='sqft'||variant.customSize)?`${width} × ${height} in`:variant.label;
   return <div className="min-w-0" data-testid="specialty-product-gallery">
-    <button type="button" className="relative block w-full overflow-hidden rounded-2xl border border-slate-200 bg-white" onClick={()=>setOpen(true)} aria-label={`Enlarge ${current.label}`}><img src={current.url} alt={`${product.name} — ${current.label}`} className="aspect-square w-full object-contain"/>{packageNote&&current.overview&&<span className="absolute left-3 right-3 top-3 rounded-lg bg-orange-50 px-3 py-2 text-left text-sm font-bold text-orange-950 shadow-sm">{options.tent_hardware==='0'?'Canopy graphic only · Frame not included':product.visual==='flag'?'Flag only · Pole and base not included':product.visual==='sign'?'Panel only · Mounting hardware not included':'Graphic only · Stand / frame not included'}</span>}<span className="absolute bottom-3 right-3 rounded-full bg-white p-2 shadow"><ZoomIn className="h-5 w-5"/></span></button>
+    <button type="button" className="relative block w-full overflow-hidden rounded-2xl border border-slate-200 bg-white" onClick={()=>setOpen(true)} aria-label={`Enlarge ${current.label}`}><img src={current.url} alt={`${product.name} — ${current.label}`} className={`${current.overview ? "aspect-[3/2]" : "aspect-square max-h-[480px]"} w-full object-contain`}/>{showBadge && <FirstOrderBadge className={packageNote ? "gallery-badge-lower" : ""} />}{packageNote&&current.overview&&<span className="absolute left-3 right-3 top-3 rounded-lg bg-orange-50 px-3 py-2 text-left text-sm font-bold text-orange-950 shadow-sm">{options.tent_hardware==='0'?'Canopy graphic only · Frame not included':product.visual==='flag'?'Flag only · Pole and base not included':product.visual==='sign'?'Panel only · Mounting hardware not included':'Graphic only · Stand / frame not included'}</span>}<span className="absolute bottom-3 left-3 rounded-full bg-white p-2 shadow"><ZoomIn className="h-5 w-5"/></span></button>
     <p className="mt-3 text-sm font-bold text-slate-900">{current.label}</p>
     <p className="mt-1 text-xs leading-5 text-slate-600">{current.overview?'Example artwork and assembled setup. Your selected package and accessories are listed below.':'Product detail photo. Viewing a photo does not change your order.'}</p>
     {images.length>1&&<div className="mt-4" role="group" aria-label="Product and accessory photographs">

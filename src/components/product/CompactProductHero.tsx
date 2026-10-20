@@ -4,6 +4,7 @@ import ProductionShippingBenefits from '@/components/delivery/ProductionShipping
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
 import '@/styles/compact-product-hero.css';
+import FirstOrderBadge from './FirstOrderBadge';
 
 interface Props {
   title: string;
@@ -50,10 +51,16 @@ export default function CompactProductHero({ title, accent, photo, delivery, spe
     for (const child of Array.from(hero.children)) {
       if (!child.classList.contains('compact-product-photo')) observer?.observe(child);
     }
+    const mutations = new MutationObserver(() => {
+      const currentBar = document.querySelector('[data-testid="mobile-subtotal-bar"]');
+      if (currentBar) observer?.observe(currentBar);
+      measure();
+    });
+    mutations.observe(document.body, { childList:true, subtree:true });
     measure();
     window.addEventListener('resize', measure);
     window.visualViewport?.addEventListener('resize', measure);
-    return () => { cancelAnimationFrame(frame); observer?.disconnect(); window.removeEventListener('resize', measure); window.visualViewport?.removeEventListener('resize', measure); };
+    return () => { cancelAnimationFrame(frame); observer?.disconnect(); mutations.disconnect(); window.removeEventListener('resize', measure); window.visualViewport?.removeEventListener('resize', measure); };
   }, []);
 
   return <section ref={heroRef} className="compact-product-hero" data-testid={testId || 'compact-product-hero'}>
@@ -66,7 +73,7 @@ export default function CompactProductHero({ title, accent, photo, delivery, spe
     </div>
     <div className="compact-product-photo">
       {photo}
-      {discount && <div data-testid="mobile-banner-discount-badge" className="compact-product-discount" aria-label="20% off your first order"><strong>20%<br />OFF</strong><span>YOUR FIRST<br />ORDER</span></div>}
+      {discount && <FirstOrderBadge testId="mobile-banner-discount-badge" />}
     </div>
     <div className="compact-product-delivery">{delivery ?? <HeroDeliveryStatus variant="featured" />}</div>
     <GoogleReviewSpotlight />

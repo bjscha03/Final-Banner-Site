@@ -190,3 +190,13 @@ export function getYardSignMaterials(): MaterialMultiplier[] {
   const config = getProductConfig(YARD_SIGN_SLUG);
   return config.materialMultipliers || [];
 }
+
+/** Cart lines are pre-promotion; the shared cart/checkout resolver discounts once. */
+export function yardSignCartPricing(pricing: YardSignPricing) {
+  return {
+    unit_price_cents: pricing.unitPriceCents,
+    rope_cost_cents: 0,
+    pole_pocket_cost_cents: 0,
+    line_total_cents: pricing.subtotalCents,
+  };
+}

@@ -4,6 +4,9 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Clock3, Monitor, Truck, type LucideIcon } from 'lucide-react';
 import ProductVisual from './ProductVisual';
 import CompactProductHero from './CompactProductHero';
+import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
+import FirstOrderBadge from './FirstOrderBadge';
+import { useProductFirstOrderOffer } from '@/hooks/useProductFirstOrderOffer';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import type { CityProductSlug } from '@/lib/seo/cityData';
 import '@/styles/product-hero.css';
@@ -33,17 +36,19 @@ interface LightProductHeroProps {
 
 /** Shared visual treatment; product selection, prices and delivery logic stay with their owners. */
 export default function LightProductHero({ productSlug, title, accentText, eyebrow, description, primaryLabel, ctaUrl = '/design', onStart, secondary, offer, benefits = defaultBenefits, photo, attributes }: LightProductHeroProps) {
+  const { showBadge } = useProductFirstOrderOffer();
   const action = <>{primaryLabel}<ArrowRight aria-hidden="true" /></>;
   const isLarge = attributes?.['data-product-page-hero'] === 'large-banners-fast';
   const specialized = attributes?.['data-political-signs-hero'] || attributes?.['data-fall-festival-hero'] || attributes?.['data-halloween-hero'];
   const mobileTitle = specialized ? title.replace(accentText, '').trim() : productSlug === 'yard-signs' ? 'Custom yard signs.' : productSlug === 'car-magnets' ? 'Custom car magnets.' : isLarge ? 'Large banners.' : 'Custom banners.';
   return (<>
     <CompactProductHero title={mobileTitle} accent={specialized ? accentText : "Without the wait."} freight={isLarge}
-      discount={productSlug === 'vinyl-banners' && Boolean(offer)}
+      discount={showBadge}
       photo={photo ?? <ProductVisual productSlug={productSlug} presentation="hero" priority />}
       action={onStart ? <button type="button" onClick={onStart}>{action}</button> : <Link to={ctaUrl}>{action}</Link>}
     />
     <section {...attributes} className="product-hero-light hidden lg:block">
+      {productSlug !== "vinyl-banners" && <GoogleReviewSpotlight />}
       <div className="product-hero-stage">
         <div className="product-hero-copy">
           {eyebrow && <p className="product-hero-eyebrow">{eyebrow}</p>}
@@ -54,11 +59,11 @@ export default function LightProductHero({ productSlug, title, accentText, eyebr
             {onStart ? <button type="button" onClick={onStart} className="product-hero-cta">{action}</button> : <Link to={ctaUrl} className="product-hero-cta">{action}</Link>}
             {secondary && <a href={secondary.href} className="product-hero-secondary">{secondary.label}</a>}
           </div>
-          {offer && <div className="product-hero-offer">{offer}</div>}
-          <HeroDeliveryStatus variant="light" className="product-hero-delivery" />
+          <HeroDeliveryStatus variant="featured" className="product-hero-delivery" />
         </div>
         <div className="product-hero-media">
           {photo ?? <ProductVisual productSlug={productSlug} presentation="hero" priority className="h-full w-full" />}
+          {showBadge && <FirstOrderBadge />}
         </div>
       </div>
       <div className="product-hero-benefits">
