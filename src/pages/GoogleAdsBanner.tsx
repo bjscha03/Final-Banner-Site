@@ -3370,7 +3370,7 @@ const GoogleAdsBanner: React.FC = () => {
           <Header compactMobile={compactMobileLanding} cartCount={cartItemCount} onCartClick={() => setIsCartOpen(true)} />
         )}
 
-        {!isYardSign && !isCarMagnet && !mobilePaidLayout && <GoogleReviewSpotlight />}
+        {!isYardSign && !isCarMagnet && !mobilePaidLayout && <div className="hidden lg:block"><GoogleReviewSpotlight /></div>}
 
         {/* HERO */}
         {!isYardSign && !isCarMagnet ? (
@@ -3672,7 +3672,7 @@ const GoogleAdsBanner: React.FC = () => {
           {(!activeCartPromo || activeCartPromo.code === 'NEW20') && firstOrderOffer.status === 'unavailable' && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{firstOrderOffer.message} <button type="button" onClick={firstOrderOffer.retry} className="min-h-11 font-semibold underline">Retry offer</button></p>}
         </MobileFinishingStep>
         <MobileSubtotalBar
-          compact={mobilePaidLayout}
+          compact={!isYardSign && !isCarMagnet}
           compactDiscountLabel={mobileDiscountLabel}
           selectionLabel={`${widthDisplay} × ${heightDisplay} · ${quantity > 1 ? `Qty ${quantity}` : isDoubleSidedBanner ? '18oz · 2 sides' : material}`}
           uploadRecovery={!isYardSign && !isCarMagnet && isUploading ? { onCancel: cancelArtworkUpload } : undefined}
@@ -3683,7 +3683,7 @@ const GoogleAdsBanner: React.FC = () => {
           priceNote={!hasCommittedBannerSize ? undefined : isLargeBannerLanding && widthIn === 120 && heightIn === 48 ? "10′ × 4′ large banner selected" : showPopularBannerPriceNote ? POPULAR_BANNER_PRESET.mobilePriceNote : undefined}
           subtotal={
             !isYardSign && !isCarMagnet ? (
-              mobilePaidLayout ? compactBannerPrice(true) : bannerPrice
+              compactBannerPrice(true)
             ) : isYardSign && yardSignPricing ? (
               <p className="text-xl font-bold text-gray-900">
                 {yardSignTotalQty > 0 ? usd(yardSignPricing.totalCents / 100) : '—'}

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
+import DeliveryDateCard from './DeliveryDateCard';
 import { Clock3, Truck } from 'lucide-react';
 import { formatCountdown } from '@/lib/delivery/messages';
 import { getSpecialtyDeliveryEstimate, SPECIALTY_CUTOFF_LABEL, specialtyDateLabel } from '@/lib/delivery/specialty';
 
 /** Only for the displays/signs catalog and specialty cart lines. */
-export default function SpecialtyDeliveryStatus({ compact = false }: { compact?: boolean }) {
+export default function SpecialtyDeliveryStatus({ compact = false, featured = false }: { compact?: boolean; featured?: boolean }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const refresh = () => setNow(new Date());
@@ -21,6 +22,18 @@ export default function SpecialtyDeliveryStatus({ compact = false }: { compact?:
   const estimate = getSpecialtyDeliveryEstimate(now);
   const ship = specialtyDateLabel(estimate.shipDate);
   const delivery = specialtyDateLabel(estimate.deliveryDate);
+
+  if (featured) return <section data-specialty-delivery className="specialty-shipping-featured" aria-label="Displays and signs shipping schedule">
+    <div className="specialty-shipping-overview">
+      <DeliveryDateCard shipDate={estimate.shipDate} deliveryDate={estimate.deliveryDate} />
+      <div className="specialty-shipping-countdown"><span>Order within</span><strong role="timer" aria-live="off" aria-label="Time remaining to order for the shipping date shown">{formatCountdown(estimate.remainingMs)}</strong></div>
+    </div>
+    <details className="specialty-shipping-details"><summary>Shipping details</summary>
+      <p><strong>Free FedEx Next-Day Air · Shipping included in the price.</strong> After production. Cutoff: {specialtyDateLabel(estimate.processingDate)} · {SPECIALTY_CUTOFF_LABEL}.</p>
+      <p>Complete your order and artwork approval before {SPECIALTY_CUTOFF_LABEL}, Monday–Friday, for shipment the next business day. After the cutoff, allow one additional business day. Orders after Friday’s cutoff and over the weekend ship Tuesday. Holidays shift these dates to the next business days.</p>
+      <p>We are not responsible for carrier delays caused by weather or other circumstances beyond our control.</p>
+    </details>
+  </section>;
 
   return <section data-specialty-delivery aria-label="Displays and signs shipping schedule"
     className={`min-w-0 rounded-xl border border-orange-200 bg-orange-50/70 text-[#0B1F3A] ${compact ? 'p-3' : 'p-4 sm:p-5'}`}>

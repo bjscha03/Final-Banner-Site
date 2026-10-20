@@ -3,6 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight, Image, PencilLine, Truck } from 'lucide-react';
 import Layout from '@/components/Layout';
 import SEO from '@/components/SEO';
+import CompactProductHero from '@/components/product/CompactProductHero';
+import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
 import SpecialtyDeliveryStatus from '@/components/delivery/SpecialtyDeliveryStatus';
 import '@/styles/product-hero.css';
 import '@/styles/specialty-catalog-hero.css';
@@ -18,7 +20,12 @@ export default function SpecialtyCatalog() {
       { '@context': 'https://schema.org', '@type': 'WebPage', name: 'Displays, Event Gear & Signs', url: 'https://bannersonthefly.com/products', description: 'Portable displays, branded event gear and custom signs.' },
       { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Displays, Event Gear & Signs', url: 'https://bannersonthefly.com/products', mainEntity: { '@type': 'ItemList', itemListElement: specialtyProducts.map((product, index) => ({ '@type': 'ListItem', position: index + 1, name: product.name, url: `https://bannersonthefly.com/products/${product.slug}` })) } },
     ]} />
-    <section className="product-hero-light specialty-catalog-hero" aria-labelledby="catalog-hero-title">
+    <CompactProductHero title="Displays & signs." accent="Ready to stand out." specialty
+      photo={<img src="/images/product-heroes/displays-fieldwork-640.webp" width={1440} height={960} loading="eager" fetchPriority="high" alt="Custom retractable banner, branded table cover and matching sidewalk sign" />}
+      delivery={<SpecialtyDeliveryStatus featured />}
+      action={<a href="#shop-displays">Shop Displays &amp; Signs<ArrowRight aria-hidden="true" /></a>}
+    />
+    <section className="product-hero-light specialty-catalog-hero hidden lg:block" aria-labelledby="catalog-hero-title">
       <div className="product-hero-stage">
         <div className="product-hero-copy">
           <p className="product-hero-eyebrow">Displays &amp; Signs</p>
@@ -38,7 +45,7 @@ export default function SpecialtyCatalog() {
       </ul></div>
     </section>
 
-    <div className="brand-shell py-6"><SpecialtyDeliveryStatus /></div>
+    <div className="brand-shell hidden py-5 lg:block"><SpecialtyDeliveryStatus featured /><div className="mt-3"><GoogleReviewSpotlight /></div></div>
 
     <nav className="sticky top-[72px] z-30 border-b border-slate-200 bg-white/95 backdrop-blur" aria-label="Specialty product categories">
       <div className="brand-shell flex gap-6 overflow-x-auto py-4 text-sm font-bold text-[#0B1F3A]">
