@@ -1,0 +1,57 @@
+import { approvalNeeded } from "./operations.mjs";
+import { requestApproval, decide } from "./store.mjs";
+
+// This only authorizes routine, grounded drafts. Dispatch independently enforces
+// cutover, suppression, quotas, sender identity, business hours and follow-up limits.
+export function routineEligible(message, knowledge) {
+  const meta = message.ai_metadata;
+  if (
+    !["reply", "followup"].includes(message.kind) ||
+    !meta ||
+    meta.requires_approval !== false
+  )
+    return false;
+  if (
+    meta.knowledge_version !== knowledge.version ||
+    !Array.isArray(meta.fact_ids) ||
+    !meta.fact_ids.length ||
+    !meta.fact_ids.every((k) => Object.hasOwn(knowledge.facts, k))
+  )
+    return false;
+  if (
+    message.kind === "reply" &&
+    (meta.classification !== "needs_review" ||
+      meta.model_classification !== "routine_product")
+  )
+    return false;
+  if (message.kind === "followup" && meta.model_classification !== "followup")
+    return false;
+  const body = message.subject + "\n" + message.body;
+  if (
+    approvalNeeded(body) ||
+    /\$|\d\s*%|\b(price|pricing|quote|refund|complaint|payment|invoice|contract|guarantee|discount|meeting|appointment|schedule a call|net\s*\d|credit|password|credentials|supplier)\b/i.test(
+      body,
+    )
+  )
+    return false;
+  return true;
+}
+
+export async function routeApproval(sql, message, settings) {
+  if (!["draft", "pending_approval"].includes(message.status)) return;
+  await requestApproval(sql, message.id, "daniel-worker");
+  if (!settings.auto_reply) return;
+  const [knowledge] =
+    await sql`SELECT * FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1`;
+  if (!routineEligible(message, knowledge)) return;
+  const [approval] =
+    await sql`SELECT id FROM daniel_sales.approvals WHERE message_id=${message.id} AND decision='pending'`;
+  if (approval)
+    await decide(
+      sql,
+      approval.id,
+      "approved",
+      "Routine automation enabled; grounded non-exception draft passed policy. Dispatch mode and limits remain enforced.",
+      "daniel-policy",
+    );
+}

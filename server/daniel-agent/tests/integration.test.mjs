@@ -457,6 +457,45 @@ test("hard bounce only suppresses an explicit recipient in a known sent thread",
     await sql`SELECT * FROM daniel_sales.contacts WHERE id=${c.id}`;
   assert.ok(updated.suppressed_at);
 });
+test("routine worker simulation is automatic while exceptions remain in owner queue", async () => {
+  await sql`UPDATE daniel_sales.settings SET paused=false,auto_reply=true WHERE id=1`;
+  const normal = await prospect(),
+    exception = await prospect();
+  for (const p of [normal, exception])
+    await sql`INSERT INTO daniel_sales.tasks(contact_id,opportunity_id,kind,due_at,dedupe_key) VALUES(${p.contact_id},${p.opportunity_id},'followup',now(),${"auto-test:" + p.contact_id})`;
+  const generate = async (_, contactId, kind) => ({
+    contact_id: contactId,
+    kind,
+    subject: "Following up on signage",
+    body:
+      contactId === normal.contact_id
+        ? "Would you like help choosing vinyl banners for your locations?"
+        : "We can discuss custom pricing.",
+    ai_metadata: {
+      knowledge_version: "bof-v1",
+      requires_approval: contactId === exception.contact_id,
+      model_classification: "followup",
+      fact_ids: ["products"],
+    },
+  });
+  await runWorker(env, { sql, now, generateDraft: generate });
+  const [routine] =
+    await sql`SELECT * FROM daniel_sales.messages WHERE contact_id=${normal.contact_id}`;
+  const [held] =
+    await sql`SELECT * FROM daniel_sales.messages WHERE contact_id=${exception.contact_id}`;
+  assert.equal(routine.status, "simulated");
+  assert.equal(routine.approved_by, "daniel-policy");
+  assert.equal(routine.sent_at, null);
+  assert.equal(held.status, "pending_approval");
+  await runWorker(env, { sql, now, generateDraft: generate });
+  assert.equal(
+    (
+      await sql`SELECT * FROM daniel_sales.test_deliveries WHERE message_id=${routine.id}`
+    ).length,
+    1,
+  );
+  await sql`UPDATE daniel_sales.settings SET auto_reply=false WHERE id=1`;
+});
 test("background jobs authenticate, persist completion and reject replay", async (t) => {
   const calls = [];
   const mock = t.mock.method(globalThis, "fetch", async (url, init) => {

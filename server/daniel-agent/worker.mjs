@@ -4,9 +4,10 @@ import { accessToken } from "./gmail.mjs";
 import { syncMailbox } from "./mail-sync.mjs";
 import { dispatch, reconcile } from "./dispatch.mjs";
 import { generateDraft } from "./ai.mjs";
-import { saveDraft, requestApproval, audit } from "./store.mjs";
+import { saveDraft, audit } from "./store.mjs";
 import { report } from "./reporting.mjs";
 import { mode } from "./config.mjs";
+import { routeApproval } from "./automation.mjs";
 export async function runWorker(env = process.env, options = {}) {
   const sql = options.sql || database(env),
     owner = randomUUID();
@@ -64,22 +65,25 @@ export async function runWorker(env = process.env, options = {}) {
         continue;
       }
       const [existing] =
-        await sql`SELECT id FROM daniel_sales.messages WHERE idempotency_key=${"task:" + t.id}`;
+        await sql`SELECT * FROM daniel_sales.messages WHERE idempotency_key=${"task:" + t.id}`;
       if (existing) {
-        await requestApproval(sql, existing.id, "daniel-worker").catch(
-          () => {},
-        );
+        await routeApproval(sql, existing, settings).catch(() => {});
         await sql`UPDATE daniel_sales.tasks SET status='completed' WHERE id=${t.id}`;
         continue;
       }
       try {
-        const draft = await generateDraft(sql, c.id, t.kind, env);
+        const draft = await (options.generateDraft || generateDraft)(
+          sql,
+          c.id,
+          t.kind,
+          env,
+        );
         const m = await saveDraft(
           sql,
           { ...draft, idempotency_key: "task:" + t.id },
           "daniel-worker",
         );
-        await requestApproval(sql, m.id, "daniel-worker");
+        await routeApproval(sql, m, settings);
         await sql`UPDATE daniel_sales.tasks SET status='completed',attempt_count=attempt_count+1 WHERE id=${t.id}`;
       } catch (e) {
         await sql`UPDATE daniel_sales.tasks SET attempt_count=attempt_count+1,due_at=now()+interval '1 hour',note='Draft generation failed; will retry' WHERE id=${t.id}`;

@@ -217,10 +217,18 @@ export async function handler(req, context = {}, deps = {}) {
         result = { ok: true };
         break;
       case "/api/daniel/settings":
-        await sql`UPDATE daniel_sales.settings SET paused=${!!input.paused},updated_at=now() WHERE id=1`;
-        await store.audit(sql, s.actor, "pause_changed", "settings", 1, {
-          paused: !!input.paused,
-        });
+        await sql`UPDATE daniel_sales.settings SET paused=coalesce(${typeof input.paused === "boolean" ? input.paused : null}::boolean,paused),auto_reply=coalesce(${typeof input.auto_reply === "boolean" ? input.auto_reply : null}::boolean,auto_reply),updated_at=now() WHERE id=1`;
+        await store.audit(
+          sql,
+          s.actor,
+          "execution_settings_changed",
+          "settings",
+          1,
+          {
+            paused: input.paused,
+            auto_reply: input.auto_reply,
+          },
+        );
         result = { ok: true };
         break;
       case "/api/daniel/run":

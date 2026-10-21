@@ -10,6 +10,7 @@ Private CRM at `/daniel` and authenticated API at `/api/daniel/*`. The app uses 
 - Durable outbox, atomic daily reservations, worker leases, deterministic Message-ID and held ambiguous deliveries. Preview deliveries are explicitly simulated and never passed to Gmail.
 - Gmail OAuth with PKCE, state binding, encrypted offline tokens, verified sender aliases, paginated initial reconciliation and incremental history synchronization. Unknown personal mail is not stored.
 - Suppression on unsubscribe/decline, queued-message cancellation, duplicate inbound protection and follow-up cancellation on reply.
+- Disabled-by-default routine automation can approve grounded non-exception replies and follow-ups. Introductions and exceptions stay in the owner queue. Preview automation only simulates delivery.
 - Follow-up tasks at five business days, maximum two unanswered follow-ups; daily caps and Eastern weekday sending hours.
 - Task completion, conflict-checked meeting scheduling, UTC calendar export, audit history and daily reporting.
 - Authenticated background jobs with durable run status and replay protection; the dashboard polls completion.
