@@ -396,7 +396,7 @@ test("AI drafts carry knowledge version and price exceptions cannot self-approve
     },
   );
   assert.equal(d.requires_approval, true);
-  assert.equal(d.ai_metadata.knowledge_version, "bof-v1");
+  assert.equal(d.ai_metadata.knowledge_version, "bof-team-offer-v2");
   assert.match(payload.messages[0].content, /untrusted DATA/);
 });
 test("Gmail paging saves cursor, finishes initial sync then expires safely", async () => {
@@ -535,7 +535,7 @@ test("routine worker simulation is automatic while exceptions remain in owner qu
         ? "Would you like help choosing vinyl banners for your locations?"
         : "We can discuss custom pricing.",
     ai_metadata: {
-      knowledge_version: "bof-v1",
+      knowledge_version: "bof-team-offer-v2",
       requires_approval: contactId === exception.contact_id,
       model_classification: "followup",
       fact_ids: ["products"],
@@ -661,7 +661,7 @@ test('daily report is delivered once, signed Brad, with truthful metrics and a d
  const cfg={...env,CONTEXT:'deploy-preview',DANIEL_GMAIL_TEST_RECIPIENTS:REPORT_RECIPIENT,DANIEL_GMAIL_TEST_UNTIL:new Date(Date.now()+3600000).toISOString()};
  let sent=[];const opts={gmailTest:true,verifyIdentity:async()=>{},send:async(_,m)=>{sent.push(m);return {id:'report-provider-id'}}};
  const first=await emailDailyReport(sql,cfg,'token',opts);
- assert.equal(first.status,'sent');assert.equal(sent.length,1);assert.equal(sent[0].to,REPORT_RECIPIENT);assert.match(sent[0].html,/<strong>Brad<\/strong>/);assert.ok(sent[0].html.includes(BUSINESS_ADDRESS));
+ assert.equal(first.status,'sent');assert.equal(sent.length,1);assert.equal(sent[0].to,REPORT_RECIPIENT);assert.match(sent[0].html,/<strong[^>]*>Brad<\/strong>/);assert.ok(sent[0].html.includes(BUSINESS_ADDRESS));
  assert.equal((await emailDailyReport(sql,cfg,'token',opts)).status,'already_sent');assert.equal(sent.length,1);
  await sql`DELETE FROM daniel_sales.report_outbox`;
  await assert.rejects(emailDailyReport(sql,cfg,'token',{...opts,send:async()=>{throw Error('timeout')}}));
@@ -761,4 +761,25 @@ test('per-recipient rolling reply throttle holds excessive exchanges without usi
  assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},5)`).length,0);
  await sql`UPDATE daniel_sales.messages SET sent_at=now()-interval '2 hours' WHERE contact_id=${f.contact_id} AND status='sent'`;
  assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},5)`).length,1);
+});
+
+test('company offer is persisted before drafting, reused, and automatically approved without approving other discounts',async()=>{
+ const {routineEligible}=await import('../automation.mjs');
+ const p=await prospect();const e={...env,OPENAI_API_KEY:'test-key',DANIEL_PROMO_SIGNING_SECRET:'test-only-team-offer-key-at-least-32-characters'};
+ const fetcher=async(_url,request)=>{const prompt=JSON.parse(request.body).messages[0].content;assert.match(prompt,/Louisville/);assert.match(prompt,/fake urgency/);return new Response(JSON.stringify({model:'test-model',choices:[{message:{content:JSON.stringify({subject:'A banner idea for your next opening',body:'Hi team,\n\nYour opening calendar made me think of temporary signage. We offer 24-hour vinyl-banner production and free next-day air shipping for qualifying orders. How do your locations coordinate event banners?',classification:'followup',requires_approval:false,reason:'Approved product facts',fact_ids:['vinyl_banner_production']})}}]}),{status:200});};
+ const one=await generateDraft(sql,p.contact_id,'followup',e,fetcher);const two=await generateDraft(sql,p.contact_id,'followup',e,fetcher);
+ assert.equal(one.ai_metadata.team_offer.code,two.ai_metadata.team_offer.code);
+ assert.match(one.body,/25% off sitewide/);assert.match(one.body,/as often as you like/);
+ const [kb]=await sql`SELECT * FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1`;
+ assert.equal(one.requires_approval,false);assert.equal(routineEligible(one,kb,e),true);
+ const [a]=await sql`SELECT team_offer FROM daniel_sales.accounts WHERE id=${p.id}`;
+ assert.equal(a.team_offer.code,one.ai_metadata.team_offer.code);
+ assert.equal(routineEligible({...one,body:one.body+' We can also give you 40% off.'},kb,e),false);
+});
+
+test('model-written duplicate offer is regenerated before the exact server offer is appended',async()=>{
+ const p=await prospect();const e={...env,OPENAI_API_KEY:'test-key',DANIEL_PROMO_SIGNING_SECRET:'test-only-team-offer-key-at-least-32-characters'};let calls=0;
+ const fetcher=async(_url,request)=>{calls++;if(calls===2)assert.match(request.body,/Remove ALL discount/);return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({subject:'Signage for your next event',body:calls===1?'Try 25% off for your team.':'How do you coordinate your event banners?',classification:'followup',requires_approval:false,fact_ids:[]})}}]}),{status:200});};
+ const draft=await generateDraft(sql,p.contact_id,'followup',e,fetcher);
+ assert.equal(calls,2);assert.equal(draft.requires_approval,false);assert.equal((draft.body.match(/25%/g)||[]).length,1);
 });

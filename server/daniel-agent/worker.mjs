@@ -83,7 +83,7 @@ export async function runWorker(env = process.env, options = {}) {
       const [existing] =
         await sql`SELECT * FROM daniel_sales.messages WHERE idempotency_key=${"task:" + t.id}`;
       if (existing) {
-        await routeApproval(sql, existing, effectiveSettings).catch(() => {});
+        await routeApproval(sql, existing, effectiveSettings, env).catch(() => {});
         await sql`UPDATE daniel_sales.tasks SET status='completed' WHERE id=${t.id}`;
         continue;
       }
@@ -99,7 +99,7 @@ export async function runWorker(env = process.env, options = {}) {
           { ...draft, idempotency_key: "task:" + t.id },
           "daniel-worker",
         );
-        await routeApproval(sql, m, effectiveSettings);
+        await routeApproval(sql, m, effectiveSettings, env);
         await sql`UPDATE daniel_sales.tasks SET status='completed',attempt_count=attempt_count+1 WHERE id=${t.id}`;
       } catch (e) {
         await sql`UPDATE daniel_sales.tasks SET attempt_count=attempt_count+1,due_at=now()+interval '1 hour',note='Draft generation failed; will retry' WHERE id=${t.id}`;

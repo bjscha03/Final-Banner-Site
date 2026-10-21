@@ -11,6 +11,7 @@ export function environment(context = globalThis.Netlify?.context) {
     "DANIEL_GMAIL_TEST_RECIPIENTS",
     "DANIEL_GMAIL_TEST_UNTIL",
     "DANIEL_CRON_SECRET",
+    "DANIEL_PROMO_SIGNING_SECRET",
     "DANIEL_GOOGLE_CLIENT_ID",
     "DANIEL_GOOGLE_CLIENT_SECRET",
     "GOOGLE_CLIENT_ID",
