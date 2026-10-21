@@ -1,6 +1,7 @@
 import { isProductionHost } from './environment';
 import { isCurrentDeviceInternal } from './trackingPolicy';
 import { issueDetails, issuePage, type SiteIssueInput, type SiteIssueKind } from './siteIssueSchema';
+import { isChunkLoadFailure } from './chunkRecovery';
 
 const QUEUE_KEY = 'bof_issue_queue_v1';
 const SESSION_KEY = 'bof_issue_session_v1';
@@ -14,6 +15,8 @@ let retries = 0;
 let lastWindow = 0;
 let sentInWindow = 0;
 const recent = new Map<string, number>();
+const recentAssets = new Map<string, { id: string; at: number }>();
+let assetFlushTimer: ReturnType<typeof setTimeout> | undefined;
 let uploadStartedAt = 0;
 const breadcrumbs: string[] = [];
 export function recordIssueAction(action: string): void {
@@ -42,6 +45,7 @@ function getSessionId() {
   return sessionId;
 }
 export async function flushSiteIssues(): Promise<void> {
+  if (assetFlushTimer) { clearTimeout(assetFlushTimer); assetFlushTimer = undefined; }
   if (!enabled() || flushing || navigator.onLine === false) return;
   flushing = true;
   try {
@@ -69,8 +73,7 @@ export function reportSiteIssue(kind: SiteIssueKind, details: Record<string, unk
   try {
     if (!enabled() || window.location.pathname.startsWith('/admin')) return;
     const now = Date.now();
-    if (now - lastWindow > 300_000) { lastWindow = now; sentInWindow = 0; recent.clear(); }
-    if (sentInWindow >= 10) return;
+    if (now - lastWindow > 300_000) { lastWindow = now; sentInWindow = 0; recent.clear(); recentAssets.clear(); }
     const safeDetails = issueDetails({ ...details,
       breadcrumbs: breadcrumbs.join('\n'),
       viewportWidth: window.innerWidth, viewportHeight: window.innerHeight,
@@ -80,15 +83,43 @@ export function reportSiteIssue(kind: SiteIssueKind, details: Record<string, unk
       browserVersion: navigator.userAgent.match(/(?:Chrome|CriOS|Firefox|FxiOS|Version|Edg)\/([\d.]+)/)?.[1],
     });
     const page = issuePage(window.location.pathname);
+    const pageFailure = kind === 'page_error' || kind === 'page_crash';
+    const asset = pageFailure && (safeDetails.phase === 'asset_load' || isChunkLoadFailure(safeDetails.errorMessage))
+      ? String(safeDetails.errorMessage || '').match(/\/assets\/[A-Za-z0-9_.-]+\.(?:css|m?js)\b/)?.[0] || safeDetails.source || 'unknown-module'
+      : null;
+    const assetKey = asset ? JSON.stringify([page, asset, safeDetails.recoveryAttempted]) : null;
+    if (assetKey) {
+      const previous = recentAssets.get(assetKey);
+      if (previous && now - previous.at < 5000) {
+        // Resource error -> Vite rejection -> React boundary is one incident.
+        // Enrich its persisted queue entry before sending, preserving the crash
+        // severity and component stack instead of creating three admin rows.
+        const pending = getQueue().find(item => item.id === previous.id);
+        if (pending) {
+          if (kind === 'page_crash') pending.kind = kind;
+          pending.details = { ...pending.details, ...safeDetails, source: asset };
+          persist();
+        }
+        return;
+      }
+    }
+    if (sentInWindow >= 10) return;
     const { breadcrumbs: _breadcrumbs, ...stableDetails } = safeDetails;
     const fingerprint = JSON.stringify([kind, page, stableDetails]);
     if (now - (recent.get(fingerprint) || 0) < 5000) return;
     recent.set(fingerprint, now); sentInWindow += 1;
-    getQueue().push({ id: crypto.randomUUID(), kind, occurredAt: new Date(now).toISOString(), page,
+    const id = crypto.randomUUID();
+    getQueue().push({ id, kind, occurredAt: new Date(now).toISOString(), page,
       sessionId: getSessionId(), traffic: isCurrentDeviceInternal() || navigator.webdriver ? 'test' : 'customer',
       online: navigator.onLine, details: safeDetails });
     if (queue!.length > 20) queue!.shift();
-    persist(); void flushSiteIssues();
+    persist();
+    if (assetKey) {
+      recentAssets.set(assetKey, { id, at: now });
+      // Only asset failures coalesce; checkout/upload failures send immediately.
+      // Persist first so a reload cannot lose an unsent incident.
+      if (!assetFlushTimer) assetFlushTimer = setTimeout(() => { assetFlushTimer = undefined; void flushSiteIssues(); }, 250);
+    } else void flushSiteIssues();
   } catch { /* Never throw into an upload or checkout. */ }
 }
 export function trackUploadIssue(event: string, details?: Record<string, unknown>): void {
@@ -168,6 +199,7 @@ export function installSiteIssueMonitoring() {
     if (!(event.reason instanceof Error && event.reason.name === 'AbortError')) reportPageIssue('page_error', event.reason);
   });
   window.addEventListener('online', () => { retries = 0; void flushSiteIssues(); });
+  window.addEventListener('pagehide', () => { void flushSiteIssues(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { retries = 0; void flushSiteIssues(); } });
   void flushSiteIssues();
 }

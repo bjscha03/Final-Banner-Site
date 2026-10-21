@@ -1,4 +1,4 @@
-import { access, readFile } from 'node:fs/promises';
+import { access, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
 
@@ -174,6 +174,17 @@ assert(/<meta\b(?=[^>]*name=["']robots["'])(?=[^>]*content=["'][^"']*noindex)/i.
 
 const shell = await readFile(path.join(distDir, 'index.html'), 'utf8');
 assert(!/modulepreload[^>]+(?:pdf|pdfjs|pdfkit)/i.test(shell), 'PDF code must not be preloaded on landing pages.');
+// A route must never depend on a second CSS request before its JS can run.
+// Check the emitted artifact, not just the Vite configuration flag.
+const builtAssets = await readdir(path.join(distDir, 'assets'));
+const stylesheets = builtAssets.filter(name => name.endsWith('.css'));
+assert(stylesheets.length === 1, 'Expected one document stylesheet; route CSS must not be loaded asynchronously.');
+const stylePath = `/assets/${stylesheets[0]}`;
+assert(linkTags(shell, 'stylesheet').some(tag => attribute(tag, 'href')?.endsWith(stylePath)), 'The document must load the bundled stylesheet before the app starts.');
+for (const entry of manifest) {
+  const html = await readFile(path.join(distDir, entry.output), 'utf8');
+  assert(linkTags(html, 'stylesheet').some(tag => attribute(tag, 'href')?.endsWith(stylePath)), `${entry.route}: bundled stylesheet missing.`);
+}
 
 const redirects = await readFile(path.join(distDir, '_redirects'), 'utf8');
 const fallbackPosition = redirects.indexOf('/*    /index.html   200');
