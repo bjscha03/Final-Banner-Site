@@ -7,7 +7,7 @@ Private CRM at `/daniel` and authenticated API at `/api/daniel/*`. The app uses 
 - Server-side owner sign-in, HttpOnly secure sessions, CSRF and host validation, login throttling and logout.
 - Corporate accounts, verified contacts, opportunity stages, ownership, notes, next actions, JSON batch import and export.
 - AI-generated introductions and replies grounded in a versioned knowledge base. Exact-message review, revision invalidation, approvals and rejection.
-- Durable outbox, atomic daily reservations, worker leases, deterministic Message-ID and held ambiguous deliveries. Preview deliveries are explicitly simulated and never passed to Gmail.
+- Durable outbox, atomic daily reservations, worker leases, canonical Gmail Message-ID capture and held ambiguous deliveries. Normal preview runs are simulated. Explicit controlled Gmail acceptance jobs use an expiring server-side owner allowlist.
 - Gmail OAuth with PKCE, state binding, encrypted offline tokens, verified sender aliases, paginated initial reconciliation and incremental history synchronization. Unknown personal mail is not stored.
 - Suppression on unsubscribe/decline, queued-message cancellation, duplicate inbound protection and follow-up cancellation on reply.
 - Disabled-by-default routine automation can approve grounded non-exception replies and follow-ups. Introductions and exceptions stay in the owner queue. Preview automation only simulates delivery.
@@ -15,7 +15,7 @@ Private CRM at `/daniel` and authenticated API at `/api/daniel/*`. The app uses 
 - Task completion, conflict-checked meeting scheduling, UTC calendar export, audit history and daily reporting.
 - Authenticated background jobs with durable run status and replay protection; the dashboard polls completion.
 
-See [VALIDATION.md](./VALIDATION.md) for the 38-test suite and deployed verification evidence. The deployed API, desktop browser and mobile checks pass. Actual Gmail mailbox verification still requires the dedicated account grant.
+See [VALIDATION.md](./VALIDATION.md) for deployed verification evidence. The automated suite contains 44 policy, integration, lifecycle, Gmail safety and UI tests. Actual provider acceptance is recorded separately from simulations.
 
 ## Run / test
 
@@ -33,8 +33,16 @@ npm run build
 
 The PR preview reuses existing Netlify infrastructure and OpenAI configuration. Only new `DANIEL_*` variables are configured for deploy-preview scope. `DANIEL_ALLOWED_HOST` restricts these endpoints to the dedicated preview host. Production storefront code and existing automation are unchanged.
 
-Gmail requires a new account grant. Register the exact redirect displayed in Settings on the existing Google OAuth client, then use Connect Gmail while signed in as the owner. The mailbox must have an accepted `info@bannersonthefly.com` sender alias. Existing Google website sign-in is not Gmail authorization. Verify a controlled real-mail round trip before cutover; simulation cannot prove external delivery.
+Gmail requires an account grant for this application. Register the exact redirect displayed in Settings on the existing Google OAuth client, then use Connect Gmail while signed in as the owner. The mailbox must have an accepted `info@bannersonthefly.com` sender alias. Existing Google website sign-in is not Gmail authorization. Verify a controlled real-mail round trip before cutover; simulation cannot prove external delivery.
 
 ## Cutover lock
 
-Live mode requires all three server values: `DANIEL_AGENT_MODE=live`, `DANIEL_CUTOVER_APPROVED=true`, and Netlify `CONTEXT=production`. The UI cannot set them. The scheduled function exits without those conditions. The existing hourly Daniel automation remains untouched. No production activation is authorized until the completed system is tested and Brandon approves cutover.
+Live mode requires all three server values: `DANIEL_AGENT_MODE=live`, `DANIEL_CUTOVER_APPROVED=true`, and Netlify runtime `context.deploy.context=production`. Build-only `process.env.CONTEXT` is not assumed to exist inside deployed functions. The UI cannot set these gates. The scheduled function exits without them. The existing hourly Daniel automation remains untouched. No production activation is authorized until the completed system is tested and Brandon approves cutover.
+
+## Controlled Gmail acceptance
+
+The existing BOF OAuth client is used, with the exact preview callback registered. Enable the Gmail API in that same Google Cloud project. The owner account must be a listed tester while the OAuth app is in Testing. Gmail read, send and basic-settings scopes are needed; settings access verifies the accepted BOF sender. Tokens are encrypted and are never exported by the API. Google Testing grants expire after seven days; permanent production operation requires an appropriate production OAuth configuration and a fresh grant.
+
+Acceptance requires `DANIEL_GMAIL_TEST_RECIPIENTS` (one to three exact owner-controlled addresses) and `DANIEL_GMAIL_TEST_UNTIL` (a future expiration no more than 24 hours away), both in deploy-preview/functions scope. It also requires authenticated, same-origin `POST /api/daniel/test/gmail/run`. Regular preview cycles, scheduled functions, and production contexts cannot use this permission. Unknown recipients are held. Messages are marked `ai_metadata.gmail_test=true` before the provider call and counted separately from sales sends. Evidence endpoints expose only allowlisted test message headers, never tokens or arbitrary mailbox contents.
+
+`tests/real-gmail-acceptance.mjs` is an explicitly staged harness: setup, intro, schedule, followup, reply, unsubscribe, sync, cleanup, locked, status. Set `DANIEL_QA_ADDRESS` to the connected owner inbox and use the private runtime environment. It uses the actual deployed API. Human/connector test replies must originate from that inbox. Only isolated test fixture timestamps are accelerated to exercise a due follow-up; the production five-business-day rule is unchanged. The sync stage requires the actual test-message `DANIEL_QA_HISTORY_ID` and limits initial reconciliation to the test conversation before exercising incremental history. Disable the test window after acceptance, pause the dedicated agent, and verify the locked stage.

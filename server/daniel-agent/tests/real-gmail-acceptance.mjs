@@ -46,8 +46,29 @@ if(stage==='setup'){
  s.pending=await api('draft',{contact_id:s.p.contact_id,kind:'reply',subject:s.subject,body:'Future test message that unsubscribe must cancel.',due_at:new Date(Date.now()+3600000).toISOString()});await approve(s.pending);await persist();console.log('PASS receive, automatic real AI reply, thread continuity, duplicate inbound/reply protection and follow-up cancellation',JSON.stringify(s.replyEvidence));
 }else if(stage==='unsubscribe'){
  await run();const d=await data();assert.ok(d.contacts.find(x=>x.id===s.p.contact_id).suppressed_at);assert.equal(d.messages.find(x=>x.id===s.pending.id).status,'blocked');assert.equal(d.tasks.filter(x=>x.contact_id===s.p.contact_id&&x.status==='pending').length,0);assert.equal(d.messages.filter(x=>x.contact_id===s.p.contact_id&&x.status==='sent').length,3);await api('draft',{contact_id:s.p.contact_id,subject:'Blocked',body:'Must never send'},409);await run();await api('settings',{auto_reply:false});await api('suppress',{email:'gmail-guard-'+s.tag+'@example.test',reason:'Controlled Gmail QA complete'});s.report=await api('report',{});assert.equal(s.report.sent,0);assert.equal(s.report.gmailtestsent,3);await persist();console.log('PASS real unsubscribe, queued cancellation, no duplicate sends, suppression and separate reporting',JSON.stringify(s.report));
-}else if(stage==='sync'){
- let r;for(let i=0;i<30;i++){r=await api('sync',{});console.log('SYNC',JSON.stringify(r));if(r.complete)break;}assert.equal(r.complete,true);const d=await data();assert.equal(d.mailbox.last_error,null);assert.ok(d.mailbox.history_id);assert.equal(d.config.liveEmailEnabled,false);console.log('PASS deployed regular mailbox initial/history sync');
+ }else if(stage==='sync'){
+ // Limit initial acceptance reconciliation to this real conversation. This is
+ // fixture setup only; production reconciliation retains its normal CRM scope.
+ const sql=database();
+ const [box]=await sql`SELECT history_id,sync_start_history FROM daniel_sales.mailbox WHERE id=1`;
+ if(!box.history_id&&!box.sync_start_history){
+  const history=process.env.DANIEL_QA_HISTORY_ID;
+  assert.match(history||'',/^[0-9]+$/,'Supply the actual Gmail test-message history ID');
+  const query='from:'+testAddress+' subject:"Daniel QA '+s.tag+'" newer_than:1d -in:drafts';
+  await sql`UPDATE daniel_sales.mailbox SET sync_start_history=${history},initial_query=${JSON.stringify({queries:[query],index:0})},page_token=NULL WHERE id=1 AND history_id IS NULL`;
+ }
+ let r;for(let i=0;i<30;i++){r=await api('sync',{});console.log('SYNC',JSON.stringify(r));if(r.complete)break;}assert.equal(r.complete,true);const d=await data();assert.equal(d.mailbox.last_error,null);assert.ok(d.mailbox.history_id);assert.equal(d.config.liveEmailEnabled,false);const incremental=await api('sync',{});assert.equal(incremental.complete,true);console.log('PASS deployed scoped initial and incremental Gmail history sync');
+ }else if(stage==='cleanup'){
+ await api('settings',{paused:true,auto_reply:false});
+ const d=await data();assert.equal(d.config.liveEmailEnabled,false);assert.equal(d.settings.paused,true);assert.equal(d.settings.auto_reply,false);
+ assert.ok(d.contacts.find(x=>x.id===s.p.contact_id).suppressed_at);assert.ok(d.contacts.find(x=>x.id===s.other.contact_id).suppressed_at);
+ console.log('PASS dedicated agent paused, routine replies disabled, both acceptance contacts suppressed');
+}else if(stage==='locked'){
+ const d=await data();assert.equal(d.config.liveEmailEnabled,false);assert.equal(d.config.gmailTestEnabled,false);assert.equal(d.settings.paused,true);assert.equal(d.settings.auto_reply,false);
+ await api('test/gmail/run',{},403);await api('test/gmail/evidence',undefined,403);
+ const r=await fetch(base+'/api/daniel/data');assert.equal(r.status,401);
+ const page=await fetch(base+'/daniel');const html=await page.text();assert.ok(!html.includes(testAddress));
+ console.log('PASS final deployed live/test sending locks, paused agent, disabled routine mode and anonymous CRM protection');
 }else if(stage==='status'){
  const d=await data();console.log(JSON.stringify({config:d.config,mailbox:d.mailbox,messages:d.messages.filter(x=>x.contact_id===s.p?.contact_id).map(x=>({id:x.id,kind:x.kind,status:x.status,subject:x.subject,error:x.error,thread:x.thread_key,providerId:x.provider_message_id})),runs:d.runs.slice(0,3),settings:d.settings},null,2));
 }else throw Error('Unknown acceptance stage');
