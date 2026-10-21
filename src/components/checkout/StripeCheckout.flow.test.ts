@@ -113,7 +113,7 @@ describe('Stripe ConfirmationToken client flow', () => {
 
   it('always releases a wallet sheet when Elements is unavailable or another payment is active', () => {
     expect(source).toContain('if (!walletElements || busy) {');
-    expect(source).toContain("event.paymentFailed?.({ reason: 'fail', message })");
+    expect(source).toContain("failWallet({ reason: 'fail', message })");
     expect(source).toContain('Another payment is already being securely verified. Check its status before trying again.');
     expect(source).toContain('Secure payment fields are not ready. Close the wallet and try again.');
     expect(source).toContain('Restoring and securely verifying your payment…');
@@ -170,7 +170,7 @@ describe('Stripe ConfirmationToken client flow', () => {
     expect(phoneGuard).toBeGreaterThan(-1);
     expect(elementsSubmit).toBeGreaterThan(phoneGuard);
     expect(paymentStart).toBeGreaterThan(elementsSubmit);
-    expect(source).toContain("event.paymentFailed?.({ reason: 'invalid_payment_data', message })");
+    expect(source).toContain("failWallet({ reason: 'invalid_payment_data', message })");
     expect(source).toContain('walletPhoneRef.current?.focus()');
     expect(source).toContain("validation.field === 'phone' && walletPhoneRequired");
     expect(source).toContain('No payment was created.');

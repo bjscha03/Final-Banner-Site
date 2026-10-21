@@ -823,7 +823,8 @@ async function createOrReusePaymentIntent({ stripe, sql, order, confirmationToke
     amount: Number(order.total_cents),
     currency: 'usd',
     capture_method: 'automatic',
-    automatic_payment_methods: { enabled: true },
+    // Stripe rejects automatic_payment_methods together with an explicit allowlist.
+    // Card includes Apple Pay and Google Pay; keep the existing accepted methods.
     allowed_payment_method_types: ['card'],
     description: stripePaymentDescription(order, items),
     metadata: {
