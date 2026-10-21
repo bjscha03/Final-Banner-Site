@@ -8,7 +8,7 @@ import { enqueueRun } from "./jobs.mjs";
 import { scheduleMeeting, ics } from "./scheduling.mjs";
 import { report } from "./reporting.mjs";
 import { oauthStart, oauthComplete } from "./oauth.mjs";
-import { accessToken } from "./gmail.mjs";
+import { accessToken, gmailRequest, getGmail, header } from "./gmail.mjs";
 import { syncMailbox, ingest } from "./mail-sync.mjs";
 import { html, scriptHash } from "./web/page.mjs";
 const headers = {
@@ -54,6 +54,19 @@ export async function handler(req, context = {}, deps = {}) {
       });
     }
     if (req.method === "GET") {
+      if (path === "/api/daniel/test/gmail/evidence") {
+        const permitted = gmailTestRecipients(env);
+        if (!permitted.length) v.fail("Controlled Gmail testing is disabled or expired", 403);
+        const token = await accessToken(env, sql);
+        const aliases = await gmailRequest(token, "/settings/sendAs");
+        const sender = aliases.sendAs?.find(x => x.sendAsEmail === env.DANIEL_SENDER_EMAIL);
+        if (!url.searchParams.has("id")) return json({ sender: sender?.sendAsEmail, verificationStatus: sender?.verificationStatus, tokenRefresh: true });
+        const [m] = await sql`SELECT m.provider_message_id,c.email FROM daniel_sales.messages m JOIN daniel_sales.contacts c ON c.id=m.contact_id WHERE m.id=${v.uuid(url.searchParams.get("id"))}`;
+        if (!m?.provider_message_id || !permitted.includes(m.email.toLowerCase())) v.fail("Only controlled test-message evidence is available", 403);
+        const message = await getGmail(token, m.provider_message_id);
+        return json({ id: message.id, threadId: message.threadId, labelIds: message.labelIds,
+          headers: Object.fromEntries(["From","To","Subject","Message-ID","In-Reply-To","References"].map(k => [k, header(message,k)])) });
+      }
       if (path === "/api/daniel/data")
         return json({
           ...(await store.data(sql)),
