@@ -776,3 +776,10 @@ test('company offer is persisted before drafting, reused, and automatically appr
  assert.equal(a.team_offer.code,one.ai_metadata.team_offer.code);
  assert.equal(routineEligible({...one,body:one.body+' We can also give you 40% off.'},kb,e),false);
 });
+
+test('model-written duplicate offer is regenerated before the exact server offer is appended',async()=>{
+ const p=await prospect();const e={...env,OPENAI_API_KEY:'test-key',DANIEL_PROMO_SIGNING_SECRET:'test-only-team-offer-key-at-least-32-characters'};let calls=0;
+ const fetcher=async(_url,request)=>{calls++;if(calls===2)assert.match(request.body,/Remove ALL discount/);return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({subject:'Signage for your next event',body:calls===1?'Try 25% off for your team.':'How do you coordinate your event banners?',classification:'followup',requires_approval:false,fact_ids:[]})}}]}),{status:200});};
+ const draft=await generateDraft(sql,p.contact_id,'followup',e,fetcher);
+ assert.equal(calls,2);assert.equal(draft.requires_approval,false);assert.equal((draft.body.match(/25%/g)||[]).length,1);
+});

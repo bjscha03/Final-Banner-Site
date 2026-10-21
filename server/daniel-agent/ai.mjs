@@ -85,6 +85,12 @@ export async function generateDraft(
       "AI introduction invented prior contact or contains prohibited company counts. Regenerate the draft.",
     );
   }
+  // Only the server writes the authorized offer. Retry duplicate model-written
+  // offer copy instead of silently approving arbitrary financial language.
+  if (teamOffer && /25\s*(?:%|percent)\s*(?:off|discount)/i.test(draft.body) && attempt < 1) {
+    return generateDraft(sql, contactId, kind, env, fetcher, attempt + 1,
+      [reviewFeedback, "Remove ALL discount/percentage/offer wording from your body. The server adds the complete personalized offer separately. Write only the company-specific observation, production/shipping facts, and one natural question."].filter(Boolean).join("\n"));
+  }
   draft.body = draft.body
     .replace(/\n(?:Best regards|Best|Sincerely|Regards)[,\s]*(?:\n[\s\S]*)?$/i, "")
     .trim();
