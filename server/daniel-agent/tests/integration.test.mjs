@@ -691,3 +691,9 @@ test('autonomous discovery retries an unavailable source without weakening quali
  const [m]=await sql`SELECT * FROM daniel_sales.messages WHERE id=${r.messageId}`;assert.equal(m.status,'queued');
  const [rejected]=await sql`SELECT count(*)::int AS n FROM daniel_sales.accounts WHERE website='https://property1.example.com'`;assert.equal(rejected.n,0);
 });
+
+test("cold introduction regenerates a misleading numeric company-footprint claim",async()=>{
+ const p=await prospect();let calls=0;
+ const fetcher=async()=>Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Restaurant signage',body:++calls===1?'We can help your 100+ U.S. locations.':'Do your restaurant teams coordinate promotional banners centrally?',requires_approval:false,fact_ids:['products']})}}]});
+ const d=await generateDraft(sql,p.contact_id,'intro',{OPENAI_API_KEY:'test'},fetcher);assert.equal(calls,2);assert.ok(!d.body.includes('100+'));
+});
