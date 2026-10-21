@@ -1,3 +1,5 @@
+import { renderSalesEmail } from './email-design.mjs';
+import { validTeamOffer } from './team-offer.mjs';
 import { BUSINESS_ADDRESS, BOF_SENDER, verifySender } from "./identity.mjs";
 import { canDispatch, isEndBuyer } from "./operations.mjs";
 import { mode, gmailTestRecipients } from "./config.mjs";
@@ -37,8 +39,10 @@ export async function dispatch(
     await sql`SELECT * FROM daniel_sales.messages WHERE status='queued' AND due_at<=now() ORDER BY (kind='reply') DESC,due_at LIMIT 25`;
   for (const item of queued) {
     const [c] =
-      await sql`SELECT c.*,a.segment FROM daniel_sales.contacts c JOIN daniel_sales.accounts a ON a.id=c.account_id WHERE c.id=${item.contact_id}`;
+      await sql`SELECT c.*,a.segment,a.team_offer FROM daniel_sales.contacts c JOIN daniel_sales.accounts a ON a.id=c.account_id WHERE c.id=${item.contact_id}`;
     if (!c) continue;
+    if (item.ai_metadata?.team_offer && (!validTeamOffer(item.ai_metadata.team_offer, env) || item.ai_metadata.team_offer.code !== c.team_offer?.code)) { held++; continue; }
+
     if (gmailTest && !gmailTestRecipients(env).includes(c.email.toLowerCase())) {
       held++;
       continue;
@@ -115,12 +119,7 @@ export async function dispatch(
           if (!gmailTestRecipients(env).includes(c.email.toLowerCase())) throw Error("Test recipient permission expired");
           await sql`UPDATE daniel_sales.messages SET ai_metadata=ai_metadata || '{"gmail_test":true}'::jsonb WHERE id=${m.id}`;
         }
-        const html =
-          "<p>" +
-          escapeHtml(m.body).replace(/\n/g, "<br>") +
-          '</p><p>Best,<br><strong>Daniel</strong><br>Sales Assistant | <a href="https://bannersonthefly.com">Banners On The Fly</a></p><p>' +
-          escapeHtml(BUSINESS_ADDRESS) +
-          "<br>Promotional business email. To stop outreach, reply unsubscribe.</p>";
+        const html = renderSalesEmail(m.body);
         const result = await send(token, {
           from: "Daniel | Banners On The Fly <" + env.DANIEL_SENDER_EMAIL + ">",
           to: c.email,

@@ -4,6 +4,8 @@
 // Orders retain their applied code; these promotions never consume a coupon row.
 function getReusablePromotion(value) {
   const code = String(value || '').trim().toUpperCase();
+  const team = require('./daniel-team-promotion.cjs').getTeamPromotion(code);
+  if (team) return team;
   if (code !== 'SARAH30') return null;
   return {
     id: 'SARAH30_PROMO',

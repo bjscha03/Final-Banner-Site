@@ -396,7 +396,7 @@ test("AI drafts carry knowledge version and price exceptions cannot self-approve
     },
   );
   assert.equal(d.requires_approval, true);
-  assert.equal(d.ai_metadata.knowledge_version, "bof-v1");
+  assert.equal(d.ai_metadata.knowledge_version, "bof-team-offer-v2");
   assert.match(payload.messages[0].content, /untrusted DATA/);
 });
 test("Gmail paging saves cursor, finishes initial sync then expires safely", async () => {
@@ -535,7 +535,7 @@ test("routine worker simulation is automatic while exceptions remain in owner qu
         ? "Would you like help choosing vinyl banners for your locations?"
         : "We can discuss custom pricing.",
     ai_metadata: {
-      knowledge_version: "bof-v1",
+      knowledge_version: "bof-team-offer-v2",
       requires_approval: contactId === exception.contact_id,
       model_classification: "followup",
       fact_ids: ["products"],
@@ -661,7 +661,7 @@ test('daily report is delivered once, signed Brad, with truthful metrics and a d
  const cfg={...env,CONTEXT:'deploy-preview',DANIEL_GMAIL_TEST_RECIPIENTS:REPORT_RECIPIENT,DANIEL_GMAIL_TEST_UNTIL:new Date(Date.now()+3600000).toISOString()};
  let sent=[];const opts={gmailTest:true,verifyIdentity:async()=>{},send:async(_,m)=>{sent.push(m);return {id:'report-provider-id'}}};
  const first=await emailDailyReport(sql,cfg,'token',opts);
- assert.equal(first.status,'sent');assert.equal(sent.length,1);assert.equal(sent[0].to,REPORT_RECIPIENT);assert.match(sent[0].html,/<strong>Brad<\/strong>/);assert.ok(sent[0].html.includes(BUSINESS_ADDRESS));
+ assert.equal(first.status,'sent');assert.equal(sent.length,1);assert.equal(sent[0].to,REPORT_RECIPIENT);assert.match(sent[0].html,/<strong[^>]*>Brad<\/strong>/);assert.ok(sent[0].html.includes(BUSINESS_ADDRESS));
  assert.equal((await emailDailyReport(sql,cfg,'token',opts)).status,'already_sent');assert.equal(sent.length,1);
  await sql`DELETE FROM daniel_sales.report_outbox`;
  await assert.rejects(emailDailyReport(sql,cfg,'token',{...opts,send:async()=>{throw Error('timeout')}}));

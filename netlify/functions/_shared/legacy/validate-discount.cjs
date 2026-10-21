@@ -30,7 +30,7 @@ exports.handler = async (event, context) => {
     const normalizedCode = code.trim().toUpperCase();
     const reusablePromotion = require('../reusable-promotions.cjs').getReusablePromotion(normalizedCode);
     if (reusablePromotion) {
-      return { statusCode: 200, headers, body: JSON.stringify({ valid: true, ...reusablePromotion, message: '30% off your order' }) };
+      return { statusCode: 200, headers, body: JSON.stringify({ valid: true, ...reusablePromotion, message: `${reusablePromotion.discountPercentage}% off your order` }) };
     }
     console.log('[validate-discount] Validating:', normalizedCode);
 
