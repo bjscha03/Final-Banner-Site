@@ -1,11 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import DeliveryDateCard from './DeliveryDateCard';
 import { Clock3, Truck } from 'lucide-react';
 import { formatCountdown } from '@/lib/delivery/messages';
 import { getSpecialtyDeliveryEstimate, SPECIALTY_CUTOFF_LABEL, specialtyDateLabel } from '@/lib/delivery/specialty';
 
+type SpecialtyDeliveryProps = { compact?: boolean; featured?: boolean };
+const subscribeToClient = () => () => {};
+const clientReady = () => true;
+const serverReady = () => false;
+
+/** Build-time dates and countdowns expire before a customer opens the page.
+ * Match the static HTML during hydration, then mount the live clock. Client
+ * navigation mounts live dates immediately, without changing shipping rules. */
+export default function SpecialtyDeliveryStatus(props: SpecialtyDeliveryProps) {
+  const ready = useSyncExternalStore(subscribeToClient, clientReady, serverReady);
+  if (ready) return <LiveSpecialtyDeliveryStatus {...props} />;
+  return <section data-specialty-delivery data-state="pending"
+    aria-label="Displays and signs shipping schedule"
+    className={props.featured ? 'specialty-shipping-featured min-h-[94px]' : `min-w-0 rounded-xl border border-orange-200 bg-orange-50/70 text-[#0B1F3A] ${props.compact ? 'p-3' : 'p-4 sm:p-5'}`}>
+    <p className="text-sm font-bold">Free FedEx Next-Day Air</p>
+    <p className="mt-1 text-xs text-slate-600">Shipping included in the price · After production</p>
+    <p className="mt-2 text-xs text-slate-600">Order and approve artwork before {SPECIALTY_CUTOFF_LABEL}, Monday–Friday, for shipment the next business day.</p>
+  </section>;
+}
+
 /** Only for the displays/signs catalog and specialty cart lines. */
-export default function SpecialtyDeliveryStatus({ compact = false, featured = false }: { compact?: boolean; featured?: boolean }) {
+function LiveSpecialtyDeliveryStatus({ compact = false, featured = false }: SpecialtyDeliveryProps) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const refresh = () => setNow(new Date());

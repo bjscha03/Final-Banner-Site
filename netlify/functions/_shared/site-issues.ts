@@ -32,12 +32,15 @@ export async function saveIssue(store: any, issue: SiteIssue) {
   await store.setJSON(key, issue, { onlyIfNew: true });
   return key;
 }
-export async function listIssues(store: any, ifNoneMatch: string | null, now = Date.now()) {
+export async function listIssues(store: any, ifNoneMatch: string | null, now = Date.now(), before: string | null = null) {
+  if (before && !validIssueKey(before)) return reply(400, { ok: false, error: 'Invalid issue cursor.' });
   const { blobs } = await store.list({ prefix: 'events/' });
   const available = blobs.filter((b: { key: string }) => validIssueKey(b.key) && Date.parse(b.key.split('/')[1]) >= now - RETENTION_MS)
     .sort((a: { key: string }, b: { key: string }) => b.key.localeCompare(a.key));
-  const selected = available.slice(0, 200);
-  const etag = '"' + createHash('sha256').update(JSON.stringify(selected.map((b: any) => [b.key, b.etag]))).digest('hex') + '"';
+  const remaining = before ? available.filter((b: { key: string }) => b.key < before) : available;
+  const selected = remaining.slice(0, 200);
+  // The first-page ETag covers the whole retained log, including old reports.
+  const etag = '"' + createHash('sha256').update(JSON.stringify([before, available.map((b: any) => [b.key, b.etag])])).digest('hex') + '"';
   if (etag === ifNoneMatch) return reply(304, undefined, { ETag: etag });
   const rows: any[] = [];
   for (let i = 0; i < selected.length; i += 10) {
@@ -47,5 +50,6 @@ export async function listIssues(store: any, ifNoneMatch: string | null, now = D
     }));
     rows.push(...batch.filter(Boolean));
   }
-  return reply(200, { ok: true, issues: rows, truncated: available.length > selected.length, checkedAt: new Date(now).toISOString() }, { ETag: etag });
+  const truncated = remaining.length > selected.length;
+  return reply(200, { ok: true, issues: rows, truncated, nextCursor: truncated ? selected[selected.length - 1].key : null, checkedAt: new Date(now).toISOString() }, { ETag: etag });
 }

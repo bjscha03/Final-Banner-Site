@@ -810,11 +810,13 @@ describe('customer entry points, protected admin tools, and artwork handoff', ()
     expect(workspace).not.toContain('Admin password');
     expect(workspace).toContain('This may take a few minutes.');
     expect(workspace).toContain('your design will appear here automatically.');
-    expect(workspace).toContain('Review design & continue');
+    // The approved fitting flow now has one explicit approval action; edits
+    // must be applied before it can continue (introduced in #637).
+    expect(workspace).toContain('Apply your changes before continuing');
     expect(workspace).not.toContain('Review warning & continue');
     expect(workspace).toContain('Approve design & continue');
     expect(workspace).not.toContain('Use this banner anyway');
-    expect(workspace).toContain('validation_override: validationOverride');
+    expect(workspace).toContain('validation_override: !selected.validation.passed');
     expect(workspace).not.toContain('disabled={!selected.validation.passed');
     expect(workspace).toContain('concept.versionId === selectedId');
     expect(workspace).toContain('setSelectedId(edited.versionId)');

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import React, { act } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
+import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { afterEach, expect, it, vi } from 'vitest';
 import SpecialtyDeliveryStatus from './SpecialtyDeliveryStatus';
 import SpecialtyCartDelivery from './SpecialtyCartDelivery';
@@ -19,6 +20,20 @@ async function render(element: React.ReactNode) {
   const node=document.createElement('div'); document.body.append(node); root=createRoot(node);
   await act(async () => root?.render(element)); return node;
 }
+it.each([{ compact: false }, { compact: true }, { featured: true }])('hydrates old shipping HTML without discarding the product page (%j)', async props => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-10-20T16:00:00Z'));
+  const node = document.createElement('div');
+  node.innerHTML = renderToString(<SpecialtyDeliveryStatus {...props} />);
+  document.body.append(node);
+  vi.setSystemTime(new Date('2026-10-24T16:00:00Z'));
+  const onRecoverableError = vi.fn();
+  await act(async () => { root = hydrateRoot(node, <SpecialtyDeliveryStatus {...props} />, { onRecoverableError }); });
+  expect(onRecoverableError).not.toHaveBeenCalled();
+  expect(node.textContent).toMatch(/Oct 27|October 27/);
+  expect(node.querySelector('[role="timer"]')?.textContent).toBe('53:00:00');
+  expect(node.textContent).not.toContain('Oct 21');
+});
 it('counts down and rolls the shipping dates at the exact Friday cutoff', async () => {
   vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-23T20:59:59Z'));
   const node=await render(<SpecialtyDeliveryStatus/>);

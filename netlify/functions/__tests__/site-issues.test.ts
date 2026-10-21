@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import report from '../report-site-issue.mts';
 import admin from '../admin-site-issues.mts';
-import { issueKey, normalizeReport, saveIssue } from '../_shared/site-issues';
+import { issueKey, listIssues, normalizeReport, saveIssue } from '../_shared/site-issues';
 
 const mocks = vi.hoisted(() => {
   const records = new Map<string, any>();
@@ -50,6 +50,24 @@ describe('first-party issue capture', () => {
   });
 });
 describe('protected issue log', () => {
+  it('paginates every retained report and invalidates the cache when an older report changes', async () => {
+    const now = Date.now();
+    for (let i = 0; i < 205; i++) {
+      const event = { ...normalizeReport(body(), '', 'deploy-test')!, occurredAt: new Date(now - i * 1000).toISOString() };
+      await saveIssue(mocks.store, event);
+    }
+    const first = await listIssues(mocks.store, null, now);
+    const page = await first.json();
+    expect(page.issues).toHaveLength(200);
+    const rest = await (await listIssues(mocks.store, null, now, page.nextCursor)).json();
+    expect(rest.issues).toHaveLength(5);
+    expect(rest.nextCursor).toBeNull();
+    expect(new Set([...page.issues, ...rest.issues].map(i => i.key)).size).toBe(205);
+    const key = rest.issues[0].key;
+    mocks.records.set(key, { ...mocks.records.get(key), status: 'resolved' });
+    expect((await listIssues(mocks.store, first.headers.get('etag'), now)).status).toBe(200);
+    expect((await listIssues(mocks.store, null, now, '../invalid')).status).toBe(400);
+  });
   it('denies anonymous access and preview admin sessions before reading storage', async () => {
     expect((await admin(request('GET'), context)).status).toBe(401);
     expect((await admin(request('GET', undefined, { authorization: 'test-token', preview: '1' }), context)).status).toBe(503);
