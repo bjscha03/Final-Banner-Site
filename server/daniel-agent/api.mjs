@@ -60,5 +60,5 @@ export async function handler(req,context={},deps={}){
  default:return json({error:'Not found'},404);
  }
  return json(result);
- }catch(e){const status=e.status&&e.status>=400&&e.status<600?e.status:(e.code==='23505'?409:500);console.error('Daniel request failed',{path,code:e.code||e.status||'runtime'});return json({error:status===500?'Unable to complete request. Check connection status and retry.':e.code==='23505'?'This contact or record already exists.':e.message},status);}
+ }catch(e){const status=e.status&&e.status>=400&&e.status<600?e.status:(['23505','23P01'].includes(e.code)?409:500);console.error('Daniel request failed',{path,code:e.code||e.status||'runtime'});return json({error:status===500?'Unable to complete request. Check connection status and retry.':e.code==='23505'?'This contact or record already exists.':e.code==='23P01'?'This time conflicts with an existing meeting.':e.message},status);}
 }

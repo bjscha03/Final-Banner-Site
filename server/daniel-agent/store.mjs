@@ -33,10 +33,8 @@ export async function requestApproval(sql,id,actor){v.uuid(id);
  await audit(sql,actor,'approval_requested','message',id);return {ok:true};
 }
 export async function decide(sql,id,decision,note,actor){v.uuid(id);if(!['approved','rejected'].includes(decision))v.fail('Invalid decision');
- const results=await sql.transaction([
- sql`WITH a AS (UPDATE daniel_sales.approvals SET decision=${decision},decided_by=${actor},decided_at=now(),decision_note=${String(note||'').slice(0,2000)} WHERE id=${id} AND decision='pending' RETURNING message_id) UPDATE daniel_sales.messages SET status=${decision==='approved'?'queued':'draft'},approved_at=${decision==='approved'?new Date().toISOString():null}::timestamptz,approved_by=${decision==='approved'?actor:null},updated_at=now() WHERE id IN (SELECT message_id FROM a) AND status='pending_approval' RETURNING id`,
- sql`INSERT INTO daniel_sales.audit_events(entity_type,entity_id,event_type,actor,metadata_json) VALUES('approval',${id},${decision},${actor},${JSON.stringify({note})}::jsonb)`
- ]);if(!results[0].length)v.fail('Approval already decided or message no longer eligible',409);return {ok:true};
+ const rows=await sql`WITH a AS (UPDATE daniel_sales.approvals SET decision=${decision},decided_by=${actor},decided_at=now(),decision_note=${String(note||'').slice(0,2000)} WHERE id=${id} AND decision='pending' AND EXISTS(SELECT 1 FROM daniel_sales.messages m WHERE m.id=message_id AND m.status='pending_approval') RETURNING message_id), changed AS (UPDATE daniel_sales.messages SET status=${decision==='approved'?'queued':'draft'},approved_at=${decision==='approved'?new Date().toISOString():null}::timestamptz,approved_by=${decision==='approved'?actor:null},updated_at=now() WHERE id IN (SELECT message_id FROM a) AND status='pending_approval' RETURNING id) INSERT INTO daniel_sales.audit_events(entity_type,entity_id,event_type,actor,metadata_json) SELECT 'approval',${id},${decision},${actor},${JSON.stringify({note})}::jsonb FROM changed RETURNING id`;
+ if(!rows.length)v.fail('Approval already decided or message no longer eligible',409);return {ok:true};
 }
 export async function data(sql){const [accounts,contacts,opportunities,messages,tasks,approvals,suppressions,events,meetings,reports,runs,settings,mailbox,deliveries,limits]=await Promise.all([
  sql`SELECT * FROM daniel_sales.accounts ORDER BY created_at DESC LIMIT 500`,sql`SELECT * FROM daniel_sales.contacts ORDER BY created_at DESC LIMIT 500`,sql`SELECT * FROM daniel_sales.opportunities ORDER BY next_action_at NULLS LAST LIMIT 500`,

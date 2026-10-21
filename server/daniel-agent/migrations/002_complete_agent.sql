@@ -60,3 +60,8 @@ BEGIN
  UPDATE daniel_sales.daily_limits SET reserved_count=reserved_count+1 WHERE local_date=d AND kind=k;
  RETURN QUERY UPDATE daniel_sales.messages SET status='sending',lease_until=now()+interval '3 minutes',attempt_count=attempt_count+1,quota_date=d,quota_kind=k,updated_at=now() WHERE id=mid RETURNING *;
 END $$;
+DO $$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='daniel_meeting_no_overlap' AND connamespace='daniel_sales'::regnamespace) THEN
+ ALTER TABLE daniel_sales.meetings ADD CONSTRAINT daniel_meeting_no_overlap EXCLUDE USING gist (tstzrange(starts_at,ends_at,'[)') WITH &&) WHERE (status='scheduled');
+ END IF;
+END $$;
