@@ -614,6 +614,8 @@ test('controlled Gmail dispatch cannot reach other recipients and normal preview
   await dispatch(sql,cfg,'token',{gmailTest:true,send,getMessage,now,verifyIdentity:async()=>{}});
   assert.equal(sends.length,1);
   assert.equal(sends[0].to,contact.email);
+  assert.ok(sends[0].html.includes("PO Box 368, Crestwood, KY 40014"));
+  assert.equal(sends[0].replyTo,"info@bannersonthefly.com");
   const [saved]=await sql`SELECT * FROM daniel_sales.messages WHERE id=${a.id}`;
   assert.equal(saved.ai_metadata.gmail_test,true);
   assert.equal(saved.status,'sent');

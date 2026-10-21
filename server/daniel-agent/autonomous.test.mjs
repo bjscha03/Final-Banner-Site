@@ -43,3 +43,8 @@ test('sender verification rejects missing and unverified aliases',async()=>{
  await assert.rejects(verifySender('token',async()=>({sendAs:[{sendAsEmail:BOF_SENDER,verificationStatus:'pending'}]})));
  await verifySender('token',async()=>({sendAs:[{sendAsEmail:BOF_SENDER,verificationStatus:'accepted'}]}));
 });
+test('Daniel runtime sources cannot reintroduce the incorrect PO box',async()=>{
+ const fs=await import('node:fs/promises');
+ async function check(dir){for(const f of await fs.readdir(dir,{withFileTypes:true})){const u=new URL(f.name+(f.isDirectory()?'/':''),dir);if(f.isDirectory())await check(u);else if(/\.(mjs|sql)$/.test(f.name)&&!f.name.endsWith('.test.mjs'))assert.ok(!(await fs.readFile(u,'utf8')).includes('PO Box '+(370-1)),u.pathname);}}
+ await check(new URL('./',import.meta.url));
+});
