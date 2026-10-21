@@ -1,35 +1,458 @@
-import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';
-import {PGlite} from '@electric-sql/pglite';
-import {migrate} from '../migrate.mjs';import {createProspect,saveDraft,requestApproval,decide,suppress} from '../store.mjs';import {dispatch,reconcile} from '../dispatch.mjs';import {ingest,syncMailbox} from '../mail-sync.mjs';import {handler} from '../api.mjs';import {seal,unseal} from '../auth.mjs';import {scheduleMeeting,ics} from '../scheduling.mjs';import {generateDraft} from '../ai.mjs';import {mode} from '../config.mjs';
-function adapter(db){function sql(strings,...values){let text;if(typeof strings==='string'){text=strings;values=values[0]||[]}else{text=strings.reduce((a,s,i)=>a+(i?'$'+i:'')+s,'')}const q={text,values};return {q,then(resolve,reject){return db.query(text,values).then(r=>r.rows).then(resolve,reject)}}}sql.transaction=async queries=>db.transaction(async tx=>{const out=[];for(const p of queries)out.push((await tx.query(p.q.text,p.q.values)).rows);return out});return sql;}
-const db=new PGlite(),sql=adapter(db);await migrate(sql);
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import { PGlite } from "@electric-sql/pglite";
+import { migrate } from "../migrate.mjs";
+import {
+  createProspect,
+  saveDraft,
+  requestApproval,
+  decide,
+  suppress,
+} from "../store.mjs";
+import { dispatch, reconcile } from "../dispatch.mjs";
+import { ingest, syncMailbox } from "../mail-sync.mjs";
+import { handler } from "../api.mjs";
+import { seal, unseal } from "../auth.mjs";
+import { scheduleMeeting, ics } from "../scheduling.mjs";
+import { generateDraft } from "../ai.mjs";
+import { mode } from "../config.mjs";
+function adapter(db) {
+  function sql(strings, ...values) {
+    let text;
+    if (typeof strings === "string") {
+      text = strings;
+      values = values[0] || [];
+    } else {
+      text = strings.reduce((a, s, i) => a + (i ? "$" + i : "") + s, "");
+    }
+    const q = { text, values };
+    return {
+      q,
+      then(resolve, reject) {
+        return db
+          .query(text, values)
+          .then((r) => r.rows)
+          .then(resolve, reject);
+      },
+    };
+  }
+  sql.transaction = async (queries) =>
+    db.transaction(async (tx) => {
+      const out = [];
+      for (const p of queries)
+        out.push((await tx.query(p.q.text, p.q.values)).rows);
+      return out;
+    });
+  return sql;
+}
+const db = new PGlite(),
+  sql = adapter(db);
+await migrate(sql);
 // PGlite has a single session and no concurrency; real Neon race checks run separately.
-await db.exec('CREATE OR REPLACE FUNCTION pg_advisory_xact_lock(integer,integer) RETURNS void LANGUAGE sql AS $$ SELECT NULL::void $$');
-const env={DANIEL_ALLOWED_HOST:'preview.test',DANIEL_AGENT_MODE:'preview',DANIEL_ADMIN_PASSWORD:'test-password-only',DANIEL_SESSION_SECRET:'test-encryption-key-longer-than-32-characters'};
-let n=0;async function prospect(){n++;return createProspect(sql,{name:'Test Franchise '+n,segment:'restaurant franchisee',website:'https://example.com',source_url:'https://example.com/contact',contact_name:'Test Buyer',email:'buyer'+n+'@example.test'},'test');}
-async function queued(p,kind='intro'){const m=await saveDraft(sql,{contact_id:p.contact_id,kind,subject:'Signage',body:'Can we help with upcoming signage?'},'test');await requestApproval(sql,m.id,'test');const [a]=await sql`SELECT id FROM daniel_sales.approvals WHERE message_id=${m.id}`;await decide(sql,a.id,'approved','Reviewed','test');return m;}
-const now=new Date('2026-10-21T16:00:00Z');
-test('server-side auth, CSRF, host guard, logout and failed login',async()=>{const req=(path,method='GET',data={},cookie='')=>new Request('https://preview.test'+path,{method,headers:{origin:'https://preview.test',cookie,'content-type':'application/json'},...(method==='POST'?{body:JSON.stringify(data)}:{})});let r=await handler(req('/api/daniel/data'),{}, {sql,env});assert.equal(r.status,401);r=await handler(new Request('https://live.test/api/daniel/data'),{}, {sql,env});assert.equal(r.status,404);r=await handler(new Request('https://preview.test/api/daniel/login',{method:'POST',body:'{}'}),{}, {sql,env});assert.equal(r.status,403);r=await handler(req('/api/daniel/login','POST',{password:'wrong'}),{}, {sql,env});assert.equal(r.status,401);r=await handler(req('/api/daniel/login','POST',{password:'test-password-only'}),{}, {sql,env});assert.equal(r.status,200);const cookie=r.headers.get('set-cookie').split(';')[0];assert.match(r.headers.get('set-cookie'),/HttpOnly/);assert.equal((await handler(req('/api/daniel/data','GET',{},cookie),{}, {sql,env})).status,200);await handler(req('/api/daniel/logout','POST',{},cookie),{}, {sql,env});assert.equal((await handler(req('/api/daniel/data','GET',{},cookie),{}, {sql,env})).status,401);});
-test('prospect creation is atomic and rejects duplicate email and suppliers',async()=>{const p=await prospect();const [c]=await sql`SELECT * FROM daniel_sales.contacts WHERE id=${p.contact_id}`;await assert.rejects(()=>createProspect(sql,{name:'Supplier',segment:'sign shop',website:'https://example.com',source_url:'https://example.com',contact_name:'Vendor',email:'v@example.test'},'test'));const [before]=await sql`SELECT count(*)::int AS n FROM daniel_sales.accounts`;await assert.rejects(()=>createProspect(sql,{name:'Duplicate',segment:'retail chain',website:'https://example.com',source_url:'https://example.com',contact_name:'Buyer',email:c.email},'test'));const [after]=await sql`SELECT count(*)::int AS n FROM daniel_sales.accounts`;assert.equal(before.n,after.n);});
-test('approval -> test outbox -> one follow-up; repeated execution cannot duplicate',async()=>{const p=await prospect(),m=await queued(p);const result=await dispatch(sql,env,null,{now});assert.equal(result.simulated,1);await dispatch(sql,env,null,{now});const d=await sql`SELECT * FROM daniel_sales.test_deliveries WHERE message_id=${m.id}`;assert.equal(d.length,1);const [message]=await sql`SELECT * FROM daniel_sales.messages WHERE id=${m.id}`;assert.equal(message.status,'simulated');assert.equal(message.sent_at,null);const tasks=await sql`SELECT * FROM daniel_sales.tasks WHERE contact_id=${p.contact_id}`;assert.equal(tasks.length,1);assert.ok(new Date(tasks[0].due_at)>new Date());});
-test('global suppression blocks approved messages, cancels followups and prevents new drafts',async()=>{const p=await prospect(),m=await queued(p);const [c]=await sql`SELECT * FROM daniel_sales.contacts WHERE id=${p.contact_id}`;await suppress(sql,c.email,'Opt out','test');await dispatch(sql,env,null,{now});const [a]=await sql`SELECT status FROM daniel_sales.messages WHERE id=${m.id}`;assert.equal(a.status,'blocked');await assert.rejects(()=>saveDraft(sql,{contact_id:p.contact_id,subject:'No',body:'No'},'test'));});
-test('reply ingest deduplicates, cancels followups and immediately suppresses unsubscribe',async()=>{const p=await prospect();await queued(p);const [c]=await sql`SELECT * FROM daniel_sales.contacts WHERE id=${p.contact_id}`;const message={id:'gmail-test-1',threadId:'thread-1',payload:{mimeType:'text/plain',headers:[{name:'From',value:c.email}],body:{data:Buffer.from('Please unsubscribe').toString('base64url')}}};assert.equal((await ingest(sql,message)).created,true);assert.equal((await ingest(sql,message)).duplicate,true);const [updated]=await sql`SELECT * FROM daniel_sales.contacts WHERE id=${p.contact_id}`;assert.ok(updated.suppressed_at);const rows=await sql`SELECT * FROM daniel_sales.messages WHERE provider_message_id='gmail-test-1'`;assert.equal(rows.length,1);});
-test('unknown inbox mail is not stored; outgoing messages do not become replies',async()=>{assert.equal((await ingest(sql,{id:'unknown',payload:{headers:[{name:'From',value:'unknown@example.test'}]}})).ignored,true);assert.equal((await ingest(sql,{id:'outgoing',labelIds:['SENT']})).ignored,true);});
-test('daily quota remains atomic and blocks reservation above cap',async()=>{const p=await prospect(),m=await queued(p);const [d]=await sql`SELECT (now() AT TIME ZONE 'America/New_York')::date AS day`;await sql`INSERT INTO daniel_sales.daily_limits(local_date,kind,sent_count) VALUES(${d.day},'intro',10) ON CONFLICT(local_date,kind) DO UPDATE SET sent_count=10`;assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${m.id}::uuid,10)`).length,0);await sql`UPDATE daniel_sales.daily_limits SET sent_count=0 WHERE kind='intro'`;});
-test('ambiguous provider failure is held and not retried',async()=>{const p=await prospect(),m=await queued(p);let calls=0;const live={...env,DANIEL_AGENT_MODE:'live',DANIEL_CUTOVER_APPROVED:'true',CONTEXT:'production',DANIEL_SENDER_EMAIL:'info@bannersonthefly.com',OUTBOUND_PHYSICAL_ADDRESS:'Test address'};await dispatch(sql,live,'token',{now,send:async()=>{calls++;throw Error('network timeout')}});const [x]=await sql`SELECT * FROM daniel_sales.messages WHERE id=${m.id}`;assert.equal(x.status,'uncertain');const before=calls;await dispatch(sql,live,'token',{now,send:async()=>{calls++;throw Error('Should not happen')}});assert.equal(calls,before);});
-test('preview cannot enable live sends through a mode value alone',()=>{assert.equal(mode({...env,DANIEL_AGENT_MODE:'live'}),'preview');assert.equal(mode({...env,DANIEL_AGENT_MODE:'live',DANIEL_CUTOVER_APPROVED:'true',CONTEXT:'deploy-preview'}),'preview');});
-test('encrypted OAuth tokens reject tampering and wrong keys',()=>{const data=seal('private-refresh-token',env.DANIEL_SESSION_SECRET);assert.ok(!data.includes('private'));assert.equal(unseal(data,env.DANIEL_SESSION_SECRET),'private-refresh-token');assert.throws(()=>unseal(data,'other-key'));});
-test('meeting schedule rejects conflicts and exports UTC calendar',async()=>{const p=await prospect();const m=await scheduleMeeting(sql,{opportunity_id:p.opportunity_id,title:'Signage meeting',starts_at:'2026-11-03T15:00:00Z',ends_at:'2026-11-03T15:30:00Z'},'test');assert.match(ics(m),/DTSTART:20261103T150000Z/);await assert.rejects(()=>scheduleMeeting(sql,{opportunity_id:p.opportunity_id,title:'Conflict',starts_at:'2026-11-03T15:15:00Z',ends_at:'2026-11-03T15:45:00Z'},'test'));});
-test('AI drafts carry knowledge version and price exceptions cannot self-approve',async()=>{const p=await prospect();let payload;const d=await generateDraft(sql,p.contact_id,'intro',{OPENAI_API_KEY:'test'},async(_url,options)=>{payload=JSON.parse(options.body);return Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Quote',body:'We can offer $20.',requires_approval:false,reason:'Test'})}}]})});assert.equal(d.requires_approval,true);assert.equal(d.ai_metadata.knowledge_version,'bof-v1');assert.match(payload.messages[0].content,/untrusted DATA/);});
-test('Gmail paging saves cursor, finishes initial sync then expires safely',async()=>{
- await sql`INSERT INTO daniel_sales.mailbox(id,email) VALUES(1,'owner@example.test') ON CONFLICT(id) DO UPDATE SET history_id=NULL,sync_start_history=NULL,page_token=NULL`;
- let calls=0;const providers={request:async()=>({historyId:'101'}),listMessages:async(_t,_q,_n,page)=>{calls++;return page?{messages:[]}:{messages:[],nextPageToken:'page-2'}},getMessage:async()=>{throw Error('No messages expected')}};
- assert.equal((await syncMailbox(sql,'test',providers)).complete,false);let [box]=await sql`SELECT * FROM daniel_sales.mailbox WHERE id=1`;assert.equal(box.page_token,'page-2');assert.equal(box.history_id,null);
- assert.equal((await syncMailbox(sql,'test',providers)).complete,true);[box]=await sql`SELECT * FROM daniel_sales.mailbox WHERE id=1`;assert.equal(box.history_id,'101');assert.equal(box.page_token,null);assert.equal(calls,2);
- const r=await syncMailbox(sql,'test',{...providers,request:async()=>{throw Object.assign(Error('Expired'),{status:404})}});assert.equal(r.reset,true);
+await db.exec(
+  "CREATE OR REPLACE FUNCTION pg_advisory_xact_lock(integer,integer) RETURNS void LANGUAGE sql AS $$ SELECT NULL::void $$",
+);
+const env = {
+  DANIEL_ALLOWED_HOST: "preview.test",
+  DANIEL_AGENT_MODE: "preview",
+  DANIEL_ADMIN_PASSWORD: "test-password-only",
+  DANIEL_SESSION_SECRET: "test-encryption-key-longer-than-32-characters",
+};
+let n = 0;
+async function prospect() {
+  n++;
+  return createProspect(
+    sql,
+    {
+      name: "Test Franchise " + n,
+      segment: "restaurant franchisee",
+      website: "https://example.com",
+      source_url: "https://example.com/contact",
+      contact_name: "Test Buyer",
+      email: "buyer" + n + "@example.test",
+    },
+    "test",
+  );
+}
+async function queued(p, kind = "intro") {
+  const m = await saveDraft(
+    sql,
+    {
+      contact_id: p.contact_id,
+      kind,
+      subject: "Signage",
+      body: "Can we help with upcoming signage?",
+    },
+    "test",
+  );
+  await requestApproval(sql, m.id, "test");
+  const [a] =
+    await sql`SELECT id FROM daniel_sales.approvals WHERE message_id=${m.id}`;
+  await decide(sql, a.id, "approved", "Reviewed", "test");
+  return m;
+}
+const now = new Date("2026-10-21T16:00:00Z");
+test("server-side auth, CSRF, host guard, logout and failed login", async () => {
+  const req = (path, method = "GET", data = {}, cookie = "") =>
+    new Request("https://preview.test" + path, {
+      method,
+      headers: {
+        origin: "https://preview.test",
+        cookie,
+        "content-type": "application/json",
+      },
+      ...(method === "POST" ? { body: JSON.stringify(data) } : {}),
+    });
+  let r = await handler(req("/api/daniel/data"), {}, { sql, env });
+  assert.equal(r.status, 401);
+  r = await handler(
+    new Request("https://live.test/api/daniel/data"),
+    {},
+    { sql, env },
+  );
+  assert.equal(r.status, 404);
+  r = await handler(
+    new Request("https://preview.test/api/daniel/login", {
+      method: "POST",
+      body: "{}",
+    }),
+    {},
+    { sql, env },
+  );
+  assert.equal(r.status, 403);
+  r = await handler(
+    req("/api/daniel/login", "POST", { password: "wrong" }),
+    {},
+    { sql, env },
+  );
+  assert.equal(r.status, 401);
+  r = await handler(
+    req("/api/daniel/login", "POST", { password: "test-password-only" }),
+    {},
+    { sql, env },
+  );
+  assert.equal(r.status, 200);
+  const cookie = r.headers.get("set-cookie").split(";")[0];
+  assert.match(r.headers.get("set-cookie"), /HttpOnly/);
+  assert.equal(
+    (
+      await handler(
+        req("/api/daniel/data", "GET", {}, cookie),
+        {},
+        { sql, env },
+      )
+    ).status,
+    200,
+  );
+  await handler(
+    req("/api/daniel/logout", "POST", {}, cookie),
+    {},
+    { sql, env },
+  );
+  assert.equal(
+    (
+      await handler(
+        req("/api/daniel/data", "GET", {}, cookie),
+        {},
+        { sql, env },
+      )
+    ).status,
+    401,
+  );
 });
-test('hard bounce only suppresses an explicit recipient in a known sent thread',async()=>{
- const p=await prospect();const [c]=await sql`SELECT * FROM daniel_sales.contacts WHERE id=${p.contact_id}`;const m=await saveDraft(sql,{contact_id:c.id,subject:'Test',body:'Test'},'test');await sql`UPDATE daniel_sales.messages SET status='simulated',thread_key='bounce-thread' WHERE id=${m.id}`;
- const msg={id:'bounce-1',threadId:'bounce-thread',payload:{mimeType:'message/delivery-status',headers:[{name:'From',value:'mailer-daemon@example.test'}],body:{data:Buffer.from('Final-Recipient: rfc822; '+c.email+'\nStatus: 5.1.1').toString('base64url')}}};assert.equal((await ingest(sql,msg)).bounced,true);const [updated]=await sql`SELECT * FROM daniel_sales.contacts WHERE id=${c.id}`;assert.ok(updated.suppressed_at);
+test("prospect creation is atomic and rejects duplicate email and suppliers", async () => {
+  const p = await prospect();
+  const [c] =
+    await sql`SELECT * FROM daniel_sales.contacts WHERE id=${p.contact_id}`;
+  await assert.rejects(() =>
+    createProspect(
+      sql,
+      {
+        name: "Supplier",
+        segment: "sign shop",
+        website: "https://example.com",
+        source_url: "https://example.com",
+        contact_name: "Vendor",
+        email: "v@example.test",
+      },
+      "test",
+    ),
+  );
+  const [before] =
+    await sql`SELECT count(*)::int AS n FROM daniel_sales.accounts`;
+  await assert.rejects(() =>
+    createProspect(
+      sql,
+      {
+        name: "Duplicate",
+        segment: "retail chain",
+        website: "https://example.com",
+        source_url: "https://example.com",
+        contact_name: "Buyer",
+        email: c.email,
+      },
+      "test",
+    ),
+  );
+  const [after] =
+    await sql`SELECT count(*)::int AS n FROM daniel_sales.accounts`;
+  assert.equal(before.n, after.n);
 });
-test.after(()=>db.close());
+test("approval -> test outbox -> one follow-up; repeated execution cannot duplicate", async () => {
+  const p = await prospect(),
+    m = await queued(p);
+  const result = await dispatch(sql, env, null, { now });
+  assert.equal(result.simulated, 1);
+  await dispatch(sql, env, null, { now });
+  const d =
+    await sql`SELECT * FROM daniel_sales.test_deliveries WHERE message_id=${m.id}`;
+  assert.equal(d.length, 1);
+  const [message] =
+    await sql`SELECT * FROM daniel_sales.messages WHERE id=${m.id}`;
+  assert.equal(message.status, "simulated");
+  assert.equal(message.sent_at, null);
+  const tasks =
+    await sql`SELECT * FROM daniel_sales.tasks WHERE contact_id=${p.contact_id}`;
+  assert.equal(tasks.length, 1);
+  assert.ok(new Date(tasks[0].due_at) > new Date());
+});
+test("global suppression blocks approved messages, cancels followups and prevents new drafts", async () => {
+  const p = await prospect(),
+    m = await queued(p);
+  const [c] =
+    await sql`SELECT * FROM daniel_sales.contacts WHERE id=${p.contact_id}`;
+  await suppress(sql, c.email, "Opt out", "test");
+  await dispatch(sql, env, null, { now });
+  const [a] =
+    await sql`SELECT status FROM daniel_sales.messages WHERE id=${m.id}`;
+  assert.equal(a.status, "blocked");
+  await assert.rejects(() =>
+    saveDraft(
+      sql,
+      { contact_id: p.contact_id, subject: "No", body: "No" },
+      "test",
+    ),
+  );
+});
+test("reply ingest deduplicates, cancels followups and immediately suppresses unsubscribe", async () => {
+  const p = await prospect();
+  await queued(p);
+  const [c] =
+    await sql`SELECT * FROM daniel_sales.contacts WHERE id=${p.contact_id}`;
+  const message = {
+    id: "gmail-test-1",
+    threadId: "thread-1",
+    payload: {
+      mimeType: "text/plain",
+      headers: [{ name: "From", value: c.email }],
+      body: { data: Buffer.from("Please unsubscribe").toString("base64url") },
+    },
+  };
+  assert.equal((await ingest(sql, message)).created, true);
+  assert.equal((await ingest(sql, message)).duplicate, true);
+  const [updated] =
+    await sql`SELECT * FROM daniel_sales.contacts WHERE id=${p.contact_id}`;
+  assert.ok(updated.suppressed_at);
+  const rows =
+    await sql`SELECT * FROM daniel_sales.messages WHERE provider_message_id='gmail-test-1'`;
+  assert.equal(rows.length, 1);
+});
+test("unknown inbox mail is not stored; outgoing messages do not become replies", async () => {
+  assert.equal(
+    (
+      await ingest(sql, {
+        id: "unknown",
+        payload: { headers: [{ name: "From", value: "unknown@example.test" }] },
+      })
+    ).ignored,
+    true,
+  );
+  assert.equal(
+    (await ingest(sql, { id: "outgoing", labelIds: ["SENT"] })).ignored,
+    true,
+  );
+});
+test("daily quota remains atomic and blocks reservation above cap", async () => {
+  const p = await prospect(),
+    m = await queued(p);
+  const [d] =
+    await sql`SELECT (now() AT TIME ZONE 'America/New_York')::date AS day`;
+  await sql`INSERT INTO daniel_sales.daily_limits(local_date,kind,sent_count) VALUES(${d.day},'intro',10) ON CONFLICT(local_date,kind) DO UPDATE SET sent_count=10`;
+  assert.equal(
+    (await sql`SELECT * FROM daniel_sales.claim_message(${m.id}::uuid,10)`)
+      .length,
+    0,
+  );
+  await sql`UPDATE daniel_sales.daily_limits SET sent_count=0 WHERE kind='intro'`;
+});
+test("ambiguous provider failure is held and not retried", async () => {
+  const p = await prospect(),
+    m = await queued(p);
+  let calls = 0;
+  const live = {
+    ...env,
+    DANIEL_AGENT_MODE: "live",
+    DANIEL_CUTOVER_APPROVED: "true",
+    CONTEXT: "production",
+    DANIEL_SENDER_EMAIL: "info@bannersonthefly.com",
+    OUTBOUND_PHYSICAL_ADDRESS: "Test address",
+  };
+  await dispatch(sql, live, "token", {
+    now,
+    send: async () => {
+      calls++;
+      throw Error("network timeout");
+    },
+  });
+  const [x] = await sql`SELECT * FROM daniel_sales.messages WHERE id=${m.id}`;
+  assert.equal(x.status, "uncertain");
+  const before = calls;
+  await dispatch(sql, live, "token", {
+    now,
+    send: async () => {
+      calls++;
+      throw Error("Should not happen");
+    },
+  });
+  assert.equal(calls, before);
+});
+test("preview cannot enable live sends through a mode value alone", () => {
+  assert.equal(mode({ ...env, DANIEL_AGENT_MODE: "live" }), "preview");
+  assert.equal(
+    mode({
+      ...env,
+      DANIEL_AGENT_MODE: "live",
+      DANIEL_CUTOVER_APPROVED: "true",
+      CONTEXT: "deploy-preview",
+    }),
+    "preview",
+  );
+});
+test("encrypted OAuth tokens reject tampering and wrong keys", () => {
+  const data = seal("private-refresh-token", env.DANIEL_SESSION_SECRET);
+  assert.ok(!data.includes("private"));
+  assert.equal(
+    unseal(data, env.DANIEL_SESSION_SECRET),
+    "private-refresh-token",
+  );
+  assert.throws(() => unseal(data, "other-key"));
+});
+test("meeting schedule rejects conflicts and exports UTC calendar", async () => {
+  const p = await prospect();
+  const m = await scheduleMeeting(
+    sql,
+    {
+      opportunity_id: p.opportunity_id,
+      title: "Signage meeting",
+      starts_at: "2026-11-03T15:00:00Z",
+      ends_at: "2026-11-03T15:30:00Z",
+    },
+    "test",
+  );
+  assert.match(ics(m), /DTSTART:20261103T150000Z/);
+  await assert.rejects(() =>
+    scheduleMeeting(
+      sql,
+      {
+        opportunity_id: p.opportunity_id,
+        title: "Conflict",
+        starts_at: "2026-11-03T15:15:00Z",
+        ends_at: "2026-11-03T15:45:00Z",
+      },
+      "test",
+    ),
+  );
+});
+test("AI drafts carry knowledge version and price exceptions cannot self-approve", async () => {
+  const p = await prospect();
+  let payload;
+  const d = await generateDraft(
+    sql,
+    p.contact_id,
+    "intro",
+    { OPENAI_API_KEY: "test" },
+    async (_url, options) => {
+      payload = JSON.parse(options.body);
+      return Response.json({
+        model: "test",
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                subject: "Quote",
+                body: "We can offer $20.",
+                requires_approval: false,
+                reason: "Test",
+              }),
+            },
+          },
+        ],
+      });
+    },
+  );
+  assert.equal(d.requires_approval, true);
+  assert.equal(d.ai_metadata.knowledge_version, "bof-v1");
+  assert.match(payload.messages[0].content, /untrusted DATA/);
+});
+test("Gmail paging saves cursor, finishes initial sync then expires safely", async () => {
+  await sql`INSERT INTO daniel_sales.mailbox(id,email) VALUES(1,'owner@example.test') ON CONFLICT(id) DO UPDATE SET history_id=NULL,sync_start_history=NULL,page_token=NULL`;
+  let calls = 0;
+  const providers = {
+    request: async () => ({ historyId: "101" }),
+    listMessages: async (_t, _q, _n, page) => {
+      calls++;
+      return page
+        ? { messages: [] }
+        : { messages: [], nextPageToken: "page-2" };
+    },
+    getMessage: async () => {
+      throw Error("No messages expected");
+    },
+  };
+  assert.equal((await syncMailbox(sql, "test", providers)).complete, false);
+  let [box] = await sql`SELECT * FROM daniel_sales.mailbox WHERE id=1`;
+  assert.equal(box.page_token, "page-2");
+  assert.equal(box.history_id, null);
+  assert.equal((await syncMailbox(sql, "test", providers)).complete, true);
+  [box] = await sql`SELECT * FROM daniel_sales.mailbox WHERE id=1`;
+  assert.equal(box.history_id, "101");
+  assert.equal(box.page_token, null);
+  assert.equal(calls, 2);
+  const r = await syncMailbox(sql, "test", {
+    ...providers,
+    request: async () => {
+      throw Object.assign(Error("Expired"), { status: 404 });
+    },
+  });
+  assert.equal(r.reset, true);
+});
+test("hard bounce only suppresses an explicit recipient in a known sent thread", async () => {
+  const p = await prospect();
+  const [c] =
+    await sql`SELECT * FROM daniel_sales.contacts WHERE id=${p.contact_id}`;
+  const m = await saveDraft(
+    sql,
+    { contact_id: c.id, subject: "Test", body: "Test" },
+    "test",
+  );
+  await sql`UPDATE daniel_sales.messages SET status='simulated',thread_key='bounce-thread' WHERE id=${m.id}`;
+  const msg = {
+    id: "bounce-1",
+    threadId: "bounce-thread",
+    payload: {
+      mimeType: "message/delivery-status",
+      headers: [{ name: "From", value: "mailer-daemon@example.test" }],
+      body: {
+        data: Buffer.from(
+          "Final-Recipient: rfc822; " + c.email + "\nStatus: 5.1.1",
+        ).toString("base64url"),
+      },
+    },
+  };
+  assert.equal((await ingest(sql, msg)).bounced, true);
+  const [updated] =
+    await sql`SELECT * FROM daniel_sales.contacts WHERE id=${c.id}`;
+  assert.ok(updated.suppressed_at);
+});
+test.after(() => db.close());

@@ -1,4 +1,4 @@
-export const client=String.raw`
+export const client = String.raw`
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let state={},tab=0,selected=null;
 const names=['Overview','Prospects','Conversations','Approvals','Schedule','Suppression','Reports','Audit log','Settings'];
@@ -12,6 +12,7 @@ function toast(msg){$('#toast').textContent=msg;setTimeout(()=>$('#toast').textC
 async function api(path,data){const res=await fetch('/api/daniel/'+path,data===undefined?{}:{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data)});const result=await res.json();if(!res.ok){if(res.status===401&&path!=='login')location.reload();throw Error(result.error||'Request failed')}return result;}
 async function reload(){state=await api('data');render();}
 async function action(path,data,message){const r=await api(path,data);await reload();if(message)toast(message);return r;}
+async function watchRun(id){for(let i=0;i<180;i++){await new Promise(r=>setTimeout(r,3000));await reload();const run=state.runs.find(x=>x.id===id);if(run&&!['queued','running'].includes(run.status)){toast('Cycle '+run.status+': '+(run.summary.simulated||0)+' test deliveries; '+(run.summary.sent||0)+' real emails.');return;}}toast('Run is still processing; see Settings for status.');}
 function modal(title,body,save,callback){const d=$('#modal');d.innerHTML='<form id="modal-form"><h2>'+esc(title)+'</h2>'+body+'<div id="form-error" role="alert"></div><div class="dialogfoot"><button type="button" id="close-modal">Cancel</button><button class="primary">'+esc(save)+'</button></div></form>';d.showModal();$('#close-modal').onclick=()=>d.close();$('#modal-form').onsubmit=async e=>{e.preventDefault();const b=e.submitter;b.disabled=true;try{await callback(Object.fromEntries(new FormData(e.target)));d.close();}catch(err){$('#form-error').innerHTML='<div class="alert">'+esc(err.message)+'</div>'}finally{b.disabled=false}};}
 const field=(label,name,value='',type='text',required=true)=>'<label for="f-'+name+'">'+esc(label)+'</label><input id="f-'+name+'" name="'+name+'" type="'+type+'" value="'+esc(value)+'" '+(required?'required':'')+'>';
 const area=(label,name,value='')=>'<label for="f-'+name+'">'+esc(label)+'</label><textarea id="f-'+name+'" name="'+name+'" required>'+esc(value)+'</textarea>';
@@ -58,7 +59,7 @@ if($('#content')){
  case 'meeting':modal('Schedule meeting',field('Meeting title','title','BOF business signage discussion')+field('Starts (your local timezone)','starts_at',localTime(),'datetime-local')+field('Ends (your local timezone)','ends_at',localTime(new Date(Date.now()+1800000)),'datetime-local')+field('Location / meeting link','location','','text',false)+area('Notes','notes','Discuss recurring signage needs.'),'Save meeting',f=>action('meeting',{...f,opportunity_id:id,starts_at:new Date(f.starts_at).toISOString(),ends_at:new Date(f.ends_at).toISOString()},'Meeting saved. Download the calendar file from Schedule.'));break;
  case 'cancel-meeting':await action('meeting/cancel',{id},'Meeting cancelled');break;
  case 'report':await action('report',{},'Today’s report refreshed');break;
- case 'run':toast('Running the preview cycle…');{const r=await action('run',{});toast('Cycle '+r.status+': '+(r.simulated||0)+' test deliveries; '+(r.sent||0)+' real emails.')}break;
+ case 'run':toast('Running the preview cycle…');{const r=await action('run',{});if(r.status==='queued'){toast('Preview cycle queued. Results will refresh automatically.');watchRun(r.runId);}else toast('Cycle '+r.status+': '+(r.simulated||0)+' test deliveries; '+(r.sent||0)+' real emails.')}break;
  case 'pause':await action('settings',{paused:!state.settings.paused},'Agent pause setting updated');break;
  case 'connect':{const r=await api('oauth/start',{});location.href=r.url;break;}
  case 'disconnect':await action('oauth/disconnect',{},'Gmail disconnected');break;
