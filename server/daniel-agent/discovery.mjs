@@ -24,14 +24,14 @@ export async function readPublicPage(address, depth=0) {
   const resolved=await lookup(u.hostname,{family:4});
   if(!publicIPv4(resolved.address)) throw Error('Nonpublic evidence host');
   const result=await new Promise((resolve,reject)=>{
-    const req=https.get(u,{lookup:(_host,_options,cb)=>cb(null,resolved.address,4),headers:{'user-agent':'BOF-Daniel-Research/1.0 (+https://bannersonthefly.com)'}},res=>{
+    const req=https.get(u,{lookup:(_host,_options,cb)=>_options.all?cb(null,[{address:resolved.address,family:4}]):cb(null,resolved.address,4),headers:{'user-agent':'BOF-Daniel-Research/1.0 (+https://bannersonthefly.com)'}},res=>{
       if([301,302,303,307,308].includes(res.statusCode)){res.resume();resolve({redirect:new URL(res.headers.location,u).href});return;}
       if(res.statusCode!==200||!String(res.headers['content-type']).includes('text/html')){res.resume();reject(Error('Evidence page unavailable'));return;}
       let content='',size=0;res.on('data',chunk=>{size+=chunk.length;if(size>1500000){req.destroy(Error('Evidence page too large'));return;}content+=chunk;});res.on('end',()=>resolve({content,url:u.href}));res.on('error',reject);
     });req.setTimeout(15000,()=>req.destroy(Error('Evidence request timed out')));req.on('error',reject);
   });
   if(result.redirect)return readPublicPage(result.redirect,depth+1);
-  return {url:result.url,text:result.content.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&amp;/g,'&').replace(/&nbsp;|&#160;/g,' ').replace(/&#64;/g,'@').replace(/\s+/g,' ').slice(0,150000)};
+  return {url:result.url,text:result.content.replace(/href=["']mailto:([^"'?]+)[^"']*["']/gi, ' $1 ').replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&amp;/g,'&').replace(/&nbsp;|&#160;/g,' ').replace(/&quot;/g,'"').replace(/&apos;|&#39;/g,"'").replace(/&#(x[0-9a-f]+|[0-9]+);/gi,(_,n)=>String.fromCodePoint(n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):Number(n))).replace(/\s+/g,' ').slice(0,150000)};
 }
 export async function modelJSON(env, instructions, input, {search=false,fetcher=fetch}={}) {
   if(!env.OPENAI_API_KEY)throw Error('Research AI not configured');
@@ -61,12 +61,12 @@ export function validateEvidence(candidate,pages) {
   }
   return {verified:true,verified_at:new Date().toISOString(),company:candidate.company,email,website:candidate.website,opportunity:candidate.opportunity,recurring_buyer:true,facts:candidate.facts,pages:pages.map(p=>({url:p.url,sha256:createHash('sha256').update(p.text).digest('hex')}))};
 }
-export async function discover(sql,env,settings,{gmailTest=false,now=new Date(),research=modelJSON,readPage=readPublicPage,draft=generateDraft}={}) {
+export async function discover(sql,env,settings,{gmailTest=false,now=new Date(),runId, research=modelJSON,readPage=readPublicPage,draft=generateDraft}={}) {
   if(!settings.auto_prospect)return {status:'disabled'};
   if(!gmailTest&&(!easternBusinessDay(now)||reportDue(now)))return {status:'outside_business_hours'};
   const qa=gmailTest?gmailTestRecipients(env,now):[];
   if(gmailTest&&!qa.length)throw Error('Controlled research testing is disabled');
-  const day=easternDate(now),slot=(gmailTest?'qa:':'')+now.toISOString().slice(0,13);
+  const day=easternDate(now),slot=gmailTest?'qa:'+(runId||now.toISOString()):now.toISOString().slice(0,13);
   const [cap]=await sql`SELECT count(*)::int AS n FROM daniel_sales.discovery_runs WHERE started_at::date=current_date`;
   if(cap.n>=16)return {status:'research_daily_cap'};
   const [budget]=await sql`SELECT sent_count+reserved_count AS n FROM daniel_sales.daily_limits WHERE local_date=${day} AND kind='intro'`;

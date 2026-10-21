@@ -91,7 +91,7 @@ export async function ingest(sql, message, actor = "gmail-sync") {
     sql`UPDATE daniel_sales.contacts SET replied_at=now() WHERE id=${c.id}`,
     sql`UPDATE daniel_sales.messages SET status='blocked',error='Reply received; review conversation',updated_at=now() WHERE contact_id=${c.id} AND kind IN ('intro','followup') AND status IN ('draft','pending_approval','queued')`,
     sql`UPDATE daniel_sales.tasks SET status='cancelled',note='Reply received' WHERE contact_id=${c.id} AND kind='followup' AND status='pending'`,
-    sql`UPDATE daniel_sales.opportunities SET stage=CASE WHEN stage IN ('won','lost','do_not_contact') THEN stage ELSE 'replied' END,next_action='Review customer reply',next_action_at=now() WHERE account_id=${c.account_id} AND stage NOT IN ('won','lost','do_not_contact')`,
+    sql`UPDATE daniel_sales.opportunities SET stage=CASE WHEN stage IN ('won','lost','do_not_contact') THEN stage ELSE ${cls === 'quote_request' ? 'quote_requested' : /\b(i am interested|i'm interested|we are interested|we're interested|sounds good|tell me more)\b/i.test(text) && cls === 'needs_review' ? 'interested' : 'replied'} END,next_action='Review customer reply',next_action_at=now() WHERE account_id=${c.account_id} AND stage NOT IN ('won','lost','do_not_contact')`,
   ]);
   if (!result[0].length) return { duplicate: true };
   if (["unsubscribe", "decline"].includes(cls))
