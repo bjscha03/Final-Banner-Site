@@ -22,7 +22,7 @@ const headers = {
 const json = (data, status = 200, extra = {}) =>
   Response.json(data, { status, headers: { ...headers, ...extra } });
 export async function handler(req, context = {}, deps = {}) {
-  const env = deps.env || environment();
+  const env = deps.env || environment(context);
   if (!allowedHost(req, env)) return json({ error: "Not found" }, 404);
   const sql = deps.sql || database(env),
     url = new URL(req.url),

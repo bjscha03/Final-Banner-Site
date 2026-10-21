@@ -1,4 +1,4 @@
-export function environment() {
+export function environment(context = globalThis.Netlify?.context) {
   const keys = [
     "DANIEL_DATABASE_URL",
     "DANIEL_LOCAL_DEV",
@@ -21,9 +21,13 @@ export function environment() {
     "CONTEXT",
     "OUTBOUND_PHYSICAL_ADDRESS",
   ];
-  return Object.fromEntries(
+  const env = Object.fromEntries(
     keys.map((k) => [k, globalThis.Netlify?.env?.get(k) ?? process.env[k]]),
   );
+  // CONTEXT is a build variable; Functions expose deployment context on the
+  // request runtime. Do not mistake a missing build variable for production.
+  env.CONTEXT = context?.deploy?.context || env.CONTEXT;
+  return env;
 }
 // Real-provider acceptance tests are separate from production cutover. Only an
 // explicit authenticated test job may use this short-lived exact-address list.
@@ -54,6 +58,7 @@ export function publicConfig(env) {
   return {
     mode: mode(env),
     liveEmailEnabled: mode(env) === "live",
+    deploymentContext: env.CONTEXT || "unknown",
     gmailTestEnabled: gmailTestRecipients(env).length > 0,
     gmailTestUntil: gmailTestRecipients(env).length ? env.DANIEL_GMAIL_TEST_UNTIL : null,
     gmailConfigured: !!(

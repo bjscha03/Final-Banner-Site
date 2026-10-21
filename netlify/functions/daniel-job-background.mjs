@@ -2,8 +2,8 @@ import { runWorker } from "../../server/daniel-agent/worker.mjs";
 import { environment, allowedHost } from "../../server/daniel-agent/config.mjs";
 import { secureEqual } from "../../server/daniel-agent/auth.mjs";
 import { uuid } from "../../server/daniel-agent/validation.mjs";
-export default async function (request) {
-  const env = environment();
+export default async function (request, context) {
+  const env = environment(context);
   if (
     !allowedHost(request, env) ||
     request.method !== "POST" ||

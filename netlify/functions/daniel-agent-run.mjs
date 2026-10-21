@@ -2,8 +2,8 @@ import { enqueueRun } from "../../server/daniel-agent/jobs.mjs";
 import { database } from "../../server/daniel-agent/db.mjs";
 import { environment, allowedHost } from "../../server/daniel-agent/config.mjs";
 import { secureEqual } from "../../server/daniel-agent/auth.mjs";
-export default async function handler(request) {
-  const env = environment();
+export default async function handler(request, context) {
+  const env = environment(context);
   if (!allowedHost(request, env))
     return new Response("Not found", { status: 404 });
   if (request.method !== "POST")
