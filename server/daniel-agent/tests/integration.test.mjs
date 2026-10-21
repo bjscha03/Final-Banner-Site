@@ -637,3 +637,16 @@ test('accepted Gmail send survives header-read failure without a second delivery
   assert.equal(recovered.status,'sent');assert.equal(recovered.rfc_message_id,'<rewritten@gmail.test>');assert.equal(sends,1);
 });
 test.after(() => db.close());
+
+test("forwarded inbound with SENT label is received once; recorded outbox stays outbound", async () => {
+  const p=await prospect();
+  const [c]=await sql`SELECT * FROM daniel_sales.contacts WHERE id=${p.contact_id}`;
+  const inbound={id:"forwarded-dual-label",threadId:"forwarded-thread",labelIds:["SENT","INBOX"],payload:{mimeType:"text/plain",headers:[{name:"From",value:c.email}],body:{data:Buffer.from("What products do you sell?").toString("base64url")}}};
+  assert.equal((await ingest(sql,inbound)).created,true);
+  assert.equal((await ingest(sql,inbound)).duplicate,true);
+  assert.equal((await sql`SELECT * FROM daniel_sales.tasks WHERE contact_id=${c.id} AND kind='reply'`).length,1);
+  const out=await saveDraft(sql,{contact_id:c.id,kind:"reply",subject:"Products",body:"Vinyl banners."},"test");
+  await sql`UPDATE daniel_sales.messages SET provider_message_id='recorded-outbox',status='sent' WHERE id=${out.id}`;
+  assert.equal((await ingest(sql,{...inbound,id:"recorded-outbox"})).ignored,true);
+  assert.equal((await sql`SELECT * FROM daniel_sales.messages WHERE contact_id=${c.id} AND direction='inbound'`).length,1);
+});

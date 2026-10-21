@@ -18,7 +18,7 @@ export async function syncControlledInbox(sql, token, env) {
   for (const email of recipients) {
     let pageToken;
     for (let page = 0; page < 10; page++) {
-      const listing = await listGmail(token, `from:${email} subject:"Daniel QA" newer_than:1d -in:sent -in:drafts`, 15, pageToken);
+      const listing = await listGmail(token, `from:${email} subject:"Daniel QA" newer_than:1d -in:drafts`, 15, pageToken);
       for (const item of listing.messages || []) {
         const message = await getGmail(token, item.id);
         if (senderAddress(header(message, "From")) !== email || !header(message, "Subject").includes("Daniel QA")) continue;
@@ -43,8 +43,11 @@ export function latestText(s) {
   return s.split(/\n(?:On .{3,200}wrote:|From:|_{5,}|>{1,})/i)[0].trim();
 }
 export async function ingest(sql, message, actor = "gmail-sync") {
-  if (message.labelIds?.includes("SENT") || message.labelIds?.includes("DRAFT"))
-    return { ignored: true };
+  if (message.labelIds?.includes("DRAFT")) return { ignored: true };
+  // Forwarded mail from a linked owner alias can carry both SENT and INBOX.
+  // Direction comes from the recorded outbox and exact known sender, not labels.
+  const [known] = await sql`SELECT direction FROM daniel_sales.messages WHERE provider_message_id=${message.id}`;
+  if (known) return known.direction === "outbound" ? { ignored: true } : { duplicate: true };
   const email = senderAddress(header(message, "From")),
     text = latestText(bodyText(message));
   // A hard-bounce DSN must match a known outbound thread and an explicit recipient.
@@ -117,7 +120,7 @@ export async function syncMailbox(sql, token, providers = {}) {
     const queries = [];
     for (let i = 0; i < contacts.length; i += 50) {
       const senders = contacts.slice(i, i + 50).map(c => 'from:"' + c.email.replace(/["\\]/g, '') + '"').join(' ');
-      queries.push(`${after} -in:sent -in:drafts {${senders}}`);
+      queries.push(`${after} -in:drafts {${senders}}`);
     }
     queries.push(`${after} {from:mailer-daemon from:postmaster}`);
     const q = JSON.stringify({ queries, index: 0 });
