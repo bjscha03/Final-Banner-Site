@@ -93,6 +93,40 @@ async function open(slug){
 }
 async function uploadArt(){await page.locator('#specialty-artwork input[type=file]').setInputFiles({name:'qa-market.png',mimeType:'image/png',buffer:fixture});await page.waitForFunction(()=>document.querySelector('#specialty-artwork input[type=file]').value==='');await page.getByRole('button',{name:'Replace artwork',exact:true}).waitFor();await page.getByLabel('I checked the', {exact:false}).waitFor({timeout:30000});await page.waitForFunction(()=>[...document.querySelectorAll('label')].find(el=>el.textContent.includes('I checked the'))?.querySelector('input')?.disabled===false);}
 try{
+ await check('delete artwork clears approval and permits the same file to be uploaded again',async()=>{
+  await open('standard-retractable-banner');await uploadArt();
+  await page.getByLabel('I checked the', {exact:false}).check();
+  assert.equal(await page.locator('#specialty-artwork').getByRole('button',{name:'Add to cart',exact:true}).isEnabled(),true);
+  await page.getByTestId('artwork-canvas').click();
+  const remove=page.locator('#specialty-artwork').getByRole('button',{name:'Delete selected artwork',exact:true});
+  await remove.waitFor();
+  assert.ok((await remove.boundingBox()).height>=44,'Delete must remain touch accessible');
+  await remove.click();
+  await page.locator('#specialty-artwork').getByRole('button',{name:'Upload artwork',exact:true}).waitFor();
+  assert.equal(await page.getByTestId('artwork-canvas').count(),0);
+  assert.equal(await page.locator('#specialty-artwork').getByRole('button',{name:'Add to cart',exact:true}).isDisabled(),true);
+  assert.equal(await page.getByLabel('I checked the', {exact:false}).count(),0);
+  await uploadArt();
+  assert.equal(await page.getByLabel('I checked the', {exact:false}).isChecked(),false);
+  assert.equal(await page.locator('#specialty-artwork').getByRole('button',{name:'Add to cart',exact:true}).isDisabled(),true);
+  await page.getByTestId('artwork-canvas').click();
+  await page.locator('#specialty-artwork').getByRole('button',{name:'Delete selected artwork',exact:true}).waitFor();
+  await page.getByRole('toolbar',{name:'Selected artwork',exact:true}).screenshot({path:out+'/delete-artwork-toolbar.png'});
+ });
+ await check('delete artwork removes only the active print panel',async()=>{
+  await open('custom-event-tents');await uploadArt();
+  await page.getByLabel('I checked the', {exact:false}).check();
+  await page.getByRole('tab',{name:'Right canopy',exact:true}).click();await uploadArt();
+  await page.getByTestId('artwork-canvas').click();
+  await page.locator('#specialty-artwork').getByRole('button',{name:'Delete selected artwork',exact:true}).click();
+  await page.locator('#specialty-artwork').getByRole('button',{name:'Upload artwork',exact:true}).waitFor();
+  await page.getByRole('tab',{name:'Front canopy ✓',exact:true}).click();
+  await page.locator('#specialty-artwork').getByRole('button',{name:'Replace artwork',exact:true}).waitFor();
+  assert.equal(await page.getByLabel('I checked the', {exact:false}).isChecked(),true);
+  await page.getByRole('tab',{name:'Right canopy',exact:true}).click();
+  await page.locator('#specialty-artwork').getByRole('button',{name:'Upload artwork',exact:true}).waitFor();
+  assert.equal(await page.locator('#specialty-artwork').getByRole('button',{name:'Add to cart',exact:true}).isDisabled(),true);
+ });
  await check('finished preview is automatic and mobile ordering stays clear',async()=>{
   await open('standard-retractable-banner');await uploadArt();
   await page.getByRole('heading',{name:'Your finished product',exact:true}).waitFor();
