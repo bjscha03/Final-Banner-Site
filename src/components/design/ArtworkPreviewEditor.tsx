@@ -709,7 +709,12 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
           cursor: loading ? 'default' : selected ? 'move' : 'pointer',
         }}
         onPointerDown={startPointer}
-        onDoubleClick={() => { setSelected(true); if (enableCropping) setCropMode(true); }}
+        onDoubleClick={(event) => {
+          const target = event.target as HTMLElement;
+          if (target.closest('[data-artwork-toolbar="true"], [data-handle]')) return;
+          setSelected(true);
+          if (enableCropping) setCropMode(true);
+        }}
       >
         {loading && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 text-xs text-gray-700">
@@ -767,7 +772,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
               <button type="button" aria-label="Undo artwork change" title="Undo" disabled={!history.past.length} onClick={() => travelHistory()} className={contextButton}><Undo2 size={18} /></button>
               <button type="button" aria-label="Redo artwork change" title="Redo" disabled={!history.future.length} onClick={() => travelHistory(true)} className={contextButton}><Redo2 size={18} /></button>
               <span className="mx-1 h-5 border-l border-slate-200" />
-              {enableCropping && <button type="button" aria-label={cropMode ? 'Done cropping' : 'Crop artwork'} aria-pressed={cropMode} onClick={() => setCropMode(!cropMode)} className={`${contextButton} gap-1 text-xs font-semibold`}>
+              {enableCropping && <button type="button" aria-label={cropMode ? 'Done cropping' : 'Crop artwork'} aria-pressed={cropMode} onClick={(event) => { event.stopPropagation(); if (event.detail < 2) setCropMode(current => !current); }} className={`${contextButton} gap-1 text-xs font-semibold ${cropMode ? 'bg-violet-100 text-violet-800' : ''}`}>
                 {cropMode ? <Check size={18} /> : <Crop size={18} />}{cropMode ? 'Done' : 'Crop'}
               </button>}
               {onDelete && <button type="button" aria-label="Delete selected artwork" title="Delete" onClick={onDelete} className={`${contextButton} text-red-600`}><Trash2 size={18} /></button>}
@@ -778,6 +783,8 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
         {showDragHint && <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center"><span className="rounded-full bg-black/60 px-3 py-1.5 text-xs text-white">Drag to reposition · Drag corners to resize</span></div>}
         {overlay}
       </div>
+
+      {cropMode && selected && <p role="status" className="mt-2 rounded-lg bg-violet-50 px-3 py-2 text-center text-xs font-medium text-violet-900">Crop mode: drag the side handles to trim edges. Drag inside to reposition after trimming. Select Done to finish.</p>}
 
       {!loading && !previewError && !mobileToolbarContainer && <div className="mt-3 flex justify-center">{toolbar}</div>}
       {!loading && !previewError && mobileToolbarContainer

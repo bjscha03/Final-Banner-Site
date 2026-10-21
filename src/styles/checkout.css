@@ -17,7 +17,7 @@
 .checkout-artwork-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
 .checkout-artwork-heading > div { display: flex; align-items: baseline; gap: 3px; flex-wrap: wrap; }
 .checkout-artwork-heading h2 { font-size: 24px; font-weight: 800; letter-spacing: -.035em; }
-.checkout-artwork-heading > button { padding: 0; border: 0; border-radius: 0; min-height: 32px; color: #18448d; font-weight: 500; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+.checkout-artwork-heading > button { padding: 0 12px; border: 1px solid var(--checkout-border); border-radius: 8px; min-height: 44px; color: #18448d; font-weight: 600; white-space: nowrap; }
 .checkout-item-count { display: none; color: #64748b; font-size: 13px; }
 .checkout-artwork-item { padding-block: 16px; }
 .checkout-artwork-item:first-child { padding-top: 0; }
@@ -60,11 +60,6 @@
 .checkout-paypal-choice { background: #ffc439; }
 .checkout-paypal-choice > span { font-size: 22px; font-weight: 800; font-style: italic; letter-spacing: -.04em; }
 .checkout-paypal-choice:hover { background: #f1b82a; }
-.checkout-venmo-choice { background: #008cff; color: white; font-size: 23px; font-weight: 800; font-style: italic; }
-.checkout-venmo-choice:hover { background: #0079df; }
-.checkout-cashapp-choice { background: #00d64f; color: #000; font-size: 15px; font-weight: 750; }
-.checkout-cashapp-choice:hover { background: #00c348; }
-.checkout-cashapp-icon { font-size: 27px; font-weight: 900; line-height: 1; transform: rotate(-8deg); }
 .checkout-paypal-wallets { display: flex; flex-wrap: wrap; gap: 10px; }
 .checkout-paypal-wallets > div { width: 140px; min-width: 0; }
 .checkout-provider-back { min-height: 44px; color: #18448d; font-size: 14px; font-weight: 600; }

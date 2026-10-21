@@ -824,7 +824,7 @@ async function createOrReusePaymentIntent({ stripe, sql, order, confirmationToke
     currency: 'usd',
     capture_method: 'automatic',
     automatic_payment_methods: { enabled: true },
-    allowed_payment_method_types: ['card', 'cashapp'],
+    allowed_payment_method_types: ['card'],
     description: stripePaymentDescription(order, items),
     metadata: {
       ...stripeOrderMetadata(order, items),

@@ -58,7 +58,6 @@ interface PayPalCheckoutProps {
   cardFirstLayout?: boolean;
   /** Hide PayPal-hosted card fields when Stripe already supplies the card form. */
   paypalOnly?: boolean;
-  preferredFunding?: 'paypal' | 'venmo';
   resumeCheckout?: ActiveCheckoutMarker | null;
   onPaymentStateChange?: (state: CheckoutPaymentStateEvent) => void;
   onCanonicalQuote?: (quote: CanonicalCartQuote, serverTotalCents: number) => boolean;
@@ -312,7 +311,6 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   providerLocked = false,
   cardFirstLayout = false,
   paypalOnly = false,
-  preferredFunding = 'paypal',
   resumeCheckout = null,
   onPaymentStateChange,
   onCanonicalQuote,
@@ -1156,7 +1154,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
 
   const renderPayPalButton = () => (
     <div className="checkout-paypal-wallets">
-      <div>{renderWalletButton(preferredFunding)}</div>
+      <div>{renderWalletButton('paypal')}</div>
     </div>
   );
 
@@ -1433,8 +1431,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     vault: false,
     components: paypalOnly ? 'buttons' : 'buttons,card-fields',
     dataClientToken: paypalConfig.clientToken,
-    disableFunding: 'paylater,credit',
-    enableFunding: 'venmo',
+    disableFunding: 'paylater,credit,venmo',
   };
 
   return (
@@ -1488,7 +1485,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
 
       {!verificationMessage ? (
         <PayPalScriptProvider options={initialOptions}>
-          <p className="checkout-express-label">Pay with {preferredFunding === 'venmo' ? 'Venmo' : 'PayPal'}</p>
+          <p className="checkout-express-label">Pay with PayPal</p>
           {renderPayPalButton()}
           {orderIntro}
           {renderCustomerDetails()}
