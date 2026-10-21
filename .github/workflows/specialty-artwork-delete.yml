@@ -1,0 +1,47 @@
+name: Specialty artwork deletion
+on:
+  pull_request:
+    paths:
+      - 'src/components/specialty/SpecialtyDesigner.tsx'
+      - 'scripts/test-specialty-browser.mjs'
+      - '.github/workflows/specialty-artwork-delete.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  artwork-removal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: chromium
+            device: ''
+          - browser: firefox
+            device: ''
+          - browser: webkit
+            device: ''
+          - browser: webkit
+            device: 'iPhone 15 Pro'
+          - browser: chromium
+            device: 'Pixel 8'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: node scripts/test-specialty-browser.mjs
+        env:
+          BOF_QA_FILTER: 'delete artwork'
+          BOF_QA_BROWSER: ${{ matrix.browser }}
+          BOF_QA_DEVICE: ${{ matrix.device }}
+          BOF_QA_DIR: delete-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: delete-${{ matrix.browser }}-${{ matrix.device || 'desktop' }}
+          path: delete-results
