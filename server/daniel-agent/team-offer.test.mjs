@@ -22,3 +22,8 @@ test('branded signatures render escaped email-safe HTML with the real logo and c
  assert.doesNotMatch(html,/<script>/);assert.match(html,/reply unsubscribe/);
  assert.match(signature('Brad','Team Manager'),/>Brad<\/strong>/);
 });
+
+test('the full personalized redemption sentence is bold in HTML email',()=>{
+ const code=promo.createTeamCode('Paristown',env);
+ assert.ok(renderSalesEmail(offerText(code)).includes('<strong style="font-weight:700">Use '+code+' for 25% off sitewide.</strong>'));
+});

@@ -61,6 +61,7 @@ export const SMALL_BANNER_PROMOTION_SCOPE: DiscountScope = 'qualifying_small_ban
 export const SMALL_BANNER_PROMOTION_CAMPAIGN = 'small_banner_20_promo';
 
 export interface PromoDiscountInput {
+  source?: string;
   code: string;
   discountPercentage?: number;  // e.g., 20 for 20%
   discountAmountCents?: number; // Fixed amount in cents

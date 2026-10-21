@@ -35,6 +35,11 @@ describe('specialty artwork in the existing cart',()=>{
     expect(useCartStore.getState().items[0]).toEqual(banner);
     expect(useCartStore.getState().getQuantityDiscountInfo()).toEqual(before);
   });
+  it('preserves the authorized team offer source so specialty cart display receives the full 25 percent',()=>{
+    save();useCartStore.setState({discountCode:{id:'team',code:'TEAM25-ABCDEF123456',source:'reusable_promotion',campaign:'daniel-team-25-v1',discountPercentage:25,discountScope:'order',expiresAt:null}});
+    const state=useCartStore.getState();const subtotal=state.getMigratedItems().reduce((n,item)=>n+item.line_total_cents,0);
+    expect(state.getResolvedDiscount().appliedDiscountAmountCents).toBe(Math.round(subtotal*0.25));
+  });
   it('rejects a stale panel without replacing the existing saved item',()=>{
     const id=save(),before=JSON.stringify(useCartStore.getState().items),config=configuration();
     config.panels[2].composition.transform.xPct=15;
