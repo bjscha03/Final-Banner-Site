@@ -112,7 +112,15 @@ export async function syncMailbox(sql, token, providers = {}) {
     complete = false;
   if (!box.history_id && !box.sync_start_history) {
     const p = await request(token, "/profile");
-    const q = "after:" + Math.floor((Date.now() - 30 * 86400000) / 1000);
+    const after = "after:" + Math.floor((Date.now() - 30 * 86400000) / 1000);
+    const contacts = await sql`SELECT lower(email) AS email FROM daniel_sales.contacts ORDER BY id`;
+    const queries = [];
+    for (let i = 0; i < contacts.length; i += 50) {
+      const senders = contacts.slice(i, i + 50).map(c => 'from:"' + c.email.replace(/["\\]/g, '') + '"').join(' ');
+      queries.push(`${after} -in:sent -in:drafts {${senders}}`);
+    }
+    queries.push(`${after} {from:mailer-daemon from:postmaster}`);
+    const q = JSON.stringify({ queries, index: 0 });
     await sql`UPDATE daniel_sales.mailbox SET sync_start_history=${p.historyId},initial_query=${q},page_token=NULL WHERE id=1`;
     box = {
       ...box,
@@ -122,6 +130,7 @@ export async function syncMailbox(sql, token, providers = {}) {
     };
   }
   for (let page = 0; page < 1; page++) {
+    const initial = box.initial_query?.startsWith('{') ? JSON.parse(box.initial_query) : null;
     let listing;
     try {
       listing = box.history_id
@@ -135,7 +144,7 @@ export async function syncMailbox(sql, token, providers = {}) {
                 ...(box.page_token ? { pageToken: box.page_token } : {}),
               }),
           )
-        : await listMessages(token, box.initial_query, 15, box.page_token);
+        : await listMessages(token, initial ? initial.queries[initial.index] : box.initial_query, 15, box.page_token);
     } catch (e) {
       if (e.status === 404 && box.history_id) {
         await sql`UPDATE daniel_sales.mailbox SET history_id=NULL,page_token=NULL,sync_start_history=NULL,last_error='History expired; 30-day reconciliation on next sync' WHERE id=1`;
@@ -168,6 +177,10 @@ export async function syncMailbox(sql, token, providers = {}) {
     if (listing.nextPageToken) {
       await sql`UPDATE daniel_sales.mailbox SET page_token=${listing.nextPageToken},last_sync_at=now(),last_error=NULL WHERE id=1`;
       box.page_token = listing.nextPageToken;
+    } else if (!box.history_id && initial && initial.index + 1 < initial.queries.length) {
+      initial.index++;
+      await sql`UPDATE daniel_sales.mailbox SET initial_query=${JSON.stringify(initial)},page_token=NULL,last_sync_at=now(),last_error=NULL WHERE id=1`;
+      break;
     } else {
       await sql`UPDATE daniel_sales.mailbox SET history_id=${listing.historyId || box.sync_start_history},page_token=NULL,sync_start_history=NULL,initial_query=NULL,last_sync_at=now(),last_error=NULL WHERE id=1`;
       complete = true;

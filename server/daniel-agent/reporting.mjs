@@ -18,7 +18,7 @@ export async function report(sql, day = easternDate(new Date())) {
     pendingApprovals: pending.count,
     overdueActions: overdue.count,
     suppressed: suppressed.count,
-    note: "Sent means Gmail accepted the message, not confirmed delivery. Won is a CRM stage, not recorded revenue. Simulated messages never leave the preview.",
+    note: "Sent means Gmail accepted the message, not confirmed delivery. Gmail test sends go only to controlled owner inboxes and are excluded from sales sends. Won is a CRM stage, not recorded revenue. Simulated messages never leave the preview.",
   };
   await sql`INSERT INTO daniel_sales.daily_reports(local_date,data) VALUES(${day}::date,${JSON.stringify(data)}::jsonb) ON CONFLICT(local_date) DO UPDATE SET data=excluded.data,generated_at=now()`;
   return data;

@@ -404,6 +404,7 @@ test("Gmail paging saves cursor, finishes initial sync then expires safely", asy
     request: async () => ({ historyId: "101" }),
     listMessages: async (_t, _q, _n, page) => {
       calls++;
+      assert.match(_q, /from:/);
       return page
         ? { messages: [] }
         : { messages: [], nextPageToken: "page-2" };
@@ -416,11 +417,13 @@ test("Gmail paging saves cursor, finishes initial sync then expires safely", asy
   let [box] = await sql`SELECT * FROM daniel_sales.mailbox WHERE id=1`;
   assert.equal(box.page_token, "page-2");
   assert.equal(box.history_id, null);
+  assert.equal((await syncMailbox(sql, "test", providers)).complete, false);
+  assert.equal((await syncMailbox(sql, "test", providers)).complete, false);
   assert.equal((await syncMailbox(sql, "test", providers)).complete, true);
   [box] = await sql`SELECT * FROM daniel_sales.mailbox WHERE id=1`;
   assert.equal(box.history_id, "101");
   assert.equal(box.page_token, null);
-  assert.equal(calls, 2);
+  assert.equal(calls, 4);
   const r = await syncMailbox(sql, "test", {
     ...providers,
     request: async () => {
