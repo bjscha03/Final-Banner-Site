@@ -706,3 +706,7 @@ test('AI conversation context excludes unsent and rejected outbound drafts',asyn
  const fetcher=async(_url,options)=>{const payload=JSON.parse(options.body);assert.ok(!payload.messages[1].content.includes('UNSENT_UNAPPROVED_PROMISE'));return Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Signage',body:'We offer vinyl banners.',requires_approval:false,fact_ids:['products']})}}]});};
  await generateDraft(sql,p.contact_id,'reply',{OPENAI_API_KEY:'test'},fetcher);
 });
+test('AI can automatically repeat approved shipping facts without approving a custom price',async()=>{
+ const p=await prospect();const fetcher=async()=>Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Products',body:'Our vinyl banners qualify for free next-day air shipping in the U.S. on orders of $20 or more.',requires_approval:false,classification:'routine_product',fact_ids:['vinyl_banner_shipping']})}}]});
+ const d=await generateDraft(sql,p.contact_id,'reply',{OPENAI_API_KEY:'test'},fetcher);assert.equal(d.ai_metadata.requires_approval,false);assert.equal(d.ai_metadata.model_requires_approval,false);
+});

@@ -106,3 +106,13 @@ export function classifyInbound(text = "") {
 export function shouldAutoReply(classification) {
   return false; // Require authenticated, verified knowledge-base and human-tested engine before activation.
 }
+// Only the exact published vinyl-banner shipping threshold is routine factual
+// information. Other dollar values and every exceptional commitment remain.
+export function routinePolicyText(text, facts = {}) {
+  if (!/\$20 or more/.test(facts.vinyl_banner_shipping || '')) return text;
+  return String(text).split(/\n\s*\n/).map(paragraph =>
+    /vinyl banners?/i.test(paragraph) && /free next[- ]day air shipping/i.test(paragraph)
+      ? paragraph.replace(/\borders of \$20 or more\b/gi, 'qualifying orders')
+      : paragraph
+  ).join('\n\n');
+}

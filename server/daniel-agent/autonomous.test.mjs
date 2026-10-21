@@ -87,3 +87,11 @@ test('independent rejection causes automatic revision with feedback, never autom
  const d=await reviewedIntroduction(sql,{},'contact',{verified:true},{runId:'test-run',draft,research});assert.equal(drafts,2);assert.equal(feedback[1],'Remove unsupported installation services');assert.equal(d.ai_metadata.research_review.approved,true);assert.equal(d.ai_metadata.autonomous_revision_count,2);
  const held=await reviewedIntroduction(sql,{},'contact',{verified:true},{runId:'test-run',draft,research:async()=>({responseId:'reject',value:{approved:false,reason:'Unsupported claim'}})});assert.equal(held.ai_metadata.research_review.approved,false);assert.equal(held.ai_metadata.autonomous_revision_count,3);
 });
+test('published vinyl-banner shipping threshold is routine but other prices remain protected',async()=>{
+ const {routinePolicyText}=await import('./policy.mjs');const {routineEligible}=await import('./automation.mjs');
+ const facts={vinyl_banner_shipping:'Free Next-Day Air shipping in the U.S. for qualifying orders of $20 or more'};
+ const body='Our vinyl banners qualify for free next-day air shipping in the U.S. on orders of $20 or more, with 24-hour production.';
+ assert.ok(!routinePolicyText(body,facts).includes('$'));assert.ok(routinePolicyText(body,{}).includes('$20'));assert.ok(routinePolicyText('A banner costs $20.',facts).includes('$20'));assert.ok(routinePolicyText(body+' Your custom price is $50.',facts).includes('$50'));
+ const m={kind:'reply',subject:'Products',body,ai_metadata:{requires_approval:false,knowledge_version:'v1',fact_ids:['vinyl_banner_shipping'],classification:'needs_review',model_classification:'routine_product'}};
+ assert.equal(routineEligible(m,{version:'v1',facts}),true);assert.equal(routineEligible({...m,body:body+' I can offer a 30% discount.'},{version:'v1',facts}),false);
+});

@@ -1,4 +1,4 @@
-import { classifyInbound } from "./policy.mjs";
+import { classifyInbound, routinePolicyText } from "./policy.mjs";
 import { approvalNeeded } from "./operations.mjs";
 export async function generateDraft(
   sql,
@@ -90,11 +90,13 @@ export async function generateDraft(
   const parent = kind === "reply" ? inbound : kind === "followup"
     ? thread.find(x => x.direction === "outbound" && x.thread_key && x.rfc_message_id) : null;
   const classification = classifyInbound(inbound?.body || "");
+  const policyText = routinePolicyText(draft.body, kb.facts);
+  const modelRequiresApproval = !!draft.requires_approval;
   draft.requires_approval =
     !!draft.requires_approval ||
-    approvalNeeded(draft.body) ||
+    approvalNeeded(policyText) ||
     ["escalate", "quote_request", "meeting_request"].includes(classification) ||
-    /\$\s*\d|\d\s*%|guarantee|net\s*\d/i.test(draft.body);
+    /\$\s*\d|\d\s*%|guarantee|net\s*\d/i.test(policyText);
   return {
     ...draft,
     contact_id: contactId,
@@ -106,6 +108,7 @@ export async function generateDraft(
       model: result.model,
       knowledge_version: kb.version,
       requires_approval: draft.requires_approval,
+      model_requires_approval: modelRequiresApproval,
       reason: draft.reason,
       classification,
       model_classification: draft.classification,

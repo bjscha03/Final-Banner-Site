@@ -1,3 +1,4 @@
+import { routinePolicyText } from './policy.mjs';
 import { createHash } from "node:crypto";
 import { approvalNeeded } from "./operations.mjs";
 import { requestApproval, decide } from "./store.mjs";
@@ -27,7 +28,7 @@ export function routineEligible(message, knowledge) {
     return false;
   if (message.kind === "followup" && meta.model_classification !== "followup")
     return false;
-  const body = message.subject + "\n" + message.body;
+  const body = routinePolicyText(message.subject + "\n" + message.body, knowledge.facts);
   if (
     approvalNeeded(body) ||
     /\$|\d\s*%|\b(price|pricing|quote|refund|complaint|payment|invoice|contract|guarantee|discount|meeting|appointment|schedule a call|net\s*\d|credit|password|credentials|supplier)\b/i.test(
