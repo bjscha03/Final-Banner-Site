@@ -61,6 +61,7 @@ import { stripeCardPaymentElementOptions } from './stripePaymentElementOptions';
 import { CheckoutCardDivider } from './CheckoutCardDivider';
 import IsolatedExpressWallet from './IsolatedExpressWallet';
 import CheckoutPaymentBar from './CheckoutPaymentBar';
+import { createWalletFailureHandler } from './stripeWalletFailure';
 
 interface StripeCheckoutProps {
   orderIntro?: React.ReactNode;
@@ -1331,40 +1332,44 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                   }
                 }}
                 onConfirm={async (event: any, walletElements) => {
+                  const failWallet = createWalletFailureHandler(event);
                   if (!walletElements || busy) {
                     const message = busy
                       ? 'Another payment is already being securely verified. Check its status before trying again.'
                       : 'Secure payment fields are not ready. Close the wallet and try again.';
                     setCheckoutError(message);
-                    event.paymentFailed?.({ reason: 'fail', message });
+                    failWallet({ reason: 'fail', message });
                     return;
                   }
                   const submittedWalletCustomer = walletCustomer(event, customer.phone);
                   if (!isValidCheckoutPhone(submittedWalletCustomer.phone)) {
                     const message = requireWalletPhone();
-                    event.paymentFailed?.({ reason: 'invalid_payment_data', message });
+                    failWallet({ reason: 'invalid_payment_data', message });
                     return;
                   }
-                  if (!(await addressCheck.check())) return;
-    let submitResult;
+                  if (!(await addressCheck.check())) {
+                    failWallet({ reason: 'invalid_payment_data', message: 'Review your delivery address before trying again.' });
+                    return;
+                  }
+                  let submitResult;
                   try {
                     submitResult = await withStripeStageTimeout(walletElements.submit());
                   } catch (error) {
                     const message = humanizeStripeError(error);
                     setCheckoutError(message);
-                    event.paymentFailed?.({ reason: 'fail', message });
+                    failWallet({ reason: 'fail', message });
                     return;
                   }
                   if (submitResult.error) {
                     const message = humanizeStripeError(submitResult.error);
                     setCheckoutError(message);
-                    event.paymentFailed?.({ reason: 'invalid_payment_data', message });
+                    failWallet({ reason: 'invalid_payment_data', message });
                     return;
                   }
                   try {
                     await startPayment(event.expressPaymentType || 'wallet', submittedWalletCustomer, walletElements);
                   } catch (error) {
-                    event.paymentFailed?.({
+                    failWallet({
                       reason: 'fail',
                       message: humanizeStripeError(error),
                     });

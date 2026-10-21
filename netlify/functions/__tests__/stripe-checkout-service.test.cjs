@@ -598,7 +598,7 @@ test('PaymentIntent creation is idempotent and an attached reusable intent is no
         assert.equal(params.amount, 4242);
         assert.equal(params.confirmation_token, undefined);
         assert.deepEqual(params.allowed_payment_method_types, ['card']);
-        assert.deepEqual(params.automatic_payment_methods, { enabled: true });
+        assert.equal(params.automatic_payment_methods, undefined, 'Stripe rejects automatic methods combined with an allowlist');
         assert.equal(params.payment_method_types, undefined);
         assert.equal(params.receipt_email, undefined);
         assert.equal(params.metadata.email, undefined);

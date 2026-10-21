@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth, isAdmin } from '@/lib/auth';
 import { adminFetch } from '@/lib/serverAuth';
 import { ISSUE_LABELS } from '@/lib/siteIssueSchema';
-import { SITE_ISSUES_QUERY, useSiteIssues, type IssueRow } from '@/hooks/useSiteIssues';
+import { SITE_ISSUES_QUERY, useSiteIssues, type IssueResult, type IssueRow } from '@/hooks/useSiteIssues';
 
 export default function SiteIssues() {
   const { user, loading } = useAuth();
@@ -29,7 +29,16 @@ export default function SiteIssues() {
     try {
       const response = await adminFetch('/.netlify/functions/admin-site-issues', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: issue.key, status, resolution: resolutionNotes[issue.id] || issue.resolution || '' }) });
       if (!response.ok) throw new Error('Could not update this issue. Please retry.');
-      await queryClient.invalidateQueries({ queryKey: SITE_ISSUES_QUERY });
+      // Reflect the acknowledged write immediately; a full retained-log refresh
+      // can span several pages and should not block the next review.
+      queryClient.setQueryData<IssueResult>(SITE_ISSUES_QUERY, previous => previous && ({
+        ...previous,
+        issues: previous.issues.map(row => row.id === issue.id ? {
+          ...row, status, resolution: resolutionNotes[issue.id] || issue.resolution || '',
+          resolvedAt: status === 'resolved' ? new Date().toISOString() : null,
+        } : row),
+      }));
+      void queryClient.invalidateQueries({ queryKey: SITE_ISSUES_QUERY });
     } catch (error) { setActionError(error instanceof Error ? error.message : 'Could not update issue.'); }
     finally { setBusy(''); }
   }
