@@ -144,7 +144,7 @@ describe('Stripe ConfirmationToken client flow', () => {
   });
 
   it('keeps the wallet Element mounted throughout confirmation', () => {
-    expect(source).toContain("const expressCheckoutVisible = walletsAvailable && paymentMethod === 'card' && !verificationMessage");
+    expect(source).toContain("const expressCheckoutVisible = walletsAvailable && !verificationMessage");
     expect(source).toContain('aria-hidden={walletsReady && !expressCheckoutVisible}');
     expect(source).not.toContain('{!verificationMessage ? <section');
     expect(source).toMatch(/<section[\s\S]*<IsolatedExpressWallet[\s\S]*<\/section>/);
@@ -156,7 +156,8 @@ describe('Stripe ConfirmationToken client flow', () => {
   });
 
   it('uses the current Stripe Payment Element layout contract', () => {
-    expect(source).toContain("paymentMethodOrder: ['cashapp'] } : stripeCardPaymentElementOptions");
+    expect(source).toContain('options={stripeCardPaymentElementOptions}');
+    expect(source).not.toContain('cashapp');
     expect(paymentOptionsSource).toContain("radios: 'never'");
     expect(paymentOptionsSource).not.toContain('radios: false');
   });

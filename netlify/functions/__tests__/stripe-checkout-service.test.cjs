@@ -597,7 +597,7 @@ test('PaymentIntent creation is idempotent and an attached reusable intent is no
         createCalls += 1;
         assert.equal(params.amount, 4242);
         assert.equal(params.confirmation_token, undefined);
-        assert.deepEqual(params.allowed_payment_method_types, ['card', 'cashapp']);
+        assert.deepEqual(params.allowed_payment_method_types, ['card']);
         assert.deepEqual(params.automatic_payment_methods, { enabled: true });
         assert.equal(params.payment_method_types, undefined);
         assert.equal(params.receipt_email, undefined);

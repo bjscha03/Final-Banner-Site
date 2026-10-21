@@ -136,6 +136,9 @@ describe('ArtworkPreviewEditor proportional fitting', () => {
       expect(frame.getAttribute('style')).toBe(before);
       expect(host.querySelector('[data-crop-mode="true"]')).not.toBeNull();
       await act(async () => (host.querySelector('[aria-label="Done cropping"]') as HTMLButtonElement).click());
+      // A double-click on Done must not bubble to the canvas and reopen crop mode.
+      await act(async () => cropButton.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })));
+      expect(host.querySelector('[data-crop-mode="true"]')).toBeNull();
       const fill = Array.from(toolbarSlot.querySelectorAll('button')).find(b => b.textContent?.startsWith('Fill banner'))!;
       await act(async () => fill.click());
       expect(parseFloat(frame.style.width) / parseFloat(frame.style.height)).toBeCloseTo(width / height);

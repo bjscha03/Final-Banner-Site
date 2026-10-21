@@ -66,7 +66,6 @@ interface StripeCheckoutProps {
   orderIntro?: React.ReactNode;
   orderSummary?: React.ReactNode;
   alternativePayment?: React.ReactNode;
-  paymentMethod?: 'card' | 'cashapp';
   publishableKey: string;
   total: number;
   onSuccess: (orderId: string, orderData?: any) => void;
@@ -310,7 +309,6 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   orderIntro,
   orderSummary,
   alternativePayment,
-  paymentMethod = 'card',
 }) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -1134,11 +1132,11 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   }, [completePayment, onError, pollPaymentStatus, resetForRetry]);
 
   const submitCard = async () => {
-    trackCheckoutDiagnostic('pay_clicked', { provider: 'stripe', method: paymentMethod });
+    trackCheckoutDiagnostic('pay_clicked', { provider: 'stripe', method: 'card' });
     if (!stripe || !elements || paymentFlightRef.current) return;
     const validation = validateCheckoutCustomer(customer);
     if (validation) {
-      trackCheckoutDiagnostic('validation_blocked', { provider: 'stripe', method: paymentMethod, field: validation.field });
+      trackCheckoutDiagnostic('validation_blocked', { provider: 'stripe', method: 'card', field: validation.field });
       setCheckoutError(validation.message);
       window.requestAnimationFrame(() => {
         if (validation.field === 'phone' && walletPhoneRequired) {
@@ -1156,16 +1154,16 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
     try {
       submitResult = await withStripeStageTimeout(elements.submit());
     } catch (error) {
-      trackCheckoutDiagnostic('provider_error', { provider: 'stripe', method: paymentMethod, stage: 'elements_submit', code: error?.code });
+      trackCheckoutDiagnostic('provider_error', { provider: 'stripe', method: 'card', stage: 'elements_submit', code: error?.code });
       setCheckoutError(humanizeStripeError(error));
       return;
     }
     if (submitResult.error) {
-      trackCheckoutDiagnostic('validation_blocked', { provider: 'stripe', method: paymentMethod, stage: 'payment_fields', code: submitResult.error.code });
+      trackCheckoutDiagnostic('validation_blocked', { provider: 'stripe', method: 'card', stage: 'payment_fields', code: submitResult.error.code });
       setCheckoutError(humanizeStripeError(submitResult.error));
       return;
     }
-    await startPayment(paymentMethod, formCustomer(customer)).catch(() => undefined);
+    await startPayment('card', formCustomer(customer)).catch(() => undefined);
   };
 
   const customerFields: Array<{
@@ -1204,7 +1202,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
 
   const currentValidation = checkoutError ? validateCheckoutCustomer(customer) : null;
   const busy = isProcessing || isPolling || addressCheck.checking || Boolean(verificationMessage);
-  const expressCheckoutVisible = walletsAvailable && paymentMethod === 'card' && !verificationMessage;
+  const expressCheckoutVisible = walletsAvailable && !verificationMessage;
   const walletPhoneIsInvalid = walletPhoneRequired && !isValidCheckoutPhone(customer.phone);
   const focusWalletPhone = () => {
     window.requestAnimationFrame(() => walletPhoneRef.current?.focus());
@@ -1382,7 +1380,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       </div>
 
       {!verificationMessage && (walletsAvailable || alternativePayment) ? (
-        paymentMethod === 'cashapp' ? <p className="text-sm font-semibold">Pay with Cash App</p> : <CheckoutCardDivider />
+        <CheckoutCardDivider />
       ) : null}
 
       {orderIntro}
@@ -1440,7 +1438,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
 
       {!verificationMessage ? (
         <section aria-labelledby="card-payment-heading" className="space-y-4">
-          <h3 id="card-payment-heading" className="sr-only">{paymentMethod === 'cashapp' ? 'Pay securely with Cash App' : 'Pay securely by card'}</h3>
+          <h3 id="card-payment-heading" className="sr-only">Pay securely by card</h3>
 
           <div ref={customerDetailsRef} className="checkout-contact">
             <div className="checkout-section-title">
@@ -1561,8 +1559,8 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
               <h4 className="text-sm font-bold text-[#0B1F3A]">Payment</h4>
             </div>
             <PaymentElement
-              options={paymentMethod === 'cashapp' ? { ...stripeCardPaymentElementOptions, paymentMethodOrder: ['cashapp'] } : stripeCardPaymentElementOptions}
-              onReady={() => trackCheckoutDiagnostic('payment_fields_ready', { provider: 'stripe', method: paymentMethod })}
+              options={stripeCardPaymentElementOptions}
+              onReady={() => trackCheckoutDiagnostic('payment_fields_ready', { provider: 'stripe', method: 'card' })}
               onLoadError={() => {
                 trackCheckoutDiagnostic('payment_fields_load_failed', { provider: 'stripe', method: 'card' });
                 setCheckoutError('Card payment fields could not load. Refresh the page or choose PayPal.');
@@ -1582,7 +1580,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           >
             {isProcessing
               ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Completing secure payment…</>
-              : <><Lock className="mr-2 h-4 w-4" aria-hidden="true" />{`${paymentMethod === 'cashapp' ? 'Continue with Cash App · ' : 'Pay '}$${(total / 100).toFixed(2)}`}</>}
+              : <><Lock className="mr-2 h-4 w-4" aria-hidden="true" />{`Pay $${(total / 100).toFixed(2)}`}</>}
           </Button>
           </CheckoutPaymentBar>
         </section>
@@ -1592,7 +1590,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   );
 };
 
-const StripeCheckout: React.FC<StripeCheckoutProps> = ({ publishableKey, total, paymentMethod = 'card', ...props }) => {
+const StripeCheckout: React.FC<StripeCheckoutProps> = ({ publishableKey, total, ...props }) => {
   const { items, discountCode, sameDayHitService, saturdayDelivery } = useCartStore();
   const signature = useMemo(() => buildStripeCheckoutSignature({
     total,
@@ -1606,7 +1604,7 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({ publishableKey, total, 
     mode: 'payment',
     amount: total,
     currency: 'usd',
-    allowedPaymentMethodTypes: [paymentMethod],
+    allowedPaymentMethodTypes: ['card'],
     appearance: {
       theme: 'stripe',
       variables: {
@@ -1625,13 +1623,13 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({ publishableKey, total, 
       },
     },
     loader: 'auto',
-  }), [total, paymentMethod]);
+  }), [total]);
 
   if (!publishableKey || total <= 0) return null;
 
   return (
-    <Elements key={`${signature}-${paymentMethod}`} stripe={stripePromise} options={options}>
-      <StripeCheckoutForm {...props} paymentMethod={paymentMethod} total={total} signature={signature} />
+    <Elements key={signature} stripe={stripePromise} options={options}>
+      <StripeCheckoutForm {...props} total={total} signature={signature} />
     </Elements>
   );
 };
