@@ -15,7 +15,7 @@ Private CRM at `/daniel` and authenticated API at `/api/daniel/*`. The app uses 
 - Task completion, conflict-checked meeting scheduling, UTC calendar export and audit history. At 8 PM Eastern on weekdays, an idempotent daily report is actually emailed to brandon.schaefer@hotmail.com from the verified BOF identity, signed Brad. Ambiguous provider outcomes are held for reconciliation, never blindly retried.
 - Authenticated background jobs with durable run status and replay protection; the dashboard polls completion.
 
-See [VALIDATION.md](./VALIDATION.md) for deployed verification evidence. The automated suite contains 62 policy, integration, lifecycle, Gmail safety and UI tests. Actual provider acceptance is recorded separately from simulations.
+See [VALIDATION.md](./VALIDATION.md) for deployed verification evidence. The automated suite contains 64 policy, integration, lifecycle, Gmail safety and UI tests. Actual provider acceptance is recorded separately from simulations.
 
 ## Run / test
 

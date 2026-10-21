@@ -16,7 +16,7 @@ export async function generateDraft(
   const [kb] =
     await sql`SELECT * FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1`;
   const thread =
-    await sql`SELECT direction,body,subject,thread_key,reply_to_id,rfc_message_id,classification FROM daniel_sales.messages WHERE contact_id=${contactId} ORDER BY created_at DESC LIMIT 8`;
+    await sql`SELECT direction,body,subject,thread_key,reply_to_id,rfc_message_id,classification FROM daniel_sales.messages WHERE contact_id=${contactId} AND (direction='inbound' OR status IN ('sent','simulated')) ORDER BY created_at DESC LIMIT 8`;
   if (!env.OPENAI_API_KEY)
     throw Object.assign(Error("OpenAI is not configured"), { status: 503 });
   const response = await fetcher("https://api.openai.com/v1/chat/completions", {
@@ -84,7 +84,7 @@ export async function generateDraft(
     );
   }
   draft.body = draft.body
-    .replace(/\n(?:Best regards|Best|Sincerely|Regards)[,\s]*\n[\s\S]*$/i, "")
+    .replace(/\n(?:Best regards|Best|Sincerely|Regards)[,\s]*(?:\n[\s\S]*)?$/i, "")
     .trim();
   const inbound = thread.find((x) => x.direction === "inbound");
   const parent = kind === "reply" ? inbound : kind === "followup"

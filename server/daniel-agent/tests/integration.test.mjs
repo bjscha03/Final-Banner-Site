@@ -697,3 +697,12 @@ test("cold introduction regenerates a misleading numeric company-footprint claim
  const fetcher=async()=>Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Restaurant signage',body:++calls===1?'We can help your 100+ U.S. locations.':'Do your restaurant teams coordinate promotional banners centrally?',requires_approval:false,fact_ids:['products']})}}]});
  const d=await generateDraft(sql,p.contact_id,'intro',{OPENAI_API_KEY:'test'},fetcher);assert.equal(calls,2);assert.ok(!d.body.includes('100+'));
 });
+test('AI removes an end-of-message closing before the branded signature is added',async()=>{
+ const p=await prospect();const fetcher=async()=>Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Signage',body:'Do you coordinate banners centrally?\n\nBest regards,',requires_approval:false,fact_ids:['products']})}}]});
+ const d=await generateDraft(sql,p.contact_id,'intro',{OPENAI_API_KEY:'test'},fetcher);assert.equal(d.body,'Do you coordinate banners centrally?');
+});
+test('AI conversation context excludes unsent and rejected outbound drafts',async()=>{
+ const p=await prospect();await saveDraft(sql,{contact_id:p.contact_id,subject:'Never sent',body:'UNSENT_UNAPPROVED_PROMISE',kind:'intro'},'test');
+ const fetcher=async(_url,options)=>{const payload=JSON.parse(options.body);assert.ok(!payload.messages[1].content.includes('UNSENT_UNAPPROVED_PROMISE'));return Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Signage',body:'We offer vinyl banners.',requires_approval:false,fact_ids:['products']})}}]});};
+ await generateDraft(sql,p.contact_id,'reply',{OPENAI_API_KEY:'test'},fetcher);
+});
