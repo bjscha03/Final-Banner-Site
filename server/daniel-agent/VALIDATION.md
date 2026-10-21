@@ -82,3 +82,40 @@ Database: isolated `daniel_preview`; restricted runtime role: `daniel_preview_ap
 Existing hourly automation `6ad58ee2f27c8191858a7ebc21f8572a` remains enabled and unchanged. Its 19:00 UTC run completed at 19:03:32.228133 UTC, reporting the existing day's ten introductions and continued thread monitoring. It was not replaced or disabled.
 
 Production activation remains a separate controlled transition: reconcile history, contacts, suppressions, provider IDs, daily counters and schedules; verify the production database/Gmail configuration; prevent overlap; retain rollback. These preview results are not a claim that production cutover has occurred.
+
+## Reply-policy cutover verification — October 21, 2026
+
+Replies now run seven days a week and outside prospecting hours. The database
+tracks `reply` separately from `intro` and `followup`; neither prospecting cap
+applies to replies. Claims require a matching real inbound RFC Message-ID and
+thread, serialize across workers, prevent a second answer to the same inbound,
+and apply a rolling six-replies-per-recipient-hour abuse throttle. Automated
+mail does not create reply tasks. Unknown provider outcomes remain held.
+
+Actual deployed preview acceptance used the owner's controlled Hotmail address:
+- Saturday clock run `69f6fc62-c06c-4b14-9685-2a9cf3bcb52c` sent Gmail
+  `1a16055bf353510b`; Outlook independently confirmed BOF delivery at 21:20:01 UTC.
+- Concurrent run `ecf0fbe3-096d-4e09-87b7-54e2abbdafc9` returned `busy`.
+- Sunday clock run `1d1fc770-9d95-4144-9edc-30c24fedc646` sent Gmail
+  `1a160564b79fe279`; Outlook confirmed delivery at 21:20:35 UTC.
+- Both actual replies remained in Gmail thread `1a1605268a317244`, referencing
+  their respective real Outlook-originated inbound messages. The follow-up
+  allowance was exhausted at five before both sends and remained at five.
+- Holiday-clock recovery run `2bd05239-83d6-46ea-8478-1efe72454c09` reconciled
+  the actual accepted Gmail message after a controlled uncertain-state fixture;
+  `recovered=1`, `gmailTestSent=0`. No blind resend occurred.
+- Actual unsubscribe Gmail `1a160573ed930a92` was ingested by run
+  `bcf11528-039c-4678-9236-d0bd1ddeb4bd`; suppression was restored and sends stayed
+  at exactly two. No actual prospect received these tests.
+
+Calendar boundaries used an explicitly gated preview test clock. Delivery,
+inbound mail, Gmail authorization, threading, concurrent workers, reconciliation
+and receiving-inbox checks used real providers; no claim of waiting until an
+actual Saturday/Sunday is made. Production cannot use this test-clock permission.
+
+Production migration preparation preserves 505 original ledger rows as account
+source records, 506 accounts, 471 unique valid-email contacts, 10 actual outreach
+messages with original Gmail/RFC IDs, 10 October 28 follow-ups, the owner's
+sales suppression, today's 10/0 introduction/follow-up counts, and the already
+sent October 21 owner report. Unverified historical leads remain unqualified.
+These are migration preparation totals, not proof of production activation.

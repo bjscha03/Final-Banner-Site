@@ -43,7 +43,7 @@ export function easternBusinessDay(now) {
   }).formatToParts(now);
   const day = parts.find((p) => p.type === "weekday")?.value,
     hour = Number(parts.find((p) => p.type === "hour")?.value);
-  return day !== "Sat" && day !== "Sun" && hour >= 8 && hour <= 20;
+  return day !== "Sat" && day !== "Sun" && hour >= 8 && hour < 20;
 }
 export function eligibleSend({
   contact,

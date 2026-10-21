@@ -95,3 +95,9 @@ test("untrusted inbound cannot automatically trigger sends", () => {
   assert.equal(classifyInbound("Please unsubscribe"), "unsubscribe");
   assert.equal(shouldAutoReply("quote_request"), false);
 });
+
+test('cold outreach closes at 8 PM Eastern while the worker remains available for replies',async()=>{
+ const {easternBusinessDay}=await import('./policy.mjs');
+ assert.equal(easternBusinessDay(new Date('2026-10-21T23:59:00Z')),true);
+ assert.equal(easternBusinessDay(new Date('2026-10-22T00:00:00Z')),false);
+});

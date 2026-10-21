@@ -1,3 +1,4 @@
+import { verifySender, BOF_SENDER } from "./identity.mjs";
 import { database } from "./db.mjs";
 import { environment, allowedHost, publicConfig, mode, gmailTestRecipients } from "./config.mjs";
 import { session, login, cookie, hash, secureEqual } from "./auth.mjs";
@@ -54,6 +55,15 @@ export async function handler(req, context = {}, deps = {}) {
       });
     }
     if (req.method === "GET") {
+      if (path === "/api/daniel/preflight") {
+        const token = await accessToken(env, sql);
+        await verifySender(token, gmailRequest);
+        const profile = await gmailRequest(token,"/profile");
+        const [db] = await sql`SELECT current_database() AS database,current_user AS role,rolsuper,rolcreaterole,rolcreatedb,(SELECT count(*)::int FROM pg_auth_members WHERE member=r.oid) AS memberships,has_table_privilege(current_user,'daniel_sales.audit_events','DELETE') AS audit_delete,has_table_privilege(current_user,'daniel_sales.knowledge','UPDATE') AS knowledge_update FROM pg_roles r WHERE rolname=current_user`;
+        const [settings] = await sql`SELECT * FROM daniel_sales.settings WHERE id=1`;
+        const [counts] = await sql`SELECT (SELECT count(*)::int FROM daniel_sales.accounts) AS accounts,(SELECT count(*)::int FROM daniel_sales.contacts) AS contacts,(SELECT count(*)::int FROM daniel_sales.messages) AS messages,(SELECT count(*)::int FROM daniel_sales.suppressions) AS suppressions,(SELECT count(*)::int FROM daniel_sales.tasks WHERE status='pending') AS pending_tasks`;
+        return json({gmail:{mailbox:profile.emailAddress,sender:BOF_SENDER,verified:true,refreshValid:true},database:db,settings,counts,config:publicConfig(env)});
+      }
       if (path === "/api/daniel/test/gmail/evidence") {
         const permitted = gmailTestRecipients(env);
         if (!permitted.length) v.fail("Controlled Gmail testing is disabled or expired", 403);
