@@ -457,6 +457,64 @@ test("hard bounce only suppresses an explicit recipient in a known sent thread",
     await sql`SELECT * FROM daniel_sales.contacts WHERE id=${c.id}`;
   assert.ok(updated.suppressed_at);
 });
+test("AI cold introductions reject invented prior contact and strip duplicate signatures", async () => {
+  const p = await prospect();
+  let calls = 0;
+  const fetcher = async () =>
+    Response.json({
+      model: "test",
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              subject: "Signage",
+              body:
+                ++calls === 1
+                  ? "Thank you for reaching out to us."
+                  : "We offer vinyl banners. Are you the right contact?\nBest regards,\nDaniel",
+              fact_ids: ["products"],
+              requires_approval: false,
+            }),
+          },
+        },
+      ],
+    });
+  const draft = await generateDraft(
+    sql,
+    p.contact_id,
+    "intro",
+    { OPENAI_API_KEY: "test-only" },
+    fetcher,
+  );
+  assert.equal(calls, 2);
+  assert.equal(
+    draft.body,
+    "We offer vinyl banners. Are you the right contact?",
+  );
+  const bad = async () =>
+    Response.json({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              subject: "Hello",
+              body: "Thanks for your inquiry.",
+            }),
+          },
+        },
+      ],
+    });
+  await assert.rejects(
+    generateDraft(
+      sql,
+      p.contact_id,
+      "intro",
+      { OPENAI_API_KEY: "test-only" },
+      bad,
+    ),
+    /invented prior contact/,
+  );
+});
 test("routine worker simulation is automatic while exceptions remain in owner queue", async () => {
   await sql`UPDATE daniel_sales.settings SET paused=false,auto_reply=true WHERE id=1`;
   const normal = await prospect(),
