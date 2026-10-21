@@ -11,7 +11,7 @@ export default async (request: Request, context: Context) => {
   if (!['GET', 'PATCH'].includes(request.method)) return reply(405, { ok: false });
   try {
     const store = getStore({ name: STORE_NAME, consistency: 'strong' });
-    if (request.method === 'GET') return await listIssues(store, request.headers.get('if-none-match'));
+    if (request.method === 'GET') return await listIssues(store, request.headers.get('if-none-match'), Date.now(), new URL(request.url).searchParams.get('before'));
     if (!validOrigin(request)) return reply(403, { ok: false });
     const text = await request.text();
     if (text.length > 4096) return reply(413, { ok: false });
