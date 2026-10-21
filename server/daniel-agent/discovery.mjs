@@ -39,10 +39,10 @@ export function extractPage(result) {
 }
 export async function modelJSON(env, instructions, input, {search=false,fetcher=fetch}={}) {
   if(!env.OPENAI_API_KEY)throw Error('Research AI not configured');
-  const body={model:search?(env.DANIEL_RESEARCH_MODEL||'gpt-5.4-mini'):(env.DANIEL_AI_MODEL||'gpt-4.1-mini'),instructions,input:JSON.stringify(input),max_output_tokens:search?6000:3500};
+  const body={model:search?(env.DANIEL_RESEARCH_MODEL||'gpt-5.4-mini'):(env.DANIEL_AI_MODEL||'gpt-4.1-mini'),instructions,input:JSON.stringify({output_format:"json",data:input}),max_output_tokens:search?6000:3500};
   if(search){body.reasoning={effort:'medium'};body.max_tool_calls=5;body.tools=[{type:'web_search'}];body.tool_choice='required';} else body.text={format:{type:'json_object'}};
   const r=await fetcher('https://api.openai.com/v1/responses',{method:'POST',headers:{authorization:'Bearer '+env.OPENAI_API_KEY,'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(search?180000:60000)});
-  if(!r.ok)throw Error('Research provider failed ('+r.status+')');
+  if(!r.ok){const problem=await r.json().catch(()=>({}));throw Error('Research provider failed ('+r.status+'): '+String(problem.error?.message||problem.error?.code||'Unknown error').replace(/sk-[A-Za-z0-9_-]+/g,'[redacted]').slice(0,300));}
   const j=await r.json();
   if(search&&!j.output?.some(x=>x.type==='web_search_call'&&x.status==='completed'))throw Error('No completed independent web research');
   const text=j.output?.filter(x=>x.type==='message').flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('\n')||'';

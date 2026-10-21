@@ -66,3 +66,8 @@ test('an alternative company email domain is accepted only with exact official c
  assert.throws(()=>validateEvidence({...c,email:'main@guessed-group.com'},fetched));
  assert.throws(()=>validateEvidence({...c,contact_url:'https://example.com/not-fetched'},fetched));
 });
+
+test('structured reviews explicitly request JSON in the Responses input',async()=>{
+ const {modelJSON}=await import('./discovery.mjs');
+ await modelJSON({OPENAI_API_KEY:'test'},'Review source evidence',{website:'https://example.com'}, {fetcher:async(_url,opts)=>{const request=JSON.parse(opts.body);assert.match(request.input,/json/i);assert.equal(request.text.format.type,'json_object');return Response.json({output:[{type:'message',content:[{type:'output_text',text:'{"approved":true}'}]}]});}});
+});
