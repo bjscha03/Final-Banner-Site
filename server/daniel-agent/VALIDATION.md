@@ -2,17 +2,17 @@
 
 ## Result
 
-The deployed dedicated agent passes automated, browser and real Gmail acceptance tests. Production cutover is **not authorized or activated**. The remaining account decision is moving the existing Google OAuth application out of Testing and renewing its grant for ongoing operation; Testing refresh tokens expire after seven days. No production-readiness claim relies solely on simulated mail.
+Ready for owner review and a separately approved production cutover. All required automated, deployed dashboard and real Gmail acceptance scenarios passed. Production cutover is **not authorized or activated**. No readiness claim relies solely on simulated mail.
 
-## Connection recheck — October 21, 12:57 PM Eastern
+## Production OAuth renewal — October 21
 
-The deployed application successfully exchanged its stored refresh token and performed real Gmail incremental synchronization again. Three pages (15, 15 and 5 messages) were inspected; no unrelated messages were stored, and synchronization completed without a mailbox error. Cursor advanced to `23689546`.
+The owner approved publishing the existing Google OAuth application, and Google Cloud Audience was directly verified as **In production**. No new OAuth client, secret or scope was introduced. The owner completed Google's unverified-app warning and renewed consent. The application recorded a new `gmail_connected` audit event at **2026-10-21T17:42:45.477Z** (1:42:45 PM Eastern).
 
-The existing grant is valid **now**. The audit trail records the successful connection at 11:43:19 AM Eastern and no later replacement grant. There is no pending Gmail consent requirement for testing, and no reason to request another grant merely to repeat completed acceptance tests. Previous wording that implied testing was waiting on consent was incorrect.
+The deployed application successfully refreshed the renewed grant and completed real Gmail reconciliation and incremental synchronization. Existing test messages were deduplicated; unrelated messages were not stored. The acceptance harness was corrected to drain incremental pagination rather than assume every incremental sync completes in one page. Runtime pagination already worked correctly.
 
-All required real Gmail acceptance scenarios are complete: 3 outbound messages and 2 inbound messages. Final deployed live/test locks, paused state, disabled routine mode and anonymous-access checks passed again. No additional messages were sent to the suppressed test address. The hourly automation remains enabled; its 1 PM Eastern scheduled run was observed in progress.
+Production publishing is not Google verification: the consent flow still shows an unverified-app warning and the project retains its 100-user cap. This deployment uses the single owner's authorized mailbox; it is not a public Gmail onboarding product. No guarantee of permanent token validity is made; revocation or Google policy changes can still require reconnection.
 
-Long-term unattended authorization is a separate readiness item. The last directly observed Google Cloud publishing status was Testing. The connected local-browser capability is unavailable in this session, and the available cloud browser returned “Site Unavailable” for the existing project's Audience page. Therefore no current publishing-status change or longer-lived replacement grant is claimed. No login failure or redirect mismatch was observed in the working deployed connection. Production cutover remains disabled pending resolution of that configuration check and explicit owner approval.
+All prior actual Gmail acceptance results below remain valid. The suppressed test address was not mailed again. Dedicated live/test sending locks, paused state, disabled routine mode and anonymous-access protection passed again after renewal.
 
 ## Verified preview
 
@@ -82,12 +82,8 @@ All acceptance contacts are suppressed. Dedicated agent paused; routine replies 
 
 No storefront, designer, checkout, payment, order or production supplier code or production environment variables were modified by this project. Live sending requires all three server gates: live agent mode, explicit cutover approval and production deployment context. The dashboard cannot activate these gates. Gmail authorization alone cannot activate emailing.
 
-Existing automation `6ad58ee2f27c8191858a7ebc21f8572a` remains enabled on its 8 AM–8 PM Eastern hourly schedule and was not edited. Latest recorded scheduled run at 16:00 UTC completed with `no_update`. Its earlier detailed 15:00 UTC result reported shared Gmail quota limits; this is distinct from the dedicated BOF project, where actual sends succeeded. Current connector reads also succeeded during acceptance. Scheduler continuity is verified; no claim is made that an earlier quota warning guarantees later send capacity.
+Existing automation `6ad58ee2f27c8191858a7ebc21f8572a` remains enabled on its 8 AM–8 PM Eastern hourly schedule and was not edited. Its 17:00 UTC scheduled run completed at 16:58:22 UTC and recorded three introductions from the BOF identity, bringing its daily total to nine. These are the existing automation's authorized operations, not dedicated-preview test sends.
 
-## Remaining Google account approval before cutover
+## Cutover approval still required
 
-Google Cloud Audience currently shows External / Testing with one owner tester. The existing application's branding now references the existing BOF home, privacy and terms pages. Google's Publish app confirmation is prepared but was not confirmed: it states that authorization becomes available to Google accounts beyond the tester list and that sensitive/restricted scopes may require verification.
-
-The owner must approve that account configuration change and an ongoing grant for the same three Gmail permissions. The Browser confirmation policy requires action-time confirmation for materially expanded authorization availability or duration. No additional Gmail scope is proposed. After the production OAuth configuration and renewed token are verified, request separate explicit cutover approval before activating autonomous prospect sends or replacing the hourly automation.
-
-Google reference: https://developers.google.com/identity/protocols/oauth2#expiration (Testing refresh-token expiration).
+The completed private preview and renewed production OAuth grant are verified. Before activating the dedicated agent, obtain separate explicit owner cutover approval. Cutover must preserve the existing automation's contact history, sent-message IDs, suppressions, daily counts and due dates, validate the production deployment and production callback, and prevent overlap between the two senders. Do not infer cutover authorization from approval of OAuth publishing or consent.

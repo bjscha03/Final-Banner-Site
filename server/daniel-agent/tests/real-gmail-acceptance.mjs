@@ -57,7 +57,7 @@ if(stage==='setup'){
   const query='from:'+testAddress+' subject:"Daniel QA '+s.tag+'" newer_than:1d -in:drafts';
   await sql`UPDATE daniel_sales.mailbox SET sync_start_history=${history},initial_query=${JSON.stringify({queries:[query],index:0})},page_token=NULL WHERE id=1 AND history_id IS NULL`;
  }
- let r;for(let i=0;i<30;i++){r=await api('sync',{});console.log('SYNC',JSON.stringify(r));if(r.complete)break;}assert.equal(r.complete,true);const d=await data();assert.equal(d.mailbox.last_error,null);assert.ok(d.mailbox.history_id);assert.equal(d.config.liveEmailEnabled,false);const incremental=await api('sync',{});assert.equal(incremental.complete,true);console.log('PASS deployed scoped initial and incremental Gmail history sync');
+ let r;for(let i=0;i<30;i++){r=await api('sync',{});console.log('SYNC',JSON.stringify(r));if(r.complete)break;}assert.equal(r.complete,true);const d=await data();assert.equal(d.mailbox.last_error,null);assert.ok(d.mailbox.history_id);assert.equal(d.config.liveEmailEnabled,false);let incremental;for(let i=0;i<30;i++){incremental=await api('sync',{});console.log('INCREMENTAL',JSON.stringify(incremental));if(incremental.complete)break;}assert.equal(incremental.complete,true);console.log('PASS deployed scoped initial and incremental Gmail history sync');
  }else if(stage==='cleanup'){
  await api('settings',{paused:true,auto_reply:false});
  const d=await data();assert.equal(d.config.liveEmailEnabled,false);assert.equal(d.settings.paused,true);assert.equal(d.settings.auto_reply,false);
