@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { approvalNeeded } from "./operations.mjs";
 import { requestApproval, decide } from "./store.mjs";
 
@@ -37,13 +38,26 @@ export function routineEligible(message, knowledge) {
   return true;
 }
 
+export function introductionEligible(message, knowledge, research, now = new Date()) {
+  const meta = message.ai_metadata || {};
+  const hash = createHash('sha256').update(message.subject + '\n' + message.body).digest('hex');
+  return message.kind === 'intro' && research?.verified === true && research.recurring_buyer === true &&
+    +now - Date.parse(research.verified_at) >= 0 && +now - Date.parse(research.verified_at) < 7*86400000 &&
+    research.reviewer?.response_id && meta.research_review?.approved === true &&
+    meta.research_review?.content_hash === hash &&
+    routineEligible({...message,kind:'followup',ai_metadata:{...meta,model_classification:'followup'}},knowledge);
+}
+
 export async function routeApproval(sql, message, settings) {
   if (!["draft", "pending_approval"].includes(message.status)) return;
   await requestApproval(sql, message.id, "daniel-worker");
-  if (!settings.auto_reply) return;
+  if (!(message.kind === "intro" ? settings.auto_prospect : settings.auto_reply)) return;
   const [knowledge] =
     await sql`SELECT * FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1`;
-  if (!routineEligible(message, knowledge)) return;
+  if (message.kind === 'intro') {
+    const [contact] = await sql`SELECT research,suppressed_at FROM daniel_sales.contacts WHERE id=${message.contact_id}`;
+    if (contact?.suppressed_at || !introductionEligible(message,knowledge,contact?.research)) return;
+  } else if (!routineEligible(message, knowledge)) return;
   const [approval] =
     await sql`SELECT id FROM daniel_sales.approvals WHERE message_id=${message.id} AND decision='pending'`;
   if (approval)

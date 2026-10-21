@@ -230,7 +230,7 @@ export async function handler(req, context = {}, deps = {}) {
         result = { ok: true };
         break;
       case "/api/daniel/settings":
-        await sql`UPDATE daniel_sales.settings SET paused=coalesce(${typeof input.paused === "boolean" ? input.paused : null}::boolean,paused),auto_reply=coalesce(${typeof input.auto_reply === "boolean" ? input.auto_reply : null}::boolean,auto_reply),updated_at=now() WHERE id=1`;
+        await sql`UPDATE daniel_sales.settings SET paused=coalesce(${typeof input.paused === "boolean" ? input.paused : null}::boolean,paused),auto_reply=coalesce(${typeof input.auto_reply === "boolean" ? input.auto_reply : null}::boolean,auto_reply),auto_prospect=coalesce(${typeof input.auto_prospect === "boolean" ? input.auto_prospect : null}::boolean,auto_prospect),updated_at=now() WHERE id=1`;
         await store.audit(
           sql,
           s.actor,
@@ -240,6 +240,7 @@ export async function handler(req, context = {}, deps = {}) {
           {
             paused: input.paused,
             auto_reply: input.auto_reply,
+            auto_prospect: input.auto_prospect,
           },
         );
         result = { ok: true };
@@ -253,7 +254,7 @@ export async function handler(req, context = {}, deps = {}) {
       case "/api/daniel/test/gmail/run":
         if (!gmailTestRecipients(env).length) v.fail("Controlled Gmail testing is disabled or expired", 403);
         await store.audit(sql, s.actor, "gmail_test_requested", "settings", 1);
-        result = await enqueueRun(sql, env, { gmailTest: true });
+        result = await enqueueRun(sql, env, { gmailTest: true, discover: input.discover === true, sendReport: input.sendReport === true });
         break;
       case "/api/daniel/oauth/start":
         result = await oauthStart(sql, env, s);

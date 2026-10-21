@@ -81,7 +81,7 @@ export async function ingest(sql, message, actor = "gmail-sync") {
     return { ignored: true };
   }
   const [c] =
-    await sql`SELECT * FROM daniel_sales.contacts WHERE lower(email)=${email}`;
+    await sql`SELECT c.* FROM daniel_sales.contacts c WHERE lower(c.email)=${email} ORDER BY EXISTS(SELECT 1 FROM daniel_sales.messages m WHERE m.contact_id=c.id AND m.thread_key=${message.threadId}) DESC,c.created_at DESC LIMIT 1`;
   if (!c) return { ignored: true }; // Never import unrelated personal inbox contents.
   const cls = classifyInbound(text),
     id = randomUUID(),

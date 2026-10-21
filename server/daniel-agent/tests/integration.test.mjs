@@ -302,6 +302,7 @@ test("ambiguous provider failure is held and not retried", async () => {
   };
   await dispatch(sql, live, "token", {
     now,
+    verifyIdentity: async () => {},
     send: async () => {
       calls++;
       throw Error("network timeout");
@@ -312,6 +313,7 @@ test("ambiguous provider failure is held and not retried", async () => {
   const before = calls;
   await dispatch(sql, live, "token", {
     now,
+    verifyIdentity: async () => {},
     send: async () => {
       calls++;
       throw Error("Should not happen");
@@ -409,7 +411,7 @@ test("Gmail paging saves cursor, finishes initial sync then expires safely", asy
         ? { messages: [] }
         : { messages: [], nextPageToken: "page-2" };
     },
-    getMessage: async () => {
+    verifyIdentity: async () => {}, getMessage: async () => {
       throw Error("No messages expected");
     },
   };
@@ -605,11 +607,11 @@ test('controlled Gmail dispatch cannot reach other recipients and normal preview
   const [contact] = await sql`SELECT email FROM daniel_sales.contacts WHERE id=${controlled.contact_id}`;
   const a = await queued(controlled), b = await queued(other);
   await sql`DELETE FROM daniel_sales.daily_limits`;
-  const cfg = {...env,CONTEXT:'deploy-preview',DANIEL_GMAIL_TEST_RECIPIENTS:contact.email,DANIEL_GMAIL_TEST_UNTIL:new Date(Date.now()+3600000).toISOString(),DANIEL_SENDER_EMAIL:'info@bannersonthefly.com',OUTBOUND_PHYSICAL_ADDRESS:'PO Box 369'};
+  const cfg = {...env,CONTEXT:'deploy-preview',DANIEL_GMAIL_TEST_RECIPIENTS:contact.email,DANIEL_GMAIL_TEST_UNTIL:new Date(Date.now()+3600000).toISOString(),DANIEL_SENDER_EMAIL:'info@bannersonthefly.com',OUTBOUND_PHYSICAL_ADDRESS:'PO Box 368'};
   const sends=[];
   const send=async(_,m)=>{sends.push(m);return {id:'real-test-id',threadId:'real-test-thread'}};
   const getMessage=async()=>({payload:{headers:[{name:'Message-ID',value:'<canonical@gmail.test>'}]}});
-  await dispatch(sql,cfg,'token',{gmailTest:true,send,getMessage,now});
+  await dispatch(sql,cfg,'token',{gmailTest:true,send,getMessage,now,verifyIdentity:async()=>{}});
   assert.equal(sends.length,1);
   assert.equal(sends[0].to,contact.email);
   const [saved]=await sql`SELECT * FROM daniel_sales.messages WHERE id=${a.id}`;
@@ -617,7 +619,7 @@ test('controlled Gmail dispatch cannot reach other recipients and normal preview
   assert.equal(saved.status,'sent');
   assert.equal(saved.rfc_message_id,'<canonical@gmail.test>');
   assert.equal((await sql`SELECT status FROM daniel_sales.messages WHERE id=${b.id}`)[0].status,'queued');
-  await dispatch(sql,cfg,'token',{gmailTest:true,send,getMessage,now});
+  await dispatch(sql,cfg,'token',{gmailTest:true,send,getMessage,now,verifyIdentity:async()=>{}});
   assert.equal(sends.length,1);
   await dispatch(sql,cfg,'token',{send,now});
   assert.equal(sends.length,1);
@@ -627,12 +629,12 @@ test('controlled Gmail dispatch cannot reach other recipients and normal preview
 test('accepted Gmail send survives header-read failure without a second delivery', async()=>{
   const p=await prospect(), m=await queued(p);
   const [c]=await sql`SELECT email FROM daniel_sales.contacts WHERE id=${p.contact_id}`;
-  const cfg={...env,CONTEXT:'deploy-preview',DANIEL_GMAIL_TEST_RECIPIENTS:c.email,DANIEL_GMAIL_TEST_UNTIL:new Date(Date.now()+3600000).toISOString(),DANIEL_SENDER_EMAIL:'info@bannersonthefly.com',OUTBOUND_PHYSICAL_ADDRESS:'PO Box 369'};
+  const cfg={...env,CONTEXT:'deploy-preview',DANIEL_GMAIL_TEST_RECIPIENTS:c.email,DANIEL_GMAIL_TEST_UNTIL:new Date(Date.now()+3600000).toISOString(),DANIEL_SENDER_EMAIL:'info@bannersonthefly.com',OUTBOUND_PHYSICAL_ADDRESS:'PO Box 368'};
   let sends=0;
-  await dispatch(sql,cfg,'token',{gmailTest:true,now,send:async()=>{sends++;return {id:'accepted-before-read-failure',threadId:'provider-thread'}},getMessage:async()=>{throw Error('temporary read failure')}});
+  await dispatch(sql,cfg,'token',{gmailTest:true,now,send:async()=>{sends++;return {id:'accepted-before-read-failure',threadId:'provider-thread'}},verifyIdentity: async () => {}, getMessage:async()=>{throw Error('temporary read failure')}});
   const [held]=await sql`SELECT * FROM daniel_sales.messages WHERE id=${m.id}`;
   assert.equal(held.status,'uncertain');assert.equal(held.provider_message_id,'accepted-before-read-failure');
-  await reconcile(sql,cfg,'token',{getMessage:async(_,id)=>{assert.equal(id,held.provider_message_id);return {payload:{headers:[{name:'Message-ID',value:'<rewritten@gmail.test>'}]}}},listMessages:async()=>{throw Error('Must use retained provider ID')}});
+  await reconcile(sql,cfg,'token',{verifyIdentity: async () => {}, getMessage:async(_,id)=>{assert.equal(id,held.provider_message_id);return {payload:{headers:[{name:'Message-ID',value:'<rewritten@gmail.test>'}]}}},listMessages:async()=>{throw Error('Must use retained provider ID')}});
   const [recovered]=await sql`SELECT * FROM daniel_sales.messages WHERE id=${m.id}`;
   assert.equal(recovered.status,'sent');assert.equal(recovered.rfc_message_id,'<rewritten@gmail.test>');assert.equal(sends,1);
 });
@@ -649,4 +651,31 @@ test("forwarded inbound with SENT label is received once; recorded outbox stays 
   await sql`UPDATE daniel_sales.messages SET provider_message_id='recorded-outbox',status='sent' WHERE id=${out.id}`;
   assert.equal((await ingest(sql,{...inbound,id:"recorded-outbox"})).ignored,true);
   assert.equal((await sql`SELECT * FROM daniel_sales.messages WHERE contact_id=${c.id} AND direction='inbound'`).length,1);
+});
+
+test('daily report is delivered once, signed Brad, with truthful metrics and a durable uncertain hold',async()=>{
+ const {emailDailyReport}=await import('../report-email.mjs');
+ const {REPORT_RECIPIENT,BUSINESS_ADDRESS}=await import('../identity.mjs');
+ const cfg={...env,CONTEXT:'deploy-preview',DANIEL_GMAIL_TEST_RECIPIENTS:REPORT_RECIPIENT,DANIEL_GMAIL_TEST_UNTIL:new Date(Date.now()+3600000).toISOString()};
+ let sent=[];const opts={gmailTest:true,verifyIdentity:async()=>{},send:async(_,m)=>{sent.push(m);return {id:'report-provider-id'}}};
+ const first=await emailDailyReport(sql,cfg,'token',opts);
+ assert.equal(first.status,'sent');assert.equal(sent.length,1);assert.equal(sent[0].to,REPORT_RECIPIENT);assert.match(sent[0].html,/<strong>Brad<\/strong>/);assert.ok(sent[0].html.includes(BUSINESS_ADDRESS));
+ assert.equal((await emailDailyReport(sql,cfg,'token',opts)).status,'already_sent');assert.equal(sent.length,1);
+ await sql`DELETE FROM daniel_sales.report_outbox`;
+ await assert.rejects(emailDailyReport(sql,cfg,'token',{...opts,send:async()=>{throw Error('timeout')}}));
+ assert.equal((await emailDailyReport(sql,cfg,'token',{...opts,list:async()=>({messages:[]})})).status,'uncertain_held');assert.equal(sent.length,1);
+ assert.equal((await emailDailyReport(sql,cfg,'token',{...opts,list:async()=>({messages:[{id:'report-recovered'}]})})).status,'reconciled');assert.equal(sent.length,1);
+});
+test('autonomous research creates an evidence-backed prospect and auto-approved unique introduction while agent stays paused',async()=>{
+ const {discover}=await import('../discovery.mjs');
+ const c={company:'Independent Regional Accounts',website:'https://regional.example.com',email:'marketing@regional.example.com',segment:'regional restaurant group',recurring_buyer:true,opportunity:'Consistent seasonal banners across locations',contact_url:'https://regional.example.com/contact',facts:[{url:'https://regional.example.com/about',quote:'Our group operates twelve restaurants across the United States.'},{url:'https://regional.example.com/contact',quote:'Our marketing team welcomes general business inquiries.'}]};
+ const researcher=async(_env,instructions)=>instructions.startsWith('Independently search')?{value:c,responseId:'research-search'}:{value:{approved:true,reason:'Evidence and original content verified'},responseId:'review'};
+ const [kb]=await sql`SELECT * FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1`;
+ await sql`UPDATE daniel_sales.settings SET paused=true WHERE id=1`;
+ const r=await discover(sql,env,{auto_prospect:true},{now:new Date('2026-10-21T16:00:00Z'),research:researcher,readPage:async url=>({url,text:c.facts.find(x=>x.url===url).quote+' marketing@regional.example.com'}),draft:async(_,id)=>({contact_id:id,kind:'intro',subject:'Seasonal banners for your twelve restaurants',body:'Would consistent vinyl banners help your restaurant teams?',ai_metadata:{requires_approval:false,knowledge_version:kb.version,fact_ids:['products']}})});
+ assert.equal(r.status,'completed');
+ const [m]=await sql`SELECT * FROM daniel_sales.messages WHERE id=${r.messageId}`;assert.equal(m.status,'queued');assert.equal(m.approved_by,'daniel-policy');
+ assert.equal((await sql`SELECT paused FROM daniel_sales.settings WHERE id=1`)[0].paused,true);
+ assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${m.id},10)`).length,0);
+ assert.equal((await discover(sql,env,{auto_prospect:true},{now:new Date('2026-10-21T16:00:00Z'),research:()=>{throw Error('Should not research same slot twice')}})).status,'already_researched_this_hour');
 });

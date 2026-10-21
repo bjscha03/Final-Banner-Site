@@ -12,7 +12,7 @@ export async function enqueueRun(sql, env, options = {}) {
           authorization: "Bearer " + env.DANIEL_CRON_SECRET,
           "content-type": "application/json",
         },
-        body: JSON.stringify({ runId: job.id, gmailTest: options.gmailTest === true }),
+        body: JSON.stringify({ runId: job.id, gmailTest: options.gmailTest === true, discover: options.discover === true, sendReport: options.sendReport === true }),
         signal: AbortSignal.timeout(12000),
       },
     );

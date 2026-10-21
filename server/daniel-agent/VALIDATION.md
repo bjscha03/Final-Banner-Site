@@ -2,7 +2,7 @@
 
 ## Result
 
-Ready for owner review and a separately approved production cutover. All required automated, deployed dashboard and real Gmail acceptance scenarios passed. Production cutover is **not authorized or activated**. No readiness claim relies solely on simulated mail.
+CUTOVER BLOCKED pending full autonomous-workflow acceptance. Prior Gmail tests did not validate prospect discovery, autonomous introductions or emailed daily reports. The four missing capabilities are now under implementation and real-provider verification. Production cutover is **not authorized or activated**. No readiness claim relies solely on simulated mail.
 
 ## Production OAuth renewal — October 21
 

@@ -1,3 +1,4 @@
+import { BUSINESS_ADDRESS } from "./identity.mjs";
 import { easternBusinessDay, eligibleSend } from "./policy.mjs";
 const SAFE_STAGES = new Set([
   "researched",
@@ -64,7 +65,7 @@ export function renderSignature(name = "Daniel") {
   return (
     "<p>Best,<br><strong>" +
     name +
-    '</strong><br>Sales Assistant | <a href="https://bannersonthefly.com">Banners On The Fly</a></p><p style="font-size:11px;color:#64748b">Promotional business introduction from Banners On The Fly.<br>PO Box 369, Crestwood, KY 40014<br>To stop outreach from us, reply unsubscribe.</p>'
+    '</strong><br>Sales Assistant | <a href="https://bannersonthefly.com">Banners On The Fly</a></p><p style="font-size:11px;color:#64748b">Promotional business introduction from Banners On The Fly.<br>' + BUSINESS_ADDRESS + '<br>To stop outreach from us, reply unsubscribe.</p>'
   );
 }
 export function makeIntro({ company, observation }) {

@@ -1,3 +1,5 @@
+import { discover } from "./discovery.mjs";
+import { emailDailyReport, reportDue } from "./report-email.mjs";
 import { randomUUID } from "node:crypto";
 import { database } from "./db.mjs";
 import { accessToken } from "./gmail.mjs";
@@ -33,7 +35,7 @@ export async function runWorker(env = process.env, options = {}) {
     summary.gmailTest = options.gmailTest === true;
     const [settings] =
       await sql`SELECT * FROM daniel_sales.settings WHERE id=1`;
-    if (settings.paused) {
+    if (settings.paused && !options.gmailTest) {
       summary.status = "paused";
       await report(sql);
       return summary;
@@ -57,6 +59,11 @@ export async function runWorker(env = process.env, options = {}) {
       summary.status = "syncing";
       return summary;
     }
+    const effectiveSettings = options.gmailTest ? {...settings,auto_reply:true,auto_prospect:options.discover === true} : settings;
+    if ((!options.gmailTest && settings.auto_prospect) || (options.gmailTest && options.discover)) {
+      try { summary.discovery = await discover(sql,env,effectiveSettings,options); }
+      catch(e) { summary.discoveryError = String(e.message).slice(0,500); }
+    }
     summary.reconciliation = await reconcile(sql, env, token);
     const tasks = options.gmailTest
       ? await sql`SELECT t.* FROM daniel_sales.tasks t JOIN daniel_sales.contacts c ON c.id=t.contact_id WHERE t.status='pending' AND t.due_at<=now() AND t.kind IN ('followup','reply') AND lower(c.email)=ANY(${testRecipients}::text[]) ORDER BY t.due_at LIMIT 3`
@@ -71,7 +78,7 @@ export async function runWorker(env = process.env, options = {}) {
       const [existing] =
         await sql`SELECT * FROM daniel_sales.messages WHERE idempotency_key=${"task:" + t.id}`;
       if (existing) {
-        await routeApproval(sql, existing, settings).catch(() => {});
+        await routeApproval(sql, existing, effectiveSettings).catch(() => {});
         await sql`UPDATE daniel_sales.tasks SET status='completed' WHERE id=${t.id}`;
         continue;
       }
@@ -87,15 +94,19 @@ export async function runWorker(env = process.env, options = {}) {
           { ...draft, idempotency_key: "task:" + t.id },
           "daniel-worker",
         );
-        await routeApproval(sql, m, settings);
+        await routeApproval(sql, m, effectiveSettings);
         await sql`UPDATE daniel_sales.tasks SET status='completed',attempt_count=attempt_count+1 WHERE id=${t.id}`;
       } catch (e) {
         await sql`UPDATE daniel_sales.tasks SET attempt_count=attempt_count+1,due_at=now()+interval '1 hour',note='Draft generation failed; will retry' WHERE id=${t.id}`;
         summary.draftErrors = (summary.draftErrors || 0) + 1;
       }
     }
-    Object.assign(summary, await dispatch(sql, env, token, options));
+    if (options.gmailTest || !reportDue(options.now || new Date())) Object.assign(summary, await dispatch(sql, env, token, options));
     summary.report = await report(sql);
+    if (!options.gmailTest || options.sendReport) {
+      try { summary.reportEmail = await emailDailyReport(sql,env,token,options); }
+      catch(e) { summary.reportError = 'Daily email failed or uncertain; inspect report outbox'; }
+    }
     summary.status = "completed";
     return summary;
   } catch (e) {

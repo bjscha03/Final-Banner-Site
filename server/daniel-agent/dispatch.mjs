@@ -1,7 +1,8 @@
+import { BUSINESS_ADDRESS, BOF_SENDER, verifySender } from "./identity.mjs";
 import { canDispatch, isEndBuyer } from "./operations.mjs";
 import { easternBusinessDay } from "./policy.mjs";
 import { mode, gmailTestRecipients } from "./config.mjs";
-import { sendGmail, listGmail, getGmail, header } from "./gmail.mjs";
+import { sendGmail, listGmail, getGmail, header, gmailRequest } from "./gmail.mjs";
 import { escapeHtml } from "./validation.mjs";
 import { nextBusinessFollowup } from "./scheduling.mjs";
 import { audit } from "./store.mjs";
@@ -24,10 +25,11 @@ export async function dispatch(
   sql,
   env,
   token,
-  { send = sendGmail, getMessage = getGmail, now = new Date(), gmailTest = false } = {},
+  { send = sendGmail, getMessage = getGmail, now = new Date(), gmailTest = false, verifyIdentity = verifySender } = {},
 ) {
   const preview = mode(env) !== "live" && !gmailTest;
   if (gmailTest && !gmailTestRecipients(env).length) throw Error("Controlled Gmail testing is disabled or expired");
+  if (!preview) await verifyIdentity(token, gmailRequest);
   let simulated = 0,
     sent = 0,
     blocked = 0,
@@ -78,7 +80,7 @@ export async function dispatch(
       continue;
     }
     const [m] =
-      await sql`SELECT * FROM daniel_sales.claim_message(${item.id}::uuid,${item.kind === "intro" ? 10 : 5})`;
+      gmailTest ? await sql`SELECT * FROM daniel_sales.claim_test_message(${item.id}::uuid,${item.kind === "intro" ? 10 : 5},${c.email})` : await sql`SELECT * FROM daniel_sales.claim_message(${item.id}::uuid,${item.kind === "intro" ? 10 : 5})`;
     if (!m) {
       held++;
       continue;
@@ -107,8 +109,7 @@ export async function dispatch(
       } else {
         if (
           !token ||
-          !env.DANIEL_SENDER_EMAIL ||
-          !env.OUTBOUND_PHYSICAL_ADDRESS
+          env.DANIEL_SENDER_EMAIL !== BOF_SENDER
         )
           throw Error("Live sender configuration incomplete");
         if (gmailTest) {
@@ -119,11 +120,12 @@ export async function dispatch(
           "<p>" +
           escapeHtml(m.body).replace(/\n/g, "<br>") +
           '</p><p>Best,<br><strong>Daniel</strong><br>Sales Assistant | <a href="https://bannersonthefly.com">Banners On The Fly</a></p><p>' +
-          escapeHtml(env.OUTBOUND_PHYSICAL_ADDRESS) +
+          escapeHtml(BUSINESS_ADDRESS) +
           "<br>Promotional business email. To stop outreach, reply unsubscribe.</p>";
         const result = await send(token, {
           from: "Daniel | Banners On The Fly <" + env.DANIEL_SENDER_EMAIL + ">",
           to: c.email,
+          replyTo: BOF_SENDER,
           subject: m.subject,
           html,
           threadId: m.thread_key,

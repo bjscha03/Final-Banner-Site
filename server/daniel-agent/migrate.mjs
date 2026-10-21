@@ -42,7 +42,7 @@ export function statements(source) {
   return out;
 }
 export async function migrate(sql) {
-  for (const f of ["001_sales_agent.sql", "002_complete_agent.sql"]) {
+  for (const f of ["001_sales_agent.sql", "002_complete_agent.sql", "003_autonomous.sql"]) {
     const source = await fs.readFile(
       new URL("./migrations/" + f, import.meta.url),
       "utf8",
