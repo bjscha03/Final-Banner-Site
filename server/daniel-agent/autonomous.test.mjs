@@ -48,3 +48,9 @@ test('Daniel runtime sources cannot reintroduce the incorrect PO box',async()=>{
  async function check(dir){for(const f of await fs.readdir(dir,{withFileTypes:true})){const u=new URL(f.name+(f.isDirectory()?'/':''),dir);if(f.isDirectory())await check(u);else if(/\.(mjs|sql)$/.test(f.name)&&!f.name.endsWith('.test.mjs'))assert.ok(!(await fs.readFile(u,'utf8')).includes('PO Box '+(370-1)),u.pathname);}}
  await check(new URL('./',import.meta.url));
 });
+test('real search prose is converted without inventing evidence, and absent web search is rejected',async()=>{
+ const {modelJSON}=await import('./discovery.mjs');let requests=[];
+ const fetcher=async(_url,opts)=>{const b=JSON.parse(opts.body);requests.push(b);return Response.json(requests.length===1?{id:'search',model:'gpt-4.1',output:[{type:'web_search_call',status:'completed'},{type:'message',content:[{type:'output_text',text:'Based on the results, no suitable published business contact was verified.'}]}]}:{id:'extract',output:[{type:'message',content:[{type:'output_text',text:'{"none":true}'}]}]});};
+ const r=await modelJSON({OPENAI_API_KEY:'test'},'Return JSON candidate or none',{}, {search:true,fetcher});assert.equal(r.value.none,true);assert.equal(requests.length,2);assert.equal(requests[1].text.format.type,'json_object');
+ await assert.rejects(modelJSON({OPENAI_API_KEY:'test'},'Return JSON',{}, {search:true,fetcher:async()=>Response.json({output:[]})}),/No completed independent/);
+});
