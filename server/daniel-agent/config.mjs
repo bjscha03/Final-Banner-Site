@@ -68,6 +68,6 @@ export function publicConfig(env) {
     ),
     aiConfigured: !!env.OPENAI_API_KEY,
     oauthRedirect: `https://${env.DANIEL_ALLOWED_HOST}/api/daniel/oauth/callback`,
-    existingAutomation: "Unchanged; dedicated agent has not replaced it",
+    existingAutomation: mode(env) === "live" ? "Production deployment; see the cutover audit for legacy automation status" : "Unchanged; dedicated agent has not replaced it",
   };
 }
