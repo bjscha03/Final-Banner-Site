@@ -762,3 +762,17 @@ test('per-recipient rolling reply throttle holds excessive exchanges without usi
  await sql`UPDATE daniel_sales.messages SET sent_at=now()-interval '2 hours' WHERE contact_id=${f.contact_id} AND status='sent'`;
  assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},5)`).length,1);
 });
+
+test('company offer is persisted before drafting, reused, and automatically approved without approving other discounts',async()=>{
+ const {routineEligible}=await import('../automation.mjs');
+ const p=await prospect();const e={...env,OPENAI_API_KEY:'test-key',DANIEL_PROMO_SIGNING_SECRET:'test-only-team-offer-key-at-least-32-characters'};
+ const fetcher=async(_url,request)=>{const prompt=JSON.parse(request.body).messages[0].content;assert.match(prompt,/Louisville/);assert.match(prompt,/fake urgency/);return new Response(JSON.stringify({model:'test-model',choices:[{message:{content:JSON.stringify({subject:'A banner idea for your next opening',body:'Hi team,\n\nYour opening calendar made me think of temporary signage. We offer 24-hour vinyl-banner production and free next-day air shipping for qualifying orders. How do your locations coordinate event banners?',classification:'followup',requires_approval:false,reason:'Approved product facts',fact_ids:['vinyl_banner_production']})}}]}),{status:200});};
+ const one=await generateDraft(sql,p.contact_id,'followup',e,fetcher);const two=await generateDraft(sql,p.contact_id,'followup',e,fetcher);
+ assert.equal(one.ai_metadata.team_offer.code,two.ai_metadata.team_offer.code);
+ assert.match(one.body,/25% off sitewide/);assert.match(one.body,/as often as you like/);
+ const [kb]=await sql`SELECT * FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1`;
+ assert.equal(one.requires_approval,false);assert.equal(routineEligible(one,kb,e),true);
+ const [a]=await sql`SELECT team_offer FROM daniel_sales.accounts WHERE id=${p.id}`;
+ assert.equal(a.team_offer.code,one.ai_metadata.team_offer.code);
+ assert.equal(routineEligible({...one,body:one.body+' We can also give you 40% off.'},kb,e),false);
+});
