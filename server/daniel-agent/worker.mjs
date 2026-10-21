@@ -1,4 +1,4 @@
-import {database,claimTask,logEvent} from './db.mjs';
+import {database,logEvent} from './db.mjs';
 import {accessToken,listGmail,getGmail,header,bodyText} from './gmail.mjs';
 import {classifyInbound} from './policy.mjs';
 export async function runWorker(env=process.env){
@@ -16,8 +16,7 @@ export async function runWorker(env=process.env){
    if(!rows.length){duplicates++;continue}created++;
    await logEvent(sql,'message',rows[0].id,'inbound_ingested',{from,subject,classification});
    if(classification==='unsubscribe'||classification==='decline'){
-     const email=from.match(/<([^>]+)>/)?.[1]||from;
-     await sql`UPDATE daniel_sales.contacts SET suppressed_at=now(),suppression_reason=${classification} WHERE lower(email)=lower(${email}) AND suppressed_at IS NULL`;
+     await logEvent(sql,'message',rows[0].id,'suppression_review_required',{classification});
    }
  }
  const due=await sql`SELECT id FROM daniel_sales.tasks WHERE status='pending' AND due_at<=now() ORDER BY due_at LIMIT 50`;
