@@ -754,3 +754,11 @@ test('reply send with lost provider confirmation is held and recovered without s
  await reconcile(sql,live,'test',{getMessage:async()=>({payload:{headers:[{name:'Message-ID',value:'<canonical-recovery@test>'}]}}),listMessages:async()=>({messages:[]})});
  assert.equal((await sql`SELECT status FROM daniel_sales.messages WHERE id=${f.m.id}`)[0].status,'sent');assert.equal(calls,1);
 });
+
+test('per-recipient rolling reply throttle holds excessive exchanges without using outreach quota',async()=>{
+ const f=await replyFixture('rate-limit');
+ await sql`INSERT INTO daniel_sales.messages(contact_id,direction,status,idempotency_key,kind,body,sent_at) SELECT ${f.contact_id},'outbound','sent','rate-fixture-'||g,'reply','Prior response',now() FROM generate_series(1,6) g`;
+ assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},5)`).length,0);
+ await sql`UPDATE daniel_sales.messages SET sent_at=now()-interval '2 hours' WHERE contact_id=${f.contact_id} AND status='sent'`;
+ assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},5)`).length,1);
+});
