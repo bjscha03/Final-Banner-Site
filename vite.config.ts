@@ -84,6 +84,10 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     target: 'es2020',
+    // Route CSS preload failures reject the JavaScript import and crash the
+    // whole page. Load one blocking stylesheet in the document instead. Keep
+    // JavaScript split and deploy-pinned; styles are ready before routes mount.
+    cssCodeSplit: false,
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
