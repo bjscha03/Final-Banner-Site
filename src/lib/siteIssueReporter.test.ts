@@ -82,7 +82,56 @@ it('deduplicates crashes despite intervening breadcrumbs', async () => {
   reportSiteIssue('page_crash', { errorMessage: 'Unable to preload CSS for /assets/page.css' });
   recordIssueAction('button_clicked');
   reportSiteIssue('page_crash', { errorMessage: 'Unable to preload CSS for /assets/page.css' });
-  await vi.advanceTimersByTimeAsync(1);
+  await vi.advanceTimersByTimeAsync(300);
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+it('coalesces resource, preload and boundary failures while retaining crash evidence', async () => {
+  const { reportSiteIssue, reportPageIssue } = await import('./siteIssueReporter');
+  reportSiteIssue('page_error', { phase: 'asset_load', source: '/assets/checkout-old.css', errorMessage: 'A required site asset failed to load.' });
+  const stored = JSON.parse(sessionStorage.getItem('bof_issue_queue_v1')!);
+  expect(stored).toHaveLength(1); // persisted before the coalescing delay/navigation
+  const error = new Error('Unable to preload CSS for /assets/checkout-old.css');
+  error.stack = 'Error: failed\n at preload (/assets/index-current.js:2:2199)';
+  reportPageIssue('page_error', error);
+  reportPageIssue('page_crash', error, undefined, undefined, undefined, 'at Checkout\nat Lazy');
+  await vi.advanceTimersByTimeAsync(300);
+  expect(fetch).toHaveBeenCalledTimes(1);
+  const sent = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+  expect(sent.id).toBe(stored[0].id);
+  expect(sent.kind).toBe('page_crash');
+  expect(sent.details).toMatchObject({ source: '/assets/checkout-old.css', phase: 'asset_load', componentStack: 'at Checkout\nat Lazy' });
+  expect(sent.details.stack).toContain('/assets/index-current.js:2:2199');
+  reportPageIssue('page_error', error);
+  await vi.advanceTimersByTimeAsync(300);
+  expect(fetch).toHaveBeenCalledTimes(1);
+  await vi.advanceTimersByTimeAsync(5000);
+  reportPageIssue('page_error', error);
+  await vi.advanceTimersByTimeAsync(300);
+  expect(fetch).toHaveBeenCalledTimes(2); // a later recurrence remains visible
+});
+
+it('keeps distinct files, opaque Safari errors and checkout failures visible', async () => {
+  const { reportSiteIssue, reportPageIssue } = await import('./siteIssueReporter');
+  reportPageIssue('page_error', new TypeError('Failed to fetch dynamically imported module: /assets/a.js'));
+  reportPageIssue('page_error', new TypeError('Failed to fetch dynamically imported module: /assets/b.js'));
+  reportPageIssue('page_error', 'Script error.');
+  reportSiteIssue('checkout_error', { code: 'STRIPE_CHECKOUT_ERROR', provider: 'stripe' });
+  await vi.advanceTimersByTimeAsync(300);
+  const sent = vi.mocked(fetch).mock.calls.map(call => JSON.parse(call[1]!.body as string));
+  expect(sent).toHaveLength(4);
+  expect(sent.some(item => item.details.recovery === 'browser_details_withheld')).toBe(true);
+  expect(sent.some(item => item.kind === 'checkout_error')).toBe(true);
+});
+
+it('flushes a persisted asset incident before the recovery navigation', async () => {
+  const { reportSiteIssue, flushSiteIssues } = await import('./siteIssueReporter');
+  reportSiteIssue('page_error', { phase: 'asset_load', source: '/assets/a.js' });
+  expect(fetch).not.toHaveBeenCalled();
+  await flushSiteIssues(); // same path as the pagehide recovery hook
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(fetch).mock.calls[0][1]!.keepalive).toBe(true);
+  await vi.advanceTimersByTimeAsync(300);
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 it('preserves asset/request evidence and strips secrets', async () => {
