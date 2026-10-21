@@ -15,6 +15,8 @@ Private CRM at `/daniel` and authenticated API at `/api/daniel/*`. The app uses 
 - Task completion, conflict-checked meeting scheduling, UTC calendar export, audit history and daily reporting.
 - Authenticated background jobs with durable run status and replay protection; the dashboard polls completion.
 
+See [VALIDATION.md](./VALIDATION.md) for the 37-test suite and deployed verification evidence. Browser and Gmail verification remain explicit acceptance gates.
+
 ## Run / test
 
 ```
