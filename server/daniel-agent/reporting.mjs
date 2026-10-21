@@ -1,7 +1,7 @@
 import { easternDate } from "./policy.mjs";
 export async function report(sql, day = easternDate(new Date())) {
   const [metrics] =
-    await sql`SELECT count(*) FILTER(WHERE status='sent')::int AS sent,count(*) FILTER(WHERE status='simulated')::int AS simulated,count(*) FILTER(WHERE direction='inbound')::int AS received,count(*) FILTER(WHERE status='uncertain')::int AS uncertain FROM daniel_sales.messages WHERE (coalesce(sent_at,created_at) AT TIME ZONE 'America/New_York')::date=${day}::date`;
+    await sql`SELECT count(*) FILTER(WHERE status='sent' AND NOT coalesce((ai_metadata->>'gmail_test')::boolean,false))::int AS sent,count(*) FILTER(WHERE status='sent' AND coalesce((ai_metadata->>'gmail_test')::boolean,false))::int AS gmailTestSent,count(*) FILTER(WHERE status='simulated')::int AS simulated,count(*) FILTER(WHERE direction='inbound')::int AS received,count(*) FILTER(WHERE status='uncertain')::int AS uncertain FROM daniel_sales.messages WHERE (coalesce(sent_at,created_at) AT TIME ZONE 'America/New_York')::date=${day}::date`;
   const stages =
     await sql`SELECT stage,count(*)::int AS count FROM daniel_sales.opportunities GROUP BY stage`;
   const [pending] =

@@ -1,6 +1,6 @@
 import { canDispatch, isEndBuyer } from "./operations.mjs";
 import { easternBusinessDay } from "./policy.mjs";
-import { mode } from "./config.mjs";
+import { mode, gmailTestRecipients } from "./config.mjs";
 import { sendGmail, listGmail } from "./gmail.mjs";
 import { escapeHtml } from "./validation.mjs";
 import { nextBusinessFollowup } from "./scheduling.mjs";
@@ -24,9 +24,10 @@ export async function dispatch(
   sql,
   env,
   token,
-  { send = sendGmail, now = new Date() } = {},
+  { send = sendGmail, now = new Date(), gmailTest = false } = {},
 ) {
-  const preview = mode(env) !== "live";
+  const preview = mode(env) !== "live" && !gmailTest;
+  if (gmailTest && !gmailTestRecipients(env).length) throw Error("Controlled Gmail testing is disabled or expired");
   let simulated = 0,
     sent = 0,
     blocked = 0,
@@ -37,6 +38,10 @@ export async function dispatch(
     const [c] =
       await sql`SELECT c.*,a.segment FROM daniel_sales.contacts c JOIN daniel_sales.accounts a ON a.id=c.account_id WHERE c.id=${item.contact_id}`;
     if (!c) continue;
+    if (gmailTest && !gmailTestRecipients(env).includes(c.email.toLowerCase())) {
+      held++;
+      continue;
+    }
     const [stats] =
       await sql`SELECT count(*) FILTER(WHERE kind='followup')::int AS followups,max(updated_at) AS last FROM daniel_sales.messages WHERE contact_id=${c.id} AND direction='outbound' AND status IN ('sent','simulated')`;
     const guard =
@@ -106,6 +111,10 @@ export async function dispatch(
           !env.OUTBOUND_PHYSICAL_ADDRESS
         )
           throw Error("Live sender configuration incomplete");
+        if (gmailTest) {
+          if (!gmailTestRecipients(env).includes(c.email.toLowerCase())) throw Error("Test recipient permission expired");
+          await sql`UPDATE daniel_sales.messages SET ai_metadata=ai_metadata || '{"gmail_test":true}'::jsonb WHERE id=${m.id}`;
+        }
         const html =
           "<p>" +
           escapeHtml(m.body).replace(/\n/g, "<br>") +
@@ -132,14 +141,14 @@ export async function dispatch(
       });
     }
   }
-  return { sent, simulated, blocked, held };
+  return { sent: gmailTest ? 0 : sent, gmailTestSent: gmailTest ? sent : 0, simulated, blocked, held };
 }
-export async function reconcile(sql, env, token) {
-  const preview = mode(env) !== "live";
+export async function reconcile(sql, env, token, options = {}) {
   const pending =
     await sql`SELECT * FROM daniel_sales.messages WHERE status='uncertain' OR (status='sending' AND lease_until<now()) LIMIT 25`;
   let recovered = 0;
   for (const m of pending) {
+    const preview = mode(env) !== "live" && !m.ai_metadata?.gmail_test;
     if (preview) {
       const [d] =
         await sql`SELECT * FROM daniel_sales.test_deliveries WHERE message_id=${m.id}`;

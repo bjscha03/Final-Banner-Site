@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { database } from "./db.mjs";
 import { accessToken } from "./gmail.mjs";
-import { syncMailbox } from "./mail-sync.mjs";
+import { syncMailbox, syncControlledInbox } from "./mail-sync.mjs";
 import { dispatch, reconcile } from "./dispatch.mjs";
 import { generateDraft } from "./ai.mjs";
 import { saveDraft, audit } from "./store.mjs";
 import { report } from "./reporting.mjs";
-import { mode } from "./config.mjs";
+import { mode, gmailTestRecipients } from "./config.mjs";
 import { routeApproval } from "./automation.mjs";
 export async function runWorker(env = process.env, options = {}) {
   const sql = options.sql || database(env),
@@ -28,6 +28,9 @@ export async function runWorker(env = process.env, options = {}) {
   let token,
     summary = { mode: mode(env), sent: 0, simulated: 0 };
   try {
+    const testRecipients = options.gmailTest ? gmailTestRecipients(env) : [];
+    if (options.gmailTest && !testRecipients.length) throw Error("Controlled Gmail testing is disabled or expired");
+    summary.gmailTest = options.gmailTest === true;
     const [settings] =
       await sql`SELECT * FROM daniel_sales.settings WHERE id=1`;
     if (settings.paused) {
@@ -40,23 +43,24 @@ export async function runWorker(env = process.env, options = {}) {
     if (box?.encrypted_refresh_token) {
       try {
         token = await accessToken(env, sql);
-        summary.inbox = await syncMailbox(sql, token);
+        summary.inbox = options.gmailTest ? await syncControlledInbox(sql, token, env) : await syncMailbox(sql, token);
       } catch (e) {
         await sql`UPDATE daniel_sales.mailbox SET last_error=${"Mailbox sync failed; check Gmail connection"},last_sync_at=now() WHERE id=1`;
         summary.gmailError = "Mailbox sync failed";
-        if (mode(env) === "live") throw e;
+        if (mode(env) === "live" || options.gmailTest) throw e;
       }
     }
     // Live dispatch cannot outrun inbox synchronization and miss an opt-out.
-    if (mode(env) === "live" && !token)
+    if ((mode(env) === "live" || options.gmailTest) && !token)
       throw Error("Live worker requires a connected mailbox");
-    if (mode(env) === "live" && !summary.inbox?.complete) {
+    if ((mode(env) === "live" || options.gmailTest) && !summary.inbox?.complete) {
       summary.status = "syncing";
       return summary;
     }
     summary.reconciliation = await reconcile(sql, env, token);
-    const tasks =
-      await sql`SELECT * FROM daniel_sales.tasks WHERE status='pending' AND due_at<=now() AND kind IN ('followup','reply') ORDER BY due_at LIMIT 3`;
+    const tasks = options.gmailTest
+      ? await sql`SELECT t.* FROM daniel_sales.tasks t JOIN daniel_sales.contacts c ON c.id=t.contact_id WHERE t.status='pending' AND t.due_at<=now() AND t.kind IN ('followup','reply') AND lower(c.email)=ANY(${testRecipients}::text[]) ORDER BY t.due_at LIMIT 3`
+      : await sql`SELECT * FROM daniel_sales.tasks WHERE status='pending' AND due_at<=now() AND kind IN ('followup','reply') ORDER BY due_at LIMIT 3`;
     for (const t of tasks) {
       const [c] =
         await sql`SELECT * FROM daniel_sales.contacts WHERE id=${t.contact_id}`;

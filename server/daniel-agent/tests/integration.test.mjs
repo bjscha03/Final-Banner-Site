@@ -597,4 +597,26 @@ test("failed background scheduling is recorded and never appears completed", asy
   assert.equal(job.status, "failed");
   assert.ok(job.completed_at);
 });
+test('controlled Gmail dispatch cannot reach other recipients and normal preview never sends', async () => {
+  const controlled = await prospect(), other = await prospect();
+  const [contact] = await sql`SELECT email FROM daniel_sales.contacts WHERE id=${controlled.contact_id}`;
+  const a = await queued(controlled), b = await queued(other);
+  await sql`DELETE FROM daniel_sales.daily_limits`;
+  const cfg = {...env,CONTEXT:'deploy-preview',DANIEL_GMAIL_TEST_RECIPIENTS:contact.email,DANIEL_GMAIL_TEST_UNTIL:new Date(Date.now()+3600000).toISOString(),DANIEL_SENDER_EMAIL:'info@bannersonthefly.com',OUTBOUND_PHYSICAL_ADDRESS:'PO Box 369'};
+  const sends=[];
+  const send=async(_,m)=>{sends.push(m);return {id:'real-test-id',threadId:'real-test-thread'}};
+  await dispatch(sql,cfg,'token',{gmailTest:true,send,now});
+  assert.equal(sends.length,1);
+  assert.equal(sends[0].to,contact.email);
+  const [saved]=await sql`SELECT * FROM daniel_sales.messages WHERE id=${a.id}`;
+  assert.equal(saved.ai_metadata.gmail_test,true);
+  assert.equal(saved.status,'sent');
+  assert.equal((await sql`SELECT status FROM daniel_sales.messages WHERE id=${b.id}`)[0].status,'queued');
+  await dispatch(sql,cfg,'token',{gmailTest:true,send,now});
+  assert.equal(sends.length,1);
+  await dispatch(sql,cfg,'token',{send,now});
+  assert.equal(sends.length,1);
+  assert.equal((await sql`SELECT status FROM daniel_sales.messages WHERE id=${b.id}`)[0].status,'simulated');
+  await assert.rejects(dispatch(sql,{...cfg,DANIEL_GMAIL_TEST_UNTIL:'2000-01-01'},'token',{gmailTest:true,send,now}),/disabled or expired/);
+});
 test.after(() => db.close());

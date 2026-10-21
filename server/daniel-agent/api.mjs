@@ -1,5 +1,5 @@
 import { database } from "./db.mjs";
-import { environment, allowedHost, publicConfig, mode } from "./config.mjs";
+import { environment, allowedHost, publicConfig, mode, gmailTestRecipients } from "./config.mjs";
 import { session, login, cookie, hash, secureEqual } from "./auth.mjs";
 import * as store from "./store.mjs";
 import * as v from "./validation.mjs";
@@ -236,6 +236,11 @@ export async function handler(req, context = {}, deps = {}) {
         break;
       case "/api/daniel/report":
         result = await report(sql);
+        break;
+      case "/api/daniel/test/gmail/run":
+        if (!gmailTestRecipients(env).length) v.fail("Controlled Gmail testing is disabled or expired", 403);
+        await store.audit(sql, s.actor, "gmail_test_requested", "settings", 1);
+        result = await enqueueRun(sql, env, { gmailTest: true });
         break;
       case "/api/daniel/oauth/start":
         result = await oauthStart(sql, env, s);

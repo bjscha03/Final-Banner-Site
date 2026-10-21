@@ -8,6 +8,32 @@ import {
 } from "./gmail.mjs";
 import { classifyInbound } from "./policy.mjs";
 import { suppress, audit } from "./store.mjs";
+import { gmailTestRecipients } from "./config.mjs";
+// Acceptance tests read real messages only from the expiring owner allowlist.
+// They do not advance the regular mailbox history cursor or import other mail.
+export async function syncControlledInbox(sql, token, env) {
+  const recipients = gmailTestRecipients(env);
+  if (!recipients.length) throw Error("Controlled Gmail testing is disabled or expired");
+  let count = 0, created = 0, duplicates = 0;
+  for (const email of recipients) {
+    let pageToken;
+    for (let page = 0; page < 10; page++) {
+      const listing = await listGmail(token, `from:${email} subject:"Daniel QA" newer_than:1d -in:sent -in:drafts`, 15, pageToken);
+      for (const item of listing.messages || []) {
+        const message = await getGmail(token, item.id);
+        if (senderAddress(header(message, "From")) !== email || !header(message, "Subject").includes("Daniel QA")) continue;
+        const r = await ingest(sql, message, "gmail-acceptance-test");
+        count++;
+        if (r.created) created++;
+        if (r.duplicate) duplicates++;
+      }
+      pageToken = listing.nextPageToken;
+      if (!pageToken) break;
+    }
+    if (pageToken) return { count, created, duplicates, complete: false };
+  }
+  return { count, created, duplicates, complete: true };
+}
 export function senderAddress(s) {
   return (String(s || "").match(/<([^<>]+)>/)?.[1] || String(s || ""))
     .trim()

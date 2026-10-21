@@ -85,6 +85,8 @@ export async function generateDraft(
     .replace(/\n(?:Best regards|Best|Sincerely|Regards)[,\s]*\n[\s\S]*$/i, "")
     .trim();
   const inbound = thread.find((x) => x.direction === "inbound");
+  const parent = kind === "reply" ? inbound : kind === "followup"
+    ? thread.find(x => x.direction === "outbound" && x.thread_key && x.rfc_message_id) : null;
   const classification = classifyInbound(inbound?.body || "");
   draft.requires_approval =
     !!draft.requires_approval ||
@@ -95,8 +97,9 @@ export async function generateDraft(
     ...draft,
     contact_id: contactId,
     kind,
-    thread_key: kind === "reply" ? inbound?.thread_key : null,
-    reply_to_id: kind === "reply" ? inbound?.rfc_message_id : null,
+    subject: parent?.subject ? (/^re:/i.test(parent.subject) ? parent.subject : "Re: " + parent.subject) : draft.subject,
+    thread_key: parent?.thread_key || null,
+    reply_to_id: parent?.rfc_message_id || null,
     ai_metadata: {
       model: result.model,
       knowledge_version: kb.version,

@@ -35,10 +35,19 @@ export async function gmailRequest(token, path, options = {}) {
     signal: AbortSignal.timeout(15000),
     headers: { authorization: "Bearer " + token, ...options.headers },
   });
-  if (!r.ok)
-    throw Object.assign(Error("Gmail request failed (" + r.status + ")"), {
-      status: r.status,
-    });
+  if (!r.ok) {
+    const failure = await r.json().catch(() => ({}));
+    const reasons = [failure.error?.status, ...(failure.error?.errors || []).map(x => x.reason),
+      ...(failure.error?.details || []).map(x => x.reason)];
+    const detail = reasons.some(x => ["SERVICE_DISABLED", "accessNotConfigured"].includes(x))
+      ? "Enable the Gmail API on the existing Google Cloud OAuth project, then reconnect."
+      : reasons.some(x => ["ACCESS_TOKEN_SCOPE_INSUFFICIENT", "insufficientPermissions"].includes(x))
+        ? "Reconnect Gmail and approve all three requested permissions."
+        : reasons.some(x => ["rateLimitExceeded", "userRateLimitExceeded", "quotaExceeded", "RESOURCE_EXHAUSTED"].includes(x))
+          ? "Gmail quota limit reached; retry after the provider limit resets."
+          : "Check the Gmail connection and Google Cloud API configuration.";
+    throw Object.assign(Error(`Gmail request failed (${r.status}). ${detail}`), { status: r.status });
+  }
   return r.json();
 }
 export function encodeMime({

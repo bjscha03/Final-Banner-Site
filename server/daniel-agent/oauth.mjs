@@ -51,9 +51,10 @@ export async function oauthComplete(req, sql, env, session) {
   const scopes = new Set(String(tokens.scope || "").split(" "));
   if (
     !scopes.has("https://www.googleapis.com/auth/gmail.readonly") ||
-    !scopes.has("https://www.googleapis.com/auth/gmail.send")
+    !scopes.has("https://www.googleapis.com/auth/gmail.send") ||
+    !scopes.has("https://www.googleapis.com/auth/gmail.settings.basic")
   )
-    throw Error("Both Gmail read and send permissions are required");
+    throw Object.assign(Error("Gmail read, send, and basic-settings permissions are required. Reconnect and approve all three."), { status: 400 });
   const profile = await gmailRequest(tokens.access_token, "/profile");
   const aliases = await gmailRequest(tokens.access_token, "/settings/sendAs");
   const sender = env.DANIEL_SENDER_EMAIL || "info@bannersonthefly.com";

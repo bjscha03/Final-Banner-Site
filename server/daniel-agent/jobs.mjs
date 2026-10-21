@@ -1,6 +1,6 @@
 import { runWorker } from "./worker.mjs";
-export async function enqueueRun(sql, env) {
-  if (env.DANIEL_LOCAL_DEV === "true") return runWorker(env, { sql });
+export async function enqueueRun(sql, env, options = {}) {
+  if (env.DANIEL_LOCAL_DEV === "true") return runWorker(env, { sql, ...options });
   const [job] =
     await sql`INSERT INTO daniel_sales.runs(status) VALUES('queued') RETURNING id`;
   try {
@@ -12,7 +12,7 @@ export async function enqueueRun(sql, env) {
           authorization: "Bearer " + env.DANIEL_CRON_SECRET,
           "content-type": "application/json",
         },
-        body: JSON.stringify({ runId: job.id }),
+        body: JSON.stringify({ runId: job.id, gmailTest: options.gmailTest === true }),
         signal: AbortSignal.timeout(12000),
       },
     );
