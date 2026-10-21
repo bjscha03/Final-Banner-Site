@@ -4,6 +4,16 @@
 
 The deployed dedicated agent passes automated, browser and real Gmail acceptance tests. Production cutover is **not authorized or activated**. The remaining account decision is moving the existing Google OAuth application out of Testing and renewing its grant for ongoing operation; Testing refresh tokens expire after seven days. No production-readiness claim relies solely on simulated mail.
 
+## Connection recheck — October 21, 12:57 PM Eastern
+
+The deployed application successfully exchanged its stored refresh token and performed real Gmail incremental synchronization again. Three pages (15, 15 and 5 messages) were inspected; no unrelated messages were stored, and synchronization completed without a mailbox error. Cursor advanced to `23689546`.
+
+The existing grant is valid **now**. The audit trail records the successful connection at 11:43:19 AM Eastern and no later replacement grant. There is no pending Gmail consent requirement for testing, and no reason to request another grant merely to repeat completed acceptance tests. Previous wording that implied testing was waiting on consent was incorrect.
+
+All required real Gmail acceptance scenarios are complete: 3 outbound messages and 2 inbound messages. Final deployed live/test locks, paused state, disabled routine mode and anonymous-access checks passed again. No additional messages were sent to the suppressed test address. The hourly automation remains enabled; its 1 PM Eastern scheduled run was observed in progress.
+
+Long-term unattended authorization is a separate readiness item. The last directly observed Google Cloud publishing status was Testing. The connected local-browser capability is unavailable in this session, and the available cloud browser returned “Site Unavailable” for the existing project's Audience page. Therefore no current publishing-status change or longer-lived replacement grant is claimed. No login failure or redirect mismatch was observed in the working deployed connection. Production cutover remains disabled pending resolution of that configuration check and explicit owner approval.
+
 ## Verified preview
 
 - Preview: https://deploy-preview-655--bannersonthefly.netlify.app/daniel
