@@ -12,13 +12,14 @@ Private CRM at `/daniel` and authenticated API at `/api/daniel/*`. The app uses 
 - Suppression on unsubscribe/decline, queued-message cancellation, duplicate inbound protection and follow-up cancellation on reply.
 - Follow-up tasks at five business days, maximum two unanswered follow-ups; daily caps and Eastern weekday sending hours.
 - Task completion, conflict-checked meeting scheduling, UTC calendar export, audit history and daily reporting.
+- Authenticated background jobs with durable run status and replay protection; the dashboard polls completion.
 
 ## Run / test
 
 ```
-node --test server/daniel-agent/*.test.mjs server/daniel-agent/tests/integration.test.mjs
+node --test server/daniel-agent/*.test.mjs server/daniel-agent/tests/*.test.mjs
 node --env-file=.env.daniel-runtime server/daniel-agent/tests/deployed-api.mjs
-DANIEL_TEST_BASE=https://deploy-preview-655--bannersonthefly.netlify.app node --env-file=.env.daniel-runtime server/daniel-agent/tests/deployed-api.mjs
+DANIEL_TEST_BASE=https://deploy-preview-655--bannersonthefly.netlify.app DANIEL_TEST_AI=true node --env-file=.env.daniel-runtime server/daniel-agent/tests/deployed-api.mjs
 node --env-file=.env.daniel-runtime server/daniel-agent/tests/browser.mjs
 npm run build
 ```

@@ -17,6 +17,8 @@ import { seal, unseal } from "../auth.mjs";
 import { scheduleMeeting, ics } from "../scheduling.mjs";
 import { generateDraft } from "../ai.mjs";
 import { mode } from "../config.mjs";
+import { enqueueRun } from "../jobs.mjs";
+import { runWorker } from "../worker.mjs";
 function adapter(db) {
   function sql(strings, ...values) {
     let text;
@@ -454,5 +456,48 @@ test("hard bounce only suppresses an explicit recipient in a known sent thread",
   const [updated] =
     await sql`SELECT * FROM daniel_sales.contacts WHERE id=${c.id}`;
   assert.ok(updated.suppressed_at);
+});
+test("background jobs authenticate, persist completion and reject replay", async (t) => {
+  const calls = [];
+  const mock = t.mock.method(globalThis, "fetch", async (url, init) => {
+    calls.push({ url, init });
+    return new Response(null, { status: 202 });
+  });
+  const job = await enqueueRun(sql, {
+    ...env,
+    DANIEL_CRON_SECRET: "test-cron-secret",
+  });
+  assert.equal(job.status, "queued");
+  assert.equal(
+    calls[0].url,
+    "https://preview.test/api/internal/daniel-agent/job",
+  );
+  assert.equal(calls[0].init.headers.authorization, "Bearer test-cron-secret");
+  assert.equal(JSON.parse(calls[0].init.body).runId, job.runId);
+  await sql`UPDATE daniel_sales.settings SET paused=true WHERE id=1`;
+  const result = await runWorker(env, { sql, runId: job.runId });
+  assert.equal(result.status, "paused");
+  assert.equal(
+    (await runWorker(env, { sql, runId: job.runId })).status,
+    "already_processed",
+  );
+  const [saved] =
+    await sql`SELECT * FROM daniel_sales.runs WHERE id=${job.runId}`;
+  assert.equal(saved.status, "paused");
+  assert.ok(saved.completed_at);
+  mock.mock.restore();
+  await sql`UPDATE daniel_sales.settings SET paused=false WHERE id=1`;
+});
+test("failed background scheduling is recorded and never appears completed", async (t) => {
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async () => new Response(null, { status: 503 }),
+  );
+  await assert.rejects(enqueueRun(sql, env), /Unable to queue/);
+  const [job] =
+    await sql`SELECT * FROM daniel_sales.runs ORDER BY started_at DESC LIMIT 1`;
+  assert.equal(job.status, "failed");
+  assert.ok(job.completed_at);
 });
 test.after(() => db.close());
