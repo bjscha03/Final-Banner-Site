@@ -54,3 +54,8 @@ test('real search prose is converted without inventing evidence, and absent web 
  const r=await modelJSON({OPENAI_API_KEY:'test'},'Return JSON candidate or none',{}, {search:true,fetcher});assert.equal(r.value.none,true);assert.equal(requests.length,2);assert.equal(requests[1].text.format.type,'json_object');
  await assert.rejects(modelJSON({OPENAI_API_KEY:'test'},'Return JSON',{}, {search:true,fetcher:async()=>Response.json({output:[]})}),/No completed independent/);
 });
+test('official page extraction preserves published mailto contacts without importing scripts',async()=>{
+ const {extractPage}=await import('./discovery.mjs');
+ const p=extractPage({url:'https://example.com/',content:'<script>secret script content</script><a href="mailto:marketing@example.com?subject=Hello">Email our team</a><p>We manage 40 locations &amp; recurring events.</p><a href="/contact">Contact</a>'});
+ assert.ok(p.text.includes('marketing@example.com'));assert.ok(p.text.includes('40 locations & recurring events'));assert.ok(!p.text.includes('secret script content'));assert.ok(p.links.includes('https://example.com/contact'));
+});

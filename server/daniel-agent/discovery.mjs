@@ -31,8 +31,11 @@ export async function readPublicPage(address, depth=0) {
     });req.setTimeout(15000,()=>req.destroy(Error('Evidence request timed out')));req.on('error',reject);
   });
   if(result.redirect)return readPublicPage(result.redirect,depth+1);
+  return extractPage(result);
+}
+export function extractPage(result) {
   const links=[...result.content.matchAll(/<a[^>]+href=["']([^"']+)["']/gi)].map(m=>{try{return new URL(m[1],result.url).href}catch{return null}}).filter(x=>x&&/^https:/.test(x)&&/contact|about|locations|our-company/i.test(x));
-  return {url:result.url,links:[...new Set(links)].slice(0,20),text:result.content.replace(/href=["']mailto:([^"'?]+)[^"']*["']/gi, ' $1 ').replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&amp;/g,'&').replace(/&nbsp;|&#160;/g,' ').replace(/&quot;/g,'"').replace(/&apos;|&#39;/g,"'").replace(/&#(x[0-9a-f]+|[0-9]+);/gi,(_,n)=>String.fromCodePoint(n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):Number(n))).replace(/\s+/g,' ').slice(0,150000)};
+  return {url:result.url,links:[...new Set(links)].slice(0,20),text:result.content.replace(/<a\b[^>]*href=["']mailto:([^"'?]+)[^"']*["'][^>]*>/gi, ' $1 ').replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&amp;/g,'&').replace(/&nbsp;|&#160;/g,' ').replace(/&rsquo;|&lsquo;/g,"'").replace(/&ndash;/g,'–').replace(/&mdash;/g,'—').replace(/&hellip;/g,'…').replace(/&quot;/g,'"').replace(/&apos;|&#39;/g,"'").replace(/&#(x[0-9a-f]+|[0-9]+);/gi,(_,n)=>String.fromCodePoint(n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):Number(n))).replace(/\s+/g,' ').slice(0,150000)};
 }
 export async function modelJSON(env, instructions, input, {search=false,fetcher=fetch}={}) {
   if(!env.OPENAI_API_KEY)throw Error('Research AI not configured');
