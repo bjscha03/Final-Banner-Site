@@ -710,3 +710,47 @@ test('AI can automatically repeat approved shipping facts without approving a cu
  const p=await prospect();const fetcher=async()=>Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Products',body:'Our vinyl banners qualify for free next-day air shipping in the U.S. on orders of $20 or more.',requires_approval:false,classification:'routine_product',fact_ids:['vinyl_banner_shipping']})}}]});
  const d=await generateDraft(sql,p.contact_id,'reply',{OPENAI_API_KEY:'test'},fetcher);assert.equal(d.ai_metadata.requires_approval,false);assert.equal(d.ai_metadata.model_requires_approval,false);
 });
+
+async function replyFixture(tag, automatic=false) {
+ const p=await prospect(); const [c]=await sql`SELECT * FROM daniel_sales.contacts WHERE id=${p.contact_id}`;
+ const inbound={id:'reply-safety-'+tag,threadId:'thread-'+tag,payload:{mimeType:'text/plain',headers:[{name:'From',value:c.email},{name:'Message-ID',value:'<inbound-'+tag+'@test>'},...(automatic?[{name:'Auto-Submitted',value:'auto-replied'}]:[])],body:{data:Buffer.from('What banner materials do you offer?').toString('base64url')}}};
+ await ingest(sql,inbound);
+ const m=await queued(p,'reply');
+ await sql`UPDATE daniel_sales.messages SET thread_key=${inbound.threadId},reply_to_id=${'<inbound-'+tag+'@test>'} WHERE id=${m.id}`;
+ return {...p,m,c,inbound};
+}
+test('weekend, holiday and after-hours replies bypass exhausted prospecting quotas',async()=>{
+ await sql`UPDATE daniel_sales.settings SET paused=false WHERE id=1`;
+ await sql`INSERT INTO daniel_sales.daily_limits(local_date,kind,sent_count) VALUES((now() AT TIME ZONE 'America/New_York')::date,'intro',10),((now() AT TIME ZONE 'America/New_York')::date,'followup',5) ON CONFLICT(local_date,kind) DO UPDATE SET sent_count=excluded.sent_count,reserved_count=0`;
+ for(const [tag,date] of [['sat','2026-10-24T16:00:00Z'],['sun','2026-10-25T16:00:00Z'],['holiday','2026-12-25T16:00:00Z'],['night','2026-10-22T05:00:00Z']]) {
+  const f=await replyFixture(tag);
+  await dispatch(sql,env,null,{now:new Date(date)});
+  const [m]=await sql`SELECT status,quota_kind FROM daniel_sales.messages WHERE id=${f.m.id}`;
+  assert.equal(m.status,'simulated');assert.equal(m.quota_kind,'reply');
+ }
+ const limits=await sql`SELECT kind,sent_count FROM daniel_sales.daily_limits WHERE local_date=(now() AT TIME ZONE 'America/New_York')::date AND kind IN ('intro','followup') ORDER BY kind`;
+ assert.deepEqual(limits.map(x=>x.sent_count),[5,10]);
+});
+test('duplicate drafts and competing claims cannot respond twice to one inbound',async()=>{
+ const f=await replyFixture('race'); const other=await queued(f,'reply');
+ await sql`UPDATE daniel_sales.messages SET thread_key=${f.inbound.threadId},reply_to_id='<inbound-race@test>' WHERE id=${other.id}`;
+ const results=await Promise.all([sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},5)`,sql`SELECT * FROM daniel_sales.claim_message(${other.id},5)`]);
+ assert.equal(results.flat().length,1);
+});
+test('automated mail does not create a reply task and cannot be dispatched',async()=>{
+ const f=await replyFixture('automatic',true);
+ assert.equal((await sql`SELECT * FROM daniel_sales.tasks WHERE contact_id=${f.contact_id} AND kind='reply'`).length,0);
+ assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},5)`).length,0);
+});
+test('unsubscribe blocks queued customer replies regardless of available reply capacity',async()=>{
+ const f=await replyFixture('optout');await suppress(sql,f.c.email,'unsubscribe','test');
+ assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},5)`).length,0);
+});
+test('reply send with lost provider confirmation is held and recovered without sending again',async()=>{
+ const f=await replyFixture('recovery');let calls=0;
+ const live={...env,DANIEL_AGENT_MODE:'live',DANIEL_CUTOVER_APPROVED:'true',CONTEXT:'production',DANIEL_SENDER_EMAIL:'info@bannersonthefly.com'};
+ await dispatch(sql,live,'test',{now:new Date('2026-10-24T16:00:00Z'),verifyIdentity:async()=>{},send:async()=>{calls++;return{id:'reply-recovery-provider',threadId:f.inbound.threadId}},getMessage:async()=>{throw Error('Lost header response')}});
+ const [held]=await sql`SELECT status FROM daniel_sales.messages WHERE id=${f.m.id}`;assert.equal(held.status,'uncertain');
+ await reconcile(sql,live,'test',{getMessage:async()=>({payload:{headers:[{name:'Message-ID',value:'<canonical-recovery@test>'}]}}),listMessages:async()=>({messages:[]})});
+ assert.equal((await sql`SELECT status FROM daniel_sales.messages WHERE id=${f.m.id}`)[0].status,'sent');assert.equal(calls,1);
+});

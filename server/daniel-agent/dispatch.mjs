@@ -1,6 +1,5 @@
 import { BUSINESS_ADDRESS, BOF_SENDER, verifySender } from "./identity.mjs";
 import { canDispatch, isEndBuyer } from "./operations.mjs";
-import { easternBusinessDay } from "./policy.mjs";
 import { mode, gmailTestRecipients } from "./config.mjs";
 import { sendGmail, listGmail, getGmail, header, gmailRequest } from "./gmail.mjs";
 import { escapeHtml } from "./validation.mjs";
@@ -35,7 +34,7 @@ export async function dispatch(
     blocked = 0,
     held = 0;
   const queued =
-    await sql`SELECT * FROM daniel_sales.messages WHERE status='queued' AND due_at<=now() ORDER BY due_at LIMIT 25`;
+    await sql`SELECT * FROM daniel_sales.messages WHERE status='queued' AND due_at<=now() ORDER BY (kind='reply') DESC,due_at LIMIT 25`;
   for (const item of queued) {
     const [c] =
       await sql`SELECT c.*,a.segment FROM daniel_sales.contacts c JOIN daniel_sales.accounts a ON a.id=c.account_id WHERE c.id=${item.contact_id}`;
@@ -53,7 +52,7 @@ export async function dispatch(
               !c.suppressed_at &&
               isEndBuyer(c) &&
               !!c.verified_source_url &&
-              easternBusinessDay(now),
+              !!item.thread_key && !!item.reply_to_id,
           }
         : canDispatch({
             contact: { ...c, replied: !!c.replied_at },

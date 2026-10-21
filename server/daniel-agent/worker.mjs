@@ -1,5 +1,5 @@
 import { discover } from "./discovery.mjs";
-import { emailDailyReport, reportDue } from "./report-email.mjs";
+import { emailDailyReport } from "./report-email.mjs";
 import { randomUUID } from "node:crypto";
 import { database } from "./db.mjs";
 import { accessToken } from "./gmail.mjs";
@@ -32,6 +32,11 @@ export async function runWorker(env = process.env, options = {}) {
   try {
     const testRecipients = options.gmailTest ? gmailTestRecipients(env) : [];
     if (options.gmailTest && !testRecipients.length) throw Error("Controlled Gmail testing is disabled or expired");
+    if (options.testNow !== undefined) {
+      if (!options.gmailTest || !Number.isFinite(Date.parse(options.testNow))) throw Error("Test clock requires controlled acceptance permission");
+      options = {...options, now:new Date(options.testNow)};
+      summary.testClock = options.now.toISOString();
+    }
     summary.gmailTest = options.gmailTest === true;
     const [settings] =
       await sql`SELECT * FROM daniel_sales.settings WHERE id=1`;
@@ -66,8 +71,8 @@ export async function runWorker(env = process.env, options = {}) {
     }
     summary.reconciliation = await reconcile(sql, env, token);
     const tasks = options.gmailTest
-      ? await sql`SELECT t.* FROM daniel_sales.tasks t JOIN daniel_sales.contacts c ON c.id=t.contact_id WHERE t.status='pending' AND t.due_at<=now() AND t.kind IN ('followup','reply') AND lower(c.email)=ANY(${testRecipients}::text[]) ORDER BY t.due_at LIMIT 3`
-      : await sql`SELECT * FROM daniel_sales.tasks WHERE status='pending' AND due_at<=now() AND kind IN ('followup','reply') ORDER BY due_at LIMIT 3`;
+      ? await sql`SELECT t.* FROM daniel_sales.tasks t JOIN daniel_sales.contacts c ON c.id=t.contact_id WHERE t.status='pending' AND t.due_at<=now() AND t.kind IN ('followup','reply') AND lower(c.email)=ANY(${testRecipients}::text[]) ORDER BY (t.kind='reply') DESC,t.due_at LIMIT 3`
+      : await sql`SELECT * FROM daniel_sales.tasks WHERE status='pending' AND due_at<=now() AND kind IN ('followup','reply') ORDER BY (kind='reply') DESC,due_at LIMIT 3`;
     for (const t of tasks) {
       const [c] =
         await sql`SELECT * FROM daniel_sales.contacts WHERE id=${t.contact_id}`;
@@ -101,7 +106,7 @@ export async function runWorker(env = process.env, options = {}) {
         summary.draftErrors = (summary.draftErrors || 0) + 1;
       }
     }
-    if (options.gmailTest || !reportDue(options.now || new Date())) Object.assign(summary, await dispatch(sql, env, token, options));
+    Object.assign(summary, await dispatch(sql, env, token, options));
     summary.report = await report(sql);
     if (!options.gmailTest || options.sendReport) {
       try { summary.reportEmail = await emailDailyReport(sql,env,token,options); }

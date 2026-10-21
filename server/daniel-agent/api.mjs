@@ -254,7 +254,7 @@ export async function handler(req, context = {}, deps = {}) {
       case "/api/daniel/test/gmail/run":
         if (!gmailTestRecipients(env).length) v.fail("Controlled Gmail testing is disabled or expired", 403);
         await store.audit(sql, s.actor, "gmail_test_requested", "settings", 1);
-        result = await enqueueRun(sql, env, { gmailTest: true, discover: input.discover === true, sendReport: input.sendReport === true });
+        result = await enqueueRun(sql, env, { gmailTest: true, discover: input.discover === true, sendReport: input.sendReport === true, testNow: input.testNow });
         break;
       case "/api/daniel/oauth/start":
         result = await oauthStart(sql, env, s);

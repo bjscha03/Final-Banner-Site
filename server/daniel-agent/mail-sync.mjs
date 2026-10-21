@@ -83,7 +83,9 @@ export async function ingest(sql, message, actor = "gmail-sync") {
   const [c] =
     await sql`SELECT c.* FROM daniel_sales.contacts c WHERE lower(c.email)=${email} ORDER BY EXISTS(SELECT 1 FROM daniel_sales.messages m WHERE m.contact_id=c.id AND m.thread_key=${message.threadId}) DESC,c.created_at DESC LIMIT 1`;
   if (!c) return { ignored: true }; // Never import unrelated personal inbox contents.
-  const cls = classifyInbound(text),
+  const automatic = /^(?:auto-generated|auto-replied)/i.test(header(message,"Auto-Submitted")) || /bulk|list|junk/i.test(header(message,"Precedence")) || !!header(message,"List-Id") || /^(?:no-?reply|do-?not-?reply)@/i.test(email);
+  const classified = classifyInbound(text);
+  const cls = ["unsubscribe","decline"].includes(classified) ? classified : automatic ? "automated" : classified,
     id = randomUUID(),
     thread = message.threadId;
   const result = await sql.transaction([
@@ -96,7 +98,7 @@ export async function ingest(sql, message, actor = "gmail-sync") {
   if (!result[0].length) return { duplicate: true };
   if (["unsubscribe", "decline"].includes(cls))
     await suppress(sql, email, "Inbound " + cls, actor);
-  else
+  else if (cls !== "automated")
     await sql`INSERT INTO daniel_sales.tasks(contact_id,opportunity_id,kind,due_at,note,dedupe_key) SELECT ${c.id},id,'reply',now(),${cls},${"reply:" + message.id} FROM daniel_sales.opportunities WHERE account_id=${c.account_id} LIMIT 1 ON CONFLICT(dedupe_key) DO NOTHING`;
   await audit(sql, actor, "inbound_received", "message", id, {
     classification: cls,

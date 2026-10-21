@@ -15,7 +15,7 @@ export default async function (request, context) {
   )
     return;
   const body = await request.json();
-  await runWorker(env, { runId: uuid(body.runId), gmailTest: body.gmailTest === true, discover: body.discover === true, sendReport: body.sendReport === true });
+  await runWorker(env, { runId: uuid(body.runId), gmailTest: body.gmailTest === true, discover: body.discover === true, sendReport: body.sendReport === true, testNow: body.testNow });
 }
 export const config = {
   path: "/api/internal/daniel-agent/job",

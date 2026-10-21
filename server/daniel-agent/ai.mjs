@@ -86,7 +86,7 @@ export async function generateDraft(
   draft.body = draft.body
     .replace(/\n(?:Best regards|Best|Sincerely|Regards)[,\s]*(?:\n[\s\S]*)?$/i, "")
     .trim();
-  const inbound = thread.find((x) => x.direction === "inbound");
+  const inbound = thread.find((x) => x.direction === "inbound" && x.classification !== "automated");
   const parent = kind === "reply" ? inbound : kind === "followup"
     ? thread.find(x => x.direction === "outbound" && x.thread_key && x.rfc_message_id) : null;
   const classification = classifyInbound(inbound?.body || "");
