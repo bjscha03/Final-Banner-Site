@@ -71,3 +71,7 @@ test('structured reviews explicitly request JSON in the Responses input',async()
  const {modelJSON}=await import('./discovery.mjs');
  await modelJSON({OPENAI_API_KEY:'test'},'Review source evidence',{website:'https://example.com'}, {fetcher:async(_url,opts)=>{const request=JSON.parse(opts.body);assert.match(request.input,/json/i);assert.equal(request.text.format.type,'json_object');return Response.json({output:[{type:'message',content:[{type:'output_text',text:'{"approved":true}'}]}]});}});
 });
+
+test('published contact matching rejects addresses that only contain the candidate as a substring',()=>{
+ for(const deceptive of ['notmarketing@example.com','marketing@example.com.attacker.test'])assert.throws(()=>validateEvidence(candidate,[pages[0],{...pages[1],text:candidate.facts[1].quote+' '+deceptive}]));
+});

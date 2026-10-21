@@ -10,12 +10,12 @@ Private CRM at `/daniel` and authenticated API at `/api/daniel/*`. The app uses 
 - Durable outbox, atomic daily reservations, worker leases, canonical Gmail Message-ID capture and held ambiguous deliveries. Normal preview runs are simulated. Explicit controlled Gmail acceptance jobs use an expiring server-side owner allowlist.
 - Gmail OAuth with PKCE, state binding, encrypted offline tokens, verified sender aliases, paginated initial reconciliation and incremental history synchronization. Unknown personal mail is not stored.
 - Suppression on unsubscribe/decline, queued-message cancellation, duplicate inbound protection and follow-up cancellation on reply.
-- Disabled-by-default routine automation can approve grounded non-exception replies and follow-ups. Introductions and exceptions stay in the owner queue. Preview automation only simulates delivery.
+- Disabled-by-default autonomous discovery researches public official sources, verifies published shared business contacts and exact evidence, independently reviews qualification and original introductions, and automatically approves routine introductions. Special pricing, contracts and unusual commitments remain in the owner queue. Routine grounded replies and follow-ups can also be automatic. Preview automation only simulates delivery unless an explicit owner-only acceptance job is authorized.
 - Follow-up tasks at five business days, maximum two unanswered follow-ups; daily caps and Eastern weekday sending hours.
-- Task completion, conflict-checked meeting scheduling, UTC calendar export, audit history and daily reporting.
+- Task completion, conflict-checked meeting scheduling, UTC calendar export and audit history. At 8 PM Eastern on weekdays, an idempotent daily report is actually emailed to brandon.schaefer@hotmail.com from the verified BOF identity, signed Brad. Ambiguous provider outcomes are held for reconciliation, never blindly retried.
 - Authenticated background jobs with durable run status and replay protection; the dashboard polls completion.
 
-See [VALIDATION.md](./VALIDATION.md) for deployed verification evidence. The automated suite contains 44 policy, integration, lifecycle, Gmail safety and UI tests. Actual provider acceptance is recorded separately from simulations.
+See [VALIDATION.md](./VALIDATION.md) for deployed verification evidence. The automated suite contains 59 policy, integration, lifecycle, Gmail safety and UI tests. Actual provider acceptance is recorded separately from simulations.
 
 ## Run / test
 
@@ -27,7 +27,7 @@ node --env-file=.env.daniel-runtime server/daniel-agent/tests/browser.mjs
 npm run build
 ```
 
-`migrate.mjs` applies the two versioned migrations only to the explicitly configured dedicated connection. `provision-preview.mjs` is a one-time restricted-role provisioning command, not a build hook. Never put database owner credentials in runtime configuration.
+`migrate.mjs` applies the three versioned migrations only to the explicitly configured dedicated connection. `provision-preview.mjs` is a one-time restricted-role provisioning command, not a build hook. Never put database owner credentials in runtime configuration.
 
 ## Deployment and Gmail authorization
 
@@ -46,3 +46,7 @@ The existing BOF OAuth client is used, with the exact preview callback registere
 Acceptance requires `DANIEL_GMAIL_TEST_RECIPIENTS` (one to three exact owner-controlled addresses) and `DANIEL_GMAIL_TEST_UNTIL` (a future expiration no more than 24 hours away), both in deploy-preview/functions scope. It also requires authenticated, same-origin `POST /api/daniel/test/gmail/run`. Regular preview cycles, scheduled functions, and production contexts cannot use this permission. Unknown recipients are held. Messages are marked `ai_metadata.gmail_test=true` before the provider call and counted separately from sales sends. Evidence endpoints expose only allowlisted test message headers, never tokens or arbitrary mailbox contents.
 
 `tests/real-gmail-acceptance.mjs` is an explicitly staged harness: setup, intro, schedule, followup, reply, unsubscribe, sync, cleanup, locked, status. Set `DANIEL_QA_ADDRESS` to the connected owner inbox and use the private runtime environment. It uses the actual deployed API. Human/connector test replies must originate from that inbox. Only isolated test fixture timestamps are accelerated to exercise a due follow-up; the production five-business-day rule is unchanged. The sync stage requires the actual test-message `DANIEL_QA_HISTORY_ID` and limits initial reconciliation to the test conversation before exercising incremental history. Disable the test window after acceptance, pause the dedicated agent, and verify the locked stage.
+
+## Autonomous acceptance
+
+`tests/autonomous-acceptance.mjs` verifies independently discovered research, automatic introduction approval, actual owner-only Gmail sends, threaded follow-up and response, opt-out cancellation, the actual emailed report, and final closed test gates. The test worker may run while paused only through an expiring exact-recipient acceptance permission; persisted pause and automation settings never need to be enabled. The real researched address is preserved as evidence and never used as the test recipient. Business signatures use the centralized verified address, PO Box 368, Crestwood, KY 40014.

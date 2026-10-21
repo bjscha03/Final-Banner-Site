@@ -64,7 +64,7 @@ export function validateEvidence(candidate,pages) {
   if(!candidate.company || !candidate.opportunity || candidate.recurring_buyer!==true)throw Error('Incomplete recurring-buyer qualification');
   if(/printer|printing|sign shop|signage supplier|print broker/i.test(candidate.segment||''))throw Error('Supplier excluded');
   for(const p of pages){if(new URL(p.url).hostname.replace(/^www\./,'')!==host)throw Error('Evidence is not on official domain');}
-  if(!pages.some(p=>(p.url===candidate.contact_url||p.requestedUrl===candidate.contact_url)&&norm(p.text).includes(email)))throw Error('Email not found on fetched official contact page');
+  if(!pages.some(p=>(p.url===candidate.contact_url||p.requestedUrl===candidate.contact_url)&&(norm(p.text).match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g)||[]).includes(email)))throw Error('Email not found on fetched official contact page');
   if(!Array.isArray(candidate.facts)||candidate.facts.length<2)throw Error('Insufficient company evidence');
   for(const fact of candidate.facts){
     fact.quote=String(fact.quote||'').trim().replace(/^["“]|["”]$/g,'');
