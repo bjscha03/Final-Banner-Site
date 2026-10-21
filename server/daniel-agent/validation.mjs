@@ -49,14 +49,14 @@ export function prospect(input) {
     role: String(input.role || "").slice(0, 200),
     email: email(input.email),
     notes: String(input.notes || "").slice(0, 5000),
-    location_count: Number(input.location_count || 1),
+    location_count: input.location_count === null ? null : Number(input.location_count || 1),
     next_action: text(
       input.next_action || "Review account and prepare introduction",
       "Next action",
     ),
     next_action_at: date(input.next_action_at || new Date().toISOString()),
   };
-  if (!Number.isInteger(p.location_count) || p.location_count < 1)
+  if (p.location_count !== null && (!Number.isInteger(p.location_count) || p.location_count < 1))
     fail("Location count must be positive");
   if (!isEndBuyer(p)) fail("Supplier and print vendor prospects are excluded");
   return p;

@@ -68,12 +68,3 @@ export function renderSignature(name = "Daniel") {
     '</strong><br>Sales Assistant | <a href="https://bannersonthefly.com">Banners On The Fly</a></p><p style="font-size:11px;color:#64748b">Promotional business introduction from Banners On The Fly.<br>' + BUSINESS_ADDRESS + '<br>To stop outreach from us, reply unsubscribe.</p>'
   );
 }
-export function makeIntro({ company, observation }) {
-  return (
-    "Hi, I noticed " +
-    observation +
-    ". I am reaching out from Banners On The Fly because we help teams order promotional banners with fast production and nationwide delivery. Would you be the right person to ask about signage for " +
-    company +
-    ", or is there someone on your operations or marketing team I should contact?"
-  );
-}

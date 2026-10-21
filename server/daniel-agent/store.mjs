@@ -97,14 +97,14 @@ export async function data(sql) {
     sql`SELECT * FROM daniel_sales.suppressions ORDER BY created_at DESC LIMIT 500`,
     sql`SELECT * FROM daniel_sales.audit_events ORDER BY id DESC LIMIT 200`,
     sql`SELECT * FROM daniel_sales.meetings ORDER BY starts_at DESC LIMIT 100`,
-    sql`SELECT * FROM daniel_sales.daily_reports ORDER BY local_date DESC LIMIT 30`,
+    sql`SELECT local_date::text AS local_date,data,generated_at FROM daniel_sales.daily_reports ORDER BY local_date DESC LIMIT 30`,
     sql`SELECT * FROM daniel_sales.runs ORDER BY started_at DESC LIMIT 30`,
     sql`SELECT * FROM daniel_sales.settings WHERE id=1`,
     sql`SELECT email,history_id,last_sync_at,last_error FROM daniel_sales.mailbox WHERE id=1`,
     sql`SELECT * FROM daniel_sales.test_deliveries ORDER BY created_at DESC LIMIT 100`,
-    sql`SELECT * FROM daniel_sales.daily_limits WHERE local_date >= current_date-7`,
+    sql`SELECT local_date::text AS local_date,kind,reserved_count,sent_count FROM daniel_sales.daily_limits WHERE local_date >= current_date-7`,
     sql`SELECT * FROM daniel_sales.discovery_runs ORDER BY started_at DESC LIMIT 30`,
-    sql`SELECT report_key,local_date,recipient,status,provider_message_id,sent_at,error FROM daniel_sales.report_outbox ORDER BY created_at DESC LIMIT 30`,
+    sql`SELECT report_key,local_date::text AS local_date,recipient,status,provider_message_id,sent_at,error FROM daniel_sales.report_outbox ORDER BY created_at DESC LIMIT 30`,
   ]);
   return {
     accounts,
