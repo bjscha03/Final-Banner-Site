@@ -681,3 +681,13 @@ test('autonomous research creates an evidence-backed prospect and auto-approved 
  assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${m.id},10)`).length,0);
  assert.equal((await discover(sql,env,{auto_prospect:true},{now:new Date('2026-10-21T16:00:00Z'),research:()=>{throw Error('Should not research same slot twice')}})).status,'already_researched_this_hour');
 });
+test('autonomous discovery retries an unavailable source without weakening qualification',async()=>{
+ const {discover}=await import('../discovery.mjs');let attempts=0;
+ const [kb]=await sql`SELECT * FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1`;
+ const candidate=()=>({company:'Recurring Property Group '+attempts,website:'https://property'+attempts+'.example.com',email:'info@property'+attempts+'.example.com',segment:'regional property manager',recurring_buyer:true,opportunity:'Repeat property event banners',contact_url:'https://property'+attempts+'.example.com/contact',facts:[{url:'https://property'+attempts+'.example.com/about',quote:'We manage forty commercial properties throughout the United States.'},{url:'https://property'+attempts+'.example.com/contact',quote:'Our general office welcomes business inquiries from companies.'}]});
+ const research=async(_env,instructions)=>{if(instructions.startsWith('Independently search')){attempts++;return {value:candidate(),responseId:'source-'+attempts};}return {value:{approved:true,reason:'Verified'},responseId:'independent-review'};};
+ const r=await discover(sql,env,{auto_prospect:true},{now:new Date('2026-10-21T17:00:00Z'),research,readPage:async url=>{if(attempts===1)throw Error('Evidence page unavailable');return {url,text:candidate().facts.find(x=>x.url===url).quote+' '+candidate().email};},draft:async(_,id)=>({contact_id:id,kind:'intro',subject:'Banners across your forty properties',body:'Would vinyl banners help your property teams communicate events?',ai_metadata:{requires_approval:false,knowledge_version:kb.version,fact_ids:['products']}})});
+ assert.equal(attempts,2);assert.equal(r.status,'completed');
+ const [m]=await sql`SELECT * FROM daniel_sales.messages WHERE id=${r.messageId}`;assert.equal(m.status,'queued');
+ const [rejected]=await sql`SELECT count(*)::int AS n FROM daniel_sales.accounts WHERE website='https://property1.example.com'`;assert.equal(rejected.n,0);
+});

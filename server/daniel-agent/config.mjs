@@ -18,6 +18,7 @@ export function environment(context = globalThis.Netlify?.context) {
     "DANIEL_SENDER_EMAIL",
     "OPENAI_API_KEY",
     "DANIEL_AI_MODEL",
+    "DANIEL_RESEARCH_MODEL",
     "CONTEXT",
     "OUTBOUND_PHYSICAL_ADDRESS",
   ];
