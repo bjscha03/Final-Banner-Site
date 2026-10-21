@@ -6,7 +6,7 @@ import { introductionEligible } from './automation.mjs';
 import { BUSINESS_ADDRESS, BOF_SENDER, verifySender } from './identity.mjs';
 import { renderSignature } from './operations.mjs';
 import { renderReport, reportDue } from './report-email.mjs';
-const candidate={company:'Example Corporate',website:'https://example.com',email:'marketing@example.com',segment:'regional restaurant chain',recurring_buyer:true,opportunity:'Seasonal promotions across restaurants',contact_url:'https://example.com/contact',facts:[{url:'https://example.com/about',quote:'We operate twenty restaurants across the United States.'},{url:'https://example.com/contact',quote:'Contact our corporate marketing team for business inquiries.'}]};
+const candidate={company:'Example Corporate',website:'https://example.com',email:'marketing@example.com',segment:'regional restaurant chain',recurring_buyer:true,opportunity:'Seasonal promotional banners across restaurants',contact_url:'https://example.com/contact',facts:[{url:'https://example.com/about',quote:'We operate twenty restaurants across the United States.'},{url:'https://example.com/contact',quote:'Contact our corporate marketing team for business inquiries.'}]};
 const pages=[{url:'https://example.com/about',text:candidate.facts[0].quote},{url:'https://example.com/contact',text:candidate.facts[1].quote+' marketing@example.com'}];
 test('research fails closed on invented evidence, email, unsuitable inbox or supplier',()=>{
  assert.equal(validateEvidence(candidate,pages).verified,true);
@@ -74,4 +74,8 @@ test('structured reviews explicitly request JSON in the Responses input',async()
 
 test('published contact matching rejects addresses that only contain the candidate as a substring',()=>{
  for(const deceptive of ['notmarketing@example.com','marketing@example.com.attacker.test'])assert.throws(()=>validateEvidence(candidate,[pages[0],{...pages[1],text:candidate.facts[1].quote+' '+deceptive}]));
+});
+
+test('qualification requires a signage opportunity rather than unrelated business consulting',()=>{
+ assert.throws(()=>validateEvidence({...candidate,opportunity:'Expand franchise brands and streamline operations'},pages));
 });
