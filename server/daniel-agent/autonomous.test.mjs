@@ -6,7 +6,7 @@ import { introductionEligible } from './automation.mjs';
 import { BUSINESS_ADDRESS, BOF_SENDER, verifySender } from './identity.mjs';
 import { renderSignature } from './operations.mjs';
 import { renderReport, reportDue } from './report-email.mjs';
-const candidate={company:'Example Corporate',website:'https://example.com',email:'marketing@example.com',segment:'regional restaurant chain',recurring_buyer:true,opportunity:'Seasonal promotions across restaurants',facts:[{url:'https://example.com/about',quote:'We operate twenty restaurants across the United States.'},{url:'https://example.com/contact',quote:'Contact our corporate marketing team for business inquiries.'}]};
+const candidate={company:'Example Corporate',website:'https://example.com',email:'marketing@example.com',segment:'regional restaurant chain',recurring_buyer:true,opportunity:'Seasonal promotions across restaurants',contact_url:'https://example.com/contact',facts:[{url:'https://example.com/about',quote:'We operate twenty restaurants across the United States.'},{url:'https://example.com/contact',quote:'Contact our corporate marketing team for business inquiries.'}]};
 const pages=[{url:'https://example.com/about',text:candidate.facts[0].quote},{url:'https://example.com/contact',text:candidate.facts[1].quote+' marketing@example.com'}];
 test('research fails closed on invented evidence, email, unsuitable inbox or supplier',()=>{
  assert.equal(validateEvidence(candidate,pages).verified,true);
@@ -58,4 +58,11 @@ test('official page extraction preserves published mailto contacts without impor
  const {extractPage}=await import('./discovery.mjs');
  const p=extractPage({url:'https://example.com/',content:'<script>secret script content</script><a href="mailto:marketing@example.com?subject=Hello">Email our team</a><p>We manage 40 locations &amp; recurring events.</p><a href="/contact">Contact</a>'});
  assert.ok(p.text.includes('marketing@example.com'));assert.ok(p.text.includes('40 locations & recurring events'));assert.ok(!p.text.includes('secret script content'));assert.ok(p.links.includes('https://example.com/contact'));
+});
+test('an alternative company email domain is accepted only with exact official contact-page evidence',()=>{
+ const c={...candidate,email:'main@company-group.com'};
+ const fetched=[pages[0],{...pages[1],text:pages[1].text+' main@company-group.com'}];
+ assert.equal(validateEvidence(c,fetched).verified,true);
+ assert.throws(()=>validateEvidence({...c,email:'main@guessed-group.com'},fetched));
+ assert.throws(()=>validateEvidence({...c,contact_url:'https://example.com/not-fetched'},fetched));
 });
