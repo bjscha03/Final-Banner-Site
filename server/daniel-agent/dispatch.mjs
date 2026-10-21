@@ -1,14 +1,14 @@
 import { canDispatch, isEndBuyer } from "./operations.mjs";
 import { easternBusinessDay } from "./policy.mjs";
 import { mode, gmailTestRecipients } from "./config.mjs";
-import { sendGmail, listGmail } from "./gmail.mjs";
+import { sendGmail, listGmail, getGmail, header } from "./gmail.mjs";
 import { escapeHtml } from "./validation.mjs";
 import { nextBusinessFollowup } from "./scheduling.mjs";
 import { audit } from "./store.mjs";
 export async function finish(sql, m, result, preview) {
   const status = preview ? "simulated" : "sent";
   await sql.transaction([
-    sql`WITH finished AS (UPDATE daniel_sales.messages SET status=${status},provider_message_id=${result.id || null},thread_key=${result.threadId || m.thread_key},sent_at=${preview ? null : new Date().toISOString()}::timestamptz,lease_until=NULL,updated_at=now(),error=NULL WHERE id=${m.id} AND status IN ('sending','uncertain') RETURNING quota_date,quota_kind) UPDATE daniel_sales.daily_limits SET reserved_count=greatest(0,reserved_count-1),sent_count=sent_count+1 WHERE (local_date,kind) IN (SELECT quota_date,quota_kind FROM finished)`,
+    sql`WITH finished AS (UPDATE daniel_sales.messages SET status=${status},provider_message_id=${result.id || null},thread_key=${result.threadId || m.thread_key},rfc_message_id=coalesce(${result.rfcMessageId || null},rfc_message_id),ai_metadata=ai_metadata || ${JSON.stringify(result.rfcMessageId ? {gmail_headers_verified:true} : {})}::jsonb,sent_at=${preview ? null : new Date().toISOString()}::timestamptz,lease_until=NULL,updated_at=now(),error=NULL WHERE id=${m.id} AND status IN ('sending','uncertain') RETURNING quota_date,quota_kind) UPDATE daniel_sales.daily_limits SET reserved_count=greatest(0,reserved_count-1),sent_count=sent_count+1 WHERE (local_date,kind) IN (SELECT quota_date,quota_kind FROM finished)`,
     sql`INSERT INTO daniel_sales.audit_events(entity_type,entity_id,event_type,actor,metadata_json) VALUES('message',${m.id},${status},'daniel-worker',${JSON.stringify({ provider_id: result.id || null })}::jsonb)`,
   ]);
   if (["intro", "followup"].includes(m.kind)) {
@@ -24,7 +24,7 @@ export async function dispatch(
   sql,
   env,
   token,
-  { send = sendGmail, now = new Date(), gmailTest = false } = {},
+  { send = sendGmail, getMessage = getGmail, now = new Date(), gmailTest = false } = {},
 ) {
   const preview = mode(env) !== "live" && !gmailTest;
   if (gmailTest && !gmailTestRecipients(env).length) throw Error("Controlled Gmail testing is disabled or expired");
@@ -131,6 +131,13 @@ export async function dispatch(
           references: m.reply_to_id,
           rfcMessageId: m.rfc_message_id,
         });
+        // Gmail may replace the submitted RFC Message-ID. Retain its immutable
+        // provider ID before reading canonical headers, so a read failure can
+        // be reconciled without resending the already accepted message.
+        await sql`UPDATE daniel_sales.messages SET provider_message_id=${result.id},thread_key=${result.threadId || m.thread_key} WHERE id=${m.id} AND status='sending'`;
+        const delivered = await getMessage(token, result.id);
+        result.rfcMessageId = header(delivered, "Message-ID");
+        if (!result.rfcMessageId) throw Error("Gmail canonical message headers unavailable");
         await finish(sql, m, result, false);
         sent++;
       }
@@ -144,8 +151,10 @@ export async function dispatch(
   return { sent: gmailTest ? 0 : sent, gmailTestSent: gmailTest ? sent : 0, simulated, blocked, held };
 }
 export async function reconcile(sql, env, token, options = {}) {
+  const getMessage = options.getMessage || getGmail;
+  const listMessages = options.listMessages || listGmail;
   const pending =
-    await sql`SELECT * FROM daniel_sales.messages WHERE status='uncertain' OR (status='sending' AND lease_until<now()) LIMIT 25`;
+    await sql`SELECT * FROM daniel_sales.messages WHERE status='uncertain' OR (status='sending' AND lease_until<now()) OR (status='sent' AND provider_message_id IS NOT NULL AND NOT coalesce((ai_metadata->>'gmail_headers_verified')='true',false)) LIMIT 25`;
   let recovered = 0;
   for (const m of pending) {
     const preview = mode(env) !== "live" && !m.ai_metadata?.gmail_test;
@@ -158,15 +167,23 @@ export async function reconcile(sql, env, token, options = {}) {
       } else
         await sql`UPDATE daniel_sales.messages SET status='uncertain',error='Interrupted before test delivery; owner review required' WHERE id=${m.id}`;
     } else if (token) {
-      const result = await listGmail(
+      const result = m.provider_message_id ? {messages:[{id:m.provider_message_id,threadId:m.thread_key}]} : await listMessages(
         token,
         "in:sent rfc822msgid:" + m.rfc_message_id.replace(/[<>]/g, ""),
       );
       if (result.messages?.length) {
+        const delivered = await getMessage(token, result.messages[0].id);
+        const canonical = header(delivered,"Message-ID");
+        if (!canonical) continue;
+        if (m.status === 'sent') {
+          await sql`UPDATE daniel_sales.messages SET rfc_message_id=${canonical},ai_metadata=ai_metadata || '{"gmail_headers_verified":true}'::jsonb WHERE id=${m.id}`;
+          recovered++;
+          continue;
+        }
         await finish(
           sql,
           m,
-          { id: result.messages[0].id, threadId: result.messages[0].threadId },
+          { id: result.messages[0].id, threadId: result.messages[0].threadId, rfcMessageId:canonical },
           false,
         );
         recovered++;
