@@ -79,3 +79,11 @@ test('published contact matching rejects addresses that only contain the candida
 test('qualification requires a signage opportunity rather than unrelated business consulting',()=>{
  assert.throws(()=>validateEvidence({...candidate,opportunity:'Expand franchise brands and streamline operations'},pages));
 });
+test('independent rejection causes automatic revision with feedback, never automatic override',async()=>{
+ const {reviewedIntroduction}=await import('./discovery.mjs');let drafts=0,reviews=0;const feedback=[];
+ const sql=async()=>[{facts:{products:['vinyl banners']}}];
+ const draft=async(_sql,_id,_kind,_env,_fetch,_attempt,reason)=>{feedback.push(reason);return {subject:'Company opening banners',body:++drafts===1?'We install your signs.':'Do your restaurant teams coordinate opening banners centrally?',ai_metadata:{requires_approval:false}};};
+ const research=async()=>({responseId:'review-'+(++reviews),value:{approved:reviews===2,reason:reviews===1?'Remove unsupported installation services':'Grounded and appropriate'}});
+ const d=await reviewedIntroduction(sql,{},'contact',{verified:true},{runId:'test-run',draft,research});assert.equal(drafts,2);assert.equal(feedback[1],'Remove unsupported installation services');assert.equal(d.ai_metadata.research_review.approved,true);assert.equal(d.ai_metadata.autonomous_revision_count,2);
+ const held=await reviewedIntroduction(sql,{},'contact',{verified:true},{runId:'test-run',draft,research:async()=>({responseId:'reject',value:{approved:false,reason:'Unsupported claim'}})});assert.equal(held.ai_metadata.research_review.approved,false);assert.equal(held.ai_metadata.autonomous_revision_count,3);
+});
