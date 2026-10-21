@@ -1,89 +1,84 @@
-# Daniel readiness and verification — 2026-10-21
+# Daniel autonomous acceptance — October 21, 2026
 
 ## Result
 
-CUTOVER BLOCKED pending full autonomous-workflow acceptance. Prior Gmail tests did not validate prospect discovery, autonomous introductions or emailed daily reports. The four missing capabilities are now under implementation and real-provider verification. Production cutover is **not authorized or activated**. No readiness claim relies solely on simulated mail.
-
-## Production OAuth renewal — October 21
-
-The owner approved publishing the existing Google OAuth application, and Google Cloud Audience was directly verified as **In production**. No new OAuth client, secret or scope was introduced. The owner completed Google's unverified-app warning and renewed consent. The application recorded a new `gmail_connected` audit event at **2026-10-21T17:42:45.477Z** (1:42:45 PM Eastern).
-
-The deployed application successfully refreshed the renewed grant and completed real Gmail reconciliation and incremental synchronization. Existing test messages were deduplicated; unrelated messages were not stored. The acceptance harness was corrected to drain incremental pagination rather than assume every incremental sync completes in one page. Runtime pagination already worked correctly.
-
-Production publishing is not Google verification: the consent flow still shows an unverified-app warning and the project retains its 100-user cap. This deployment uses the single owner's authorized mailbox; it is not a public Gmail onboarding product. No guarantee of permanent token validity is made; revocation or Google policy changes can still require reconnection.
-
-All prior actual Gmail acceptance results below remain valid. The suppressed test address was not mailed again. Dedicated live/test sending locks, paused state, disabled routine mode and anonymous-access protection passed again after renewal.
-
-## Verified preview
+All four requested functional blockers passed controlled real-provider acceptance in PR #655. The dedicated agent remains paused with autonomous prospect and reply switches off; live prospect emailing is disabled. No production cutover was performed or requested.
 
 - Preview: https://deploy-preview-655--bannersonthefly.netlify.app/daniel
-- Runtime commit: `798790cd44ee154d51044bafb2ab077b42eadb81`.
-- Real-mail acceptance deployment: `6ad8e700064787a9e816f078`, verified ready.
-- Final deployment after closing the test window: `6ad8e8b569a2e11420176770`, verified ready at the same runtime commit.
-- Draft PR: https://github.com/bjscha03/Final-Banner-Site/pull/655 (unmerged).
-- Later README, acceptance-harness and validation changes do not change application runtime.
+- PR: https://github.com/bjscha03/Final-Banner-Site/pull/655
+- Final runtime changes: `103d1b0bb8365aa6617ab06fb89fd122de7f17b0`.
+- Real reply/report acceptance deployment: `6ad90e3f359c44282fedd077`.
+- Cleanup explicitly sets the owner-only Gmail test expiration to `2026-10-21T19:17:00.000Z` in deploy-preview/functions scope. The final deployment must pass the `locked` acceptance stage before handoff; its observed result is recorded in the PR confirmation report.
 
-## OAuth repair
+## Four blockers
 
-The actual preview authorization request used the existing BOF Google client `294570446868-qpltmq64mg8djisbit61lm135v572vv5.apps.googleusercontent.com` in project `banners-on-the-fly`. Its callback was missing from that client's authorized redirect URIs.
+| Requirement | Implemented and verified |
+| --- | --- |
+| Autonomous discovery | Live OpenAI web research selects corporate/franchise/recurring end buyers; actual official pages are fetched and checked for exact published emails and quotations. Independent qualification reviews identity, geography, contact purpose and a specific signage opportunity. No manually seeded company was used in this acceptance. |
+| Autonomous initial outreach | Qualified routine introductions pass independent content review and automatic policy approval. Rejected drafts can be revised automatically from review feedback; original text and review history remain recorded. Special terms, prices and commitments still require owner approval. |
+| Actual daily email report | Gmail delivered the formatted report to brandon.schaefer@hotmail.com from the accepted BOF identity, signed Brad. The receiving inbox independently confirmed receipt. The worker schedules one report at/after 8 PM Eastern on weekdays, keyed by local date; repeated execution did not resend it. |
+| Correct address | Daniel signatures and reports use PO Box 368, Crestwood, KY 40014. Actual received introduction, follow-up, response and report confirmed it. Regression tests protect the constant, rendered output and source files. Previously delivered historical test mail is not rewritten. |
 
-Added exactly:
+## Independently researched company
 
-`https://deploy-preview-655--bannersonthefly.netlify.app/api/daniel/oauth/callback`
+Daniel selected **The GSP Group** without a supplied company name. Its official homepage and locations page establish its Zaxby's and Blaze Pizza operations and planned restaurant openings. Its contact page publishes the appropriate shared business inbox. These sources were also independently read outside the application:
 
-Preserved the existing storefront callback and localhost callback; no new OAuth client was created and no client secret was changed. Added the owner as a test user. The owner granted Gmail read-only, Gmail send and basic-settings permissions. The subsequent 403 was traced to the Gmail API being disabled in the same project; enabling it and retrying the approved grant completed the callback successfully.
+- https://www.thegspgroup.com/
+- https://www.thegspgroup.com/locations
+- https://www.thegspgroup.com/contact
 
-The dedicated application refreshed its own encrypted offline token successfully and verified the existing `info@bannersonthefly.com` send-as identity with Google status `accepted`. Tests used that actual dedicated application grant, not the ChatGPT Gmail connector for outbound delivery.
+The hypothetical opportunity was opening and promotional signage. Evidence includes literal quotations, page hashes, research/review response IDs and verification time. The real researched email remained evidence only. **All test deliveries went to the owner's Hotmail inbox; the company was never contacted.**
 
-## Real Gmail acceptance
+The first GSP draft was held by independent review. Daniel automatically revised it, obtained a fresh passing review, and approved it through `daniel-policy`; no owner message approval was used. Original research run: `71e823dc-95cd-49f0-94f2-bdfded10f1ba`; revision run: `228105fb-9f79-41c0-8c1c-8e151d1634f3`.
 
-Only the owner's connected Hotmail inbox was allowlisted. No actual prospects were contacted. Conversation marker: `Daniel QA 1792598866745`; Gmail thread: `1a15f38383c33379`.
+## Real end-to-end evidence
+
+Conversation: `[Daniel QA 228105fb]`; Gmail thread `1a15fd72d83d0dc3`.
 
 | Check | Observed result |
 | --- | --- |
-| Verified BOF introduction | Gmail ID `1a15f38383c33379`; receiving inbox confirmed delivery at 16:08:10 UTC |
-| Concurrent workers and repeated send run | One introduction delivered; competing worker reported busy; repeat run sent zero |
-| Recipient restriction | Approved non-allowlisted `example.test` fixture remained held; no provider delivery |
-| Follow-up schedule | Original task scheduled five business days later; isolated fixture timestamps accelerated; early run left task pending |
-| Due follow-up | Real AI-generated follow-up sent as Gmail ID `1a15f42b3a99e36b`; receiving inbox confirmed 16:19:35 UTC |
-| Thread continuity | Follow-up used the original Gmail thread and canonical `In-Reply-To`/`References` headers |
-| Actual inbound customer reply | Owner replied through Outlook to the BOF identity; Gmail ID `1a15f4302d41929d` received through existing BOF forwarding |
-| Automatic AI response | Grounded product-list response passed routine policy without manual approval; Gmail ID `1a15f4a64e554b40`; receiver confirmed 16:28:00 UTC |
-| Reply threading and deduplication | Same Gmail thread, `In-Reply-To` matched the inbound Outlook Message-ID; repeat sync created no new inbound or outbound message |
-| Reply stops follow-ups | Pending follow-up cancelled when the actual customer reply was ingested |
-| Actual unsubscribe | Owner sent unsubscribe through Outlook; Gmail ID `1a15f4ab65561613`; contact suppressed, pending tasks cancelled and approved future message blocked |
-| Suppression enforcement | New draft rejected with HTTP 409; repeated worker run sent zero |
-| Normal sync path | Deployed initial reconciliation scoped to this test conversation, then real Gmail incremental history; complete with no mailbox error; cursor advanced to `23687081` |
-| Reporting | 3 actual controlled Gmail sends, 0 sales sends, 7 earlier simulated deliveries, 0 uncertain outcomes; 2 actual inbound test messages plus 9 earlier simulated inbound fixtures |
+| Original, automatically approved introduction | Gmail `1a15fd72d83d0dc3`; owner inbox receipt 19:01:48 UTC |
+| Follow-up schedule | Original due time October 28, 19:01:40 UTC — five business days later. Only the isolated fixture timestamps were accelerated. |
+| Automatic due follow-up | Gmail `1a15fd8b6b460116`; owner receipt 19:03:28 UTC; same thread and canonical In-Reply-To |
+| Actual incoming reply | Outlook-originated product question received as Gmail `1a15fd9abd72693e`; account became interested and remaining follow-ups were cancelled |
+| Intelligent automatic response | Gmail `1a15fe3b5adc4023`; owner receipt 19:15:27 UTC; standard products and approved shipping facts answered without manual approval, in the same thread |
+| Actual unsubscribe | Gmail `1a15fe4416a2c7a0`; contact suppressed, pending tasks cancelled, an already-approved future message blocked; new draft rejected with HTTP 409 |
+| Daily report sent by Brad | Gmail `1a15fe4e3d8ec26f`; owner receipt 19:16:45 UTC; sender info@bannersonthefly.com, recipient brandon.schaefer@hotmail.com, Brad signature and PO Box 368 |
+| Duplicate prevention | Repeat run imported zero new inbound messages, sent zero outreach and returned `already_sent` for the same daily-report provider ID |
 
-The initial sync acceptance fixture used an actual Gmail history ID and a query scoped to the test conversation to avoid importing unrelated owner mail. Production's 30-day known-contact reconciliation and pagination are separately covered by integration tests. No provider responses or delivery results were fabricated.
+This successful conversation contains three actual outgoing messages and two actual incoming messages. The daily test report truthfully aggregates all controlled tests for the day: two researched prospects, three introductions, two follow-ups, two responses and four incoming messages. That includes the earlier Gmail baseline and one failed factual-acceptance introduction, not just the final conversation. It explicitly labels the results as controlled testing and excludes them from production sales counts. Current interested/open-opportunity counts were zero after the unsubscribe; the earlier interested-stage transition was separately verified.
 
-## Failures found and fixed during real testing
+## Failures found and fixed
 
-1. Gmail replaced the submitted RFC Message-ID. Daniel now persists Gmail's immutable provider ID before reading its canonical headers. Follow-ups use the actual canonical ID. A read failure after Gmail accepts a send is reconciled by provider ID without resending. The first test introduction was repaired through this reconciliation path.
-2. The real forwarded reply carried both `SENT` and `INBOX`. Label-only filtering skipped it. Daniel now determines inbound direction from recorded outbound IDs and exact known senders, ignores drafts, and preserves duplicate protection. The existing real reply was then received and answered successfully.
-3. Deployed Netlify functions did not expose the build-only `CONTEXT` variable. Daniel now reads the actual function deployment context explicitly, keeping preview/production send gates accurate.
+Real testing, not simulations alone, exposed these issues:
 
-## Automated and dashboard verification
+1. Search responses needed safe structured extraction; fetched page extraction needed to preserve published mailto addresses.
+2. Legitimate alternative-domain business inboxes were over-rejected. Exact official contact-page evidence now controls eligibility; guessed addresses and substring lookalikes are rejected.
+3. Responses JSON mode needed an explicit JSON instruction in its input.
+4. Reusing an old controlled-test address collided with duplicate protection. Prior fixtures were archived with message IDs, research and suppression history preserved.
+5. Opportunities needed to describe specific signage uses rather than generic business consulting.
+6. A Great Jones test introduction misattributed a combined US/UK footprint to the US alone. That result failed acceptance, was archived and had its follow-ups cancelled. Stronger independent factual review, company-count rejection and automatic revision were added. It was never sent to the real company.
+7. Unsent/rejected drafts were visible to later AI conversation context. Only received mail and sent/simulated outbound records are now included.
+8. A duplicate closing was removed before the branded signature.
+9. The approved $20 vinyl-banner shipping threshold was being treated as special pricing. The exact published fact can now be answered routinely; other dollar values, custom prices, discounts and exceptional commitments remain protected. The held test response was regenerated through the corrected worker, not manually approved.
 
-- 44 automated policy, database integration, AI regression, job lifecycle, Gmail safety and DOM UI tests: all passed; no skips.
-- Earlier real isolated-database HTTP suite: 12 workflow checks passed.
-- Deployed HTTP suite: 13 workflows passed, including actual OpenAI generation, approval exceptions, concurrent jobs and idempotent simulated delivery.
-- Chrome: owner sign-in, prospect creation, actual AI drafting, editing, approval, worker completion, inbound replay, suppression, scheduling, reporting, audit history and all nine views checked.
-- Earlier observed mobile grid overflow fixed; client width and scroll width both 375px after correction. Desktop checked visually.
-- AI cold introductions reject fabricated prior-contact claims; duplicate signatures removed and regression tested.
-- Anonymous data endpoint requires authentication; anonymous HTML contains no CRM controls/data. Deployed inline script validated against CSP SHA-256.
-- Existing application build and prerender validations passed. Final Netlify runtime build succeeded.
-- Restricted Neon runtime role is `daniel_preview_app` in isolated `daniel_preview`; audit update/delete privileges revoked.
+## Automated and existing-system validation
 
-## Isolation, cleanup and existing automation
+- **66 automated tests pass, with no skips:** policy, database integration, source verification, independent review/revision, AI regression, quotas, suppressions, sender validation, report delivery/idempotency, worker coordination and all nine dashboard views.
+- Application build and 20-route prerender validation pass. Netlify builds succeeded and real acceptance used the deployed functions.
+- Earlier authenticated HTTP, real AI, approval-exception, meeting/calendar and dashboard acceptance remains applicable; actual provider tests above are recorded separately from simulated deliveries.
+- Anonymous CRM data requires authentication. The final locked stage verifies anonymous HTTP 401, expired test endpoints HTTP 403, paused=true, auto_reply=false, auto_prospect=false and liveEmailEnabled=false.
 
-All acceptance contacts are suppressed. Dedicated agent paused; routine replies disabled. The expiring Gmail test window was explicitly closed after acceptance. Final deployed lock checks passed at 16:34 UTC: `liveEmailEnabled=false`, `gmailTestEnabled=false`, paused=true, auto_reply=false. Both test run and test evidence endpoints returned HTTP 403; anonymous CRM data returned HTTP 401 and anonymous HTML exposed no test-contact data. The test-window expiration is `2026-10-21T16:29:00.000Z` in deploy-preview/functions scope only.
+## OAuth, database and isolation
 
-No storefront, designer, checkout, payment, order or production supplier code or production environment variables were modified by this project. Live sending requires all three server gates: live agent mode, explicit cutover approval and production deployment context. The dashboard cannot activate these gates. Gmail authorization alone cannot activate emailing.
+The existing BOF OAuth client was preserved. Callback:
 
-Existing automation `6ad58ee2f27c8191858a7ebc21f8572a` remains enabled on its 8 AM–8 PM Eastern hourly schedule and was not edited. Its 17:00 UTC scheduled run completed at 16:58:22 UTC and recorded three introductions from the BOF identity, bringing its daily total to nine. These are the existing automation's authorized operations, not dedicated-preview test sends.
+`https://deploy-preview-655--bannersonthefly.netlify.app/api/daniel/oauth/callback`
 
-## Cutover approval still required
+Google Cloud Audience was verified In production, and the owner renewed consent at 17:42:45.477 UTC. The dedicated application's encrypted token refreshes and Gmail accepts info@bannersonthefly.com as the sender alias. Google publication is not Google verification; its unverified-app warning remains for this owner-only integration.
 
-The completed private preview and renewed production OAuth grant are verified. Before activating the dedicated agent, obtain separate explicit owner cutover approval. Cutover must preserve the existing automation's contact history, sent-message IDs, suppressions, daily counts and due dates, validate the production deployment and production callback, and prevent overlap between the two senders. Do not infer cutover authorization from approval of OAuth publishing or consent.
+Database: isolated `daniel_preview`; restricted runtime role: `daniel_preview_app`. No storefront, designer, checkout, payment, order, pricing or production supplier implementation or production environment was changed. Live mode still requires explicit server cutover approval and a production deployment context; the dashboard cannot enable these gates.
+
+Existing hourly automation `6ad58ee2f27c8191858a7ebc21f8572a` remains enabled and unchanged. Its 19:00 UTC run completed at 19:03:32.228133 UTC, reporting the existing day's ten introductions and continued thread monitoring. It was not replaced or disabled.
+
+Production activation remains a separate controlled transition: reconcile history, contacts, suppressions, provider IDs, daily counters and schedules; verify the production database/Gmail configuration; prevent overlap; retain rollback. These preview results are not a claim that production cutover has occurred.
