@@ -2517,15 +2517,16 @@ const GoogleAdsBanner: React.FC = () => {
     setHasEnteredBuilder(true);
     const target = document.getElementById('upload-section') ?? builderStartRef.current ?? orderRef.current;
     revealArtworkElement(target?.querySelector<HTMLElement>('[role="button"]') ?? target);
-    const opened = fileUploaderRef.current?.openFilePicker() ?? false;
-    logUx('upload_picker_requested', { source: 'sticky_cta', opened });
+    const requested = fileUploaderRef.current?.openFilePicker() ?? false;
+    if (!requested) fileUploaderRef.current?.focus();
+    logUx('upload_picker_requested', { source: 'sticky_cta', requested });
   }, []);
 
   const openOrScrollToYardSignUpload = useCallback(() => {
     setHasEnteredBuilder(true);
     scrollToStepAnchor(YARD_SIGN_ANCHORS.upload);
-    const opened = yardSignConfiguratorRef.current?.openFilePicker() ?? false;
-    logUx('upload_picker_requested', { source: 'sticky_cta', productType: 'yard_sign', opened });
+    const requested = yardSignConfiguratorRef.current?.openFilePicker() ?? false;
+    logUx('upload_picker_requested', { source: 'sticky_cta', productType: 'yard_sign', requested });
   }, []);
 
   // Shared step-machine state — drives both the mobile sticky CTA and the

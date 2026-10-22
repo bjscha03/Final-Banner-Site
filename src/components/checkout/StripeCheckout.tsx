@@ -60,6 +60,7 @@ import { isValidCheckoutPhone, selectWalletCheckoutPhone } from './stripeWalletP
 import { stripeCardPaymentElementOptions } from './stripePaymentElementOptions';
 import { CheckoutCardDivider } from './CheckoutCardDivider';
 import IsolatedExpressWallet from './IsolatedExpressWallet';
+import { useExpressWalletReadiness } from './useExpressWalletReadiness';
 import CheckoutPaymentBar from './CheckoutPaymentBar';
 import { createWalletFailureHandler } from './stripeWalletFailure';
 
@@ -316,15 +317,9 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   const { user } = useAuth();
   const { items, discountCode, sameDayHitService, saturdayDelivery } = useCartStore();
   const resumedStripe = resumeCheckout?.provider === 'stripe' ? resumeCheckout : null;
-  const [walletAvailability, setWalletAvailability] = useState({ applePay: false, googlePay: false });
+  const { availability: walletAvailability, ready: walletsReady, report: reportWallet } = useExpressWalletReadiness();
   const availableWalletCount = Object.values(walletAvailability).filter(Boolean).length;
   const walletsAvailable = availableWalletCount > 0;
-  const [walletsReady, setWalletsReady] = useState(false);
-  useEffect(() => {
-    // Card checkout remains available if a wallet provider never reports readiness.
-    const timer = window.setTimeout(() => setWalletsReady(true), 8000);
-    return () => window.clearTimeout(timer);
-  }, []);
   const [walletPhoneRequired, setWalletPhoneRequired] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
@@ -1244,14 +1239,14 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
             </div>
           ) : null}
       <div className={`checkout-express-options ${expressCheckoutVisible ? 'has-wallet' : ''} ${availableWalletCount > 1 ? 'has-multiple-wallets' : ''}`}>
+      {!verificationMessage && alternativePayment}
       <section
         aria-labelledby="express-checkout-heading"
         aria-hidden={walletsReady && !expressCheckoutVisible}
-        className={!walletsReady ? "relative min-h-12" : expressCheckoutVisible
-          ? 'block animate-in fade-in duration-200'
-          : 'pointer-events-none absolute inset-x-0 top-0 invisible -z-10'}
+        aria-busy={!walletsReady}
+        className={`checkout-wallet-region ${walletsReady && !expressCheckoutVisible ? 'invisible pointer-events-none' : ''}`}
       >
-        {!walletsReady && <p role="status" className="absolute inset-x-0 top-0 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Checking available express payment options…</p>}
+        {!walletsReady && <p role="status" className="checkout-wallet-loading"><Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" /><span>Loading wallets…</span></p>}
         <div className={!walletsReady ? 'invisible' : undefined}>
           <div className="sr-only">
             <h3 id="express-checkout-heading" className="text-base font-bold text-[#0B1F3A]">
@@ -1288,18 +1283,15 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                   shippingRates: getStripeExpressShippingRates(),
                 }}
                 onReady={(event: any) => {
-                  setWalletsReady(true);
-                  setWalletAvailability(previous => ({ ...previous, [wallet]: countSupportedWallets(event) > 0 }));
+                  reportWallet(wallet, countSupportedWallets(event) > 0);
                   if (countSupportedWallets(event)) trackCheckoutDiagnostic('payment_fields_ready', { provider: 'stripe', method: 'wallet' });
                 }}
                 onAvailablePaymentMethodsChange={(event: any) => {
-                  setWalletsReady(true);
-                  setWalletAvailability(previous => ({ ...previous, [wallet]: countSupportedWallets(event) > 0 }));
+                  reportWallet(wallet, countSupportedWallets(event) > 0);
                 }}
                 onLoadError={() => {
                   trackCheckoutDiagnostic('payment_fields_load_failed', { provider: 'stripe', method: 'wallet' });
-                  setWalletsReady(true);
-                  setWalletAvailability(previous => ({ ...previous, [wallet]: false }));
+                  reportWallet(wallet, false);
                 }}
                 onClick={(event: any) => {
                   trackCheckoutDiagnostic('pay_clicked', { provider: 'stripe', method: event.expressPaymentType || 'wallet' });
@@ -1381,7 +1373,6 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           </div>
         </div>
       </section>
-      {!verificationMessage && alternativePayment}
       </div>
 
       {!verificationMessage && (walletsAvailable || alternativePayment) ? (
