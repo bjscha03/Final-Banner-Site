@@ -25,7 +25,7 @@ export default function SpecialtyCatalog() {
       { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Displays, Event Gear & Signs', url: 'https://bannersonthefly.com/products', mainEntity: { '@type': 'ItemList', itemListElement: specialtyProducts.map((product, index) => ({ '@type': 'ListItem', position: index + 1, name: product.name, url: `https://bannersonthefly.com/products/${product.slug}` })) } },
     ]} />
     <CompactProductHero title="Displays & signs." accent="Ready to stand out." specialty discount={showBadge}
-      photo={<img src="/images/product-heroes/displays-fieldwork-640.webp" width={1440} height={960} loading="eager" fetchPriority="high" alt="Custom retractable banner, branded table cover and matching sidewalk sign" />}
+      photo={<img src="/images/campaign/retractable-640.webp" width={1536} height={1024} loading="eager" fetchPriority="high" alt="Two custom retractable banner displays on aluminum bases" />}
       delivery={<SpecialtyDeliveryStatus featured />}
       action={<a href="#shop-displays">Shop Displays &amp; Signs<ArrowRight aria-hidden="true" /></a>}
     />
@@ -39,7 +39,7 @@ export default function SpecialtyCatalog() {
           <div className="mt-6"><SpecialtyDeliveryStatus featured /></div>
         </div>
         <div className="product-hero-media">
-          <img src="/images/product-heroes/displays-fieldwork-1440.webp" srcSet="/images/product-heroes/displays-fieldwork-640.webp 640w, /images/product-heroes/displays-fieldwork-1440.webp 1440w" sizes="(min-width: 768px) 57vw, 100vw" width={1440} height={960} loading="eager" fetchPriority="high" alt="FIELDWORK retractable banner with mountain artwork, terracotta branded table cover and matching sidewalk sign outside a modern venue" />
+          <img src="/images/campaign/retractable-1536.webp" srcSet="/images/campaign/retractable-640.webp 640w, /images/campaign/retractable-1536.webp 1536w" sizes="(min-width: 768px) 57vw, 100vw" width={1536} height={1024} loading="eager" fetchPriority="high" alt="Two custom retractable banner displays on aluminum bases" />
           {showBadge && <FirstOrderBadge />}
         </div>
       </div>
@@ -69,10 +69,10 @@ export default function SpecialtyCatalog() {
           {specialtyProducts.filter(product => product.category === key).map(product => {
             const price = specialtyStartingPrice(product);
             const display = price === undefined ? null : specialtyDisplayPrice(price, discount);
-            return <Link to={`/products/${product.slug}`} key={product.slug} className="group overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:border-[#f45b08] hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f45b08]">
+            return <Link to={`/products/${product.slug}`} key={product.slug} className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:border-[#f45b08] hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f45b08]">
               <div className="relative" data-product-card-photo><img src={product.image} alt={product.imageAlt} loading="lazy" width="1440" height="960" className="aspect-[3/2] w-full bg-white object-contain" />{showBadge && <FirstOrderBadge />}</div>
               <div className="p-4 sm:p-5"><p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#c94e00]">{product.eyebrow}</p><h3 className="mt-2 font-display text-2xl font-black tracking-tight text-[#0B1F3A]">{product.name}</h3><p className="mt-2 text-sm leading-5 sm:min-h-10 text-slate-600">{product.summary}</p>
-                <div className="mt-3 flex items-end justify-between gap-4 border-t border-slate-100 pt-3"><div>{price!==undefined&&<p className="text-xs text-slate-500">From</p>}<p className="font-display text-xl font-black text-[#0B1F3A]">{display ? formatSpecialtyPrice(display.totalCents) : 'Price coming soon'}</p>{!!display?.discountCents && <p className="mt-1 text-xs text-slate-600"><s>{formatSpecialtyPrice(price!)}</s> · {display.label}</p>}{product.shippingPolicy&&<p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-[#061a31]"><Truck className="h-4 w-4"/>Free Next Day Air shipping</p>}</div><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#fff1e8] text-[#c94e00] transition group-hover:bg-[#f45b08] group-hover:text-white"><ArrowRight className="h-5 w-5" /></span></div>
+                <div className="mt-3 flex items-end justify-between gap-4 border-t border-slate-100 pt-3"><div>{price!==undefined&&<p className="text-xs text-slate-500">From</p>}<p className="font-display text-xl font-black text-[#0B1F3A]">{display ? formatSpecialtyPrice(display.totalCents) : 'Price coming soon'}</p>{!!display?.discountCents && <p className="mt-1 text-xs text-slate-600"><s>{formatSpecialtyPrice(price!)}</s> · {display.label}</p>}{product.shippingPolicy&&<p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-[#061a31]"><Truck className="h-4 w-4"/>Free Next Day Air shipping</p>}</div><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ff6a00] text-white transition group-hover:bg-[#e75c00] group-hover:text-white"><ArrowRight className="h-5 w-5" /></span></div>
               </div>
             </Link>;
           })}

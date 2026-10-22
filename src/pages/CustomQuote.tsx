@@ -207,7 +207,7 @@ const CustomQuote: React.FC = () => {
         description="Request a custom quote for special banner sizes, unusual quantities, custom finishing, and bulk yard-sign or magnet orders."
         canonical="https://bannersonthefly.com/custom-quote"
       />
-      <section className="border-b border-[#e5dfd6] bg-[#f8f6f1] px-4 py-14 text-[#061A31] sm:py-16">
+      <section className="bof-info-hero border-b border-[#e5dfd6] bg-[#f8f6f1] px-4 py-14 text-[#061A31] sm:py-16">
         <div className="mx-auto max-w-5xl">
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#b84300]">Custom quote</p>
           <h1 className="mt-3 font-display text-4xl font-bold tracking-[-0.04em] md:text-5xl">Tell us about your custom project.</h1>

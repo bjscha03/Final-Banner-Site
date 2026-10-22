@@ -33,7 +33,7 @@ const PromoBanner: React.FC<PromoBannerProps> = ({ showStandardPromo = false }) 
   if (!showStandardPromo) return null;
 
   return (
-    <div className="relative z-[60] border-b border-[#e7e1d8] bg-[#f3f0eb] text-[#061A31]">
+    <div className="bof-announcement">
       <p className="flex items-center justify-center gap-2 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-[0.02em] sm:text-sm">
         <Truck className="h-5 w-5 shrink-0 text-[#c94e00]" aria-hidden="true" />
         Free next-day air shipping on orders $20+

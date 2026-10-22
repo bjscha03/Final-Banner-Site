@@ -3340,7 +3340,7 @@ const GoogleAdsBanner: React.FC = () => {
         {isLargeBannerLanding && <link rel="canonical" href="https://bannersonthefly.com/large-banners-fast" />}
         {isFallFestivalLanding && <link rel="canonical" href="https://bannersonthefly.com/fall-festival-banners" />}
       </Helmet>
-      <div className="min-h-screen bg-white text-gray-900">
+      <div className="bof-storefront min-h-screen bg-white text-gray-900" data-product-theme={isYardSign ? 'yard' : isCarMagnet ? 'magnet' : 'banner'}>
         {/* Paid landing routes omit navigation. Sharing their mobile
             designer must not remove the storefront's menu or home link. */}
         {(location.pathname.replace(/\/+$/, "") === "/google-ads-banner" || isHalloweenLanding) ? (

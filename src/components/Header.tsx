@@ -1,4 +1,5 @@
 import { availableSpecialtyProducts, specialtyCategories } from '@/lib/specialtyProducts';
+import HeaderProductSearch from './HeaderProductSearch';
 import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, Mail, UserCheck, Users, Gift } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -296,6 +297,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
             >
               Start designing
             </ScrollToTopLink>
+            <HeaderProductSearch />
             {/* User Icon / Dropdown */}
             {!loading && (
               <DropdownMenu
