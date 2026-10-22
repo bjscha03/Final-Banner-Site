@@ -54,6 +54,8 @@
 .checkout-express-options.has-wallet,
 .checkout-express-options.has-wallet.has-multiple-wallets { display: flex; flex-wrap: nowrap; align-items: flex-start; gap: 8px; width: 100%; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; position: relative; margin-top: 0 !important; padding-bottom: 4px; }
 .checkout-express-options > section { flex: 0 0 auto; min-width: 0; }
+.checkout-express-options > .checkout-wallet-region { position: relative; flex: 1 1 0; min-width: 0; min-height: 48px; }
+.checkout-wallet-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 8px; border-radius: 6px; background: #f1f5f9; color: #475569; font-size: 12px; }
 .checkout-native-wallets { display: flex; flex-wrap: nowrap; gap: 8px; }
 .checkout-native-wallet { flex: 0 0 120px; width: 120px; }
 .checkout-wallet-choice, .checkout-paypal-choice { height: 48px; width: 120px; flex: 0 0 120px; border-radius: 12px; display: flex; justify-content: center; align-items: center; gap: 6px; }

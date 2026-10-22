@@ -131,7 +131,7 @@ describe('Stripe ConfirmationToken client flow', () => {
     expect(source).toContain("googlePay: wallet === 'googlePay' ? 'always' : 'never'");
     expect(source).toContain("buttonTheme: { applePay: 'black', googlePay: 'black' }");
     expect(source).toContain('aria-hidden={walletsReady && !expressCheckoutVisible}');
-    expect(source).toContain("'pointer-events-none absolute inset-x-0 top-0 invisible -z-10'");
+    expect(source).toContain("'invisible pointer-events-none'");
     expect(source).not.toContain('Wallet checkout appears automatically on supported devices with an eligible wallet.');
     expect(source).not.toContain('Loading available express payment methods');
     expect(source).toContain('<IsolatedExpressWallet');
