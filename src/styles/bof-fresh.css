@@ -91,6 +91,10 @@
 .bof-storefront .product-hero-media::after { display:none; }
 .bof-storefront .product-hero-media img { object-fit:cover; object-position:75% center; }
 .bof-storefront .product-hero-secondary { color:white; }
+.bof-storefront .product-hero-copy > a { color:white; }
+.bof-storefront :is(.product-hero-copy,.compact-product-delivery) .specialty-shipping-countdown { color:#061a31; background:#fff; border-color:#dfe6ef; }
+.bof-storefront :is(.product-hero-copy,.compact-product-delivery) .specialty-shipping-details { color:#e6edf8; }
+.bof-storefront :is(.product-hero-copy,.compact-product-delivery) .specialty-shipping-details summary { color:white; }
 .bof-storefront .product-hero-benefits { border-color:#ffffff20; background:#061a31; color:white; }
 .bof-storefront .product-hero-benefits li + li { border-color:#ffffff30; }
 .bof-storefront .product-hero-benefits svg { color:#ff8733; }
