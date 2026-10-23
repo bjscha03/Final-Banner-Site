@@ -2,7 +2,8 @@ import React, { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import Layout from '@/components/Layout';
-import HeroSection from '@/components/HeroSection';
+import CampaignCarousel from '@/components/home/CampaignCarousel';
+import BrandStoryStrip from '@/components/home/BrandStoryStrip';
 import CompanySpotlight from '@/components/CompanySpotlight';
 import PricingTable from '@/components/PricingTable';
 import DeliveryCarousel from '@/components/home/DeliveryCarousel';
@@ -67,8 +68,9 @@ const Index: React.FC = () => {
         description="Configure custom banners, yard signs, and car magnets online. Most standard orders are produced within 24 hours; free next-day air follows production."
         canonical="https://bannersonthefly.com/"
       />
-      <HeroSection />
+      <CampaignCarousel />
       <ProductSelectionStrip />
+      <BrandStoryStrip />
       <PricingTable />
       <CompanySpotlight />
       <DeliveryCarousel />

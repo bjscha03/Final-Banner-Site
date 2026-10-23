@@ -22,10 +22,10 @@ export default function MobileBannerLandingHero({ redesigned = false, halloween 
     accent="Without the wait."
     discount={showFirstOrderBadge}
     photo={<picture><img
-      src={halloween ? '/images/product-heroes/halloween-banner-640.webp' : '/images/product-heroes/vinyl-banners-bold-640.webp'}
-      srcSet={halloween ? '/images/product-heroes/halloween-banner-640.webp 640w, /images/product-heroes/halloween-banner-1440.webp 1440w' : '/images/product-heroes/vinyl-banners-bold-640.webp 640w, /images/product-heroes/vinyl-banners-bold-1440.webp 1440w'}
+      src={halloween ? '/images/product-heroes/halloween-banner-640.webp' : '/images/campaign/vinyl-banners-640.webp'}
+      srcSet={halloween ? '/images/product-heroes/halloween-banner-640.webp 640w, /images/product-heroes/halloween-banner-1440.webp 1440w' : '/images/campaign/vinyl-banners-640.webp 640w, /images/campaign/vinyl-banners-1536.webp 1536w'}
       sizes="(max-width: 640px) 100vw, 640px" width="1440" height="960" fetchPriority="high"
-      alt={halloween ? 'Happy Halloween vinyl banner mounted with grommets on a wooden fence' : 'Custom printed vinyl banner displayed on a storefront railing, showing its full edges, grommets and mounting cords'}
+      alt={halloween ? 'Happy Halloween vinyl banner mounted with grommets on a wooden fence' : 'Orange grand opening vinyl banner with grommets beside a blue local business banner'}
     /></picture>}
   />;
 }
