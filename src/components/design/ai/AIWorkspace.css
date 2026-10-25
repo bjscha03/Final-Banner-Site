@@ -144,3 +144,6 @@
   .ai-studio-footer { padding-block: 8px; }
   .ai-studio-footer > p, .ai-studio-footer > div { display: none; }
 }
+
+.ai-studio-header > div > div:last-child { padding-right: 44px; }
+.ai-studio-artwork-image { height: auto; min-height: 0; }

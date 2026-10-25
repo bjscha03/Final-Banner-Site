@@ -240,7 +240,8 @@ describe('customer AI version selection and handoff', () => {
     await act(async () => { await new Promise<void>(resolve => setImmediate(resolve)); });
     await click('Stop waiting');
     expect(selectedImage()).toContain(concept(1).imageBase64);
-    await click('Check for finished design'); await finishJob();
+    expect(button('Resume latest design').disabled).toBe(false);
+    await click('Resume latest design'); await finishJob();
     expect(selectedImage()).toContain(concept(2).imageBase64);
     expect(editRequests).toHaveLength(1);
   });
