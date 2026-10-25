@@ -115,6 +115,60 @@ afterEach(async () => {
 });
 
 describe('customer AI version selection and handoff', () => {
+  it('offers Create immediately and reveals the preview after generating from a description', async () => {
+    await mount();
+    expect(button('Create my banner').closest('[data-testid="ai-selection-footer"]')).not.toBeNull();
+    expect(button('Create my banner').disabled).toBe(true);
+    expect(host.querySelector('.ai-studio-options')?.hasAttribute('open')).toBe(false);
+    const input = host.querySelector('#ai-description')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, 'Fall festival with orange leaves. Print FALL FESTIVAL.');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const normal = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (url, init) => {
+      if (url.endsWith('/ai-designer-generate')) return { ok: true, json: async () => ({ jobRef: 'first-job', pollAfterMs: 1 }) };
+      if (url.endsWith('/ai-designer-job')) return { ok: true, json: async () => ({ status: 'completed', concepts: [concept(1)], brief: concept(1).brief, generationId: 'generation' }) };
+      return normal(url, init);
+    });
+    await click('Create my banner'); await finishJob();
+    expect(selectedImage()).toContain(concept(1).imageBase64);
+    expect((host.querySelector('#ai-creative-brief') as HTMLElement).hidden).toBe(true);
+    expect(button('Approve design & continue').disabled).toBe(false);
+    await click('Change idea or create another design');
+    expect((host.querySelector('#ai-creative-brief') as HTMLElement).hidden).toBe(false);
+  });
+  it('applies an unsent edit before allowing approval, and can explicitly discard it', async () => {
+    await mount(session());
+    await enterEdit('Make the title blue');
+    expect(host.querySelector('[data-testid="ai-selection-footer"]')?.textContent).not.toContain('Approve design & continue');
+    expect(generated).not.toHaveBeenCalled();
+    await click('Apply edit & preview'); await finishJob();
+    expect(editRequests[0].editInstruction).toBe('Make the title blue');
+    expect(selectedImage()).toContain(concept(2).imageBase64);
+    await enterEdit('An edit I changed my mind about');
+    await click('Discard unsent edit');
+    await click('Approve design & continue');
+    expect(generated.mock.calls[0][0]).toMatchObject({ width: 72, height: 36, imageBase64: concept(2).imageBase64 });
+  });
+  it('keeps the studio open during upload and after failure, then allows a successful retry', async () => {
+    await mount(session());
+    let rejectUpload!: (reason: Error) => void;
+    generated.mockImplementationOnce(() => new Promise((_, reject) => { rejectUpload = reject; }));
+    await click('Approve design & continue');
+    expect(closed).not.toHaveBeenCalled();
+    expect(button('Please wait…').disabled).toBe(true);
+    expect(mocks.track.mock.calls.some(([name]) => name === 'ai_applied_to_configurator')).toBe(false);
+    await act(async () => { rejectUpload(new Error('Artwork upload failed. Please try again.')); });
+    expect(closed).not.toHaveBeenCalled();
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain('Artwork upload failed');
+    expect(selectedImage()).toContain(concept(1).imageBase64);
+    await click('Approve design & continue');
+    expect(generated).toHaveBeenCalledTimes(2);
+    expect(closed).toHaveBeenCalledOnce();
+    expect(mocks.track.mock.calls.filter(([name]) => name === 'ai_applied_to_configurator')).toHaveLength(1);
+  });
+
   it('keeps style chips connected to the creative brief and protects unapplied changes', async () => {
     await mount(session());
     await click('Modern');
@@ -186,7 +240,8 @@ describe('customer AI version selection and handoff', () => {
     await act(async () => { await new Promise<void>(resolve => setImmediate(resolve)); });
     await click('Stop waiting');
     expect(selectedImage()).toContain(concept(1).imageBase64);
-    await click('Check for finished design'); await finishJob();
+    expect(button('Resume latest design').disabled).toBe(false);
+    await click('Resume latest design'); await finishJob();
     expect(selectedImage()).toContain(concept(2).imageBase64);
     expect(editRequests).toHaveLength(1);
   });
@@ -239,6 +294,9 @@ describe('customer AI version selection and handoff', () => {
     await click('Select version 1'); await finishJob();
     expect(selectedImage()).toBe(`data:image/jpeg;base64,${concept(2).imageBase64}`);
     expect(host.textContent).toContain('Please retry this edit.');
+    expect(button('Apply edit & preview').disabled).toBe(false);
+    expect(generated).not.toHaveBeenCalled();
+    await click('Discard unsent edit');
     expect(button('Approve design & continue').disabled).toBe(false);
   });
   it('flushes a quick close and restores all versions and the selection in the same order', async () => {

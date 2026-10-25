@@ -53,6 +53,7 @@ import type { UploadedArtworkFile } from '@/lib/cartArtworkForEditor';
 import type { NormalizedArtworkTransform } from '@/lib/previewLifecycle';
 import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
+import { requireSavedAIArtwork } from '@/lib/aiArtworkTransfer';
 import ArtworkPreviewEditor, {
   type ArtworkPreviewEditorHandle,
   type ArtworkTransform,
@@ -432,6 +433,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
       setPreviewImgPos({ x: 0, y: 0 });
       setPreviewImgScale(1);
       setUploadError('');
+      return newDesign;
     } catch (error) {
       console.error('[YardSign] original upload failed', error);
       setUploadError(getArtworkUploadMessage(error));
@@ -841,7 +843,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
           materialLabel="Corrugated Plastic"
           onGenerated={async (result: CreateWithAIResult) => {
             const file = base64ToFile(result.imageBase64, result.fileName, result.mimeType);
-            await handleFileUpload(file);
+            requireSavedAIArtwork(await handleFileUpload(file));
           }}
         />
       )}
