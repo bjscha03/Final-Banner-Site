@@ -8,11 +8,13 @@ import type { TrackingEntry } from '@/lib/orders/tracking';
 import { DEFAULT_TRACKING_CARRIER, fedexUrl, normalizeTrackingEntries } from '@/lib/orders/tracking';
 import { getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
 import { adminFetch } from '@/lib/serverAuth';
+import OrderRealisticPreview from './OrderRealisticPreview';
 
 interface AdminTrackingManagerProps {
   order: Order;
   onUpdated?: (next: Partial<Order>) => void;
   instanceSuffix?: string;
+  showRealisticPreview?: boolean;
 }
 
 const emptyRow = (index = 0): TrackingEntry => ({
@@ -50,7 +52,7 @@ const readJson = async (response: Response): Promise<Record<string, any>> => {
   }
 };
 
-const AdminTrackingManager: React.FC<AdminTrackingManagerProps> = ({ order, onUpdated, instanceSuffix }) => {
+const AdminTrackingManager: React.FC<AdminTrackingManagerProps> = ({ order, onUpdated, instanceSuffix, showRealisticPreview = false }) => {
   const { toast } = useToast();
   const busy = useRef(false);
   const emailRequest = useRef<{ signature: string; id: string } | null>(null);
@@ -230,7 +232,10 @@ const AdminTrackingManager: React.FC<AdminTrackingManagerProps> = ({ order, onUp
         <div className="mt-3 grid gap-2">
           {(order.items || []).map((item, index) => {
             const preview = getFinalizedThumbnailUrl(item, 720);
-            return preview ? <img key={index} src={preview} alt={`Order #${orderLabel}, artwork ${index + 1}`} className="h-36 w-full rounded border border-slate-200 bg-white object-contain" /> : null;
+            const artwork = preview ? <img src={preview} alt={`Order #${orderLabel}, artwork ${index + 1}`} className="h-36 w-full rounded border border-slate-200 bg-white object-contain" /> : null;
+            return showRealisticPreview
+              ? <OrderRealisticPreview key={index} item={item} className="!w-full" fallback={artwork} />
+              : <React.Fragment key={index}>{artwork}</React.Fragment>;
           })}
         </div>
       </div>
