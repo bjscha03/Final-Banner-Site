@@ -206,6 +206,9 @@ function AIWorkspaceSession(props: Props) {
   const [recoveryReady, setRecoveryReady] = useState(false);
   const [saveNotice, setSaveNotice] = useState('');
   const [editInstruction, setEditInstruction] = useState('');
+  const [briefOpen, setBriefOpen] = useState(!props.initialSession);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const feedbackRef = useRef<HTMLDivElement | null>(null);
   const [promptBeforeImprovement, setPromptBeforeImprovement] = useState<CreativeBrief | null>(null);
   const [stage, setStage] = useState<string | null>(null);
   const [activeImageJob, setActiveImageJob] = useState(false);
@@ -235,6 +238,19 @@ function AIWorkspaceSession(props: Props) {
     ('photoImages' in selected && JSON.stringify(selected.photoImages || []) !== JSON.stringify(photoImages))
   ));
 
+  const hasPendingEdit = Boolean(editInstruction.trim());
+
+  useEffect(() => {
+    if (!activeImageJob) { setElapsedSeconds(0); return; }
+    const started = Date.now();
+    const timer = window.setInterval(() => setElapsedSeconds(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, [activeImageJob]);
+
+  useEffect(() => {
+    if (stage || error) feedbackRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [Boolean(stage), error]);
+
   useEffect(() => {
     let active = true;
     if (!access.authorized || !access.sessionKey) return;
@@ -249,6 +265,7 @@ function AIWorkspaceSession(props: Props) {
       setConcepts(draft.versionGallery ? draft.concepts : collectVersions(draft.history || [], draft.concepts, draft.redo || [])); setSelectedId(draft.selectedId);
       setHistory(draft.history || []); setRedo(draft.redo || []);
       setEditInstruction(draft.editInstruction || '');
+      setBriefOpen(!draft.concepts.length);
       setLogoImage(draft.logoImage); setReferenceImage(draft.referenceImage); setPhotoImages(draft.photoImages || []);
       setPendingImageJob(draft.pendingImageJob || null);
       setProgressPreview(draft.progressPreview || null);
@@ -435,7 +452,7 @@ function AIWorkspaceSession(props: Props) {
       setEditInstruction('');
       setRevealResult(value => value + 1);
       setSaveNotice('Your updated design is selected. Keep editing, choose an earlier version, or use this design.');
-      trackAIEvent('ai_edit_succeeded', { validation_passed: edited.validation.passed, version_id: edited.versionId, version_number: concepts.length + 1 });
+      trackAIEvent('ai_edit_succeeded', { validation_passed: edited.validation.passed, version_id: edited.versionId, version_number: concepts.length + 1, duration_ms: edited.diagnostics.clientDurationMs || edited.diagnostics.durationMs });
       if (!body.concept.validation.passed) trackAIEvent('ai_validation_failed', { count: 1 });
     } else {
       const nextConcepts = Array.isArray(body.concepts) ? body.concepts.map((concept: AIConcept) => ({ ...concept, ...context })) : [];
@@ -450,11 +467,13 @@ function AIWorkspaceSession(props: Props) {
       setHistory([]);
       setRedo([]);
       const failed = nextConcepts.filter((concept: AIConcept) => !concept.validation.passed).length;
-      trackAIEvent('ai_generation_succeeded', { concept_count: nextConcepts.length, validation_failures: failed });
+      trackAIEvent('ai_generation_succeeded', { concept_count: nextConcepts.length, validation_failures: failed, duration_ms: nextConcepts[0].diagnostics.clientDurationMs || nextConcepts[0].diagnostics.durationMs });
       if (failed) trackAIEvent('ai_validation_failed', { count: failed });
     }
     setPendingImageJob(null);
     setProgressPreview(null);
+    setEditInstruction('');
+    setBriefOpen(false);
   };
 
   const recoverImageJob = async () => {
@@ -611,18 +630,19 @@ function AIWorkspaceSession(props: Props) {
     setLogoImage(null); setReferenceImage(null); setPhotoImages([]);
     setEditInstruction(''); setPromptBeforeImprovement(null); setProgressPreview(null);
     setFullPreview(false); setError(''); setConfirmNewDesign(false);
+    setBriefOpen(true);
     setSaveNotice(`Fresh start. Describe your new ${context.noun}.`);
     try { await saveDraft(draftKey, emptyDraft); }
     catch { setSaveNotice('The new draft could not be saved. Keep this window open.'); }
   };
 
   const apply = async () => {
-    if (!selected || hasUnappliedChanges || stage || controllerRef.current) return;
+    if (!selected || hasUnappliedChanges || hasPendingEdit || stage || controllerRef.current) return;
     if (!sameAIProduct(brief,props)||!sameAIProduct(selected.brief||{...selected,productType:brief.productType},props)) {
       setError('This artwork belongs to a different product or size. Create a design for the current selection.'); return;
     }
     setError('');
-    setStage('Preparing your artwork for the product designer');
+    setStage('Saving your artwork to your order');
     const session: AIDesignSession = {
       generationId: selected.generationId || generationId,
       brief,
@@ -692,28 +712,51 @@ function AIWorkspaceSession(props: Props) {
         {blockerCopy && !access.loading && <div role="alert" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><p>{blockerCopy}</p><button type="button" onClick={access.refresh} className="mt-2 min-h-11 rounded-lg bg-[#0b1f3a] px-4 font-bold text-white">Retry connection</button></div>}
       </div>
 
+      <div className="ai-studio-scroll">
       <div className="ai-studio-intro">
-        <div><h2>{props.productType==='banner'?<>Big ideas. <span>Bold banners.</span></>:<>Your product. <span>Your design.</span></>}</h2><p>Describe it. Create it. Make it yours.</p><AITutorial /></div>
+        <div><h2>{selected ? 'Make it yours.' : <>Your idea. <span>Ready to print.</span></>}</h2><p>{selected ? 'Review your artwork, refine it, then continue to your order.' : 'Describe your design. Include the exact words you want printed.'}</p></div>
         <ol className="ai-studio-steps" aria-label="Design progress">
-          {['Describe', 'Create', 'Finish'].map((label, index) => {
-            const current = selected ? 2 : stage || pendingImageJob ? 1 : 0;
+          {['Describe', 'Preview', 'Order'].map((label, index) => {
+            const current = selected || stage || pendingImageJob ? 1 : 0;
             return <li key={label} aria-current={index === current ? 'step' : undefined} data-complete={index < current}><span>{index < current ? <Check className="h-4 w-4" /> : index + 1}</span>{label}</li>;
           })}
         </ol>
       </div>
       {saveNotice && <p className="px-4 pt-3 text-xs text-slate-500" role="status">{saveNotice}</p>}
-      <div className="ai-studio-layout">
-        <section className="ai-studio-controls space-y-5">
+      {selected && <div className="ai-studio-brief-toggle"><button type="button" disabled={Boolean(stage)} aria-expanded={briefOpen} aria-controls="ai-creative-brief" onClick={() => setBriefOpen(value => !value)} className="min-h-11 text-sm font-semibold text-slate-700 underline underline-offset-4">{briefOpen ? 'Back to selected preview' : 'Change idea or create another design'}</button></div>}
+      <div className={`ai-studio-layout ${!briefOpen || activeImageJob ? 'ai-studio-layout-preview' : ''}`}>
+        <fieldset id="ai-creative-brief" aria-label="Design idea and optional details" hidden={!briefOpen || activeImageJob} disabled={Boolean(stage)} className="ai-studio-controls space-y-5">
           <div>
             <div className="ai-studio-control-heading">
-              <h3>Bring your idea to life</h3>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{formatDimension(brief.widthIn)} × {formatDimension(brief.heightIn)} · {props.materialLabel || brief.material}</span>
+              <h3>{selected ? "Create another version" : "Describe your design"}</h3>
+              <div className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600">{formatDimension(brief.widthIn)} × {formatDimension(brief.heightIn)} · {props.materialLabel || brief.material}{props.onClose && <button type="button" onClick={props.onClose} className="ml-2 min-h-8 underline underline-offset-2">Change size in order</button>}</div>
             </div>
             <label htmlFor="ai-description" className="mt-4 block text-sm font-bold text-slate-800">What are we creating?</label>
-            <textarea id="ai-description" aria-label="Describe the design you want" value={brief.description} disabled={Boolean(stage)} onChange={(event) => updateBrief('description', event.target.value.slice(0, 1200))} rows={5} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-base shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="Example: A polished grand-opening design for a family restaurant, with warm food photography, strong contrast, and space for a headline and offer." />
+            <textarea id="ai-description" aria-label="Describe the design you want" value={brief.description} disabled={Boolean(stage)} onChange={(event) => updateBrief('description', event.target.value.slice(0, 1200))} rows={4} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-base shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="Example: A polished grand-opening design for a family restaurant, with warm food photography, strong contrast, and space for a headline and offer." />
+            </div>
+          <div>
+            <details className="ai-studio-uploads"><summary className="cursor-pointer py-2 text-sm font-semibold text-slate-600"><ImagePlus className="h-5 w-5" /> Add your logo or photos <span>(optional)</span></summary>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Reference image</span><span className="text-xs text-slate-500">Photo, artwork or style reference</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('reference', event.target.files?.[0])} /></label>
+              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Logo</span><span className="text-xs text-slate-500">Use your logo and brand colors</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('logo', event.target.files?.[0])} /></label>
+            </div>
+            <label className="mt-3 block rounded-xl border border-dashed border-slate-300 bg-white p-3 text-sm font-semibold">Add people or product photos (up to 3)<span className="mt-1 block text-xs font-normal text-slate-500">These become part of the design. Add school or business marks in the Logo box above.</span><input type="file" multiple accept="image/png,image/jpeg,image/webp" className="mt-2 block w-full text-sm" disabled={Boolean(stage)} onChange={async event => {
+              const files = Array.from(event.target.files || []);
+              if (files.length + photoImages.length > 3) { setError('Choose up to three photos.'); return; }
+              try { const images = await Promise.all(files.map(file => readImage(file, 256 * 1024, 1600))); setPhotoImages(current => [...current, ...images]); }
+              catch (reason) { setError(reason instanceof Error ? reason.message : 'The photos could not be added.'); }
+              event.target.value = '';
+            }} /></label>
+            </details>
+            {photoImages.length > 0 && <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">{photoImages.map((src, index) => <div key={index} className="flex min-w-0 items-center gap-3 rounded-lg border border-slate-200 bg-white p-2"><img src={src} alt={`Customer visual ${index + 1}`} className="h-16 w-20 shrink-0 rounded bg-slate-50 object-contain" /><div className="min-w-0"><p className="text-xs font-bold text-slate-700">Photo {index + 1}</p><div className="mt-1 flex flex-wrap gap-x-3"><button type="button" className="min-h-8 text-xs font-semibold text-orange-700 underline underline-offset-2" onClick={() => movePhotoToLogo(index)}>Use as logo</button><button type="button" className="min-h-8 text-xs text-slate-500 underline underline-offset-2" onClick={() => setPhotoImages(current => current.filter((_, item) => item !== index))}>Remove</button></div></div></div>)}</div>}
+            {(referenceImage || logoImage) && <div className="mt-3 grid grid-cols-2 gap-3">{[['Reference', referenceImage], ['Logo included on banner', logoImage]].map(([label, src]) => src && <figure key={label} className="min-w-0 rounded-lg border border-slate-200 bg-white p-2"><img src={src} alt={label || 'Attached image'} className="h-20 w-full object-contain" /><figcaption className="mt-1 text-xs text-slate-500">{label}</figcaption></figure>)}</div>}
+            {(referenceImage || logoImage) && <div className="mt-2 flex flex-wrap items-center gap-2">{referenceImage && <button type="button" onClick={() => removeImage('reference')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove reference</button>}{logoImage && <><label className="text-sm font-semibold text-slate-700">Logo treatment<select aria-label="Logo treatment" value={brief.logoRendering || 'integrated'} onChange={event => updateBrief('logoRendering', event.target.value as CreativeBrief['logoRendering'])} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"><option value="integrated">Blend into design</option><option value="original">Keep original logo</option></select></label>{brief.logoRendering === 'original' && <label className="text-sm font-semibold text-slate-700">Logo position<select value={brief.logoPosition} onChange={(event) => updateBrief('logoPosition', event.target.value as CreativeBrief['logoPosition'])} className="ml-2 min-h-11 rounded-lg border border-slate-300 bg-white px-3"><option value="upper-left">Upper left</option><option value="upper-right">Upper right</option><option value="lower-left">Lower left</option><option value="lower-right">Lower right</option></select></label>}<p className="w-full text-xs text-slate-500">{brief.logoRendering !== 'original' ? 'AI recreates your logo as part of the artwork. Check its lettering and details before ordering. Your original file stays saved.' : 'Places your original logo unchanged, including its background.'}{selected && ' Treatment applies to your next new design.'}</p><button type="button" onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove uploaded logo</button></>}</div>}
+          </div>
+          <details className="ai-studio-options"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-slate-600">Style, exact wording & more options</summary>
+          <div>
             <div className="mt-1 flex flex-wrap items-center gap-x-4">
               <button type="button" onClick={() => void improvePrompt()} disabled={!access.ready || !recoveryReady || !requirementsMet || Boolean(stage)} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#0b1f3a] hover:text-orange-600 disabled:opacity-40">{improvingPrompt ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <WandSparkles className="h-4 w-4" />} {improvingPrompt ? 'Improving your prompt…' : 'Improve prompt with AI'}</button>
-              {improvingPrompt && <p role="status" className="text-xs text-slate-600">Rewriting your text. Your artwork stays unchanged. <button type="button" onClick={() => controllerRef.current?.abort()} className="min-h-11 underline">Cancel</button></p>}
+              {improvingPrompt && <p role="status" className="text-xs text-slate-600">Rewriting your text. Your artwork stays unchanged.</p>}
               {promptBeforeImprovement && <button type="button" disabled={Boolean(stage)} onClick={() => { setBrief(promptBeforeImprovement); setBriefReviewed(promptBeforeImprovement.structured); setPromptBeforeImprovement(null); setSaveNotice('Original prompt restored.'); }} className="min-h-11 text-xs text-slate-500 underline underline-offset-4">Undo prompt update</button>}
             </div>
             <fieldset className="ai-studio-styles" disabled={Boolean(stage)}>
@@ -768,29 +811,14 @@ function AIWorkspaceSession(props: Props) {
             </div>
           </details>
 
-          <div>
-            <details className="ai-studio-uploads"><summary className="cursor-pointer py-2 text-sm font-semibold text-slate-600"><ImagePlus className="h-5 w-5" /> Add your logo or photos <span>(optional)</span></summary>
-            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Reference image</span><span className="text-xs text-slate-500">Photo, artwork or style reference</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('reference', event.target.files?.[0])} /></label>
-              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Logo</span><span className="text-xs text-slate-500">Use your logo and brand colors</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('logo', event.target.files?.[0])} /></label>
-            </div>
-            <label className="mt-3 block rounded-xl border border-dashed border-slate-300 bg-white p-3 text-sm font-semibold">Add people or product photos (up to 3)<span className="mt-1 block text-xs font-normal text-slate-500">These become part of the design. Add school or business marks in the Logo box above.</span><input type="file" multiple accept="image/png,image/jpeg,image/webp" className="mt-2 block w-full text-sm" disabled={Boolean(stage)} onChange={async event => {
-              const files = Array.from(event.target.files || []);
-              if (files.length + photoImages.length > 3) { setError('Choose up to three photos.'); return; }
-              try { const images = await Promise.all(files.map(file => readImage(file, 256 * 1024, 1600))); setPhotoImages(current => [...current, ...images]); }
-              catch (reason) { setError(reason instanceof Error ? reason.message : 'The photos could not be added.'); }
-              event.target.value = '';
-            }} /></label>
-            </details>
-            {photoImages.length > 0 && <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">{photoImages.map((src, index) => <div key={index} className="flex min-w-0 items-center gap-3 rounded-lg border border-slate-200 bg-white p-2"><img src={src} alt={`Customer visual ${index + 1}`} className="h-16 w-20 shrink-0 rounded bg-slate-50 object-contain" /><div className="min-w-0"><p className="text-xs font-bold text-slate-700">Photo {index + 1}</p><div className="mt-1 flex flex-wrap gap-x-3"><button type="button" className="min-h-8 text-xs font-semibold text-orange-700 underline underline-offset-2" onClick={() => movePhotoToLogo(index)}>Use as logo</button><button type="button" className="min-h-8 text-xs text-slate-500 underline underline-offset-2" onClick={() => setPhotoImages(current => current.filter((_, item) => item !== index))}>Remove</button></div></div></div>)}</div>}
-            {(referenceImage || logoImage) && <div className="mt-3 grid grid-cols-2 gap-3">{[['Reference', referenceImage], ['Logo included on banner', logoImage]].map(([label, src]) => src && <figure key={label} className="min-w-0 rounded-lg border border-slate-200 bg-white p-2"><img src={src} alt={label || 'Attached image'} className="h-20 w-full object-contain" /><figcaption className="mt-1 text-xs text-slate-500">{label}</figcaption></figure>)}</div>}
-            {(referenceImage || logoImage) && <div className="mt-2 flex flex-wrap items-center gap-2">{referenceImage && <button type="button" onClick={() => removeImage('reference')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove reference</button>}{logoImage && <><label className="text-sm font-semibold text-slate-700">Logo treatment<select aria-label="Logo treatment" value={brief.logoRendering || 'integrated'} onChange={event => updateBrief('logoRendering', event.target.value as CreativeBrief['logoRendering'])} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"><option value="integrated">Blend into design</option><option value="original">Keep original logo</option></select></label>{brief.logoRendering === 'original' && <label className="text-sm font-semibold text-slate-700">Logo position<select value={brief.logoPosition} onChange={(event) => updateBrief('logoPosition', event.target.value as CreativeBrief['logoPosition'])} className="ml-2 min-h-11 rounded-lg border border-slate-300 bg-white px-3"><option value="upper-left">Upper left</option><option value="upper-right">Upper right</option><option value="lower-left">Lower left</option><option value="lower-right">Lower right</option></select></label>}<p className="w-full text-xs text-slate-500">{brief.logoRendering !== 'original' ? 'AI recreates your logo as part of the artwork. Check its lettering and details before ordering. Your original file stays saved.' : 'Places your original logo unchanged, including its background.'}{selected && ' Treatment applies to your next new design.'}</p><button type="button" onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove uploaded logo</button></>}</div>}
-          </div>
 
-          <button type="button" onClick={() => void generate()} disabled={!access.ready || !recoveryReady || !requirementsMet || Boolean(stage) || Boolean(pendingImageJob)} className="ai-studio-create inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-bold text-white hover:bg-orange-700 disabled:opacity-50"><Sparkles className="h-5 w-5" />{concepts.length ? 'Create another design' : `Create my ${context.noun}`}</button>
+
+          </details>
+          {selected && <button type="button" onClick={() => void generate()} disabled={!access.ready || !recoveryReady || !requirementsMet || Boolean(stage) || Boolean(pendingImageJob)} className="ai-studio-create inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-bold text-white hover:bg-orange-700 disabled:opacity-50"><Sparkles className="h-5 w-5" />Create another design</button>}
           <p className="ai-studio-helper">You can refine your design after creating.</p>
+          <AITutorial />
           <details className="text-sm text-slate-600"><summary className="cursor-pointer py-2">Review wording before creating (optional)</summary><button type="button" onClick={() => void reviewBrief()} disabled={!requirementsMet || !access.ready || Boolean(stage)} className="min-h-11 underline">Extract wording from my description</button></details>
-        </section>
+        </fieldset>
 
         <section className="ai-studio-workspace min-w-0 space-y-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -804,15 +832,18 @@ function AIWorkspaceSession(props: Props) {
             <p className="mt-1 text-sm text-slate-600">This clears this draft’s artwork, prompt, uploads and edit history. Your selected product and size stay the same.</p>
             <div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => void startNewDesign()} disabled={Boolean(stage)} className="min-h-11 rounded-lg bg-[#0b1f3a] px-4 text-sm font-bold text-white disabled:opacity-40">Delete draft &amp; start new</button><button type="button" onClick={() => setConfirmNewDesign(false)} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold">Keep this design</button></div>
           </div>}
+          <div ref={feedbackRef} className="scroll-mt-4">
+          {improvingPrompt && <div role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm">Improving your prompt. Your artwork stays unchanged. <button type="button" onClick={() => controllerRef.current?.abort()} className="ml-2 min-h-11 font-semibold underline">Cancel prompt improvement</button></div>}
           {stage && !improvingPrompt && <div role="status" aria-live="polite" className="flex min-h-52 flex-col items-center justify-center rounded-xl bg-[#0b1f3a] px-6 py-8 text-center text-white">
             {progressPreview && <img src={progressPreview} alt="New artwork — print checks in progress" className="mb-5 max-h-[420px] w-full rounded-lg object-contain" />}
             <Loader2 className="h-7 w-7 animate-spin text-orange-400 motion-reduce:animate-none" />
-            <h4 className="mt-4 text-xl font-semibold tracking-tight">{progressPreview ? 'Your first look' : selected ? 'Making your changes' : 'Bringing your idea to life'}</h4>
+            <h4 className="mt-4 text-xl font-semibold tracking-tight">{!activeImageJob ? 'Preparing your design' : progressPreview ? 'Your first look' : selected ? 'Making your changes' : 'Bringing your idea to life'}</h4>
             <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-300">{stage}</p>
-            {activeImageJob && <div className="mt-4 flex max-w-md items-start gap-2 rounded-lg border border-white/15 bg-white/10 px-4 py-3 text-left text-sm leading-relaxed text-slate-100"><Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-orange-300" /><span><strong className="font-bold text-white">This may take a few minutes.</strong> Hang tight and keep this page open—your design will appear here automatically.</span></div>}
-            <button type="button" onClick={() => controllerRef.current?.abort()} className="mt-4 min-h-11 px-3 text-xs text-slate-300 underline underline-offset-4" title="Your draft stays saved. This stops waiting here; the current job may still finish.">Stop waiting</button>
+            {activeImageJob && <div className="mt-4 flex max-w-md items-start gap-2 rounded-lg border border-white/15 bg-white/10 px-4 py-3 text-left text-sm leading-relaxed text-slate-100"><Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-orange-300" /><span><strong className="font-bold text-white">Usually about a minute.</strong> Some designs take longer. Your result appears here automatically.<span className="mt-1 block text-xs text-slate-300" aria-live="off">{elapsedSeconds}s elapsed · Your previous versions stay saved.</span></span></div>}
+            {activeImageJob && <button type="button" onClick={() => controllerRef.current?.abort()} className="mt-4 min-h-11 px-3 text-xs text-slate-300 underline underline-offset-4" title="Your draft stays saved. This stops waiting here; the current job may still finish.">Stop waiting</button>}
           </div>}
           {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><XCircle className="mt-0.5 h-5 w-5 shrink-0" /><span>{error}</span></div>}
+          </div>
 
           {!stage && (pendingImageJob || progressPreview) && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4" role="status">
             <h4 className="font-bold text-[#0b1f3a]">Your latest preview</h4>
@@ -851,7 +882,8 @@ function AIWorkspaceSession(props: Props) {
               <label className="text-sm font-bold text-slate-800">Want to change something?<textarea aria-label="Edit with AI" disabled={Boolean(stage)} value={editInstruction} onChange={(event) => setEditInstruction(event.target.value.slice(0, 700))} rows={2} className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-base" placeholder='Example: “Make the background lighter and keep everything else exactly the same.”' /></label>
               <button type="button" onClick={() => void edit()} disabled={!editInstruction.trim() || Boolean(stage) || !access.ready} className="inline-flex min-h-11 items-center justify-center gap-2 self-end rounded-lg bg-[#0b1f3a] px-5 py-3 text-sm font-black text-white disabled:opacity-50"><WandSparkles className="h-4 w-4" /> Edit current design</button>
             </div>
-            <div className="mt-2 flex flex-wrap gap-2">{['Make the background lighter', 'Use the colors from my logo', ...(logoImage ? ['Move the logo to the upper-left'] : []), 'Remove the people', 'Make it more professional', 'Keep everything else exactly the same'].map((value) => <button key={value} type="button" disabled={Boolean(stage)} onClick={() => setEditInstruction(value)} className="min-h-11 rounded-full border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700 hover:border-orange-400">{value}</button>)}</div>
+            <p className="mt-2 text-xs text-slate-600">Describe only what you want changed. Every finished version stays available below.{hasPendingEdit && <button type="button" disabled={Boolean(stage)} onClick={() => setEditInstruction('')} className="ml-2 min-h-11 font-semibold underline underline-offset-4">Discard unsent edit</button>}</p>
+            <div className="mt-2 flex flex-wrap gap-2">{['Make the background lighter', ...(logoImage ? ['Use the colors from my logo', 'Move the logo to the upper-left'] : []), 'Remove the people', 'Make it more professional', 'Keep everything else exactly the same'].map((value) => <button key={value} type="button" disabled={Boolean(stage)} onClick={() => setEditInstruction(value)} className="min-h-11 rounded-full border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700 hover:border-orange-400">{value}</button>)}</div>
 
             {concepts.length > 1 && <div className="mt-4" aria-label="Saved design versions">
               <h5 className="text-sm font-bold text-[#0b1f3a]">Your designs</h5>
@@ -887,10 +919,16 @@ function AIWorkspaceSession(props: Props) {
         </section>
       </div>
 
-      {selected && <div className="ai-studio-footer sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white p-4 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] sm:px-6" data-testid="ai-selection-footer">
-        <div className="flex min-w-0 items-center gap-3"><img src={imageSrc(selected)} alt="Selected version to continue with" className="h-12 w-24 rounded border border-slate-200 object-contain" /><div><p className="text-sm font-bold text-[#0b1f3a]">Version {concepts.findIndex(item => item.versionId === selected.versionId) + 1} selected</p><p className="text-xs text-slate-600">{hasUnappliedChanges ? 'Apply or discard your changes first.' : 'Your selected artwork goes with you.'}</p></div></div>
-        <button type="button" onClick={() => void apply()} disabled={hasUnappliedChanges || Boolean(stage)} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"><ArrowRight className="h-4 w-4 shrink-0" /> {stage ? 'Please wait…' : hasUnappliedChanges ? 'Apply your changes before continuing' : 'Approve design & continue'}</button>
-      </div>}
+      </div>
+      <div className="ai-studio-footer sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white p-4 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] sm:px-6" data-testid="ai-selection-footer">
+        {selected ? <>
+          <div className="flex min-w-0 items-center gap-3"><img src={imageSrc(selected)} alt="Selected version to continue with" className="h-12 w-24 rounded border border-slate-200 object-contain" /><div><p className="text-sm font-bold text-[#0b1f3a]">Version {concepts.findIndex(item => item.versionId === selected.versionId) + 1} selected</p><p className="text-xs text-slate-600">{hasPendingEdit ? 'Apply your edit to see it before approving.' : hasUnappliedChanges ? 'Apply or discard your changes first.' : 'Check wording and details before approving.'}</p></div></div>
+          {hasPendingEdit ? <button type="button" onClick={() => void edit()} disabled={Boolean(stage) || !access.ready || Boolean(pendingImageJob)} className="ai-studio-footer-action"><WandSparkles className="h-4 w-4" />{stage ? 'Please wait…' : 'Apply edit & preview'}</button> : <button type="button" onClick={() => void apply()} disabled={hasUnappliedChanges || Boolean(stage)} className="ai-studio-footer-action"><ArrowRight className="h-4 w-4 shrink-0" />{stage ? 'Please wait…' : hasUnappliedChanges ? 'Apply your changes before continuing' : 'Approve design & continue'}</button>}
+        </> : <>
+          <p className="text-sm text-slate-600">{stage ? 'Your design will appear here.' : pendingImageJob ? 'Check for your finished design above.' : requirementsMet ? 'Usually about a minute. You can edit the result.' : 'Describe your idea to get started.'}</p>
+          <button type="button" onClick={() => void generate()} disabled={!access.ready || !recoveryReady || !requirementsMet || Boolean(stage) || Boolean(pendingImageJob)} className="ai-studio-footer-action"><Sparkles className="h-5 w-5" />{stage ? activeImageJob ? 'Creating your design…' : 'Please wait…' : `Create my ${context.noun}`}</button>
+        </>}
+      </div>
 
       <Dialog open={fullPreview && Boolean(selected)} onOpenChange={setFullPreview}>
         <DialogContent className="z-[10020] w-[96vw] max-w-[96vw] border-0 bg-slate-950 p-4 pt-12 text-white [&>button]:text-white">

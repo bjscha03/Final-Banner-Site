@@ -23,7 +23,7 @@ const CreateWithAIModal: React.FC<Props> = (props) => {
   if (!ENABLE_AI) return null;
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="h-[94dvh] w-[98vw] max-w-[1800px] overflow-y-auto border-0 bg-white p-0 shadow-2xl sm:rounded-2xl">
+      <DialogContent className="ai-studio-dialog h-[94dvh] w-[98vw] max-w-[1800px] overflow-hidden border-0 bg-white p-0 shadow-2xl sm:rounded-2xl">
         <DialogTitle className="sr-only">Create professional print artwork with AI</DialogTitle>
         <DialogDescription className="sr-only">Create artwork for your selected product, size and print panel, review it, and apply it to your order.</DialogDescription>
         <AIWorkspace {...props} onClose={() => props.onOpenChange(false)} />

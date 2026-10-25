@@ -86,6 +86,7 @@ import { useAIAdminAccess } from '@/hooks/useAIAdminAccess';
 import { trackAIEvent } from '@/lib/aiAnalytics';
 import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
+import { requireSavedAIArtwork } from '@/lib/aiArtworkTransfer';
 import {
   getArtworkUploadDiagnostic,
   getArtworkUploadEvidence,
@@ -1512,7 +1513,7 @@ const GoogleAdsBanner: React.FC = () => {
         previewUrlType: previewUrl.startsWith('data:') ? 'data' : previewUrl.startsWith('blob:') ? 'blob' : 'url',
       });
 
-      await persistArtworkUpload(file, initialArtwork, generation, correlationId);
+      return await persistArtworkUpload(file, initialArtwork, generation, correlationId);
     } catch (error) {
       if (generation !== uploadGenerationRef.current) return;
       console.error('[artwork_upload]', { correlationId, stage: 'local_preview_failed', error });
@@ -1637,7 +1638,7 @@ const GoogleAdsBanner: React.FC = () => {
       setImgPos({ x: 0, y: 0 });
       setImgScale(1);
       setImgScaleY(1);
-      await handleFileUpload(file);
+      requireSavedAIArtwork(await handleFileUpload(file));
     },
     [handleFileUpload],
   );
@@ -1651,7 +1652,7 @@ const GoogleAdsBanner: React.FC = () => {
       setImgPos({ x: 0, y: 0 });
       setImgScale(1);
       setImgScaleY(1);
-      await handleFileUpload(file);
+      requireSavedAIArtwork(await handleFileUpload(file));
     },
     [handleFileUpload],
   );

@@ -24,7 +24,7 @@ const EditWithAIModal: React.FC<EditWithAIModalProps> = (props) => {
   if (!ENABLE_AI) return null;
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="h-[94dvh] w-[98vw] max-w-[1800px] overflow-y-auto border-0 bg-white p-0 shadow-2xl sm:rounded-2xl">
+      <DialogContent className="ai-studio-dialog h-[94dvh] w-[98vw] max-w-[1800px] overflow-hidden border-0 bg-white p-0 shadow-2xl sm:rounded-2xl">
         <DialogTitle className="sr-only">Edit the current artwork with AI</DialogTitle>
         <DialogDescription className="sr-only">Edit the actual current image while preserving exact dimensions, text, logos, and previous versions.</DialogDescription>
         {props.session ? (
