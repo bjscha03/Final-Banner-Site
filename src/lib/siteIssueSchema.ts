@@ -2,10 +2,10 @@ export const SITE_ISSUE_KINDS = ['upload_error', 'upload_timeout', 'upload_previ
 export type SiteIssueKind = typeof SITE_ISSUE_KINDS[number];
 export type SiteIssue = {
   id: string; kind: SiteIssueKind; occurredAt: string; receivedAt: string;
-  page: string; sessionId: string; traffic: 'customer' | 'test';
+  page: string; sessionId: string; traffic: 'customer' | 'test' | 'crawler';
   device: string; browser: string; os: string; online: boolean;
   details: Record<string, string | number | boolean>;
-  status: 'new' | 'reviewed' | 'resolved'; reviewedAt?: string; resolvedAt?: string; resolution?: string; deployId: string;
+  status: 'new' | 'reviewed' | 'resolved' | 'archived'; reviewedAt?: string; resolvedAt?: string; resolution?: string; deployId: string;
 };
 export type SiteIssueInput = Omit<SiteIssue, 'receivedAt' | 'status' | 'reviewedAt' | 'resolvedAt' | 'resolution' | 'deployId' | 'device' | 'browser' | 'os'>;
 export const ISSUE_LABELS: Record<SiteIssueKind, string> = {
@@ -13,6 +13,15 @@ export const ISSUE_LABELS: Record<SiteIssueKind, string> = {
   checkout_error: 'Checkout error', checkout_load_error: 'Payment form did not load',
   page_error: 'Page script error', page_crash: 'Page crashed', monitor_test: 'Monitoring test',
 };
+// Only explicit crawler product tokens qualify. Browser version, viewport,
+// missing device information and headless mode cannot identify a crawler.
+export function knownIssueCrawler(agent: string): string | null {
+  const token = agent.match(/(?:^|[\s;(])((?:Googlebot(?:-\w+)?|GoogleOther(?:-\w+)?|AdsBot-Google(?:-Mobile)?|Mediapartners-Google|bingbot|BingPreview|DuckDuckBot|Applebot|facebookexternalhit|meta-externalads|meta-externalagent|Twitterbot|LinkedInBot))(?:[/\s;)]|$)/i)?.[1];
+  return token?.toLowerCase() || null;
+}
+export function isOpenCustomerIssue(issue: Pick<SiteIssue, 'status' | 'traffic'>): boolean {
+  return issue.traffic === 'customer' && (issue.status === 'new' || issue.status === 'reviewed');
+}
 // Preserve storefront routes without query strings or customer/order identifiers.
 export function issuePage(value: unknown): string {
   const path = typeof value === 'string' ? value.split(/[?#]/)[0].replace(/\/$/, '') || '/' : '/other';
@@ -36,9 +45,9 @@ export function issueDetails(input: unknown): SiteIssue['details'] {
   const result: SiteIssue['details'] = {};
   if (!input || typeof input !== 'object') return result;
   const values = input as Record<string, unknown>;
-  for (const key of ['phase', 'status', 'mimeType', 'sizeBucket', 'provider', 'method', 'stage', 'code', 'errorName', 'correlationId', 'transport', 'field', 'event', 'browserVersion', 'clientBuild', 'requestId', 'operation', 'recovery', 'assetHost', 'action', 'product']) {
+  for (const key of ['phase', 'status', 'mimeType', 'sizeBucket', 'provider', 'method', 'stage', 'code', 'errorName', 'correlationId', 'transport', 'field', 'event', 'browserVersion', 'clientBuild', 'requestId', 'operation', 'recovery', 'assetHost', 'action', 'product', 'crawler']) {
     const value = values[key];
-    if (typeof value === 'string' && /^[A-Za-z0-9_.<>+\/-]{1,100}$/.test(value)) result[key] = value;
+    if (typeof value === 'string' && /^[A-Za-z0-9_.<>+/-]{1,100}$/.test(value)) result[key] = value;
     if (key === 'status' && typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 599) result[key] = value;
   }
   for (const key of ['durationMs', 'line', 'column', 'attempt', 'chunkIndex', 'chunkCount', 'expectedTotalCents', 'serverTotalCents', 'viewportWidth', 'viewportHeight']) {

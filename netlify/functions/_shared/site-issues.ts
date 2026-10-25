@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { SITE_ISSUE_KINDS, deviceInfo, issueDetails, issuePage, type SiteIssue } from '../../../src/lib/siteIssueSchema';
+import { SITE_ISSUE_KINDS, deviceInfo, issueDetails, issuePage, knownIssueCrawler, type SiteIssue } from '../../../src/lib/siteIssueSchema';
 
 export const STORE_NAME = 'site-issues-v1';
 export const MAX_REPORT_BYTES = 32768;
@@ -16,10 +16,16 @@ export function normalizeReport(body: any, agent: string, deployId: string, now 
   if (!body || !UUID.test(body.id) || !UUID.test(body.sessionId) || !SITE_ISSUE_KINDS.includes(body.kind)) return null;
   const occurred = Date.parse(body.occurredAt);
   if (!Number.isFinite(occurred) || occurred < now - 86_400_000 || occurred > now + 300_000) return null;
+  const crawler = knownIssueCrawler(agent);
+  const details = issueDetails(body.details);
+  // The server's request UA determines crawler classification, including old
+  // clients. Never trust a caller-supplied crawler label to hide a real issue.
+  delete details.crawler;
+  if (crawler) details.crawler = crawler;
   return { id: body.id, sessionId: body.sessionId, kind: body.kind, occurredAt: new Date(occurred).toISOString(),
     receivedAt: new Date(now).toISOString(), page: issuePage(body.page),
-    traffic: body.kind === 'monitor_test' || body.traffic === 'test' ? 'test' : 'customer',
-    online: body.online !== false, details: issueDetails(body.details), ...deviceInfo(agent),
+    traffic: body.kind === 'monitor_test' ? 'test' : crawler ? 'crawler' : body.traffic === 'test' ? 'test' : 'customer',
+    online: body.online !== false, details, ...deviceInfo(agent),
     status: 'new', deployId: /^[a-zA-Z0-9-]{1,80}$/.test(deployId) ? deployId : 'unknown' };
 }
 export function issueKey(issue: Pick<SiteIssue, 'occurredAt' | 'id'>) { return `events/${issue.occurredAt}/${issue.id}`; }

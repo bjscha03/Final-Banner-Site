@@ -16,12 +16,13 @@ export default async (request: Request, context: Context) => {
     const text = await request.text();
     if (text.length > 4096) return reply(413, { ok: false });
     let body; try { body = JSON.parse(text); } catch { return reply(400, { ok: false }); }
-    if (!validIssueKey(body.key) || !['new', 'reviewed', 'resolved'].includes(body.status)) return reply(400, { ok: false });
+    if (!validIssueKey(body.key) || !['new', 'reviewed', 'resolved', 'archived'].includes(body.status)) return reply(400, { ok: false });
+    if (body.traffic !== undefined && body.traffic !== 'crawler') return reply(400, { ok: false });
     const resolution = diagnosticText(body.resolution, 1500).trim();
-    if (body.status === 'resolved' && resolution.length < 20) return reply(400, { ok: false, error: 'Describe the fix and verification before resolving.' });
+    if ((['resolved', 'archived'].includes(body.status) || body.traffic === 'crawler') && resolution.length < 20) return reply(400, { ok: false, error: 'Describe the evidence before closing or classifying this report.' });
     const issue = await store.get(body.key, { type: 'json' });
     if (!issue) return reply(404, { ok: false });
-    await store.setJSON(body.key, { ...issue, status: body.status, reviewedAt: body.status !== 'new' ? new Date().toISOString() : null, resolvedAt: body.status === 'resolved' ? new Date().toISOString() : null, resolution: resolution || issue.resolution || null });
+    await store.setJSON(body.key, { ...issue, ...(body.traffic === 'crawler' ? { traffic: 'crawler' } : {}), status: body.status, reviewedAt: body.status !== 'new' ? new Date().toISOString() : null, resolvedAt: body.status === 'resolved' ? new Date().toISOString() : null, resolution: resolution || issue.resolution || null });
     return reply(200, { ok: true });
   } catch { return reply(503, { ok: false, error: 'Issue monitoring is temporarily unavailable. Please retry.' }); }
 };

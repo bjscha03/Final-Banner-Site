@@ -19,6 +19,17 @@ const request = (method: string, payload?: any, headers: Record<string, string> 
 beforeEach(() => { mocks.records.clear(); vi.clearAllMocks(); });
 
 describe('first-party issue capture', () => {
+  it('retains crawler evidence separately even from an old client labeling itself customer', async () => {
+    const response = await report(request('POST', { ...body(), kind: 'page_error' }, { 'user-agent': 'GoogleOther' }), context);
+    expect(response.status).toBe(202);
+    expect([...mocks.records.values()][0]).toMatchObject({ traffic: 'crawler', status: 'new', details: { crawler: 'googleother' } });
+  });
+  it('does not allow client crawler flags to remove real-browser errors from the open count', () => {
+    const event = normalizeReport({ ...body(), traffic: 'crawler', details: { crawler: 'googlebot', errorMessage: 'Real failure' } }, 'iPhone Mobile Safari', 'deploy-test')!;
+    expect(event.traffic).toBe('customer');
+    expect(event.details.crawler).toBeUndefined();
+    expect(event.details.errorMessage).toBe('Real failure');
+  });
   it('stores diagnostics while stripping query strings, filenames and customer data', async () => {
     const response = await report(request('POST', body()), context);
     expect(response.status).toBe(202);
@@ -50,6 +61,25 @@ describe('first-party issue capture', () => {
   });
 });
 describe('protected issue log', () => {
+  it('archives unverified historical incidents honestly, preserves evidence, and supports reopening', async () => {
+    const event = normalizeReport(body(), '', 'deploy-test')!; await saveIssue(mocks.store, event);
+    const update = { key: issueKey(event), status: 'archived' };
+    expect((await admin(request('PATCH', update, { authorization: 'test-token' }), context)).status).toBe(400);
+    const resolution = 'Historical browser report lacks diagnostic evidence; cause remains unconfirmed.';
+    expect((await admin(request('PATCH', { ...update, resolution }, { authorization: 'test-token' }), context)).status).toBe(200);
+    expect(mocks.records.get(update.key)).toMatchObject({ status: 'archived', resolvedAt: null, resolution, details: event.details });
+    await admin(request('PATCH', { ...update, status: 'new' }, { authorization: 'test-token' }), context);
+    expect(mocks.records.get(update.key)).toMatchObject({ status: 'new', resolution, details: event.details });
+  });
+  it('requires protected admin evidence to correct an old crawler classification', async () => {
+    const event = normalizeReport(body(), '', 'deploy-test')!; await saveIssue(mocks.store, event);
+    const update = { key: issueKey(event), status: 'resolved', traffic: 'crawler', resolution: 'Verified Googlebot request in the hosting request logs.' };
+    expect((await admin(request('PATCH', update), context)).status).toBe(401);
+    expect((await admin(request('PATCH', { ...update, resolution: '' }, { authorization: 'test-token' }), context)).status).toBe(400);
+    expect((await admin(request('PATCH', { ...update, traffic: 'test' }, { authorization: 'test-token' }), context)).status).toBe(400);
+    expect((await admin(request('PATCH', update, { authorization: 'test-token' }), context)).status).toBe(200);
+    expect(mocks.records.get(update.key)).toMatchObject({ traffic: 'crawler', status: 'resolved', details: event.details });
+  });
   it('paginates every retained report and invalidates the cache when an older report changes', async () => {
     const now = Date.now();
     for (let i = 0; i < 205; i++) {
