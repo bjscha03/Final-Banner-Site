@@ -68,7 +68,7 @@ import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import PreviewRulerFrame from '@/components/preview/PreviewRulerFrame';
 import ArtworkPreviewEditor, { type ArtworkPreviewEditorHandle } from '@/components/design/ArtworkPreviewEditor';
 import { base64ToFile } from '@/utils/base64ToFile';
-import { requireSavedAIArtwork } from '@/lib/aiArtworkTransfer';
+import { requireSavedAIArtwork, rememberAIArtworkSession, restoreAIArtworkSession } from '@/lib/aiArtworkTransfer';
 import {
   getArtworkUploadDiagnostic,
   getArtworkUploadEvidence,
@@ -707,6 +707,19 @@ const Design: React.FC = () => {
     : isCarMagnet
       ? selectedCarMagnetSize.heightIn
       : (heightFt * 12 + heightInR);
+  // Returning from checkout must recover the editing source for this exact
+  // saved artwork, not the last unrelated draft at the same banner size.
+  useEffect(() => {
+    if (aiDesignSession || productType !== 'banner' || !uploadedFile?.fileKey) return;
+    let active = true;
+    void restoreAIArtworkSession(uploadedFile, { productType: 'banner', widthIn, heightIn }).then(session => {
+      if (!active || !session) return;
+      setAiDesignSession(session);
+      setAiPrompt(session.brief.description);
+    });
+    return () => { active = false; };
+  }, [uploadedFile?.fileKey, uploadedFile?.productionPublicId, productType, widthIn, heightIn, aiDesignSession]);
+
   const sqft = (widthIn * heightIn) / 144;
   const latestPreviewConfigRef = useRef({ widthIn, heightIn, productType });
   latestPreviewConfigRef.current = { widthIn, heightIn, productType };
@@ -1639,7 +1652,9 @@ const Design: React.FC = () => {
       setImgPos({ x: 0, y: 0 });
       setImgScale(1);
       setImgScaleY(1);
-      requireSavedAIArtwork(await handleFileUpload(file));
+      const savedArtwork = await handleFileUpload(file);
+      requireSavedAIArtwork(savedArtwork);
+      if (savedArtwork) await rememberAIArtworkSession(savedArtwork, result.session);
     },
     [handleFileUpload],
   );
@@ -1725,7 +1740,9 @@ const Design: React.FC = () => {
       setImgPos({ x: 0, y: 0 });
       setImgScale(1);
       setImgScaleY(1);
-      requireSavedAIArtwork(await handleFileUpload(file));
+      const savedArtwork = await handleFileUpload(file);
+      requireSavedAIArtwork(savedArtwork);
+      if (savedArtwork) await rememberAIArtworkSession(savedArtwork, result.session);
     },
     [handleFileUpload],
   );
