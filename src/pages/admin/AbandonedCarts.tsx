@@ -542,6 +542,9 @@ const CartCard: React.FC<CartCardProps> = ({ cart, sending, deleting, onSend, on
                 <div className="flex justify-between gap-4"><dt>Subtotal</dt><dd>{formatCents(cart.subtotal_cents)}</dd></div>
                 <div className="flex justify-between gap-4"><dt>Discount</dt><dd>{cart.discount_cents === null ? 'Not captured' : `-${formatCents(cart.discount_cents)}`}</dd></div>
                 <div className="flex justify-between gap-4"><dt>Tax</dt><dd>{formatCents(cart.tax_cents)}</dd></div>
+                {(cart.additional_fees_cents ?? 0) > 0 && (
+                  <div className="flex justify-between gap-4"><dt>Additional fees</dt><dd>{formatCents(cart.additional_fees_cents)}</dd></div>
+                )}
                 <div className="flex justify-between gap-4 border-t pt-1.5 font-semibold"><dt>Estimated total</dt><dd>{formatCents(cart.estimated_total_cents)}</dd></div>
                 {cart.recovered_order_id && (
                   <div className="mt-2 flex justify-between gap-4 border-t border-green-200 pt-2 font-semibold text-green-700">
@@ -550,6 +553,12 @@ const CartCard: React.FC<CartCardProps> = ({ cart, sending, deleting, onSend, on
                   </div>
                 )}
               </dl>
+              {(cart.selected_services?.length ?? 0) > 0 && (
+                <p className="mt-2 text-xs text-gray-500">Selected services: {cart.selected_services.join(', ')}.</p>
+              )}
+              {(cart.additional_fees_cents ?? 0) > 0 && (
+                <p className="mt-1 text-xs text-gray-500">Additional fees are the difference between the captured total and subtotal minus discount plus tax. Individual fee amounts were not stored.</p>
+              )}
             </div>
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Timeline</div>

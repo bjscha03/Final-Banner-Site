@@ -6,6 +6,40 @@ const require = createRequire(import.meta.url);
 const { handler, _test } = require('../_shared/legacy/get-abandoned-carts.cjs');
 
 describe('get-abandoned-carts admin endpoint', () => {
+  it('reconciles the captured rush-service cart without changing its total or repricing it', () => {
+    const cart = _test.normalizeCart({
+      id: 'rush-cart', subtotal_cents: 36000, discount_cents: 7200,
+      tax_cents: 1728, estimated_total_cents: 52128,
+      same_day_hit_service: 'true', saturday_delivery: 'false',
+    }, new Map());
+
+    expect(cart.additional_fees_cents).toBe(21600);
+    expect(cart.selected_services).toEqual(['Same-Day Hit Service']);
+    expect(cart.subtotal_cents - cart.discount_cents + cart.tax_cents + cart.additional_fees_cents).toBe(cart.estimated_total_cents);
+    expect(cart.captured_value_cents).toBe(52128);
+  });
+
+  it('retains combined historical fees without guessing the individual rates', () => {
+    const cart = _test.normalizeCart({
+      id: 'historical-fees', subtotal_cents: '10000', discount_cents: '2000',
+      tax_cents: '480', estimated_total_cents: '17580',
+      same_day_hit_service: true, saturday_delivery: true,
+    }, new Map());
+    expect(cart.additional_fees_cents).toBe(9100);
+    expect(cart.selected_services).toEqual(['Same-Day Hit Service', 'Saturday Delivery']);
+  });
+
+  it('does not invent fees from incomplete, invalid, or legacy pricing', () => {
+    const full = { id: 'standard-cart', subtotal_cents: 4000, discount_cents: 800, tax_cents: 192, estimated_total_cents: 3392 };
+    expect(_test.normalizeCart(full, new Map()).additional_fees_cents).toBe(0);
+    expect(_test.normalizeCart(full, new Map()).selected_services).toEqual([]);
+    for (const key of ['subtotal_cents', 'discount_cents', 'tax_cents', 'estimated_total_cents']) {
+      expect(_test.normalizeCart({ ...full, [key]: null, total_value: 33.92 }, new Map()).additional_fees_cents).toBeNull();
+    }
+    expect(_test.normalizeCart({ ...full, estimated_total_cents: 3000 }, new Map()).additional_fees_cents).toBeNull();
+    expect(_test.normalizeCart({ ...full, tax_cents: -1 }, new Map()).additional_fees_cents).toBeNull();
+  });
+
   it('keeps completed and recovered cohorts disjoint in server pagination and totals', () => {
     for (const status of ['completed', 'recovered']) {
       const options = _test.parseRequestOptions({ queryStringParameters: { status } });

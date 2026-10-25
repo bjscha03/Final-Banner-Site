@@ -59,6 +59,8 @@ export interface AbandonedCartAdminRecord {
   discount_cents: number | null;
   tax_cents: number | null;
   estimated_total_cents: number | null;
+  additional_fees_cents?: number | null;
+  selected_services?: string[];
   captured_value_cents: number;
   total_value: number;
   currency: string;
