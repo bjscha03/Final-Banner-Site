@@ -235,6 +235,16 @@ function normalizeCart(row, suppressionByEmail) {
   const subtotalCents = numberOrNull(row.subtotal_cents) ?? legacyTotalCents;
   const estimatedTotalCents = numberOrNull(row.estimated_total_cents);
   const capturedValueCents = estimatedTotalCents ?? subtotalCents;
+  // Historical snapshots store the total and service selections, but not each
+  // fee. Reconcile only complete captured amounts; never reprice old carts
+  // using today's fee rates or treat the legacy total fallback as a subtotal.
+  const pricingParts = [row.subtotal_cents, row.discount_cents, row.tax_cents, row.estimated_total_cents].map(numberOrNull);
+  const completePricing = pricingParts.every((value) => Number.isSafeInteger(value) && value >= 0);
+  const remainingCents = completePricing ? pricingParts[3] - (pricingParts[0] - pricingParts[1] + pricingParts[2]) : null;
+  const additionalFeesCents = Number.isSafeInteger(remainingCents) && remainingCents >= 0 ? remainingCents : null;
+  const selectedServices = [];
+  if (row.same_day_hit_service === true || row.same_day_hit_service === 'true') selectedServices.push('Same-Day Hit Service');
+  if (row.saturday_delivery === true || row.saturday_delivery === 'true') selectedServices.push('Saturday Delivery');
   const normalizedEmail = safeString(row.email).toLowerCase();
   const domain = normalizedEmail.includes('@') ? normalizedEmail.slice(normalizedEmail.lastIndexOf('@') + 1) : '';
   const liveSuppression = normalizedEmail
@@ -281,6 +291,8 @@ function normalizeCart(row, suppressionByEmail) {
     discount_cents: numberOrNull(row.discount_cents),
     tax_cents: numberOrNull(row.tax_cents),
     estimated_total_cents: estimatedTotalCents,
+    additional_fees_cents: additionalFeesCents,
+    selected_services: selectedServices,
     captured_value_cents: capturedValueCents,
     total_value: capturedValueCents / 100,
     currency: safeString(row.currency, 'USD') || 'USD',
@@ -992,6 +1004,8 @@ exports.handler = async (event) => {
         cart.discount_cents,
         cart.tax_cents,
         cart.estimated_total_cents,
+        cart.checkout_state->>'sameDayHitService' AS same_day_hit_service,
+        cart.checkout_state->>'saturdayDelivery' AS saturday_delivery,
         LEFT(cart.checkout_stage, 64) AS checkout_stage,
         cart.checkout_stage_updated_at,
         cart.has_artwork,
