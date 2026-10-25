@@ -99,6 +99,8 @@
   .ai-studio-steps li + li::before { display: none; }
   .ai-studio-layout { grid-template-columns: minmax(0, 1fr); padding: 0 12px 20px; gap: 24px; }
   .ai-studio-controls { padding: 20px; }
+  /* Keep native mobile selects at the same readable size as the other inputs. */
+  .ai-studio-controls select { font-size: 16px; }
   .ai-studio-control-heading h3 { font-size: 20px; }
   .ai-studio-empty { min-height: 0; padding: 0 0 24px; }
   .ai-studio-empty-hint svg { transform: rotate(90deg); }
