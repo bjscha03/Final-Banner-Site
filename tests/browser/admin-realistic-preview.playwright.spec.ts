@@ -37,6 +37,12 @@ test('admin order cards and details show the saved realistic preview without cha
   const preview = row.locator('[data-realistic-preview]');
   await expect(preview).toBeVisible();
   await expect(preview.locator('[data-realistic-artwork-ready="true"]')).toHaveCount(1);
+  await expect(row.locator('section[aria-labelledby^="tracking-manager-"]').locator('[data-realistic-preview]')).toHaveCount(1);
+  await expect(row.locator('img:visible')).toHaveCount(2);
+  const trackingWidth = await row.locator('section[aria-labelledby^="tracking-manager-"]').evaluate(el => el.clientWidth);
+  const previewWidth = await preview.evaluate(el => el.clientWidth);
+  expect(previewWidth).toBeGreaterThan(trackingWidth - 40);
+  await row.screenshot({ path: testInfo.outputPath('admin-order-two-previews.png') });
   await preview.getByRole('button').click();
   const lightbox = page.locator('[data-realistic-lightbox]');
   await expect(lightbox).toBeVisible();
