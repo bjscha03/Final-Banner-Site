@@ -221,7 +221,7 @@ function AIWorkspaceSession(props: Props) {
   const controllerRef = useRef<AbortController | null>(null);
   const restoringDraftRef = useRef(false);
   const previewRef = useRef<HTMLDivElement | null>(null);
-  const [revealResult, setRevealResult] = useState(0);
+  const [revealResult, setRevealResult] = useState(props.initialSession ? 1 : 0);
   const latestDraftRef = useRef<{ key: string; value: unknown } | null>(null);
 
   // The id fallback keeps drafts saved by older builds recoverable.
@@ -266,6 +266,7 @@ function AIWorkspaceSession(props: Props) {
       setHistory(draft.history || []); setRedo(draft.redo || []);
       setEditInstruction(draft.editInstruction || '');
       setBriefOpen(!draft.concepts.length);
+      if (draft.concepts.length) setRevealResult(value => value + 1);
       setLogoImage(draft.logoImage); setReferenceImage(draft.referenceImage); setPhotoImages(draft.photoImages || []);
       setPendingImageJob(draft.pendingImageJob || null);
       setProgressPreview(draft.progressPreview || null);
