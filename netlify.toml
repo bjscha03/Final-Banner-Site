@@ -20,6 +20,9 @@
   external_node_modules = ["@netlify/blobs", "@neondatabase/serverless", "node-fetch", "@react-email/components", "@react-email/render", "aws-sdk", "uuid", "cloudinary", "sharp", "pdfkit", "openai", "google-auth-library", "stripe", "resend", "busboy", "svix", "@stablelib/base64", "es6-promise", "fast-sha256", "url-parse", "querystringify", "requires-port"]
 
 # Function-specific configuration
+[functions."order-realistic-preview"]
+  included_files = ["public/images/preview/brick-wall.webp", "public/images/preview/vinyl-surface.webp"]
+
 [functions."detect-abandoned-carts"]
   schedule = "* * * * *"
   memory = 1024

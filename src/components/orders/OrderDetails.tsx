@@ -9,6 +9,7 @@ import { useAuth, isAdmin } from '@/lib/auth';
 import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, MapPin, Loader2, Palette, Phone, Upload, MessageSquare } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
 import OrderItemPreview from '@/components/preview/OrderItemPreview';
+import OrderRealisticPreview from './OrderRealisticPreview';
 import EmailDeliveryStatus from './EmailDeliveryStatus';
 import OrderDeliveryEstimate from './OrderDeliveryEstimate';
 import { getItemDisplayName, getProductLabel, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
@@ -701,6 +702,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                         <p className="text-lg font-bold">{usd(normalized.lineTotalCents / 100)}</p>
                       </div>
                     </div>
+
+                    {isAdminUser && <OrderRealisticPreview item={item} />}
 
                     <div className="text-sm text-gray-700 space-y-1">
                       <p className="break-words">Size: {normalized.sizeDisplay}</p>

@@ -42,6 +42,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Bot, Star, ShoppingCart, UserCheck, UsersRound } from 'lucide-react';
 import OrderDetails from '@/components/orders/OrderDetails';
+import OrderRealisticPreview from '@/components/orders/OrderRealisticPreview';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
 import { adminFetch } from '@/lib/serverAuth';
@@ -1617,6 +1618,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 <button type="button" onClick={() => setPreviewIndex(index)} className="h-[240px] xl:h-[280px] w-full flex-shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#18448D]" aria-label={`Open ${getProductTypeLabel(item)} preview`}>
                   <ProductPreviewFrame item={item} thumbUrl={thumbUrl} idSuffix={`row-${order.id}-${index}`} />
                 </button>
+                {!detailRequired && <OrderRealisticPreview item={item} />}
                 <div className="min-w-0">
                   <Badge className={`${getProductBadgeClass(getProductTypeLabel(item))} border text-[10px] font-bold`}>{getProductTitleLabel(item)}</Badge>
                   <div className="mt-1 text-sm font-semibold text-gray-900 break-words">{getItemSizeLabel(item)}</div>
@@ -2033,6 +2035,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
               <div className="h-[180px] w-full flex-shrink-0 overflow-hidden rounded border border-gray-200 bg-white">
                 {thumbUrl ? <img src={thumbUrl} alt={`${getProductTypeLabel(item)} preview`} className="h-full w-full object-contain" /> : <span className="flex h-full items-center justify-center text-xs text-gray-400">No img</span>}
               </div>
+              {!detailRequired && <OrderRealisticPreview item={item} />}
               <div className="min-w-0">
                 <Badge className={`${getProductBadgeClass(getProductTypeLabel(item))} border text-[10px] font-bold`}>{getProductTitleLabel(item)}</Badge>
                 <div className="mt-1 text-sm font-semibold text-gray-900 break-words">{getItemSizeLabel(item)}</div>
