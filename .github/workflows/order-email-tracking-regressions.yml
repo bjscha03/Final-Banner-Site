@@ -123,6 +123,7 @@ jobs:
       - name: Run checkout, preview, order, email, and tracking tests
         run: |
           node --test \
+            netlify/functions/__tests__/order-realistic-preview.test.mjs \
             netlify/functions/__tests__/review-request-email.test.cjs \
             netlify/functions/__tests__/review-followup-coupon.test.cjs \
             netlify/functions/__tests__/checkout-payment-providers.test.cjs \
@@ -216,6 +217,7 @@ jobs:
             npx playwright test \
               --config=playwright.preview.config.ts \
               admin-commerce-analytics.playwright.spec.ts \
+              admin-realistic-preview.playwright.spec.ts \
               --project=chromium-1440x900 \
               --project=chromium-pixel8-portrait
 

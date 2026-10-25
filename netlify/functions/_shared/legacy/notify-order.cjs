@@ -13,6 +13,7 @@ const {
 const { createGuestOrderViewUrl } = require('../order-confirmation-token.cjs');
 const { getSession } = require('../server-auth.cjs');
 const { renderOrderDeliveryEstimate } = require('../order-delivery-email.cjs');
+const { getRealisticPreviewUrl } = require('../realistic-preview/source.cjs');
 
 const DEFAULT_PUBLIC_SITE_ORIGIN = 'https://www.bannersonthefly.com';
 const ALLOWED_PUBLIC_SITE_HOSTS = new Set([
@@ -980,6 +981,7 @@ exports.handler = async (event) => {
           polePocketSize: item.pole_pocket_size,
           baseCostCents: Math.round(baseCost),
           thumbnailUrl: getThumbnailUrl(item, 300),
+          realisticPreviewUrl: getRealisticPreviewUrl(item, origin),
           // Design Service fields
           design_service_enabled: item.design_service_enabled || false,
           design_request_text: item.design_request_text || null,

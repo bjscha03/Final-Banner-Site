@@ -127,6 +127,15 @@ function renderItems(items = []) {
                     ${lineTotal > 0 ? `<p style="margin:0;color:${BRAND_ORANGE};font-size:14px;font-weight:700;">Line Total: $${lineTotal.toFixed(2)}</p>` : ''}
                   </td>
                 </tr>
+                ${item.realisticPreviewUrl ? `
+                <tr><td colspan="2" style="padding-top:16px;">
+                  <p style="margin:0 0 8px;color:${BRAND_NAVY};font-size:13px;font-weight:700;">Realistic preview</p>
+                  <a href="${escapeHtml(item.realisticPreviewUrl)}" target="_blank" style="text-decoration:none;">
+                    <img src="${escapeHtml(item.realisticPreviewUrl)}" alt="Realistic preview of ${escapeHtml(item.name || 'your banner')}" width="500" style="display:block;width:100%;max-width:500px;height:auto;border-radius:8px;border:1px solid #d1d5db;" />
+                  </a>
+                  <p style="margin:7px 0 0;color:#64748b;font-size:11px;line-height:1.5;">Material, lighting and mounting are illustrative. Refer to the print layout for artwork placement and color.</p>
+                  <p style="margin:5px 0 0;font-size:12px;"><a href="${escapeHtml(item.realisticPreviewUrl)}" target="_blank" style="color:${BRAND_NAVY};text-decoration:underline;">View larger realistic preview</a></p>
+                </td></tr>` : ''}
               </table>
             </td>
           </tr>

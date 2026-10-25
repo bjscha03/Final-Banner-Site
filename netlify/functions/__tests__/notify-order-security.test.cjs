@@ -230,6 +230,24 @@ test('customer and admin order emails include the original expected delivery dat
   }
 });
 
+test('both real order email paths include each saved realistic preview and retain print layouts', async () => {
+  orderItems = [
+    { ...item, final_render_url: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1/first-proof.png' },
+    { ...secondItem, final_render_url: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1/second-proof.png', grommets: '4-corners' },
+    { ...item, id: 'item-3', product_type: 'yard_sign', material: 'corrugated', final_render_url: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1/sign.png' },
+  ];
+  const response = await notifier.handler({ httpMethod: 'POST', headers: { 'x-admin-secret': process.env.RESEND_ORDER_EMAIL_SECRET }, body: JSON.stringify({ orderId: order.id, forceResendBoth: true }) });
+  assert.equal(response.statusCode, 200);
+  assert.equal(sentEmails.length, 2);
+  for (const email of sentEmails) {
+    assert.equal((email.html.match(/alt="Realistic preview of /g) || []).length, 2);
+    assert.match(email.html, /first-proof/); assert.match(email.html, /second-proof/);
+    assert.equal((email.html.match(/class="bof-item-image"/g) || []).length, 3);
+    assert.match(email.html, /View larger realistic preview/);
+    assert.match(email.html, /https:\/\/bannersonthefly.com\/\.netlify\/functions\/order-realistic-preview/);
+  }
+});
+
 test('notify-order accepts force resend from internal jobs and verified administrators', async () => {
   process.env.INTERNAL_JOB_SECRET = 'test-internal-job-secret';
   let response = await notifier.handler({

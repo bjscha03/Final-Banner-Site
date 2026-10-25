@@ -7,6 +7,16 @@ export type BannerEdge = 'top' | 'bottom' | 'left' | 'right';
 const SUPPORTED_MATERIALS = new Set(['13oz', '15oz', '18oz', '18oz_double', 'mesh']);
 const SUPPORTED_GROMMETS = new Set(['none', '4-corners', 'top-corners', 'bottom-corners', 'left-corners', 'right-corners', 'every-1-2ft', 'every-2-3ft']);
 
+/** Database numeric columns and older material keys need normalizing for display. */
+export function normalizeRealisticBannerOrderItem(item: Record<string, any>): CartItem {
+  return {
+    ...item,
+    width_in: Number(item.width_in),
+    height_in: Number(item.height_in),
+    material: String(item.material || '').replace(/_vinyl$/, ''),
+  } as CartItem;
+}
+
 export function isRealisticBannerItem(item: CartItem): boolean {
   return (!item.product_type || item.product_type === 'banner')
     && SUPPORTED_MATERIALS.has(item.material)
