@@ -10,7 +10,9 @@ const mocks = vi.hoisted(() => ({
   records: new Map<string, unknown>(),
   save: vi.fn(),
   track: vi.fn(),
+  importImage: vi.fn(),
 }));
+vi.mock('./imageImport', async importOriginal => ({ ...await importOriginal<typeof import('./imageImport')>(), readAIImage: mocks.importImage }));
 vi.mock('@/lib/auth', () => ({ useAuth: () => ({ user: null }) }));
 vi.mock('@/hooks/useAIAdminAccess', () => ({ useAIDesignerAccess: () => ({ authorized: true, ready: true, sessionKey: 'customer-test', loading: false }) }));
 vi.mock('@/lib/serverAuth', () => ({ authorizedHeaders: (headers: unknown) => headers, authenticatedJsonBody: JSON.stringify }));
@@ -90,6 +92,7 @@ beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   vi.stubGlobal('crypto', webcrypto);
   HTMLElement.prototype.scrollIntoView = vi.fn();
+  mocks.importImage.mockReset().mockResolvedValue('data:image/png;base64,dGVzdA==');
   mocks.records.clear(); mocks.save.mockClear(); mocks.track.mockClear(); sessionStorage.clear();
   host = document.createElement('div'); document.body.append(host); root = createRoot(host);
   generated = vi.fn(async () => {}); closed = vi.fn(); editRequests = []; nextVersion = 2; failJob = false;
@@ -167,6 +170,57 @@ describe('customer AI version selection and handoff', () => {
     expect(generated).toHaveBeenCalledTimes(2);
     expect(closed).toHaveBeenCalledOnce();
     expect(mocks.track.mock.calls.filter(([name]) => name === 'ai_applied_to_configurator')).toHaveLength(1);
+  });
+
+  it('recovers from a failed import and unapplied changes using the visible selected-version action', async () => {
+    await mount(session(concept(2), [concept(1)]));
+    await click('Modern');
+    mocks.importImage.mockRejectedValueOnce(new Error('This image could not be opened.'));
+    const input = host.querySelector('input[aria-label="Upload reference image"]') as HTMLInputElement;
+    Object.defineProperty(input, 'files', { configurable: true, value: [new File(['bad'], 'bad.jpg')] });
+    await act(async () => input.dispatchEvent(new Event('change', { bubbles: true })));
+    expect(host.textContent).toContain('This image could not be opened');
+    const recover = button('Discard changes & keep this version');
+    expect(recover.closest('[data-testid="ai-selection-footer"]')).not.toBeNull();
+    await click('Discard changes & keep this version');
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+    await click('Approve design & continue');
+    expect(generated.mock.calls[0][0].imageBase64).toBe(concept(2).imageBase64);
+    expect(editRequests).toHaveLength(0);
+  });
+
+  it('allows retrying the same failed image without losing the existing version', async () => {
+    await mount(session());
+    mocks.importImage.mockRejectedValueOnce(new Error('File could not be read.'));
+    const input = host.querySelector('input[aria-label="Upload logo image"]') as HTMLInputElement;
+    const file = new File(['photo'], 'logo.png');
+    Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+    await act(async () => input.dispatchEvent(new Event('change', { bubbles: true })));
+    expect(input.value).toBe('');
+    await click('Retry image import');
+    expect(mocks.importImage).toHaveBeenCalledTimes(2);
+    expect(mocks.importImage.mock.calls[1][0]).toBe(file);
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+    expect(selectedImage()).toContain(concept(1).imageBase64);
+    expect(button('Apply your changes before continuing').disabled).toBe(true);
+    await click('Discard changes & keep this version');
+    expect(button('Approve design & continue').disabled).toBe(false);
+  });
+
+  it('blocks artwork actions during import and ignores a late result after cancellation', async () => {
+    await mount(session());
+    let finish!: (value: string) => void;
+    mocks.importImage.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const input = host.querySelector('input[aria-label="Upload logo image"]') as HTMLInputElement;
+    Object.defineProperty(input, 'files', { configurable: true, value: [new File(['photo'], 'logo.png')] });
+    await act(async () => input.dispatchEvent(new Event('change', { bubbles: true })));
+    expect(button('Please wait…').disabled).toBe(true);
+    expect(button('Edit current design').disabled).toBe(true);
+    await click('Cancel image import');
+    await act(async () => finish('data:image/png;base64,dGVzdA=='));
+    expect(button('Approve design & continue').disabled).toBe(false);
+    expect(selectedImage()).toContain(concept(1).imageBase64);
+    expect(host.querySelector('[role="alert"]')).toBeNull();
   });
 
   it('keeps style chips connected to the creative brief and protects unapplied changes', async () => {

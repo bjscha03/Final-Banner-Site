@@ -808,8 +808,8 @@ describe('customer entry points, protected admin tools, and artwork handoff', ()
     expect(design).toContain('pendingAIArtworkScrollRef.current = true');
     expect(workspace).toContain('Retry connection');
     expect(workspace).not.toContain('Admin password');
-    expect(workspace).toContain('This may take a few minutes.');
-    expect(workspace).toContain('your design will appear here automatically.');
+    expect(workspace).toContain('Usually about a minute.');
+    expect(workspace).toContain('Your result appears here automatically.');
     // The approved fitting flow now has one explicit approval action; edits
     // must be applied before it can continue (introduced in #637).
     expect(workspace).toContain('Apply your changes before continuing');
