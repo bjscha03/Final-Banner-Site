@@ -1,6 +1,10 @@
 # Site issue monitoring
 
-The live admin at `/admin/site-issues` shows operational reports from the storefront. Other admin pages show a new-issue banner. The log refreshes every 30 seconds while visible, and supports marking reports reviewed without deleting the evidence. Use **Send monitoring test** to verify the capture endpoint, durable storage, and admin read path together.
+The live admin at `/admin/site-issues` shows operational reports from the storefront. Other admin pages show an open-issue banner. Both new and reviewed customer reports count as open until explicitly resolved or archived. The log refreshes every 30 seconds while visible. Use **Send monitoring test** to verify the capture endpoint, durable storage, and admin read path together.
+
+Explicit crawler user-agent tokens are classified on the server and retained in the **Crawlers** view, separate from customer issues and tests. Unknown user agents and ordinary browsers remain customer traffic. An administrator can correct an older report to crawler traffic after entering evidence from hosting logs. This never changes the underlying diagnostic details.
+
+Use **Mark resolved** only with fix or recovery evidence. **Archive without confirmed fix** closes historical, unreproducible incidents with an explicit **Archived — fix unconfirmed** label; it requires notes, preserves evidence, and can be reopened. Archiving never suppresses future reports or claims the cause was fixed.
 
 Coverage includes artwork upload errors, the upload watchdog, local artwork preview failures, existing Stripe/PayPal technical checkout diagnostics, React error boundaries, and uncaught JavaScript errors/rejections. Known payment declines, ordinary validation errors, deliberate cancellation, and successful uploads do not create incident reports. Existing Clarity/GA4 events continue independently.
 
