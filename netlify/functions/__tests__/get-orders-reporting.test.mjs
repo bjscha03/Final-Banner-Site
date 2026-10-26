@@ -421,3 +421,33 @@ test('profit covers the full period beyond one page and excludes unpaid, refunde
     assert.equal(_test.normalizeAdminSummary(empty.rows[0]).metrics.netProfitCents, 0);
   } finally { await db.close(); }
 });
+
+test('admin report retains final send history and customer-wide redemption flags', async () => {
+  const order = { id: '11111111-2222-4333-8444-000011223344', email: 'buyer@real-business.com', status: 'paid', items: [] };
+  const sql = async query => {
+    const text = queryText(query);
+    if (/FROM orders\s+LEFT JOIN profiles/i.test(text)) return [{ id: order.id, payment_method: 'stripe' }];
+    if (/FROM review_request_history/.test(text)) return [{ order_id: order.id, last_sent_at: '2026-10-26', followup_sent_at: '2026-10-23', final_sent_at: '2026-10-26', sent_count: 3 }];
+    if (/AS review_customer_completed/.test(text)) return [{ order_id: order.id, review_customer_completed: true }];
+    return [];
+  };
+  const [result] = await _test.enrichOrderPaymentMetadata(sql, [order], { reconcilePendingPayments: false });
+  assert.equal(result.review_final_sent_at, '2026-10-26');
+  assert.equal(result.review_followup_sent_at, '2026-10-23');
+  assert.equal(result.review_offer_percentage, 30);
+  assert.equal(result.review_customer_completed, true);
+  assert.equal(result.review_state_unavailable, false);
+});
+
+test('unavailable customer-wide review history fails closed while preserving the admin order list', async () => {
+  const order = { id: '11111111-2222-4333-8444-000011223344', email: 'buyer@real-business.com', status: 'paid', items: [] };
+  const sql = async query => {
+    const text = queryText(query);
+    if (/FROM orders\s+LEFT JOIN profiles/i.test(text)) return [{ id: order.id, payment_method: 'stripe' }];
+    if (/AS review_customer_completed/.test(text)) throw new Error('database temporarily unavailable');
+    return [];
+  };
+  const [result] = await _test.enrichOrderPaymentMetadata(sql, [order], { reconcilePendingPayments: false });
+  assert.equal(result.id, order.id);
+  assert.equal(result.review_state_unavailable, true);
+});

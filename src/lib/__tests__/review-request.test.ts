@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { Order } from '../orders/types';
 import {
   formatReviewRequestSentAt,
+  getFinalReviewAvailableAt,
+  shouldHideReviewRequests,
   getReviewRequestCustomerEmail,
   getReviewRequestEligibility,
   isValidReviewRequestEmail,
@@ -47,4 +49,18 @@ describe('Admin review-request presentation rules', () => {
     expect(formatReviewRequestSentAt('2026-08-03T20:42:00.000Z')).toContain('2026');
     expect(formatReviewRequestSentAt('not-a-date')).toBe('');
   });
+});
+
+it('final attempt uses exactly 72 hours and rejects missing or invalid second timestamps', () => {
+  expect(getFinalReviewAvailableAt('2026-10-23T12:00:00Z')).toBe(Date.parse('2026-10-26T12:00:00Z'));
+  expect(getFinalReviewAvailableAt(null)).toBe(null);
+  expect(getFinalReviewAvailableAt('invalid')).toBe(null);
+});
+it('hides all review controls for refunded orders and completed customers', () => {
+  expect(shouldHideReviewRequests(order)).toBe(false);
+  expect(shouldHideReviewRequests({ ...order, status: 'refunded' })).toBe(true);
+  expect(shouldHideReviewRequests({ ...order, partial_refund_cents: 1 })).toBe(true);
+  expect(shouldHideReviewRequests({ ...order, review_customer_completed: true })).toBe(true);
+  expect(getReviewRequestEligibility({ ...order, review_customer_completed: true }).eligible).toBe(false);
+  expect(getReviewRequestEligibility({ ...order, review_state_unavailable: true }).eligible).toBe(false);
 });

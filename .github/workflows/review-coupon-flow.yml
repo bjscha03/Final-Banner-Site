@@ -2,7 +2,10 @@ name: Review follow-up and coupon flow
 on:
   pull_request:
     paths:
-      - 'netlify/functions/_shared/review-request-*.cjs'
+      - 'netlify/functions/_shared/review-*.cjs'
+      - 'netlify/functions/get-orders.mjs'
+      - 'src/lib/review-request.ts'
+      - 'src/lib/__tests__/review-request.test.ts'
       - 'netlify/functions/__tests__/review-*.test.cjs'
       - 'src/components/orders/ReviewRequestAction.tsx'
       - 'tests/browser/admin-review-request.playwright.spec.ts'

@@ -1,3 +1,4 @@
+import reviewCustomerState from './_shared/review-customer-state.cjs';
 import bofMembership from './_shared/bof-membership.cjs';
 import { estimateOrderProfit } from '../../src/lib/admin-profit-estimate.ts';
 import { neon } from '@neondatabase/serverless';
@@ -570,6 +571,7 @@ async function enrichOrderPaymentMetadata(sql, orders, options = {}) {
               MAX(sent_at) AS last_sent_at,
               MAX(sent_at) FILTER (WHERE COALESCE(to_jsonb(review_request_history)->>'email_kind', 'initial') = 'initial') AS initial_sent_at,
               MAX(sent_at) FILTER (WHERE to_jsonb(review_request_history)->>'email_kind' = 'followup') AS followup_sent_at,
+              MAX(sent_at) FILTER (WHERE to_jsonb(review_request_history)->>'email_kind' = 'final') AS final_sent_at,
               COUNT(*)::int AS sent_count
          FROM review_request_history
         WHERE status = 'sent'
@@ -597,6 +599,17 @@ async function enrichOrderPaymentMetadata(sql, orders, options = {}) {
     reviewCouponById = new Map(coupons.map((row) => [String(row.order_id), row]));
   } catch (error) {
     if (String(error?.code || '') !== '42P01') console.warn('[get-orders] review coupon metadata unavailable');
+  }
+
+  let customerReviewById = new Map();
+  let reviewStateUnavailable = false;
+  try {
+    const states = await reviewCustomerState.loadCustomerReviewState(sql, ids);
+    customerReviewById = new Map(states.map((row) => [String(row.order_id), row]));
+  } catch (error) {
+    // Never expose a send button when customer-wide suppression cannot be read.
+    reviewStateUnavailable = true;
+    if (String(error?.code || '') !== '42P01') console.warn('[get-orders] customer review state unavailable');
   }
 
   return orders.map((order) => {
@@ -654,7 +667,10 @@ async function enrichOrderPaymentMetadata(sql, orders, options = {}) {
       review_request_sent_count: Number(review?.sent_count || 0),
       review_request_initial_sent_at: review?.initial_sent_at || null,
       review_followup_sent_at: review?.followup_sent_at || null,
-      review_offer_percentage: Number(coupon?.offer_percentage || (review?.followup_sent_at ? 30 : 25)),
+      review_final_sent_at: review?.final_sent_at || null,
+      review_customer_completed: customerReviewById.get(String(order.id))?.review_customer_completed === true,
+      review_state_unavailable: reviewStateUnavailable,
+      review_offer_percentage: Number(coupon?.offer_percentage || (review?.followup_sent_at || review?.final_sent_at ? 30 : 25)),
       review_coupon_code: coupon?.code || null,
       review_coupon_sent_at: coupon?.sent_at || null,
       review_coupon_used: coupon?.used === true,

@@ -45,6 +45,9 @@ function getReviewRequestEligibility(order = {}) {
     return { eligible: false, code: 'TEST_ORDER', reason: 'Review requests cannot be sent for test orders.' };
   }
 
+  if (order.review_customer_completed === true) {
+    return { eligible: false, code: 'REVIEW_CUSTOMER_COMPLETED', reason: 'This customer has already redeemed a review thank-you coupon. No more review emails are needed.' };
+  }
   const customerEmail = getCanonicalCustomerEmail(order);
   if (Number(order.partial_refund_cents || 0) > 0) {
     return { eligible: false, code: 'PARTIAL_REFUND_RECORDED', reason: 'Review emails are disabled because a partial refund is recorded for this order.' };
@@ -132,6 +135,7 @@ function buildReviewRequestText(order = {}) {
 }
 
 function createReviewRequestEmailData({ order, customerEmail, from, replyTo, action = 'initial', coupon = null }) {
+  if (action === 'final') return createFinalReviewEmail({ order, customerEmail, from, replyTo });
   if (action === 'followup') return createFollowupEmail({ order, customerEmail, from, replyTo });
   if (action === 'coupon') return createCouponEmail({ order, customerEmail, from, replyTo, coupon });
   return {
@@ -195,24 +199,55 @@ function createCouponEmail({ order, customerEmail, from, replyTo, coupon }) {
   const percentage = Number(coupon?.offer_percentage);
   if (![25, 30].includes(percentage) || !coupon?.code) throw new Error('Invalid review coupon');
   const name = getCustomerFirstName(order);
-  const text = `Hi ${name},\n\nThank you for taking the time to share your experience with Banners on the Fly. Your feedback and support mean a great deal to our small business.\n\nAs promised, here is your personal ${percentage}% off coupon for your next order:\n\n${coupon.code}\n\nEnter this code in the discount-code field at checkout using ${customerEmail}. It is valid for one order and cannot be combined with another promotional code. The discount applies to your order subtotal before tax and shipping.\n\nOrder again: https://bannersonthefly.com\n\nWe truly appreciate your business and look forward to printing for you again!\n\nWith appreciation,\nThe Banners on the Fly Team\n\nQuestions? Reply to this email and we will be happy to help.`;
+  const text = `Hi ${name},\n\nThank you for choosing Banners on the Fly. Your business and support mean a great deal to our small business.\n\nAs promised, here is your personal ${percentage}% off coupon for your next order:\n\n${coupon.code}\n\nEnter this code in the discount-code field at checkout using ${customerEmail}. It is valid for one order and cannot be combined with another promotional code. The discount applies to your order subtotal before tax and shipping.\n\nWe have added several new products since your last visit. Your code works on any product on our site, including the new additions — explore the full selection and find what you need for your next project.\n\nExplore all products: https://bannersonthefly.com\n\nWe truly appreciate your business and look forward to printing for you again!\n\nWith appreciation,\nThe Banners on the Fly Team\n\nQuestions? Reply to this email and we will be happy to help.`;
   return {
     from, to: customerEmail, replyTo,
     subject: `With thanks — your personal ${percentage}% off code is here`,
     text,
     html: renderEmailLayout({
       title: `Your ${percentage}% Off Thank-You Is Here`,
-      subtitle: 'We appreciate your feedback and your business.',
+      subtitle: 'We appreciate your business and support.',
       eyebrow: 'Thank You',
       bodyHtml: `<p style="font-size:15px;line-height:1.65;">Hi ${escapeHtml(name)},</p>
-        <p style="font-size:15px;line-height:1.65;">Thank you for taking the time to share your experience with Banners on the Fly. Your feedback and support mean a great deal to our small business.</p>
+        <p style="font-size:15px;line-height:1.65;">Thank you for choosing Banners on the Fly. Your business and support mean a great deal to our small business.</p>
         <p style="font-size:15px;line-height:1.65;">As promised, enjoy <strong>${percentage}% off your next order</strong> with your personal code:</p>
         <div style="margin:24px 0;padding:20px 12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;text-align:center;"><strong style="font-size:21px;word-break:break-all;">${escapeHtml(coupon.code)}</strong></div>
         <p style="font-size:14px;line-height:1.65;">Enter this code at checkout using <strong style="word-break:break-all;">${escapeHtml(customerEmail)}</strong>. Valid for one order; cannot be combined with another promotional code. Applies to the order subtotal before tax and shipping.</p>
-        <p style="text-align:center;margin:24px 0;"><a href="https://bannersonthefly.com" style="display:inline-block;background:#ff6b35;color:#fff;text-decoration:none;padding:14px 24px;border-radius:8px;font-weight:700;">Start Your Next Order</a></p>
+        <p style="font-size:15px;line-height:1.65;">We have added several new products since your last visit. Your code works on <strong>any product on our site, including the new additions</strong>. Explore the full selection and find what you need for your next project.</p>
+        <p style="text-align:center;margin:24px 0;"><a href="https://bannersonthefly.com" style="display:inline-block;background:#ff6b35;color:#fff;text-decoration:none;padding:14px 24px;border-radius:8px;font-weight:700;">Explore All Products</a></p>
         <p style="font-size:15px;line-height:1.65;">We truly appreciate your business and look forward to printing for you again! If you need anything, just reply to this email.</p>
         <p style="font-size:15px;line-height:1.65;">With appreciation,<br><strong>The Banners on the Fly Team</strong></p>`,
     }),
     tags: [{ name: 'type', value: 'review_coupon' }, { name: 'order_id', value: String(order.id) }],
+  };
+}
+
+function createFinalReviewEmail({ order, customerEmail, from, replyTo }) {
+  const firstName = getCustomerFirstName(order);
+  const paragraphs = [
+    `Hi ${firstName},`,
+    'We are reaching out one last time to ask if you would share your experience with Banners on the Fly in an honest Google review.',
+    'We are a small business, and every customer who takes a moment to share their experience helps someone else feel confident ordering from us. Those few words mean a lot to our team.',
+    'The 30% off your next order offer from our last email is still available. Just reply to this email and we will send your personal, one-time-use code. This is a thank-you for your business, whether or not you leave a review.',
+    'We have also added several new products! Your 30% code can be used on any product on our site, including the new additions. Take a look at the full selection for your next project.',
+    'Valid for one order. Applies to the product subtotal before tax and shipping; cannot be combined with another promotional code.',
+    'If you have already shared a review or replied, thank you — there is no need to write another one. This is our final review reminder for this order.',
+    'Thank you for choosing us and giving our small business the opportunity to print for you.',
+    'With appreciation,',
+    'The Banners on the Fly Team',
+  ];
+  const button = `<p style="text-align:center;margin:24px 0;"><a href="https://bannersonthefly.com" style="display:inline-block;background:#ff6b35;color:#fff;text-decoration:none;padding:14px 24px;border-radius:8px;font-weight:700;">Explore All Products</a></p>`;
+  return {
+    from, to: customerEmail, replyTo,
+    subject: 'One last request from our small business',
+    html: renderEmailLayout({
+      title: 'One Last Request. A Sincere Thank-You.',
+      subtitle: 'Your experience means a lot to our small business.',
+      eyebrow: 'Banners on the Fly',
+      bodyHtml: paragraphs.map((text, index) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#334155;">${escapeHtml(text)}</p>${index === 4 ? button : ''}`).join('')
+        + `<p style="font-size:12px;word-break:break-all;">Visit our website: <a href="https://bannersonthefly.com">https://bannersonthefly.com</a></p>`,
+    }),
+    text: [...paragraphs.slice(0, 5), 'Explore all products: https://bannersonthefly.com', ...paragraphs.slice(5)].join('\n\n'),
+    tags: [{ name: 'type', value: 'review_final' }, { name: 'order_id', value: String(order.id) }],
   };
 }
