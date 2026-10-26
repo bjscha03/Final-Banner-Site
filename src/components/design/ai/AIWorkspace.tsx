@@ -29,7 +29,7 @@ import { collectVersions } from './versions';
 import {aiProductContext,sameAIProduct} from './productContext';
 import SpecialtyPreview, {SpecialtyTemplateGuide} from '@/components/specialty/SpecialtyPreview';
 import { fetchAIRequest } from './jobRequest';
-import { AI_IMAGE_ACCEPT, AIImageImportError, readAIImage } from './imageImport';
+import { AI_IMAGE_ACCEPT, AIImageImportError, fileToDataUrl, readAIImage } from './imageImport';
 import { AIJobFailedError, forgetPendingJob, resumeBackgroundJob, runBackgroundJob, type PendingAIJob } from './backgroundJob';
 import LayerControls from './LayerControls';
 import AITutorial from './AITutorial';
@@ -370,7 +370,7 @@ function AIWorkspaceSession(props: Props) {
     if (!access.ready || stage || controllerRef.current) return;
     const controller = new AbortController();
     controllerRef.current = controller;
-    setError('');
+    setError(''); setImportFailed(false); lastImportRef.current = null;
     setStage('Organizing your wording');
     try {
       const body = await runBackgroundJob(
@@ -405,7 +405,7 @@ function AIWorkspaceSession(props: Props) {
     const controller = new AbortController();
     controllerRef.current = controller;
     const original = brief;
-    setError('');
+    setError(''); setImportFailed(false); lastImportRef.current = null;
     setImprovingPrompt(true);
     setStage('Improving your prompt');
     try {
@@ -473,7 +473,7 @@ function AIWorkspaceSession(props: Props) {
     const pending = pendingImageJob;
     const controller = new AbortController();
     controllerRef.current = controller;
-    setError(''); setActiveImageJob(true); setStage('Checking for your finished design');
+    setError(''); setImportFailed(false); lastImportRef.current = null; setActiveImageJob(true); setStage('Checking for your finished design');
     try {
       const body = await resumeBackgroundJob(pending.job, controller.signal, 'Checking for your finished design', setStage, setProgressPreview,
         job => setPendingImageJob({ ...pending, job }));
@@ -489,7 +489,7 @@ function AIWorkspaceSession(props: Props) {
     if (!access.ready || !recoveryReady || !requirementsMet || stage || controllerRef.current) return;
     const controller = new AbortController();
     controllerRef.current = controller;
-    setError('');
+    setError(''); setImportFailed(false); lastImportRef.current = null;
     setProgressPreview(null);
     setActiveImageJob(true);
     setStage('Planning your design');
@@ -532,7 +532,7 @@ function AIWorkspaceSession(props: Props) {
     if (!selected || (!manual && !requestedInstruction.trim()) || stage || controllerRef.current || !access.ready) return;
     const controller = new AbortController();
     controllerRef.current = controller;
-    setError('');
+    setError(''); setImportFailed(false); lastImportRef.current = null;
     setProgressPreview(null);
     setActiveImageJob(true);
     setStage(removeLogo ? 'Removing your uploaded logo' : logoOnly ? 'Updating your logo' : 'Refining your design');
@@ -590,7 +590,7 @@ function AIWorkspaceSession(props: Props) {
     setRedo([]);
     setSelectedId(version.versionId);
     setEditInstruction('');
-    setError('');
+    setError(''); setImportFailed(false); lastImportRef.current = null;
     trackAIEvent('ai_concept_selected', { version_id: version.versionId, version_number: concepts.indexOf(version) + 1 });
   };
 
@@ -634,7 +634,7 @@ function AIWorkspaceSession(props: Props) {
     if (!sameAIProduct(brief,props)||!sameAIProduct(selected.brief||{...selected,productType:brief.productType},props)) {
       setError('This artwork belongs to a different product or size. Create a design for the current selection.'); return;
     }
-    setError('');
+    setError(''); setImportFailed(false); lastImportRef.current = null;
     setStage('Saving your artwork to your order');
     const session: AIDesignSession = {
       generationId: selected.generationId || generationId,

@@ -378,6 +378,22 @@ describe('customer AI version selection and handoff', () => {
     expect(button('Select version 2').getAttribute('aria-pressed')).toBe('true');
     expect(host.textContent).toContain('production artwork could not be retrieved');
   });
+  it('downloads and transfers the full production artwork instead of its small preview', async () => {
+    const normal = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (url, init) => {
+      if (url.endsWith('/ai-designer-export')) return { ok: true, json: async () => ({ url: 'https://artwork.example/production.jpg' }) };
+      if (url === 'https://artwork.example/production.jpg') return { ok: true, blob: async () => new Blob(['full-resolution-artwork'], { type: 'image/jpeg' }) };
+      return normal(url, init);
+    });
+    await mount(session(concept(2, { artworkRef: 'print-edited' })));
+    await click('Approve design & continue');
+    // FileReader dispatches a real I/O event, independent of the polling timer.
+    await act(async () => { await vi.waitFor(() => expect(generated).toHaveBeenCalledOnce()); });
+    expect(generated.mock.calls[0][0].imageBase64).toBe(btoa('full-resolution-artwork'));
+    expect(generated.mock.calls[0][0].session.selectedConcept.versionId).toBe('v2');
+    expect(closed).toHaveBeenCalledOnce();
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+  });
 });
 
 describe('customer print review', () => {

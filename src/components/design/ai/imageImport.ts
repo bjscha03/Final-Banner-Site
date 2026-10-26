@@ -26,6 +26,10 @@ function readBlob(blob: Blob, mode: 'buffer' | 'data', signal?: AbortSignal) {
   });
 }
 
+export function fileToDataUrl(file: Blob, signal?: AbortSignal) {
+  return readBlob(file, 'data', signal);
+}
+
 // Inspect the content: mobile browsers and exported artwork can omit or mislabel
 // File.type. Never reject a valid JPG just because the picker reports no MIME.
 export async function detectAIImageType(file: Blob, signal?: AbortSignal): Promise<string> {
