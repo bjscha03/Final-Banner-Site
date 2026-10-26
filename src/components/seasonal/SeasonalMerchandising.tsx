@@ -25,6 +25,11 @@ const iconMap = {
 const SeasonalMerchandising: React.FC = () => {
   const campaign = getActiveSeasonalCampaign();
   if (!campaign?.merchandising?.length) return null;
+  const intro = campaign.merchandisingIntro ?? {
+    eyebrow: 'Popular right now',
+    headline: 'Plan the next event before it gets busy.',
+    description: 'Practical banner and sign ideas for the events customers are preparing for now, with clear paths to the right product.',
+  };
 
   return (
     <section
@@ -35,13 +40,13 @@ const SeasonalMerchandising: React.FC = () => {
       <div className="mx-auto max-w-[1500px] px-4 sm:px-7 lg:px-10">
         <div className="grid gap-5 lg:grid-cols-[0.72fr_1.28fr] lg:items-end lg:gap-12">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#C94008] sm:text-sm">Popular right now</p>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#C94008] sm:text-sm">{intro.eyebrow}</p>
             <h2 id="seasonal-merchandising-heading" className="homepage-condensed mt-3 max-w-[720px] [--homepage-mobile-size:3rem] text-5xl font-black uppercase leading-[0.9] text-[#061A31] sm:text-6xl lg:text-[4.6rem]">
-              Plan the next event before it gets busy.
+              {intro.headline}
             </h2>
           </div>
           <p className="max-w-2xl text-base leading-7 text-slate-600 lg:justify-self-end lg:text-lg">
-            Practical banner and sign ideas for the events customers are preparing for now, with clear paths to the right product.
+            {intro.description}
           </p>
         </div>
 
