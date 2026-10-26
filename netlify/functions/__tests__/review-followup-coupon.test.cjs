@@ -5,7 +5,7 @@ const { PGlite } = require('@electric-sql/pglite');
 const { _test: { createDataAccess, ensureReviewRequestSchema, processReviewRequest, sendReviewEmailWithRetry } } = require('../_shared/review-request-handler.cjs');
 const { validateDiscountForCheckout } = require('../_shared/discount-validation.cjs');
 const { claimPaymentDiscount, completePaymentDiscount } = require('../_shared/payment-discount-reservation.cjs');
-const { createReviewRequestEmailData } = require('../_shared/review-request-email.cjs');
+const { createReviewRequestEmailData, REVIEW_URL } = require('../_shared/review-request-email.cjs');
 const orderId = '2ad3018b-680a-463e-b761-9fdcf8a0d993';
 const checkoutId = '11111111-1111-4111-8111-111111111111';
 const emailConfig = { from: 'orders@example.com', replyTo: 'support@example.com' };
@@ -212,7 +212,7 @@ async function secondRequest(sentAt = '2026-10-20T12:00:00Z') {
   return (await data.loadLatestSent(orderId)).sent_at;
 }
 
-test('final reminder is blocked until exactly 72 hours after second email, then sends once with 30% offer', async () => {
+test('final reminder at 72 hours includes one usable 30% code and optional Google review link in a single email', async () => {
   const secondAt = await secondRequest();
   const boundary = new Date(secondAt).getTime() + 72 * 60 * 60 * 1000;
   let calls = 0;
@@ -222,6 +222,14 @@ test('final reminder is blocked until exactly 72 hours after second email, then 
       assert.match(payload.text, /one last time/);
       assert.match(payload.text, /30% off your next order/);
       assert.match(payload.text, /whether or not you leave a review/);
+      assert.ok(payload.text.includes(REVIEW_URL));
+      assert.ok(payload.html.includes(`href="${REVIEW_URL}"`));
+      assert.doesNotMatch(payload.text, /reply|verify/i);
+      assert.doesNotMatch(payload.html, /reply|verify/i);
+      const saved = await data.loadCoupon(orderId);
+      assert.ok(payload.text.includes(saved.code));
+      assert.ok(payload.html.includes(saved.code));
+      assert.equal(saved.sent_at, null, 'Mark delivered only after provider acceptance');
       assert.match(payload.html, /small business/);
       assert.equal(payload.tags[0].value, 'review_final');
       return { data: { id: 'final-accepted' } };
@@ -229,17 +237,29 @@ test('final reminder is blocked until exactly 72 hours after second email, then 
   await assert.rejects(send({ ...args, now: () => boundary - 1 }), { code: 'REVIEW_FINAL_TOO_EARLY' });
   assert.equal(calls, 0);
   assert.equal((await sql`SELECT * FROM review_request_history WHERE email_kind = 'final'`).length, 0);
+  assert.equal((await sql`SELECT * FROM discount_codes`).length, 0);
   const final = await send({ ...args, now: () => boundary });
   assert.equal(calls, 1);
   assert.equal(final.offerPercentage, 30);
   assert.equal(new Date(final.followupSentAt).getTime(), new Date(secondAt).getTime());
   assert.ok(final.finalSentAt);
+  assert.match(final.couponCode, /^THANKS30-[A-F0-9]{12}$/);
+  assert.ok(final.couponSentAt);
+  const saved = await data.loadCoupon(orderId);
+  assert.equal(saved.review_verified_at, null);
+  assert.equal(new Date(saved.sent_at).getTime(), new Date(final.sentAt).getTime());
+  const valid = await validateDiscountForCheckout({ sql, code: final.couponCode, email: 'buyer@example.com' });
+  assert.equal(valid.valid, true);
+  assert.equal(valid.discount.discountPercentage, 30);
+  assert.equal(valid.discount.discountScope, 'order');
   const repeat = await send({ ...args, confirmedPreviousSentAt: final.sentAt });
   assert.equal(repeat.alreadySent, true); assert.equal(calls, 1);
   for (const action of ['initial', 'followup']) {
     await assert.rejects(send({ action, confirmedPreviousSentAt: final.sentAt }), { code: 'REVIEW_FINAL_ALREADY_SENT' });
   }
-  const coupon = await send({ action: 'coupon', confirmedPreviousSentAt: final.sentAt });
+  const coupon = await send({ action: 'coupon', confirmedPreviousSentAt: final.sentAt, sendEmail: async () => assert.fail('No separate coupon email needed') });
+  assert.equal(coupon.alreadySent, true);
+  assert.equal(coupon.couponCode, final.couponCode);
   assert.equal(coupon.offerPercentage, 30);
   assert.equal((await data.loadCoupon(orderId)).review_verified_at, null);
   assert.equal(new Date(coupon.followupSentAt).getTime(), new Date(secondAt).getTime());
@@ -269,6 +289,9 @@ test('final delivery failure retries safely with the same payload and provider k
   const final = await send({ action: 'final', confirmedPreviousSentAt: secondAt,
     sendEmail: async (payload, options) => { assert.deepEqual(payload, original); assert.equal(options.idempotencyKey, key); return { data: { id: 'recovered-final' } }; } });
   assert.ok(final.finalSentAt);
+  assert.ok(final.couponSentAt);
+  assert.ok(original.text.includes(final.couponCode));
+  assert.equal((await sql`SELECT * FROM discount_codes`).length, 1);
   assert.equal((await sql`SELECT * FROM review_request_history WHERE email_kind = 'final'`).length, 1);
 });
 
@@ -283,11 +306,48 @@ test('concurrent final attempts send one email', async () => {
   await ready;
   await assert.rejects(send(args), { code: 'REVIEW_REQUEST_IN_PROGRESS' });
   release(); await first; assert.equal(sends, 1);
+  assert.equal((await sql`SELECT * FROM discount_codes`).length, 1);
+});
+
+test('rejected final delivery reuses the code and leaves it unsent until successful retry', async () => {
+  const secondAt = await secondRequest();
+  await assert.rejects(send({ action: 'final', confirmedPreviousSentAt: secondAt,
+    sendEmail: async () => { throw Object.assign(new Error('rejected'), { statusCode: 422 }); } }), { code: 'REVIEW_REQUEST_SEND_FAILED' });
+  const before = await data.loadCoupon(orderId);
+  assert.equal(before.sent_at, null);
+  const retry = await send({ action: 'final', confirmedPreviousSentAt: secondAt });
+  assert.equal(retry.couponCode, before.code);
+  assert.ok(retry.couponSentAt);
+  assert.equal((await sql`SELECT * FROM discount_codes`).length, 1);
+});
+
+test('final acceptance with audit failure recovers one coupon using the original payload and key', async () => {
+  const secondAt = await secondRequest();
+  let original, key;
+  await assert.rejects(send({ action: 'final', confirmedPreviousSentAt: secondAt,
+    data: { ...data, completeAttempt: async () => { throw new Error('database unavailable'); } },
+    sendEmail: async (payload, options) => { original = payload; key = options.idempotencyKey; return { data: { id: 'accepted' } }; } }), { code: 'REVIEW_REQUEST_AUDIT_FAILED' });
+  await sql`UPDATE review_request_history SET requested_at = NOW() - INTERVAL '3 minutes' WHERE status = 'sending'`;
+  const recovered = await send({ action: 'final', confirmedPreviousSentAt: secondAt,
+    sendEmail: async (payload, options) => { assert.deepEqual(payload, original); assert.equal(options.idempotencyKey, key); return { data: { id: 'accepted' } }; } });
+  assert.ok(recovered.couponSentAt);
+  assert.equal((await sql`SELECT * FROM discount_codes`).length, 1);
+});
+
+test('a legacy final without a code can still deliver its unconditional coupon separately', async () => {
+  await secondRequest();
+  await sql`INSERT INTO review_request_history (order_id, customer_email, status, sent_at, email_kind, offer_percentage)
+    VALUES (${orderId}, 'buyer@example.com', 'sent', '2026-09-06T12:00:00Z', 'final', 30)`;
+  const finalAt = (await data.loadLatestSent(orderId)).sent_at;
+  const coupon = await send({ action: 'coupon', confirmedPreviousSentAt: finalAt });
+  assert.match(coupon.couponCode, /^THANKS30-/);
+  assert.ok(coupon.couponSentAt);
+  assert.equal((await data.loadCoupon(orderId)).review_verified_at, null);
 });
 
 test('redeemed review code suppresses original, redemption, and future guest/account orders across pages', async () => {
-  const firstAt = await legacyRequest();
-  const reward = await send({ action: 'coupon', reviewVerified: true, confirmedPreviousSentAt: firstAt });
+  const secondAt = await secondRequest();
+  const reward = await send({ action: 'final', confirmedPreviousSentAt: secondAt });
   const future = '22222222-2222-4222-8222-222222222222';
   const signedIn = '33333333-3333-4333-8333-333333333333';
   const unrelated = '44444444-4444-4444-8444-444444444444';
@@ -330,10 +390,26 @@ test('final reminder and coupon emails highlight new products and link shopping 
     assert.match(payload.text, /new products/);
     assert.match(payload.html, /any product on our site/);
     assert.match(payload.text, /any product on our site/);
-    assert.match(payload.html, /href="https:\/\/bannersonthefly.com"[^>]*>Explore All Products<\/a>/);
-    assert.match(payload.text, /Explore all products: https:\/\/bannersonthefly.com/);
-    assert.doesNotMatch(payload.html, /g\.page/);
-    assert.doesNotMatch(payload.text, /g\.page/);
+    assert.match(payload.html, /href="https:\/\/bannersonthefly.com"[^>]*>(Explore|Shop) All Products<\/a>/);
+    assert.match(payload.text, /(Explore|Shop) all products: https:\/\/bannersonthefly.com/);
+    assert.ok(payload.html.includes('THANKS30-ABCDEF123456'));
+    assert.ok(payload.text.includes('THANKS30-ABCDEF123456'));
+    if (action === 'final') {
+      assert.ok(payload.html.includes(`href="${REVIEW_URL}"`));
+      assert.ok(payload.text.includes(REVIEW_URL));
+      assert.match(payload.html, /Leave a Google Review/);
+      assert.match(payload.text, /completely optional/);
+    }
     assert.match(payload.text, /before tax and shipping/);
   }
+});
+
+test('final email requires a real 30% code and escapes customer data in HTML', () => {
+  const args = { action: 'final', order: { id: orderId, customer_name: '<script>alert(1)</script>' }, customerEmail: 'buyer@example.com', ...emailConfig };
+  for (const coupon of [null, { code: 'THANKS25-TEST', offer_percentage: 25 }, { offer_percentage: 30 }]) {
+    assert.throws(() => createReviewRequestEmailData({ ...args, coupon }), /Invalid final review coupon/);
+  }
+  const payload = createReviewRequestEmailData({ ...args, coupon: { code: 'THANKS30-ABCDEF123456', offer_percentage: 30 } });
+  assert.doesNotMatch(payload.html, /<script>/);
+  assert.match(payload.html, /&lt;script&gt;/);
 });

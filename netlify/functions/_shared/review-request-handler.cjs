@@ -244,11 +244,14 @@ function createDataAccess(sql) {
           UPDATE review_request_history
              SET status = 'sent', sent_at = NOW(), resend_message_id = ${providerMessageId}, failure_reason = NULL
            WHERE id = ${attemptId} AND status = 'sending'
-          RETURNING sent_at, order_id, email_kind
+          RETURNING sent_at, order_id, email_kind, email_payload
         ), reward AS (
           UPDATE review_coupon_rewards r SET sent_at = completed.sent_at
             FROM completed
-           WHERE r.order_id = completed.order_id AND completed.email_kind = 'coupon'
+           WHERE r.order_id = completed.order_id
+             AND (completed.email_kind = 'coupon'
+               OR (completed.email_kind = 'final'
+                 AND POSITION(r.code IN completed.email_payload->>'text') > 0))
           RETURNING r.order_id
         ) SELECT sent_at FROM completed
       `;
@@ -353,7 +356,11 @@ async function processReviewRequest({
         });
       }
     }
-    if (action !== 'coupon' && coupon) {
+    // A final email delivers the code itself. Keep an undelivered 30% code
+    // through retries, and allow an already-sent final to return its receipt.
+    const canIncludeFinalCoupon = action === 'final'
+      && (finalAt() || (!coupon?.sent_at && Number(coupon?.offer_percentage) === 30));
+    if (action !== 'coupon' && coupon && !canIncludeFinalCoupon) {
       throw new ReviewRequestError(409, 'REVIEW_COUPON_ALREADY_CREATED', 'A coupon has already been created for this order. Use the coupon action to finish delivery.');
     }
     if (action === 'initial' && latestSent?.email_kind === 'followup') {
@@ -388,8 +395,9 @@ async function processReviewRequest({
       await data.failAttempt({ attemptId: attempt.id, failureReason: 'Already delivered by another request' });
       return resultFor(action === 'coupon' ? coupon.sent_at : latestSent.sent_at, null, true);
     }
-    if (action === 'coupon' && !coupon) {
-      coupon = await data.createCoupon({ orderId, customerEmail: eligibility.customerEmail, percentage, adminIdentifier, reviewVerified });
+    if (!coupon && (action === 'coupon' || (action === 'final' && !attempt.email_payload))) {
+      coupon = await data.createCoupon({ orderId, customerEmail: eligibility.customerEmail, percentage, adminIdentifier,
+        reviewVerified: action === 'coupon' && reviewVerified });
     }
     payload = attempt.email_payload || createReviewRequestEmailData({
       order, customerEmail: eligibility.customerEmail, ...emailConfig, action, coupon,
@@ -428,6 +436,9 @@ async function processReviewRequest({
   }
   if (!completed?.sent_at) {
     throw new ReviewRequestError(500, 'REVIEW_REQUEST_AUDIT_FAILED', 'The provider accepted the email, but history could not be saved. Wait two minutes, then retry the same action; the original message and coupon will be reused.');
+  }
+  if (coupon && (action === 'coupon' || (action === 'final' && payload.text.includes(coupon.code)))) {
+    coupon.sent_at = completed.sent_at;
   }
   await data.logEmailEvent({ orderId, customerEmail: eligibility.customerEmail, status: 'sent', providerMessageId });
   return resultFor(completed.sent_at, providerMessageId);

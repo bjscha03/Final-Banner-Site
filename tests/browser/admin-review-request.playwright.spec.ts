@@ -493,7 +493,7 @@ test('existing review request upgrades to 30%, sends one coupon, and remains com
 });
 
 
-for (const scenario of ['waiting', 'due', 'refunded', 'partial', 'redeemed'] as const) {
+for (const scenario of ['waiting', 'due', 'retry', 'refunded', 'partial', 'redeemed'] as const) {
   test(`final review attempt: ${scenario}`, async ({ page }) => {
     const now = new Date('2026-10-26T16:00:00Z');
     await page.clock.install({ time: now });
@@ -506,6 +506,8 @@ for (const scenario of ['waiting', 'due', 'refunded', 'partial', 'redeemed'] as 
       review_request_last_sent_at: finalAt || secondAt,
       review_request_initial_sent_at: '2026-10-19T12:00:00Z',
       review_followup_sent_at: secondAt, review_final_sent_at: finalAt, review_offer_percentage: 30,
+      review_coupon_code: finalAt || scenario === 'retry' ? 'THANKS30-ABCDEF123456' : null,
+      review_coupon_sent_at: finalAt,
       review_customer_completed: scenario === 'redeemed',
       partial_refund_cents: scenario === 'partial' ? 1 : 0,
       status: scenario === 'refunded' ? 'refunded' : 'shipped', payment_method: 'stripe', is_test_order: false,
@@ -526,7 +528,8 @@ for (const scenario of ['waiting', 'due', 'refunded', 'partial', 'redeemed'] as 
         const input = route.request().postDataJSON();
         expect(input.action).toBe('final'); expect(input.confirmedPreviousSentAt).toBe(secondAt);
         sends++; finalAt = now.toISOString();
-        body = { ok: true, action: 'final', sentAt: finalAt, finalSentAt: finalAt, followupSentAt: secondAt, offerPercentage: 30, customerEmail: SAFE_TEST_EMAIL };
+        body = { ok: true, action: 'final', sentAt: finalAt, finalSentAt: finalAt, followupSentAt: secondAt, offerPercentage: 30, customerEmail: SAFE_TEST_EMAIL,
+          couponCode: 'THANKS30-ABCDEF123456', couponSentAt: finalAt };
       }
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
     });
@@ -547,7 +550,8 @@ for (const scenario of ['waiting', 'due', 'refunded', 'partial', 'redeemed'] as 
     await expect(initial).toHaveCount(0); await expect(second).toHaveCount(0);
     await final.click(); expect(sends).toBe(0);
     const dialog = page.getByRole('alertdialog');
-    await expect(dialog.getByText(/have not already replied or left a review/)).toBeVisible();
+    await expect(dialog.getByText(/direct Google review link/)).toBeVisible();
+    await expect(dialog.getByText(/No reply or review verification is needed/)).toBeVisible();
     await dialog.getByRole('button', { name: 'Send Final Review Attempt', exact: true }).click();
     await expect(dialog).toBeHidden(); expect(sends).toBe(1);
     await expect(final).toHaveCount(0);
@@ -555,7 +559,9 @@ for (const scenario of ['waiting', 'due', 'refunded', 'partial', 'redeemed'] as 
     await page.reload();
     await expect(page.getByText('Final Review Attempt Sent', { exact: true }).filter({ visible: true })).toBeVisible();
     await expect(final).toHaveCount(0); await expect(initial).toHaveCount(0); await expect(second).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Send 30% Coupon', exact: true }).filter({ visible: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: /Coupon/ })).toHaveCount(0);
+    await expect(page.getByText(/THANKS30-ABCDEF123456/).filter({ visible: true })).toBeVisible();
+    await expect(page.getByText(/Coupon emailed/).filter({ visible: true })).toBeVisible();
     expect(sends).toBe(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: test.info().outputPath(`final-review-${scenario}.png`), fullPage: true });

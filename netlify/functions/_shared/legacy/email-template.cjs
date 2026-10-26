@@ -191,6 +191,7 @@ function renderEmailLayout({
   bodyHtml,
   preheader = '',
   footerHtml = '',
+  supportText = 'Questions? Reply to this email or contact support@bannersonthefly.com',
 }) {
   return `
     <!DOCTYPE html>
@@ -234,7 +235,7 @@ function renderEmailLayout({
               </tr>
               <tr>
                 <td style="padding:18px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;">
-                  <p style="margin:0;color:#64748b;font-size:12px;">Questions? Reply to this email or contact support@bannersonthefly.com</p>
+                  <p style="margin:0;color:#64748b;font-size:12px;">${escapeHtml(supportText)}</p>
                   ${footerHtml || ''}
                 </td>
               </tr>

@@ -65,13 +65,13 @@ const ReviewRequestAction: React.FC<ReviewRequestActionProps> = ({ order, onSent
     return () => window.clearTimeout(timer);
   }, [finalAvailableAt]);
   const finalDue = finalAvailableAt !== null && now >= finalAvailableAt;
-  const finalStage = Boolean(finalSentAt) || (finalDue && !couponCode);
+  const finalStage = Boolean(finalSentAt) || (finalDue && !couponSentAt);
   const initialSent = Boolean(lastSentAt || followupSentAt || finalSentAt || couponCode || couponSentAt);
   const blocked = !eligibility.eligible || sending;
   const actionDisabled: Record<ReviewAction, boolean> = {
     initial: blocked || initialSent,
     followup: blocked || !lastSentAt || Boolean(followupSentAt || finalSentAt || couponCode),
-    final: blocked || !finalDue || Boolean(finalSentAt || couponCode),
+    final: blocked || !finalDue || Boolean(finalSentAt || couponSentAt),
     coupon: blocked || !lastSentAt || Boolean(couponSentAt),
   };
 
@@ -142,10 +142,10 @@ const ReviewRequestAction: React.FC<ReviewRequestActionProps> = ({ order, onSent
             className="h-auto min-h-9 whitespace-normal bg-indigo-700 px-2 py-2 text-white hover:bg-indigo-800">
             <Mail className="mr-1.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />Send Final Review Attempt
           </Button>)}
-        <Button type="button" size="sm" onClick={() => openAction('coupon')}
+        {(!finalStage || (finalSentAt && !couponSentAt)) && <Button type="button" size="sm" onClick={() => openAction('coupon')}
           disabled={actionDisabled.coupon} className={cn('h-auto min-h-9 whitespace-normal px-2 py-2', !eligibility.eligible ? sentButtonClasses : 'bg-emerald-700 text-white hover:bg-emerald-800')}>
           <Gift className="mr-1.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />{couponSentAt ? `${offer}% Coupon Sent` : couponLabel}
-        </Button>
+        </Button>}
       </div>
       <div id={`review-request-status-${order.id}`} className="mt-2 space-y-1 text-xs leading-5" aria-live="polite">
         {!eligibility.eligible && formattedLastSentAt && <p className="font-semibold text-slate-700">{eligibility.reason}</p>}
@@ -169,8 +169,8 @@ const ReviewRequestAction: React.FC<ReviewRequestActionProps> = ({ order, onSent
                   {finalSentAt ? <p>The final email offers this thank-you code whether or not the customer leaves a review.</p> : <p>By confirming, you verify that you have checked this customer’s Google review. No particular rating is required.</p>}
                   <p>The system will email a personal, one-time-use <strong>{offer}% off</strong> code based on the last review offer sent. Retrying delivery keeps the same coupon.</p>
                 </> : action === 'final' ? <>
-                  <p>This is the last review reminder for this order. It explains how much their honest feedback means to our small business and keeps the <strong>30% off</strong> offer from the second email. The button opens our homepage, highlights our new products, and explains that the code works on any product.</p>
-                  <p>Only send this after checking that they have not already replied or left a review. The discount is available whether or not they review us.</p>
+                  <p>This final email includes a direct Google review link and their personal, one-time-use <strong>30% off code</strong>. The code is included immediately, whether or not they leave a review. No reply or review verification is needed.</p>
+                  <p>A separate shopping link opens our homepage and highlights our new products. The code works on any product. Check that they have not already left a review before sending this final reminder.</p>
                 </> : action === 'followup' ? <>
                   <p>A gentle reminder will thank them for their business, invite an honest Google review, and increase the offer from 25% to <strong>30% off their next order</strong> after manual verification.</p>
                   <p>Only send this if you have checked that they have not already left a review. This follow-up can be sent once.</p>
