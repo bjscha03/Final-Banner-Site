@@ -82,7 +82,6 @@ import {
 import { BANNER_MATERIALS as MATERIALS } from '@/lib/banner-materials';
 import CreateWithAIModal, { type AIDesignSession, type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
 import EditWithAIModal from '@/components/design/EditWithAIModal';
-import { useAIAdminAccess } from '@/hooks/useAIAdminAccess';
 import { trackAIEvent } from '@/lib/aiAnalytics';
 import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
@@ -222,18 +221,9 @@ const GoogleAdsBanner: React.FC = () => {
 
   // Admin detection for yard signs visibility
   const { user, loading: authLoading } = useAuth();
-  const aiAccess = useAIAdminAccess(Boolean(user));
-  const showCreateWithAI = ENABLE_AI;
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    console.log('[AI_VISIBILITY][GoogleAdsBanner]', {
-      userId: user?.id ?? null,
-      email: user?.email ?? null,
-      isAdmin: aiAccess.authorized,
-      shouldRenderCreateWithAI: showCreateWithAI,
-    });
-  }, [user?.id, user?.email, aiAccess.authorized, showCreateWithAI]);
+  // Paid search visitors stay on the upload-and-order path. Artwork fitting
+  // remains available after upload; creation stays on the normal designer.
+  const showCreateWithAI = ENABLE_AI && location.pathname.replace(/\/+$/, '') !== '/google-ads-banner';
 
   // Product type state — public for both banners and yard signs
   // Read ?tab= (preferred) or ?product= (legacy) query param so "Add Another Yard Sign" links open the correct tab

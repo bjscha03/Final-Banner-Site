@@ -29,6 +29,7 @@ import { collectVersions } from './versions';
 import {aiProductContext,sameAIProduct} from './productContext';
 import SpecialtyPreview, {SpecialtyTemplateGuide} from '@/components/specialty/SpecialtyPreview';
 import { fetchAIRequest } from './jobRequest';
+import { AI_IMAGE_ACCEPT, AIImageImportError, fileToDataUrl, readAIImage } from './imageImport';
 import { AIJobFailedError, forgetPendingJob, resumeBackgroundJob, runBackgroundJob, type PendingAIJob } from './backgroundJob';
 import LayerControls from './LayerControls';
 import AITutorial from './AITutorial';
@@ -121,49 +122,6 @@ function makeBrief(props: Props): CreativeBrief {
   };
 }
 
-async function fileToDataUrl(file: Blob) {
-  return await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(new Error('That image could not be read.'));
-    reader.readAsDataURL(file);
-  });
-}
-
-async function readImage(file: File, maxBytes: number, maxDimension: number, preserveTransparency = false) {
-  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 20 * 1024 * 1024) {
-    const megabytes = maxBytes / 1024 / 1024;
-    throw new Error(`Choose a PNG, JPEG, or WebP image. It will be optimized automatically to the ${Number.isInteger(megabytes) ? megabytes : megabytes.toFixed(2)}MB request limit.`);
-  }
-  if (file.size <= maxBytes) return fileToDataUrl(file);
-
-  const objectUrl = URL.createObjectURL(file);
-  try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const element = new Image();
-      element.onload = () => resolve(element);
-      element.onerror = () => reject(new Error('That image could not be decoded.'));
-      element.src = objectUrl;
-    });
-    let edgeLimit = maxDimension;
-    for (let attempt = 0; attempt < 6; attempt += 1) {
-      const scale = Math.min(1, edgeLimit / Math.max(image.naturalWidth, image.naturalHeight));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-      const context = canvas.getContext('2d');
-      if (!context) throw new Error('This browser could not prepare the image.');
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      const optimized = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, preserveTransparency ? 'image/png' : 'image/webp', Math.max(0.62, 0.9 - attempt * 0.06)));
-      if (optimized && optimized.size <= maxBytes) return fileToDataUrl(optimized);
-      edgeLimit = Math.max(640, Math.round(edgeLimit * 0.78));
-    }
-    throw new Error('That image could not be optimized safely. Choose a smaller source image.');
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-}
-
 function imageSrc(concept: AIConcept) {
   return `data:${concept.mimeType};base64,${concept.imageBase64}`;
 }
@@ -217,6 +175,9 @@ function AIWorkspaceSession(props: Props) {
   const [progressPreview, setProgressPreview] = useState<string | null>(null);
   const [pendingImageJob, setPendingImageJob] = useState<PendingImageJob | null>(null);
   const [error, setError] = useState('');
+  const [importingImages, setImportingImages] = useState(false);
+  const [importFailed, setImportFailed] = useState(false);
+  const lastImportRef = useRef<{ kind: 'reference' | 'logo' | 'photos'; files: File[] } | null>(null);
   const [fullPreview, setFullPreview] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
   const restoringDraftRef = useRef(false);
@@ -336,19 +297,49 @@ function AIWorkspaceSession(props: Props) {
     setBriefReviewed(false);
   };
 
-  const setImage = async (kind: 'reference' | 'logo', file?: File) => {
-    if (!file) return;
-    setError('');
-    try {
-      // Keep the combined JSON request below Netlify's fixed buffered payload
-      // limit after Base64 expansion.
-      const data = await readImage(file, kind === 'logo' ? 768 * 1024 : 1536 * 1024, kind === 'logo' ? 2400 : 2048, kind === 'logo');
-      if (kind === 'logo') setLogoImage(data);
-      else setReferenceImage(data);
-      setBriefReviewed(false);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The image could not be added.');
+  const importImages = async (kind: 'reference' | 'logo' | 'photos', files: File[]) => {
+    if (!files.length || stage || controllerRef.current) return;
+    if (kind === 'photos' && files.length + photoImages.length > 3) {
+      setError('Choose up to three photos. Remove a photo before adding more.'); return;
     }
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    lastImportRef.current = { kind, files };
+    setError(''); setImportFailed(false); setImportingImages(true);
+    setStage('Preparing your image…');
+    try {
+      const images: string[] = [];
+      // Process one at a time to avoid decoding several full-resolution phone
+      // photos in memory at once. Commit only after the entire selection works.
+      for (const file of files) {
+        images.push(await readAIImage(file, kind === 'logo' ? 768 * 1024 : kind === 'photos' ? 256 * 1024 : 1536 * 1024, kind === 'logo' ? 2400 : kind === 'photos' ? 1600 : 2048, kind === 'logo', controller.signal));
+      }
+      if (controller.signal.aborted) return;
+      if (kind === 'logo') setLogoImage(images[0]);
+      else if (kind === 'reference') setReferenceImage(images[0]);
+      else setPhotoImages(current => [...current, ...images]);
+      setBriefReviewed(false);
+      lastImportRef.current = null;
+    } catch (reason) {
+      if (controller.signal.aborted || (reason as Error)?.name === 'AbortError') return;
+      setImportFailed(true);
+      setError(reason instanceof Error ? reason.message : 'The image could not be added. Choose another image or continue without it.');
+      trackAIEvent('ai_validation_failed', { category: `image_import_${reason instanceof AIImageImportError ? reason.category : 'failed'}`, product_type: props.productType, count: files.length });
+    } finally {
+      if (controllerRef.current === controller) {
+        controllerRef.current = null;
+        setStage(null); setImportingImages(false);
+      }
+    }
+  };
+
+  const discardUnappliedChanges = () => {
+    if (!selected || stage || controllerRef.current || !sameAIProduct(selected.brief || { ...selected, productType: brief.productType }, props)) return;
+    if (selected.brief) setBrief(selected.brief);
+    setLogoImage(selected.logoImage || null); setPhotoImages(selected.photoImages || []);
+    setReferenceImage(selected.referenceImage || null); setEditInstruction('');
+    setError(''); setImportFailed(false); lastImportRef.current = null;
+    setBriefOpen(false); setRevealResult(value => value + 1);
   };
 
   const removeImage = (kind: 'reference' | 'logo') => {
@@ -379,7 +370,7 @@ function AIWorkspaceSession(props: Props) {
     if (!access.ready || stage || controllerRef.current) return;
     const controller = new AbortController();
     controllerRef.current = controller;
-    setError('');
+    setError(''); setImportFailed(false); lastImportRef.current = null;
     setStage('Organizing your wording');
     try {
       const body = await runBackgroundJob(
@@ -414,7 +405,7 @@ function AIWorkspaceSession(props: Props) {
     const controller = new AbortController();
     controllerRef.current = controller;
     const original = brief;
-    setError('');
+    setError(''); setImportFailed(false); lastImportRef.current = null;
     setImprovingPrompt(true);
     setStage('Improving your prompt');
     try {
@@ -482,7 +473,7 @@ function AIWorkspaceSession(props: Props) {
     const pending = pendingImageJob;
     const controller = new AbortController();
     controllerRef.current = controller;
-    setError(''); setActiveImageJob(true); setStage('Checking for your finished design');
+    setError(''); setImportFailed(false); lastImportRef.current = null; setActiveImageJob(true); setStage('Checking for your finished design');
     try {
       const body = await resumeBackgroundJob(pending.job, controller.signal, 'Checking for your finished design', setStage, setProgressPreview,
         job => setPendingImageJob({ ...pending, job }));
@@ -498,7 +489,7 @@ function AIWorkspaceSession(props: Props) {
     if (!access.ready || !recoveryReady || !requirementsMet || stage || controllerRef.current) return;
     const controller = new AbortController();
     controllerRef.current = controller;
-    setError('');
+    setError(''); setImportFailed(false); lastImportRef.current = null;
     setProgressPreview(null);
     setActiveImageJob(true);
     setStage('Planning your design');
@@ -541,7 +532,7 @@ function AIWorkspaceSession(props: Props) {
     if (!selected || (!manual && !requestedInstruction.trim()) || stage || controllerRef.current || !access.ready) return;
     const controller = new AbortController();
     controllerRef.current = controller;
-    setError('');
+    setError(''); setImportFailed(false); lastImportRef.current = null;
     setProgressPreview(null);
     setActiveImageJob(true);
     setStage(removeLogo ? 'Removing your uploaded logo' : logoOnly ? 'Updating your logo' : 'Refining your design');
@@ -599,7 +590,7 @@ function AIWorkspaceSession(props: Props) {
     setRedo([]);
     setSelectedId(version.versionId);
     setEditInstruction('');
-    setError('');
+    setError(''); setImportFailed(false); lastImportRef.current = null;
     trackAIEvent('ai_concept_selected', { version_id: version.versionId, version_number: concepts.indexOf(version) + 1 });
   };
 
@@ -631,6 +622,7 @@ function AIWorkspaceSession(props: Props) {
     setLogoImage(null); setReferenceImage(null); setPhotoImages([]);
     setEditInstruction(''); setPromptBeforeImprovement(null); setProgressPreview(null);
     setFullPreview(false); setError(''); setConfirmNewDesign(false);
+    setImportFailed(false); lastImportRef.current = null;
     setBriefOpen(true);
     setSaveNotice(`Fresh start. Describe your new ${context.noun}.`);
     try { await saveDraft(draftKey, emptyDraft); }
@@ -642,7 +634,7 @@ function AIWorkspaceSession(props: Props) {
     if (!sameAIProduct(brief,props)||!sameAIProduct(selected.brief||{...selected,productType:brief.productType},props)) {
       setError('This artwork belongs to a different product or size. Create a design for the current selection.'); return;
     }
-    setError('');
+    setError(''); setImportFailed(false); lastImportRef.current = null;
     setStage('Saving your artwork to your order');
     const session: AIDesignSession = {
       generationId: selected.generationId || generationId,
@@ -738,16 +730,14 @@ function AIWorkspaceSession(props: Props) {
           <div>
             <details className="ai-studio-uploads"><summary className="cursor-pointer py-2 text-sm font-semibold text-slate-600"><ImagePlus className="h-5 w-5" /> Add your logo or photos <span>(optional)</span></summary>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Reference image</span><span className="text-xs text-slate-500">Photo, artwork or style reference</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('reference', event.target.files?.[0])} /></label>
-              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Logo</span><span className="text-xs text-slate-500">Use your logo and brand colors</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('logo', event.target.files?.[0])} /></label>
+              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Reference image</span><span className="text-xs text-slate-500">Photo, artwork or style reference</span><input type="file" className="sr-only" aria-label="Upload reference image" accept={AI_IMAGE_ACCEPT} onChange={(event) => { const files = Array.from(event.target.files || []); event.target.value = ''; void importImages('reference', files); }} /></label>
+              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Logo</span><span className="text-xs text-slate-500">Use your logo and brand colors</span><input type="file" className="sr-only" aria-label="Upload logo image" accept={AI_IMAGE_ACCEPT} onChange={(event) => { const files = Array.from(event.target.files || []); event.target.value = ''; void importImages('logo', files); }} /></label>
             </div>
-            <label className="mt-3 block rounded-xl border border-dashed border-slate-300 bg-white p-3 text-sm font-semibold">Add people or product photos (up to 3)<span className="mt-1 block text-xs font-normal text-slate-500">These become part of the design. Add school or business marks in the Logo box above.</span><input type="file" multiple accept="image/png,image/jpeg,image/webp" className="mt-2 block w-full text-sm" disabled={Boolean(stage)} onChange={async event => {
-              const files = Array.from(event.target.files || []);
-              if (files.length + photoImages.length > 3) { setError('Choose up to three photos.'); return; }
-              try { const images = await Promise.all(files.map(file => readImage(file, 256 * 1024, 1600))); setPhotoImages(current => [...current, ...images]); }
-              catch (reason) { setError(reason instanceof Error ? reason.message : 'The photos could not be added.'); }
-              event.target.value = '';
+            <label className="mt-3 block rounded-xl border border-dashed border-slate-300 bg-white p-3 text-sm font-semibold">Add people or product photos (up to 3)<span className="mt-1 block text-xs font-normal text-slate-500">These become part of the design. Add school or business marks in the Logo box above.</span><input type="file" aria-label="Upload people or product photos" multiple accept={AI_IMAGE_ACCEPT} className="mt-2 block w-full text-base" disabled={Boolean(stage)} onChange={event => {
+              const files = Array.from(event.target.files || []); event.target.value = '';
+              void importImages('photos', files);
             }} /></label>
+            <p className="mt-2 text-xs text-slate-500">Images or PDF · Up to 100 MB per file · PDFs use the first page. Images are optimized automatically.</p>
             </details>
             {photoImages.length > 0 && <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">{photoImages.map((src, index) => <div key={index} className="flex min-w-0 items-center gap-3 rounded-lg border border-slate-200 bg-white p-2"><img src={src} alt={`Customer visual ${index + 1}`} className="h-16 w-20 shrink-0 rounded bg-slate-50 object-contain" /><div className="min-w-0"><p className="text-xs font-bold text-slate-700">Photo {index + 1}</p><div className="mt-1 flex flex-wrap gap-x-3"><button type="button" className="min-h-8 text-xs font-semibold text-orange-700 underline underline-offset-2" onClick={() => movePhotoToLogo(index)}>Use as logo</button><button type="button" className="min-h-8 text-xs text-slate-500 underline underline-offset-2" onClick={() => setPhotoImages(current => current.filter((_, item) => item !== index))}>Remove</button></div></div></div>)}</div>}
             {(referenceImage || logoImage) && <div className="mt-3 grid grid-cols-2 gap-3">{[['Reference', referenceImage], ['Logo included on banner', logoImage]].map(([label, src]) => src && <figure key={label} className="min-w-0 rounded-lg border border-slate-200 bg-white p-2"><img src={src} alt={label || 'Attached image'} className="h-20 w-full object-contain" /><figcaption className="mt-1 text-xs text-slate-500">{label}</figcaption></figure>)}</div>}
@@ -835,7 +825,8 @@ function AIWorkspaceSession(props: Props) {
           </div>}
           <div ref={feedbackRef} className="scroll-mt-4">
           {improvingPrompt && <div role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm">Improving your prompt. Your artwork stays unchanged. <button type="button" onClick={() => controllerRef.current?.abort()} className="ml-2 min-h-11 font-semibold underline">Cancel prompt improvement</button></div>}
-          {stage && !improvingPrompt && <div role="status" aria-live="polite" className="flex min-h-52 flex-col items-center justify-center rounded-xl bg-[#0b1f3a] px-6 py-8 text-center text-white">
+          {importingImages && <div role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" /> Preparing your image… <button type="button" onClick={() => controllerRef.current?.abort()} className="ml-2 min-h-11 font-semibold underline">Cancel image import</button></div>}
+          {stage && !improvingPrompt && !importingImages && <div role="status" aria-live="polite" className="flex min-h-52 flex-col items-center justify-center rounded-xl bg-[#0b1f3a] px-6 py-8 text-center text-white">
             {progressPreview && <img src={progressPreview} alt="New artwork — print checks in progress" className="mb-5 max-h-[420px] w-full rounded-lg object-contain" />}
             <Loader2 className="h-7 w-7 animate-spin text-orange-400 motion-reduce:animate-none" />
             <h4 className="mt-4 text-xl font-semibold tracking-tight">{!activeImageJob ? 'Preparing your design' : progressPreview ? 'Your first look' : selected ? 'Making your changes' : 'Bringing your idea to life'}</h4>
@@ -843,7 +834,7 @@ function AIWorkspaceSession(props: Props) {
             {activeImageJob && <div className="mt-4 flex max-w-md items-start gap-2 rounded-lg border border-white/15 bg-white/10 px-4 py-3 text-left text-sm leading-relaxed text-slate-100"><Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-orange-300" /><span><strong className="font-bold text-white">Usually about a minute.</strong> Some designs take longer. Your result appears here automatically.<span className="mt-1 block text-xs text-slate-300" aria-live="off">{elapsedSeconds}s elapsed · Your previous versions stay saved.</span></span></div>}
             {activeImageJob && <button type="button" onClick={() => controllerRef.current?.abort()} className="mt-4 min-h-11 px-3 text-xs text-slate-300 underline underline-offset-4" title="Your draft stays saved. This stops waiting here; the current job may still finish.">Stop waiting</button>}
           </div>}
-          {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><XCircle className="mt-0.5 h-5 w-5 shrink-0" /><span>{error}</span></div>}
+          {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><XCircle className="mt-0.5 h-5 w-5 shrink-0" /><div><p>{error}</p>{importFailed && !stage && <div className="mt-2 flex flex-wrap gap-3"><button type="button" onClick={() => { const pending = lastImportRef.current; if (pending) void importImages(pending.kind, pending.files); }} className="min-h-11 font-semibold underline">Retry image import</button><button type="button" onClick={() => { setError(''); setImportFailed(false); lastImportRef.current = null; }} className="min-h-11 font-semibold underline">Continue without this upload</button></div>}</div></div>}
           </div>
 
           {!stage && (pendingImageJob || progressPreview) && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4" role="status">
@@ -909,7 +900,7 @@ function AIWorkspaceSession(props: Props) {
             </fieldset>}
             {logoImage && selected.brief?.logoRendering === 'integrated' && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600"><span>Logo blended into this design · use Edit with AI to adjust it</span><button type="button" disabled={Boolean(stage)} onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 font-semibold disabled:opacity-40">Remove logo</button></div>}
             <LayerControls brief={brief} concept={selected} busy={Boolean(stage)} onChange={setBrief} onApply={() => void edit(true)} />
-            {hasUnappliedChanges && !stage && <button type="button" onClick={() => { if (selected.brief) setBrief(selected.brief); setLogoImage(selected.logoImage || null); setPhotoImages(selected.photoImages || []); setReferenceImage(selected.referenceImage || null); }} className="mt-2 min-h-11 text-xs text-slate-500 underline underline-offset-4">Discard unapplied changes</button>}
+            {hasUnappliedChanges && !stage && <button type="button" onClick={discardUnappliedChanges} className="mt-2 min-h-11 text-xs text-slate-500 underline underline-offset-4">Discard unapplied changes</button>}
 
 
               {user?.is_admin && (<details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-bold text-[#0b1f3a]">Admin diagnostics <ChevronDown className="h-4 w-4" /></summary><dl className="grid grid-cols-1 gap-x-4 gap-y-2 pt-3 text-xs text-slate-600 sm:grid-cols-2"><div><dt className="font-bold">Generation ID</dt><dd className="break-all">{selected.generationId || generationId}</dd></div><div><dt className="font-bold">Version ID</dt><dd className="break-all">{selected.versionId}</dd></div><div><dt className="font-bold">Provider request ID</dt><dd className="break-all">{selected.diagnostics.providerRequestId || 'Not returned'}</dd></div><div><dt className="font-bold">Validation model</dt><dd>{selected.validation.vision.model}</dd></div>{selected.diagnostics.stageTimings?.map((timing, index) => <div key={index}><dt className="font-bold">{timing.stage}</dt><dd>{formatDuration(timing.durationMs)}</dd></div>)}</dl></details>)}
@@ -924,6 +915,7 @@ function AIWorkspaceSession(props: Props) {
       <div className="ai-studio-footer sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white p-4 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] sm:px-6" data-testid="ai-selection-footer">
         {selected ? <>
           <div className="flex min-w-0 items-center gap-3"><img src={imageSrc(selected)} alt="Selected version to continue with" className="h-12 w-24 rounded border border-slate-200 object-contain" /><div><p className="text-sm font-bold text-[#0b1f3a]">Version {concepts.findIndex(item => item.versionId === selected.versionId) + 1} selected</p><p className="text-xs text-slate-600">{hasPendingEdit ? 'Apply your edit to see it before approving.' : hasUnappliedChanges ? 'Apply or discard your changes first.' : 'Check wording and details before approving.'}</p></div></div>
+          {(hasUnappliedChanges || hasPendingEdit || importFailed) && !stage && !pendingImageJob && sameAIProduct(selected.brief || { ...selected, productType: brief.productType }, props) && <button type="button" onClick={discardUnappliedChanges} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700">Discard changes &amp; keep this version</button>}
           {pendingImageJob && !stage ? <button type="button" onClick={() => void recoverImageJob()} disabled={!access.ready} className="ai-studio-footer-action">Resume latest design</button> : hasPendingEdit ? <button type="button" onClick={() => void edit()} disabled={Boolean(stage) || !access.ready || Boolean(pendingImageJob)} className="ai-studio-footer-action"><WandSparkles className="h-4 w-4" />{stage ? 'Please wait…' : 'Apply edit & preview'}</button> : <button type="button" onClick={() => void apply()} disabled={hasUnappliedChanges || Boolean(stage)} className="ai-studio-footer-action"><ArrowRight className="h-4 w-4 shrink-0" />{stage ? 'Please wait…' : hasUnappliedChanges ? 'Apply your changes before continuing' : 'Approve design & continue'}</button>}
         </> : <>
           <p className="text-sm text-slate-600">{stage ? 'Your design will appear here.' : pendingImageJob ? 'Your last request may still be finishing.' : requirementsMet ? 'Usually about a minute. You can edit the result.' : 'Describe your idea to get started.'}</p>

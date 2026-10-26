@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ENABLE_AI } from '@/lib/featureFlags';
-import { authenticatedJsonBody, authorizedHeaders } from '@/lib/serverAuth';
+import { requestAIAccess } from './aiAccessRequest';
 
 export type AIAdminStatus = {
   loading: boolean;
@@ -51,15 +51,9 @@ export function useAIAdminAccess(active = true) {
     }
     const controller = new AbortController();
     setStatus((current) => ({ ...current, loading: true }));
-    fetch('/.netlify/functions/ai-designer-status', {
-      method: 'POST',
-      headers: authorizedHeaders({ Accept: 'application/json', 'Content-Type': 'application/json' }),
-      body: authenticatedJsonBody({}),
-      signal: controller.signal,
-      credentials: 'same-origin',
-    })
-      .then(async (response) => {
-        const body = await response.json().catch(() => ({}));
+    requestAIAccess(controller.signal)
+      .then(({ response, body }) => {
+        if (controller.signal.aborted) return;
         if (!response.ok) {
           const authenticationFailed = response.status === 401 || response.status === 403;
           setStatus({
