@@ -169,7 +169,7 @@ const ReviewRequestAction: React.FC<ReviewRequestActionProps> = ({ order, onSent
                   {finalSentAt ? <p>The final email offers this thank-you code whether or not the customer leaves a review.</p> : <p>By confirming, you verify that you have checked this customer’s Google review. No particular rating is required.</p>}
                   <p>The system will email a personal, one-time-use <strong>{offer}% off</strong> code based on the last review offer sent. Retrying delivery keeps the same coupon.</p>
                 </> : action === 'final' ? <>
-                  <p>This is the last review reminder for this order. It explains how much their honest feedback means to our small business and keeps the <strong>30% off</strong> offer from the second email.</p>
+                  <p>This is the last review reminder for this order. It explains how much their honest feedback means to our small business and keeps the <strong>30% off</strong> offer from the second email. The button opens our homepage, highlights our new products, and explains that the code works on any product.</p>
                   <p>Only send this after checking that they have not already replied or left a review. The discount is available whether or not they review us.</p>
                 </> : action === 'followup' ? <>
                   <p>A gentle reminder will thank them for their business, invite an honest Google review, and increase the offer from 25% to <strong>30% off their next order</strong> after manual verification.</p>

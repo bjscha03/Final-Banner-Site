@@ -177,6 +177,7 @@ test('real issued coupon validates, rejects a different email, and cannot pay fo
   const reward = await send({ action: 'coupon', reviewVerified: true, confirmedPreviousSentAt: initialAt });
   const valid = await validateDiscountForCheckout({ sql, code: reward.couponCode, email: 'buyer@example.com' });
   assert.equal(valid.valid, true); assert.equal(valid.discount.discountPercentage, 25);
+  assert.equal(valid.discount.discountScope, 'order', 'Review coupons cover every product, not selected lines');
   assert.equal((await validateDiscountForCheckout({ sql, code: reward.couponCode, email: 'other@example.com' })).valid, false);
   await sql`INSERT INTO orders (id, email, status) VALUES (${checkoutId}, 'buyer@example.com', 'pending')`;
   const purchase = { id: checkoutId, status: 'pending', email: 'buyer@example.com', discount_code: reward.couponCode, applied_discount_type: 'promo', applied_discount_cents: 2500 };
@@ -318,4 +319,21 @@ test('full and partial refunds block the final attempt even when the second emai
   await assert.rejects(send({ action: 'final', confirmedPreviousSentAt: secondAt }), { code: 'PARTIAL_REFUND_RECORDED' });
   await sql`UPDATE orders SET partial_refund_cents = 0, status = 'refunded' WHERE id = ${orderId}`;
   await assert.rejects(send({ action: 'final', confirmedPreviousSentAt: secondAt }), { code: 'ORDER_NOT_PAID' });
+});
+
+
+test('final reminder and coupon emails highlight new products and link shopping to the homepage', () => {
+  for (const action of ['final', 'coupon']) {
+    const payload = createReviewRequestEmailData({ action, order: { id: orderId, customer_name: 'Jamie' },
+      customerEmail: 'buyer@example.com', ...emailConfig, coupon: { code: 'THANKS30-ABCDEF123456', offer_percentage: 30 } });
+    assert.match(payload.html, /new products/);
+    assert.match(payload.text, /new products/);
+    assert.match(payload.html, /any product on our site/);
+    assert.match(payload.text, /any product on our site/);
+    assert.match(payload.html, /href="https:\/\/bannersonthefly.com"[^>]*>Explore All Products<\/a>/);
+    assert.match(payload.text, /Explore all products: https:\/\/bannersonthefly.com/);
+    assert.doesNotMatch(payload.html, /g\.page/);
+    assert.doesNotMatch(payload.text, /g\.page/);
+    assert.match(payload.text, /before tax and shipping/);
+  }
 });
