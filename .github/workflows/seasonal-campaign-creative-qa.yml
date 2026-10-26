@@ -28,7 +28,6 @@ jobs:
           cache: npm
       - name: Install pinned dependencies
         run: npm ci --no-audit --no-fund
-      - run: npx playwright install --with-deps chromium webkit
       - name: Campaign selection tests
         run: npx vitest run src/lib/__tests__/seasonalCampaigns.test.ts
       - name: Targeted lint

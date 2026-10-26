@@ -21,9 +21,9 @@ export default defineConfig({
     timeout: 120_000,
   },
   projects: [
-    { name: 'desktop-1440x1000', use: { ...devices['Desktop Chrome'], browserName: 'chromium', viewport: { width: 1440, height: 1000 } } },
-    { name: 'laptop-1280x800', use: { ...devices['Desktop Chrome'], browserName: 'chromium', viewport: { width: 1280, height: 800 } } },
-    { name: 'iphone-390x844', use: { ...devices['iPhone 15 Pro'], browserName: 'webkit', viewport: { width: 390, height: 844 } } },
-    { name: 'android-412x915', use: { ...devices['Pixel 8'], browserName: 'chromium', viewport: { width: 412, height: 915 } } },
+    { name: 'desktop-1440x1000', use: { ...devices['Desktop Chrome'], browserName: 'chromium', channel: 'chrome', viewport: { width: 1440, height: 1000 } } },
+    { name: 'laptop-1280x800', use: { ...devices['Desktop Chrome'], browserName: 'chromium', channel: 'chrome', viewport: { width: 1280, height: 800 } } },
+    { name: 'iphone-390x844', use: { ...devices['iPhone 15 Pro'], browserName: 'chromium', channel: 'chrome', viewport: { width: 390, height: 844 } } },
+    { name: 'android-412x915', use: { ...devices['Pixel 8'], browserName: 'chromium', channel: 'chrome', viewport: { width: 412, height: 915 } } },
   ],
 });
