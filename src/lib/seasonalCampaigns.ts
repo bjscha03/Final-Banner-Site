@@ -33,6 +33,11 @@ export interface HomepageHeroCampaign {
   valueProps: string[];
   artwork?: HeroArtwork;
   merchandising?: SeasonalMerchandisingCard[];
+  merchandisingIntro?: {
+    eyebrow: string;
+    headline: string;
+    description: string;
+  };
 }
 
 export interface SeasonalCampaign extends HomepageHeroCampaign {
@@ -420,6 +425,11 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
       mobileHeight: 1125,
       alt: 'Summit and Pine Home Services Now Hiring vinyl banner secured to a snowy workshop fence with reinforced hems, grommets, and ties',
     },
+    merchandisingIntro: {
+      eyebrow: 'Built for January visibility',
+      headline: 'Make the new year visible.',
+      description: 'Hiring, service, storefront, and vehicle ideas for businesses ready to be seen.',
+    },
     merchandising: [
       {
         icon: 'store',
@@ -466,6 +476,11 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
       mobileWidth: 900,
       mobileHeight: 1125,
       alt: 'Northstar Process Labs trade show booth with a finished table-front vinyl banner and coordinated backdrop',
+    },
+    merchandisingIntro: {
+      eyebrow: 'Built for busy show floors',
+      headline: 'Plan the booth before the aisle fills.',
+      description: 'Table-front, backdrop, and deadline guidance for winter and spring exhibitors.',
     },
     merchandising: [
       {
@@ -514,6 +529,11 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
       mobileHeight: 1125,
       alt: 'Crescent Grove Mardi Gras Family Parade vinyl banner mounted securely to a street barricade with reinforced hems, grommets, and ties',
     },
+    merchandisingIntro: {
+      eyebrow: 'Built for parade season',
+      headline: 'Turn celebration details into a clear invitation.',
+      description: 'Event, venue, and directional signage ideas for Mardi Gras crowds.',
+    },
     merchandising: [
       {
         icon: 'calendar',
@@ -560,6 +580,11 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
       mobileWidth: 900,
       mobileHeight: 1125,
       alt: 'Redbud Academy Spring Open House and enrollment vinyl banner mounted to a campus fence with reinforced hems, grommets, and ties',
+    },
+    merchandisingIntro: {
+      eyebrow: 'Built for enrollment season',
+      headline: 'Guide families from the street to check-in.',
+      description: 'Open house, deadline, and campus wayfinding ideas for registration season.',
     },
     merchandising: [
       {

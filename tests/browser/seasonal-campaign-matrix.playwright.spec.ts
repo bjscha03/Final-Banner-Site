@@ -8,6 +8,7 @@ const campaigns = [
     headline: 'Put your next move where customers can see it.',
     cta: /Refresh your business signage/i,
     asset: 'seasonal-business-refresh-2027',
+    moduleHeadline: 'Make the new year visible.',
   },
   {
     id: 'mardi-gras-2027',
@@ -15,6 +16,7 @@ const campaigns = [
     headline: 'Bring the celebration into full view.',
     cta: /Create Mardi Gras signage/i,
     asset: 'seasonal-mardi-gras-2027',
+    moduleHeadline: 'Turn celebration details into a clear invitation.',
   },
   {
     id: 'school-registration-2027',
@@ -22,6 +24,7 @@ const campaigns = [
     headline: 'Make every family’s next step easy to find.',
     cta: /Create enrollment signage/i,
     asset: 'seasonal-school-registration-2027',
+    moduleHeadline: 'Guide families from the street to check-in.',
   },
   {
     id: 'winter-trade-shows-2027',
@@ -29,6 +32,7 @@ const campaigns = [
     headline: 'Make your booth readable before the aisle gets busy.',
     cta: /Prepare your booth banner/i,
     asset: 'seasonal-winter-trade-shows-2027',
+    moduleHeadline: 'Plan the booth before the aisle fills.',
   },
 ] as const;
 
@@ -79,6 +83,7 @@ for (const campaign of campaigns) {
 
     const merchandising = page.locator(`[data-seasonal-merchandising="${campaign.id}"]`);
     await expect(merchandising).toBeVisible();
+    await expect(merchandising.getByRole('heading', { level: 2, name: campaign.moduleHeadline })).toBeVisible();
     await expect(merchandising.locator('article')).toHaveCount(3);
 
     const layout = await page.evaluate(() => {
