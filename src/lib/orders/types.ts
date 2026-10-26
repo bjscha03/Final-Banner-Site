@@ -159,6 +159,9 @@ export interface Order {
   review_request_sent_count?: number;
   review_request_initial_sent_at?: string | null;
   review_followup_sent_at?: string | null;
+  review_final_sent_at?: string | null;
+  review_customer_completed?: boolean;
+  review_state_unavailable?: boolean;
   review_offer_percentage?: number;
   review_coupon_code?: string | null;
   review_coupon_sent_at?: string | null;

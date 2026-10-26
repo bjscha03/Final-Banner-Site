@@ -454,7 +454,7 @@ test('existing review request upgrades to 30%, sends one coupon, and remains com
       expect(payload.orderId).toBe(ORDER_ID);
       expect(payload.confirmedPreviousSentAt).toBe(order().review_request_last_sent_at);
       sends.push(payload.action);
-      if (payload.action === 'followup') followupAt = '2026-09-29T12:00:00Z';
+      if (payload.action === 'followup') followupAt = new Date().toISOString();
       else { expect(payload.action).toBe('coupon'); expect(payload.reviewVerified).toBe(true); couponAt = '2026-09-29T13:00:00Z'; }
       body = { ok: true, action: payload.action, sentAt: followupAt, customerEmail: SAFE_TEST_EMAIL,
         offerPercentage: 30, followupSentAt: followupAt, couponSentAt: couponAt, couponCode: order().review_coupon_code };
@@ -491,3 +491,73 @@ test('existing review request upgrades to 30%, sends one coupon, and remains com
   await expect(page.getByText(/THANKS30-123456ABCDEF/).filter({ visible: true })).toBeVisible();
   await page.screenshot({ path: test.info().outputPath('review-coupon-complete.png'), fullPage: true });
 });
+
+
+for (const scenario of ['waiting', 'due', 'refunded', 'partial', 'redeemed'] as const) {
+  test(`final review attempt: ${scenario}`, async ({ page }) => {
+    const now = new Date('2026-10-26T16:00:00Z');
+    await page.clock.install({ time: now });
+    const secondAt = scenario === 'waiting' ? '2026-10-23T16:01:00Z' : '2026-10-23T16:00:00Z';
+    let finalAt: string | null = null;
+    let sends = 0;
+    const order = () => ({
+      id: ORDER_ID, user_id: null, email: SAFE_TEST_EMAIL, customer_name: 'Final Attempt Customer',
+      review_request_customer_email: SAFE_TEST_EMAIL,
+      review_request_last_sent_at: finalAt || secondAt,
+      review_request_initial_sent_at: '2026-10-19T12:00:00Z',
+      review_followup_sent_at: secondAt, review_final_sent_at: finalAt, review_offer_percentage: 30,
+      review_customer_completed: scenario === 'redeemed',
+      partial_refund_cents: scenario === 'partial' ? 1 : 0,
+      status: scenario === 'refunded' ? 'refunded' : 'shipped', payment_method: 'stripe', is_test_order: false,
+      subtotal_cents: 10000, total_cents: 10600, tax_cents: 600, created_at: '2026-10-19T00:00:00Z', items: [],
+    });
+    await page.addInitScript(() => {
+      localStorage.setItem('banners_current_user', JSON.stringify({ id: '00000000-0000-0000-0000-000000000001', email: 'admin-browser-test@example.com', is_admin: true }));
+    });
+    await page.route('**/.netlify/functions/**', async route => {
+      const path = new URL(route.request().url()).pathname;
+      let body: unknown = { ok: true, issues: [] };
+      if (path.endsWith('/get-orders')) body = adminOrdersReportResponse(order());
+      // Production detail has no review metadata; the list data must survive hydration.
+      if (path.endsWith('/get-order')) { const detail = order(); body = { ok: true, order: { ...detail, review_final_sent_at: undefined, review_customer_completed: undefined } }; }
+      if (path.endsWith('/get-abandoned-carts')) body = { carts: [] };
+      if (path.endsWith('/admin-custom-quotes')) body = { ok: true, quotes: [] };
+      if (path.endsWith('/send-review-request')) {
+        const input = route.request().postDataJSON();
+        expect(input.action).toBe('final'); expect(input.confirmedPreviousSentAt).toBe(secondAt);
+        sends++; finalAt = now.toISOString();
+        body = { ok: true, action: 'final', sentAt: finalAt, finalSentAt: finalAt, followupSentAt: secondAt, offerPercentage: 30, customerEmail: SAFE_TEST_EMAIL };
+      }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+    });
+    await page.goto('/admin/orders');
+    const final = page.getByRole('button', { name: 'Send Final Review Attempt', exact: true }).filter({ visible: true });
+    const initial = page.getByRole('button', { name: 'Review Email Sent', exact: true }).filter({ visible: true });
+    const second = page.getByRole('button', { name: '30% Follow-Up Sent', exact: true }).filter({ visible: true });
+    if (['refunded', 'partial', 'redeemed'].includes(scenario)) {
+      await expect(page.getByText('Final Attempt Customer', { exact: true }).filter({ visible: true }).first()).toBeVisible();
+      await expect(page.getByRole('button', { name: /Review Email|Review Attempt|Follow-Up|Coupon/ })).toHaveCount(0);
+      expect(sends).toBe(0); return;
+    }
+    if (scenario === 'waiting') {
+      await expect(initial).toBeVisible(); await expect(second).toBeVisible(); await expect(final).toHaveCount(0);
+      await page.clock.fastForward(60_000);
+    }
+    await expect(final).toBeEnabled();
+    await expect(initial).toHaveCount(0); await expect(second).toHaveCount(0);
+    await final.click(); expect(sends).toBe(0);
+    const dialog = page.getByRole('alertdialog');
+    await expect(dialog.getByText(/have not already replied or left a review/)).toBeVisible();
+    await dialog.getByRole('button', { name: 'Send Final Review Attempt', exact: true }).click();
+    await expect(dialog).toBeHidden(); expect(sends).toBe(1);
+    await expect(final).toHaveCount(0);
+    await expect(page.getByText('Final Review Attempt Sent', { exact: true }).filter({ visible: true })).toBeVisible();
+    await page.reload();
+    await expect(page.getByText('Final Review Attempt Sent', { exact: true }).filter({ visible: true })).toBeVisible();
+    await expect(final).toHaveCount(0); await expect(initial).toHaveCount(0); await expect(second).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Send 30% Coupon', exact: true }).filter({ visible: true })).toBeEnabled();
+    expect(sends).toBe(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: test.info().outputPath(`final-review-${scenario}.png`), fullPage: true });
+  });
+}

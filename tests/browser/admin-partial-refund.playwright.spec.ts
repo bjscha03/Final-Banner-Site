@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('admin records a partial refund, refreshes money metrics, and disables review emails', async ({ page }, testInfo) => {
+test('admin records a partial refund, refreshes money metrics, and hides review emails', async ({ page }, testInfo) => {
   let refundCents = 0;
   let saves = 0;
   let emailCalls = 0;
@@ -44,8 +44,8 @@ test('admin records a partial refund, refreshes money metrics, and disables revi
   await page.goto('/admin/orders', { waitUntil: 'domcontentloaded' });
   const row = page.locator(`[data-admin-order-id="${id}"]`).filter({ visible: true });
   await expect(row.locator('[data-order-delivery-estimate]')).toContainText('Monday, Oct 19, 2026');
-  await expect(row.locator('[data-ai-artwork-quality]')).toContainText('35.6 PPI');
-  await expect(row.locator('[data-ai-artwork-quality]')).toContainText('Below the 200 PPI minimum');
+  await expect(row.locator('[data-ai-artwork-quality]')).toContainText('Download AI Artwork');
+  await expect(row.locator('[data-ai-artwork-quality]')).toContainText('72″ × 36″ · Print at 100%');
   const review = row.getByRole('button', { name: 'Send Review Email', exact: true });
   await expect(review).toBeEnabled();
   await row.getByRole('button', { name: 'Record Partial Refund', exact: true }).click();
@@ -56,12 +56,9 @@ test('admin records a partial refund, refreshes money metrics, and disables revi
   await page.screenshot({ path: testInfo.outputPath('partial-refund-dialog.png'), fullPage: true });
   await dialog.getByRole('button', { name: 'Save Refund Record' }).click();
   await expect(row.locator('[data-partial-refund]')).toContainText('Partial refund recorded: $25.00');
-  await expect(review).toBeDisabled();
-  await expect(review).toHaveCSS('background-color', 'rgb(226, 232, 240)');
-  await expect(row.getByRole('button', { name: 'Send 30% Follow-Up', exact: true })).toBeDisabled();
-  await expect(row.getByRole('button', { name: /Verify Review & Send/ })).toBeDisabled();
+  await expect(review).toHaveCount(0);
+  await expect(row.getByRole('button', { name: /Review|Follow-Up|Coupon/ })).toHaveCount(0);
   await expect(page.locator('[data-admin-period-metrics]')).toContainText('$81.00');
-  await expect(row).toContainText('Review emails are disabled because a partial refund is recorded');
   expect(saves).toBe(1); expect(emailCalls).toBe(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await row.screenshot({ path: testInfo.outputPath('admin-order-after-refund.png') });

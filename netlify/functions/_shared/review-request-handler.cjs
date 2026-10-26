@@ -9,6 +9,9 @@ const {
   getReviewRequestEligibility,
 } = require('./review-request-email.cjs');
 
+const { loadCustomerReviewState } = require('./review-customer-state.cjs');
+const FINAL_DELAY_MS = 3 * 24 * 60 * 60 * 1000;
+
 const headers = {
   'Content-Type': 'application/json',
   'Cache-Control': 'no-store',
@@ -120,6 +123,7 @@ async function ensureReviewRequestSchema(sql) {
       sent_at TIMESTAMPTZ
     )
   `;
+  await sql`ALTER TABLE review_coupon_rewards ALTER COLUMN review_verified_at DROP NOT NULL`;
   await sql`
     CREATE UNIQUE INDEX IF NOT EXISTS review_request_history_one_sending_per_order_idx
       ON review_request_history (order_id)
@@ -142,12 +146,16 @@ function createDataAccess(sql) {
          WHERE o.id = ${orderId}
          LIMIT 1
       `;
-      return rows[0] || null;
+      if (!rows[0]) return null;
+      const [customerState] = await loadCustomerReviewState(sql, [orderId]);
+      return { ...rows[0], ...customerState };
     },
 
     async loadLatestSent(orderId) {
       const rows = await sql`
-        SELECT sent_at, customer_email, resend_message_id, email_kind, offer_percentage
+        SELECT sent_at, customer_email, resend_message_id, email_kind, offer_percentage,
+               MAX(sent_at) FILTER (WHERE email_kind = 'followup') OVER () AS followup_sent_at,
+               MAX(sent_at) FILTER (WHERE email_kind = 'final') OVER () AS final_sent_at
           FROM review_request_history
          WHERE order_id = ${orderId}
            AND status = 'sent' AND email_kind <> 'coupon'
@@ -166,7 +174,7 @@ function createDataAccess(sql) {
       return rows[0] || null;
     },
 
-    async createCoupon({ orderId, customerEmail, percentage, adminIdentifier }) {
+    async createCoupon({ orderId, customerEmail, percentage, adminIdentifier, reviewVerified = true }) {
       const code = `THANKS${percentage}-${randomBytes(6).toString('hex').toUpperCase()}`;
       // Both writes are one atomic statement. discount_codes.order_id must stay
       // NULL: checkout uses it to reserve the coupon for a FUTURE purchase.
@@ -181,8 +189,9 @@ function createDataAccess(sql) {
           ) RETURNING code
         )
         INSERT INTO review_coupon_rewards (
-          order_id, code, customer_email, offer_percentage, admin_identifier
-        ) SELECT ${orderId}, code, ${customerEmail}, ${percentage}, ${adminIdentifier || null}
+          order_id, code, customer_email, offer_percentage, admin_identifier, review_verified_at
+        ) SELECT ${orderId}, code, ${customerEmail}, ${percentage}, ${adminIdentifier || null},
+                 CASE WHEN ${reviewVerified} THEN NOW() ELSE NULL END
           FROM new_code
         RETURNING *
       `;
@@ -291,28 +300,28 @@ function createDataAccess(sql) {
 
 async function processReviewRequest({
   orderId, confirmedPreviousSentAt, adminIdentifier, data, sendEmail, emailConfig,
-  action = 'initial', reviewVerified = false,
+  action = 'initial', reviewVerified = false, now = () => Date.now(),
 }) {
-  if (!['initial', 'followup', 'coupon'].includes(action)) {
+  if (!['initial', 'followup', 'final', 'coupon'].includes(action)) {
     throw new ReviewRequestError(400, 'INVALID_REVIEW_ACTION', 'Choose a valid review email action.');
   }
   const order = await data.loadOrder(orderId);
   if (!order) throw new ReviewRequestError(404, 'ORDER_NOT_FOUND', 'Order not found.');
   const eligibility = getReviewRequestEligibility(order);
   if (!eligibility.eligible) throw new ReviewRequestError(422, eligibility.code, eligibility.reason);
-  if (action === 'coupon' && reviewVerified !== true) {
-    throw new ReviewRequestError(422, 'REVIEW_VERIFICATION_REQUIRED', 'Confirm that you manually verified the customer’s review before sending the coupon.');
-  }
 
   let latestSent = await data.loadLatestSent(orderId);
   let coupon = await data.loadCoupon(orderId);
-  const percentageFor = (latest) => latest?.email_kind === 'followup' ? 30 : 25;
+  const percentageFor = (latest) => ['followup', 'final'].includes(latest?.email_kind) ? 30 : 25;
+  const followupAt = () => latestSent?.followup_sent_at || (latestSent?.email_kind === 'followup' ? latestSent.sent_at : null);
+  const finalAt = () => latestSent?.final_sent_at || (latestSent?.email_kind === 'final' ? latestSent.sent_at : null);
   const resultFor = (sentAt, providerMessageId, alreadySent = false) => ({
     customerEmail: coupon?.customer_email || eligibility.customerEmail,
     sentAt: action === 'coupon' ? latestSent.sent_at : sentAt,
     providerMessageId, action, alreadySent,
-    offerPercentage: coupon ? Number(coupon.offer_percentage) : (action === 'followup' ? 30 : percentageFor(latestSent)),
-    followupSentAt: action === 'followup' ? sentAt : (latestSent?.email_kind === 'followup' ? latestSent.sent_at : null),
+    offerPercentage: coupon ? Number(coupon.offer_percentage) : (['followup', 'final'].includes(action) ? 30 : percentageFor(latestSent)),
+    followupSentAt: action === 'followup' ? sentAt : followupAt(),
+    finalSentAt: action === 'final' ? sentAt : finalAt(),
     couponCode: coupon?.code || null,
     couponSentAt: action === 'coupon' ? sentAt : (coupon?.sent_at || null),
   });
@@ -324,8 +333,25 @@ async function processReviewRequest({
       throw new ReviewRequestError(409, 'REVIEW_REQUEST_ALREADY_SENT', 'The review history changed. Check the updated offer and confirm again.', {
         lastSentAt: latestSent.sent_at, customerEmail: eligibility.customerEmail,
         offerPercentage: percentageFor(latestSent),
-        followupSentAt: latestSent.email_kind === 'followup' ? latestSent.sent_at : null,
+        followupSentAt: followupAt(), finalSentAt: finalAt(),
       });
+    }
+    if (action === 'coupon' && reviewVerified !== true && !finalAt()) {
+      throw new ReviewRequestError(422, 'REVIEW_VERIFICATION_REQUIRED', 'Confirm that you manually verified the customer’s review before sending the coupon.');
+    }
+    if (['initial', 'followup'].includes(action) && finalAt()) {
+      throw new ReviewRequestError(409, 'REVIEW_FINAL_ALREADY_SENT', 'The final review request has already been sent. No more reminders can be sent.');
+    }
+    if (action === 'final' && !finalAt()) {
+      const followupMs = new Date(followupAt() || '').getTime();
+      if (!Number.isFinite(followupMs)) {
+        throw new ReviewRequestError(409, 'REVIEW_FOLLOWUP_REQUIRED', 'Send the second review email before the final attempt.');
+      }
+      if (now() < followupMs + FINAL_DELAY_MS) {
+        throw new ReviewRequestError(409, 'REVIEW_FINAL_TOO_EARLY', 'The final attempt is available three days after the second review email.', {
+          availableAt: new Date(followupMs + FINAL_DELAY_MS).toISOString(),
+        });
+      }
     }
     if (action !== 'coupon' && coupon) {
       throw new ReviewRequestError(409, 'REVIEW_COUPON_ALREADY_CREATED', 'A coupon has already been created for this order. Use the coupon action to finish delivery.');
@@ -338,12 +364,12 @@ async function processReviewRequest({
     }
   };
   validateState();
-  if (action === 'followup' && latestSent.email_kind === 'followup') {
+  if ((action === 'followup' && latestSent.email_kind === 'followup') || (action === 'final' && finalAt())) {
     return resultFor(latestSent.sent_at, latestSent.resend_message_id, true);
   }
   if (action === 'coupon' && coupon?.sent_at) return resultFor(coupon.sent_at, null, true);
 
-  const percentage = coupon ? Number(coupon.offer_percentage) : (action === 'followup' ? 30 : percentageFor(latestSent));
+  const percentage = coupon ? Number(coupon.offer_percentage) : (['followup', 'final'].includes(action) ? 30 : percentageFor(latestSent));
   const attempt = await data.beginAttempt({ orderId, customerEmail: eligibility.customerEmail, adminIdentifier, action, percentage });
   if (!attempt) {
     throw new ReviewRequestError(409, 'REVIEW_REQUEST_IN_PROGRESS', 'An email for this order is still being processed. Wait two minutes before retrying the same action. If the earlier attempt was over 23 hours ago, check delivery history before retrying.');
@@ -358,12 +384,12 @@ async function processReviewRequest({
     latestSent = await data.loadLatestSent(orderId);
     coupon = await data.loadCoupon(orderId);
     validateState();
-    if ((action === 'followup' && latestSent.email_kind === 'followup') || (action === 'coupon' && coupon?.sent_at)) {
+    if ((action === 'followup' && latestSent.email_kind === 'followup') || (action === 'final' && finalAt()) || (action === 'coupon' && coupon?.sent_at)) {
       await data.failAttempt({ attemptId: attempt.id, failureReason: 'Already delivered by another request' });
       return resultFor(action === 'coupon' ? coupon.sent_at : latestSent.sent_at, null, true);
     }
     if (action === 'coupon' && !coupon) {
-      coupon = await data.createCoupon({ orderId, customerEmail: eligibility.customerEmail, percentage, adminIdentifier });
+      coupon = await data.createCoupon({ orderId, customerEmail: eligibility.customerEmail, percentage, adminIdentifier, reviewVerified });
     }
     payload = attempt.email_payload || createReviewRequestEmailData({
       order, customerEmail: eligibility.customerEmail, ...emailConfig, action, coupon,

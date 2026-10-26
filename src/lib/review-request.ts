@@ -21,6 +21,12 @@ export const getReviewRequestEligibility = (order: Order): { eligible: boolean; 
   }
 
   const customerEmail = getReviewRequestCustomerEmail(order);
+  if (order.review_customer_completed) {
+    return { eligible: false, reason: 'This customer has already redeemed a review thank-you coupon.', customerEmail };
+  }
+  if (order.review_state_unavailable) {
+    return { eligible: false, reason: 'Review history is unavailable. Refresh before sending.', customerEmail };
+  }
   if (Number(order.partial_refund_cents || 0) > 0) {
     return { eligible: false, reason: 'Review emails are disabled because a partial refund is recorded for this order.', customerEmail };
   }
@@ -50,3 +56,13 @@ export const formatReviewRequestSentAt = (value?: string | null): string => {
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 };
+
+export const getFinalReviewAvailableAt = (followupSentAt?: string | null): number | null => {
+  const sentAt = new Date(followupSentAt || '').getTime();
+  return Number.isFinite(sentAt) ? sentAt + 3 * 24 * 60 * 60 * 1000 : null;
+};
+
+export const shouldHideReviewRequests = (order: Order): boolean =>
+  normalize(order.status) === 'refunded'
+  || Number(order.partial_refund_cents || 0) > 0
+  || order.review_customer_completed === true;

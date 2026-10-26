@@ -125,7 +125,7 @@ test('server order IDs are validated before database access', () => {
 });
 
 test('partial refunds block every review action, including a refund recorded while a request opens', async () => {
-  for (const action of ['initial', 'followup', 'coupon']) {
+  for (const action of ['initial', 'followup', 'final', 'coupon']) {
     const { data, state } = createFakeData({ order: { ...paidOrder, partial_refund_cents: 2500 } });
     await assert.rejects(() => processReviewRequest({ orderId: paidOrder.id, action, data, emailConfig,
       sendEmail: async () => assert.fail('A refunded order must not send review email') }), error => error.code === 'PARTIAL_REFUND_RECORDED');

@@ -19,7 +19,7 @@ test.before(async () => {
   await db.exec(`
     CREATE TABLE profiles (id uuid primary key, email text, full_name text);
     CREATE TABLE orders (id uuid primary key, user_id uuid, email text, customer_name text, status text,
-      payment_method text, is_test_order boolean default false, checkout_idempotency_key text,
+      partial_refund_cents integer default 0, payment_method text, is_test_order boolean default false, checkout_idempotency_key text,
       payment_reconciliation_status text, abandoned_cart_id uuid, updated_at timestamptz,
       discount_code text, applied_discount_type text, applied_discount_cents integer);
     CREATE TABLE discount_codes (id uuid primary key default gen_random_uuid(), code text unique not null,
@@ -201,4 +201,121 @@ test('both coupon variants are escaped and include matching HTML and text', () =
     assert.ok(payload.html.includes(`${percentage}%`)); assert.ok(payload.text.includes(`${percentage}%`));
     assert.doesNotMatch(payload.html, /<script>/); assert.match(payload.text, /one order/);
   }
+});
+
+
+async function secondRequest(sentAt = '2026-10-20T12:00:00Z') {
+  await legacyRequest();
+  await sql`INSERT INTO review_request_history (order_id, customer_email, status, sent_at, email_kind, offer_percentage)
+    VALUES (${orderId}, 'buyer@example.com', 'sent', ${sentAt}, 'followup', 30)`;
+  return (await data.loadLatestSent(orderId)).sent_at;
+}
+
+test('final reminder is blocked until exactly 72 hours after second email, then sends once with 30% offer', async () => {
+  const secondAt = await secondRequest();
+  const boundary = new Date(secondAt).getTime() + 72 * 60 * 60 * 1000;
+  let calls = 0;
+  const args = { action: 'final', confirmedPreviousSentAt: secondAt,
+    sendEmail: async (payload) => {
+      calls++;
+      assert.match(payload.text, /one last time/);
+      assert.match(payload.text, /30% off your next order/);
+      assert.match(payload.text, /whether or not you leave a review/);
+      assert.match(payload.html, /small business/);
+      assert.equal(payload.tags[0].value, 'review_final');
+      return { data: { id: 'final-accepted' } };
+    } };
+  await assert.rejects(send({ ...args, now: () => boundary - 1 }), { code: 'REVIEW_FINAL_TOO_EARLY' });
+  assert.equal(calls, 0);
+  assert.equal((await sql`SELECT * FROM review_request_history WHERE email_kind = 'final'`).length, 0);
+  const final = await send({ ...args, now: () => boundary });
+  assert.equal(calls, 1);
+  assert.equal(final.offerPercentage, 30);
+  assert.equal(new Date(final.followupSentAt).getTime(), new Date(secondAt).getTime());
+  assert.ok(final.finalSentAt);
+  const repeat = await send({ ...args, confirmedPreviousSentAt: final.sentAt });
+  assert.equal(repeat.alreadySent, true); assert.equal(calls, 1);
+  for (const action of ['initial', 'followup']) {
+    await assert.rejects(send({ action, confirmedPreviousSentAt: final.sentAt }), { code: 'REVIEW_FINAL_ALREADY_SENT' });
+  }
+  const coupon = await send({ action: 'coupon', confirmedPreviousSentAt: final.sentAt });
+  assert.equal(coupon.offerPercentage, 30);
+  assert.equal((await data.loadCoupon(orderId)).review_verified_at, null);
+  assert.equal(new Date(coupon.followupSentAt).getTime(), new Date(secondAt).getTime());
+  assert.equal(new Date(coupon.finalSentAt).getTime(), new Date(final.sentAt).getTime());
+});
+
+test('initial email alone and failed second email cannot unlock a final attempt', async () => {
+  const firstAt = await legacyRequest();
+  await assert.rejects(send({ action: 'final', confirmedPreviousSentAt: firstAt }), { code: 'REVIEW_FOLLOWUP_REQUIRED' });
+  await assert.rejects(send({ action: 'followup', confirmedPreviousSentAt: firstAt,
+    sendEmail: async () => { throw Object.assign(new Error('rejected'), { statusCode: 422 }); } }));
+  await assert.rejects(send({ action: 'final', confirmedPreviousSentAt: firstAt }), { code: 'REVIEW_FOLLOWUP_REQUIRED' });
+});
+
+test('a coupon already issued after a review prevents the final reminder', async () => {
+  const secondAt = await secondRequest();
+  await send({ action: 'coupon', reviewVerified: true, confirmedPreviousSentAt: secondAt });
+  await assert.rejects(send({ action: 'final', confirmedPreviousSentAt: secondAt }), { code: 'REVIEW_COUPON_ALREADY_CREATED' });
+});
+
+test('final delivery failure retries safely with the same payload and provider key', async () => {
+  const secondAt = await secondRequest();
+  let original, key;
+  await assert.rejects(send({ action: 'final', confirmedPreviousSentAt: secondAt,
+    sendEmail: async (payload, options) => { original = payload; key = options.idempotencyKey; throw new Error('timeout'); } }), { code: 'REVIEW_REQUEST_SEND_FAILED' });
+  await sql`UPDATE review_request_history SET requested_at = NOW() - INTERVAL '3 minutes' WHERE status = 'sending'`;
+  const final = await send({ action: 'final', confirmedPreviousSentAt: secondAt,
+    sendEmail: async (payload, options) => { assert.deepEqual(payload, original); assert.equal(options.idempotencyKey, key); return { data: { id: 'recovered-final' } }; } });
+  assert.ok(final.finalSentAt);
+  assert.equal((await sql`SELECT * FROM review_request_history WHERE email_kind = 'final'`).length, 1);
+});
+
+test('concurrent final attempts send one email', async () => {
+  const secondAt = await secondRequest();
+  let release, entered, sends = 0;
+  const ready = new Promise(resolve => { entered = resolve; });
+  const gate = new Promise(resolve => { release = resolve; });
+  const args = { action: 'final', confirmedPreviousSentAt: secondAt,
+    sendEmail: async () => { sends++; entered(); await gate; return { data: { id: 'single-final' } }; } };
+  const first = send(args);
+  await ready;
+  await assert.rejects(send(args), { code: 'REVIEW_REQUEST_IN_PROGRESS' });
+  release(); await first; assert.equal(sends, 1);
+});
+
+test('redeemed review code suppresses original, redemption, and future guest/account orders across pages', async () => {
+  const firstAt = await legacyRequest();
+  const reward = await send({ action: 'coupon', reviewVerified: true, confirmedPreviousSentAt: firstAt });
+  const future = '22222222-2222-4222-8222-222222222222';
+  const signedIn = '33333333-3333-4333-8333-333333333333';
+  const unrelated = '44444444-4444-4444-8444-444444444444';
+  const userId = '55555555-5555-4555-8555-555555555555';
+  await sql`INSERT INTO profiles (id, email) VALUES (${userId}, 'buyer@example.com') ON CONFLICT DO NOTHING`;
+  await sql`UPDATE orders SET user_id = ${userId} WHERE id = ${orderId}`;
+  await sql`INSERT INTO orders (id, email, status) VALUES (${checkoutId}, 'buyer@example.com', 'pending'),
+    (${future}, ' BUYER@EXAMPLE.COM ', 'paid'), (${unrelated}, 'different@example.com', 'paid')`;
+  await sql`INSERT INTO orders (id, email, user_id, status) VALUES (${signedIn}, 'new-email@example.com', ${userId}, 'paid')`;
+  await sql`UPDATE discount_codes SET used = TRUE, order_id = ${checkoutId} WHERE code = ${reward.couponCode}`;
+  assert.equal((await data.loadOrder(future)).review_customer_completed, false, 'reservation is not redemption');
+  await sql`UPDATE orders SET status = 'paid' WHERE id = ${checkoutId}`;
+  const { loadCustomerReviewState } = require('../_shared/review-customer-state.cjs');
+  const page = await loadCustomerReviewState(sql, [future, signedIn, unrelated]);
+  assert.deepEqual(page.map(row => [row.order_id, row.review_customer_completed]).sort(), [[future, true], [signedIn, true], [unrelated, false]].sort());
+  for (const id of [orderId, checkoutId, future, signedIn]) {
+    for (const action of ['initial', 'followup', 'final', 'coupon']) {
+      await assert.rejects(send({ orderId: id, action, sendEmail: async () => assert.fail('completed customer') }), { code: 'REVIEW_CUSTOMER_COMPLETED' });
+    }
+  }
+  // Retain suppression after the redeemed purchase itself is refunded.
+  await sql`UPDATE orders SET status = 'refunded' WHERE id = ${checkoutId}`;
+  assert.equal((await data.loadOrder(future)).review_customer_completed, true);
+});
+
+test('full and partial refunds block the final attempt even when the second email is old enough', async () => {
+  const secondAt = await secondRequest();
+  await sql`UPDATE orders SET partial_refund_cents = 1 WHERE id = ${orderId}`;
+  await assert.rejects(send({ action: 'final', confirmedPreviousSentAt: secondAt }), { code: 'PARTIAL_REFUND_RECORDED' });
+  await sql`UPDATE orders SET partial_refund_cents = 0, status = 'refunded' WHERE id = ${orderId}`;
+  await assert.rejects(send({ action: 'final', confirmedPreviousSentAt: secondAt }), { code: 'ORDER_NOT_PAID' });
 });
