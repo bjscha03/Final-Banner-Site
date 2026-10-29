@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import Layout from '@/components/Layout';
 import HeroSection from '@/components/HeroSection';
+import RealOrdersStrip from '@/components/design/RealOrdersStrip';
 import CompanySpotlight from '@/components/CompanySpotlight';
 import PricingTable from '@/components/PricingTable';
 import DeliveryCarousel from '@/components/home/DeliveryCarousel';
@@ -68,6 +69,7 @@ const Index: React.FC = () => {
         canonical="https://bannersonthefly.com/"
       />
       <HeroSection />
+      <RealOrdersStrip expanded compactMobile />
       <ProductSelectionStrip />
       <PricingTable />
       <CompanySpotlight />
