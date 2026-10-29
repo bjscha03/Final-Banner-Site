@@ -85,7 +85,7 @@ for (const size of [{ label: '8 × 8 ft', width: 96, id: 'step-and-repeat-backdr
     await page.goto('/google-ads-backdrops');
     await page.getByRole('radio', { name: size.label, exact: true }).check();
     await upload(page);
-    const image = page.getByAltText('Uploaded artwork preview').first();
+    const image = page.getByTestId('artwork-canvas').locator('img').first();
     const original = await image.getAttribute('src');
     await page.getByRole('button', { name: 'Fit my design with AI', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Approve design', exact: true })).toBeVisible();
@@ -114,14 +114,14 @@ for (const size of [{ label: '8 × 8 ft', width: 96, id: 'step-and-repeat-backdr
     await page.goto(`/products/step-and-repeat-backdrop?editItem=${item.id}`);
     await expect(page.getByRole('button', { name: 'Restore original', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Restore original', exact: true }).click();
-    await expect(page.getByAltText('Uploaded artwork preview').first()).toHaveAttribute('src', original!);
+    await expect(page.getByTestId('artwork-canvas').locator('img').first()).toHaveAttribute('src', original!);
     await expect(page.getByRole('checkbox', { name: /I checked the front artwork/ })).not.toBeChecked();
   });
 }
 
 test('mismatched AI output never replaces uploaded artwork', async ({ page }) => {
   await fixtures(page, true); await page.goto('/google-ads-backdrops'); await upload(page);
-  const image = page.getByAltText('Uploaded artwork preview').first(), original = await image.getAttribute('src');
+  const image = page.getByTestId('artwork-canvas').locator('img').first(), original = await image.getAttribute('src');
   await page.getByRole('button', { name: 'Fit my design with AI', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Try again', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Approve design', exact: true })).toHaveCount(0);
