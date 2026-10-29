@@ -13,7 +13,9 @@ const inventory={lines:['FARM MARKET'],elements:['Farm logo'],allTextLegible:tru
 describe('supplier geometry throughout AI',()=>{
  it.each(cases)('blocks generation and fitting for unqualified $productType',target=>{
   expect(()=>normalizeBrief({...target,description:'FARM MARKET'})).toThrow(/AI design and fitting are not available/);
-  expect(()=>validateFitRequest({...target,sourceImage:'data:image/png;base64,eA=='})).toThrow(/AI design and fitting are not available/);
+  if (target.productType.startsWith('specialty:step-and-repeat-backdrop:')) {
+    expect(validateFitRequest({...target,sourceImage:'data:image/png;base64,eA=='})).toMatchObject({widthIn:target.widthIn,heightIn:target.heightIn,productType:target.productType});
+  } else expect(()=>validateFitRequest({...target,sourceImage:'data:image/png;base64,eA=='})).toThrow(/AI design and fitting are not available/);
   const context=layoutContext(target.productType,target.widthIn,target.heightIn);
   expect([context.template.widthIn,context.template.heightIn]).toEqual([target.widthIn,target.heightIn]);
  });
@@ -33,3 +35,4 @@ describe('supplier geometry throughout AI',()=>{
   expect(edit).not.toHaveBeenCalled();expect(inspect).not.toHaveBeenCalled();
  });
 });
+

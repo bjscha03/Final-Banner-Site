@@ -70,6 +70,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Google Ads landing page - lazy load
 const GoogleAdsBanner = lazy(() => import("./pages/GoogleAdsBanner"));
+const GoogleAdsBackdrops = lazy(() => import("./pages/GoogleAdsBackdrops"));
 
 const PoliticalSigns = lazy(() => import("./pages/PoliticalSigns"));
 
@@ -279,6 +280,7 @@ export const RoutedApplication = () => (
                 </>
               }
             />
+            <Route path="/google-ads-backdrops" element={<><PromoBanner /><GoogleAdsBackdrops /></>} />
             <Route path="/large-banners-fast" element={<><PromoBanner /><GoogleAdsBanner key="large-banners-fast" /></>} />
             <Route path="/double-sided-banners" element={<DoubleSidedBannerRedirect />} />
             <Route
@@ -311,3 +313,4 @@ const App = () => (
 );
 
 export default App;
+

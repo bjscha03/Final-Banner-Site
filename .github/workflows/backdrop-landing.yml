@@ -1,0 +1,43 @@
+name: Backdrop landing checks
+on:
+  pull_request:
+    paths:
+      - 'src/pages/GoogleAdsBackdrops.tsx'
+      - 'src/components/specialty/SpecialtyDesigner.tsx'
+      - 'netlify/functions/_shared/ai-designer/fit.cjs'
+      - 'netlify/functions/__tests__/backdrop-artwork-fit.test.mjs'
+      - 'tests/browser/backdrop-landing.playwright.spec.ts'
+      - 'playwright.backdrops.config.ts'
+      - '.github/workflows/backdrop-landing.yml'
+permissions:
+  contents: read
+jobs:
+  backdrop-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Check template fitting, existing AI behavior and specialty checkout
+        run: |
+          npx vitest run --config vitest.ai.config.ts netlify/functions/__tests__/backdrop-artwork-fit.test.mjs netlify/functions/__tests__/specialty-ai-layout.test.mjs netlify/functions/__tests__/ai-artwork-fit.test.mjs netlify/functions/__tests__/ai-artwork-fit-queue.test.mjs
+          npx vitest run src/store/cart.specialty.test.ts src/lib/specialtyArtwork.test.ts src/lib/specialtyDisplayPrice.test.ts src/components/specialty/SpecialtyGallery.test.tsx
+      - name: Build browser fixture with AI entry points enabled
+        env:
+          VITE_AI_BANNER_ENABLED: 'true'
+        run: npx vite build
+      - run: npx playwright install --with-deps chromium
+      - name: Verify both sizes, AI approval and original restoration, cart, and responsive layout
+        run: npx playwright test --config=playwright.backdrops.config.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backdrop-browser-results
+          path: test-results/
+          retention-days: 7

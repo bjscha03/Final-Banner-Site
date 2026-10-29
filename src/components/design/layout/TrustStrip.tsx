@@ -4,6 +4,7 @@ import { Clock, Truck, ShieldCheck, Smile, Mail } from 'lucide-react';
 export interface TrustStripProps {
   className?: string;
   supportEmail?: string;
+  productionSubtitle?: string;
 }
 
 /**
@@ -16,9 +17,10 @@ export interface TrustStripProps {
 export default function TrustStrip({
   className,
   supportEmail = 'support@bannersonthefly.com',
+  productionSubtitle = 'Most orders within 24 hours',
 }: TrustStripProps) {
   const items = [
-    { icon: Clock, title: 'Standard production', subtitle: 'Most orders within 24 hours', iconClass: 'text-[#FF6A00]' },
+    { icon: Clock, title: 'Standard production', subtitle: productionSubtitle, iconClass: 'text-[#FF6A00]' },
     { icon: Truck, title: 'Free next-day air', subtitle: 'Carrier transit after production', iconClass: 'text-[#FF6A00]' },
     { icon: ShieldCheck, title: 'Damage or defect review', subtitle: 'Eligible claims are reprinted', iconClass: 'text-[#FF6A00]' },
     { icon: Smile, title: 'Order support', subtitle: 'Email us with questions', iconClass: 'text-[#FF6A00]' },
@@ -53,3 +55,4 @@ export default function TrustStrip({
     </section>
   );
 }
+
