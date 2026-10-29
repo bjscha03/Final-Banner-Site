@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { useCartStore } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
 import Header from './Header';
+import '@/styles/bof-fresh.css';
 import Footer from './Footer';
 import CartModal from './CartModal';
 import ScrollToTop from './ScrollToTop';
@@ -21,6 +22,9 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false, compactMobileHeader = false }) => {
   const location = useLocation();
   const isHomepage = location.pathname === '/';
+  const isStorefront = !location.pathname.startsWith('/admin') && !location.pathname.startsWith('/daniel');
+  const route = location.pathname + location.search;
+  const theme = /feather|flag/.test(route) ? 'flag' : /yard/.test(route) ? 'yard' : /magnet/.test(route) ? 'magnet' : /products/.test(route) ? 'display' : 'banner';
   const isCheckout = checkoutMode || location.pathname === '/checkout';
   const { getItemCount } = useCartStore();
   const { isCartOpen, setIsCartOpen } = useUIStore();
@@ -31,7 +35,7 @@ const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false, compact
   React.useEffect(() => setHasMounted(true), []);
 
   return (
-    <div className="brand-page max-w-[100vw] overflow-x-clip">
+    <div className={`brand-page max-w-[100vw] overflow-x-clip ${isStorefront ? 'bof-storefront' : ''}`} data-product-theme={theme}>
       <ScrollToTop />
       {!isCheckout && !location.pathname.startsWith('/admin') && <PromoBanner showStandardPromo={isHomepage} />}
       {isCheckout ? <header data-site-header data-checkout-header className="checkout-simple-header">

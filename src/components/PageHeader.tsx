@@ -17,7 +17,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   centered = true,
 }) => {
   return (
-    <div data-page-header className="relative border-b border-[#e5dfd6] bg-[#f8f6f1] text-[#061A31]">
+    <div data-page-header className="bof-info-hero relative border-b border-[#e5dfd6] bg-[#f8f6f1] text-[#061A31]">
       <div className="relative mx-auto max-w-[1500px] px-5 py-12 sm:px-8 sm:py-16 lg:px-12 lg:py-20">
         <div className={centered ? 'text-center' : ''}>
           <div className={`flex flex-col gap-4 sm:flex-row sm:items-center ${centered ? 'justify-center' : ''}`}>
