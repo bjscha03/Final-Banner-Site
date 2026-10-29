@@ -13,6 +13,7 @@ import {
   getArtworkUploadMessage,
   UPLOAD_CHUNK_BYTES,
   uploadArtworkFile,
+  prepareArtworkFile,
   validateArtworkFile,
 } from './uploadArtworkFile';
 
@@ -142,6 +143,74 @@ afterEach(() => {
 });
 
 describe('uploadArtworkFile', () => {
+  it.each([
+    ['image/jpeg', 'jpg', new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3])],
+    ['image/png', 'png', new Uint8Array([0x89, 0x50, 0x4e, 0x47, 13, 10, 26, 10, 1, 2])],
+    ['application/pdf', 'pdf', new TextEncoder().encode('%PDF-1.7\noriginal vector artwork')],
+  ])('recovers %s without usable picker metadata and preserves every original byte', async (type, ext, bytes) => {
+    const file = new File([bytes], 'customer-artwork', { type: '', lastModified: 12345 });
+    expect(validateArtworkFile(file)).not.toBeNull();
+    const prepared = await prepareArtworkFile(file);
+    expect(prepared.type).toBe(type);
+    expect(prepared.name).toBe(`customer-artwork.${ext}`);
+    expect(prepared.lastModified).toBe(12345);
+    expect(validateArtworkFile(prepared)).toBeNull();
+    expect(new Uint8Array(await prepared.arrayBuffer())).toEqual(bytes);
+  });
+
+  it('recovers a JPEG exported as JFIF with a generic MIME through the actual upload transport', async () => {
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+    const file = new File([bytes], 'artwork.jfif', { type: 'application/octet-stream' });
+    const fetchSpy = vi.fn(async (url: string, options: RequestInit) => {
+      expect(url).toBe('/.netlify/functions/upload-file');
+      const sent = (options.body as FormData).get('file') as File;
+      expect(sent.type).toBe('image/jpeg');
+      expect(sent.name).toBe('artwork.jfif.jpg');
+      expect(new Uint8Array(await sent.arrayBuffer())).toEqual(bytes);
+      return new Response(JSON.stringify({ secure_url: 'https://res.cloudinary.com/test/image/upload/artwork.jpg', public_id: 'artwork', format: 'jpg', bytes: file.size }));
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const result = await uploadArtworkFile(file);
+    expect(result.mimeType).toBe('image/jpeg');
+    expect(result.transport).toBe('netlify-same-origin');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves already accepted print originals unchanged', async () => {
+    const file = new File(['original'], 'banner.pdf', { type: 'application/pdf' });
+    const read = vi.spyOn(file, 'slice');
+    expect(await prepareArtworkFile(file)).toBe(file);
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it('keeps unsupported content rejected before network requests and provides recovery instructions', async () => {
+    const fetchSpy = vi.fn(); vi.stubGlobal('fetch', fetchSpy);
+    const file = new File(['unsupported source'], 'artwork.heic', { type: 'image/heic' });
+    await expect(uploadArtworkFile(file)).rejects.toMatchObject({ phase: 'validation', status: 415 });
+    await expect(prepareArtworkFile(file)).rejects.toThrow('Export or save');
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(getArtworkUploadEvidence('unsupported', file)).toMatchObject({ reportedMimeType: 'image/heic', fileExtension: 'heic' });
+  });
+
+  it('settles a stalled local file read and allows retry', async () => {
+    vi.useFakeTimers();
+    const file = new File(['original'], 'download', { type: '' });
+    vi.spyOn(file, 'slice').mockReturnValue({ arrayBuffer: () => new Promise(() => {}) } as Blob);
+    const rejection = expect(prepareArtworkFile(file)).rejects.toMatchObject({ phase: 'validation', retryable: true });
+    await vi.advanceTimersByTimeAsync(10_001);
+    await rejection;
+  });
+
+  it('checks unknown-file size before reading and honors cancellation', async () => {
+    const file = new File(['original'], 'download');
+    const read = vi.spyOn(file, 'slice');
+    Object.defineProperty(file, 'size', { value: MAX_ARTWORK_BYTES + 1 });
+    await expect(prepareArtworkFile(file)).rejects.toMatchObject({ status: 413 });
+    const controller = new AbortController(); controller.abort();
+    await expect(prepareArtworkFile(file, controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
+    expect(read).not.toHaveBeenCalled();
+  });
+
   it('rejects an original above 300MB before requesting a ticket or starting an upload', async () => {
     const fetchSpy = vi.fn();
     const xhrSpy = vi.fn();

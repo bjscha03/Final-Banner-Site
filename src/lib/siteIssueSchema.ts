@@ -45,7 +45,7 @@ export function issueDetails(input: unknown): SiteIssue['details'] {
   const result: SiteIssue['details'] = {};
   if (!input || typeof input !== 'object') return result;
   const values = input as Record<string, unknown>;
-  for (const key of ['phase', 'status', 'mimeType', 'sizeBucket', 'provider', 'method', 'stage', 'code', 'errorName', 'correlationId', 'transport', 'field', 'event', 'browserVersion', 'clientBuild', 'requestId', 'operation', 'recovery', 'assetHost', 'action', 'product', 'crawler']) {
+  for (const key of ['phase', 'status', 'mimeType', 'reportedMimeType', 'fileExtension', 'sizeBucket', 'provider', 'method', 'stage', 'code', 'errorName', 'correlationId', 'transport', 'field', 'event', 'browserVersion', 'clientBuild', 'requestId', 'operation', 'recovery', 'assetHost', 'action', 'product', 'crawler']) {
     const value = values[key];
     if (typeof value === 'string' && /^[A-Za-z0-9_.<>+/-]{1,100}$/.test(value)) result[key] = value;
     if (key === 'status' && typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 599) result[key] = value;

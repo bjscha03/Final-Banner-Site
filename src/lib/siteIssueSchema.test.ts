@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { isOpenCustomerIssue, knownIssueCrawler } from './siteIssueSchema';
+import { isOpenCustomerIssue, knownIssueCrawler, issueDetails } from './siteIssueSchema';
+import { getArtworkUploadEvidence } from '@/utils/uploadArtworkFile';
 
 describe('issue traffic and triage', () => {
+  it('keeps actionable upload format evidence without retaining filenames', () => {
+    const details = issueDetails(getArtworkUploadEvidence('Unsupported format', { name: 'private-customer.heic', size: 816602, type: 'image/heic' }));
+    expect(details).toMatchObject({ reportedMimeType: 'image/heic', fileExtension: 'heic', fileBytes: 816602 });
+    expect(JSON.stringify(details)).not.toContain('private-customer');
+    expect(issueDetails(getArtworkUploadEvidence('Unsupported format', { name: 'private-customer.sensitive', size: 1, type: 'private/value' })))
+      .toMatchObject({ reportedMimeType: 'other', fileExtension: 'other' });
+  });
   it.each([
     ['Mozilla/5.0 (Linux; Android 6.0.1) Chrome/153.0.8010.52 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', 'googlebot'],
     ['GoogleOther', 'googleother'],

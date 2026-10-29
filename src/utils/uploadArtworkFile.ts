@@ -138,13 +138,18 @@ export function getArtworkUploadDiagnostic(
 }
 
 /** Evidence for the first-party admin issue log, never analytics tags. */
-export function getArtworkUploadEvidence(error: unknown, file: Pick<File, 'name' | 'size'>) {
+export function getArtworkUploadEvidence(error: unknown, file: Pick<File, 'name' | 'size'> & Partial<Pick<File, 'type'>>) {
   const err = error instanceof Error ? error : null;
   const message = err?.message || (typeof error === 'string' ? error : 'Artwork operation failed');
   return {
     ...(error instanceof ArtworkUploadError ? error.evidence || {} : {}),
     fileBytes: file.size,
     fileLimitBytes: MAX_ARTWORK_BYTES,
+    // Record format categories, never customer filenames or file contents.
+    reportedMimeType: /^(?:image\/[a-z0-9.+-]{1,40}|application\/(?:pdf|octet-stream|postscript|zip))$/.test(String(file.type || '').toLowerCase())
+      ? String(file.type).toLowerCase() : file.type ? 'other' : 'missing',
+    fileExtension: /^(?:pdf|png|jpe?g|jfif|heic|heif|webp|avif|gif|bmp|tiff?|svg|eps|ai|psd|zip)$/.test(extensionOf(file.name))
+      ? extensionOf(file.name) : extensionOf(file.name) ? 'other' : 'missing',
     errorName: err?.name || 'Error',
     errorMessage: file.name ? message.split(file.name).join('[artwork]') : message,
   };
@@ -163,16 +168,42 @@ export function isPdfArtwork(file: Pick<File, 'name' | 'type'>): boolean {
 export function validateArtworkFile(file: Pick<File, 'name' | 'type' | 'size'>): string | null {
   const mimeType = String(file.type || '').trim().toLowerCase();
   const extension = extensionOf(file.name);
-  if (!ALLOWED_MIME_TYPES.has(mimeType) && !ALLOWED_EXTENSIONS.has(extension)) {
-    return 'Please upload a PDF, PNG, JPG, or JPEG file.';
-  }
   if (!Number.isFinite(file.size) || file.size <= 0) {
     return 'The selected file is empty. Please choose a different file.';
   }
   if (file.size > MAX_ARTWORK_BYTES) {
     return ARTWORK_SIZE_MESSAGE;
   }
+  if (!ALLOWED_MIME_TYPES.has(mimeType) && !ALLOWED_EXTENSIONS.has(extension)) {
+    return 'Please upload a PDF, PNG, JPG, or JPEG file. Export or save your artwork in one of these formats, or email the original to support@bannersonthefly.com for help.';
+  }
   return null;
+}
+
+/** Recover supported originals when the mobile picker supplies no useful type
+ * or extension. Read only a small header; do not recompress the print artwork. */
+export async function prepareArtworkFile(file: File, signal?: AbortSignal): Promise<File> {
+  if (signal?.aborted) throw new DOMException('Artwork selection cancelled.', 'AbortError');
+  const validationError = validateArtworkFile(file);
+  if (!validationError) return file;
+  if (!Number.isFinite(file.size) || file.size <= 0 || file.size > MAX_ARTWORK_BYTES) {
+    throw new ArtworkUploadError(validationError, { phase: 'validation', status: file.size > MAX_ARTWORK_BYTES ? 413 : 400 });
+  }
+  let bytes: Uint8Array;
+  try {
+    bytes = new Uint8Array(await withUploadDeadline(() => file.slice(0, 1024).arrayBuffer(), 10_000, signal));
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw new ArtworkUploadError('We could not read this file. Download it to your device and choose it again, or email the original to support@bannersonthefly.com for help.', { phase: 'validation', retryable: true });
+  }
+  const ascii = Array.from(bytes, byte => String.fromCharCode(byte)).join('');
+  const type = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff ? 'image/jpeg'
+    : ascii.startsWith('\x89PNG\r\n\x1a\n') ? 'image/png'
+      : /%PDF-\d\.\d/.test(ascii) ? 'application/pdf' : null;
+  if (!type) throw new ArtworkUploadError(validationError, { phase: 'validation', status: 415 });
+  const extension = type === 'application/pdf' ? 'pdf' : type === 'image/png' ? 'png' : 'jpg';
+  // A usable extension also allows the original through storage/provider checks.
+  return new File([file], `${file.name || 'artwork'}.${extension}`, { type, lastModified: file.lastModified });
 }
 
 export function getArtworkUploadMessage(error: unknown): string {
@@ -617,10 +648,7 @@ export async function uploadArtworkFile(
   file: File,
   options: UploadArtworkOptions = {},
 ): Promise<ArtworkUploadResult> {
-  const validationError = validateArtworkFile(file);
-  if (validationError) {
-    throw new ArtworkUploadError(validationError, { phase: 'validation', retryable: false });
-  }
+  file = await prepareArtworkFile(file, options.signal);
 
   const sourcePixels = Number(options.originalWidth) * Number(options.originalHeight);
   if (file.size > CLOUDINARY_ARTWORK_BYTES || sourcePixels > 25_000_000) {
