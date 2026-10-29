@@ -76,7 +76,7 @@ import {
   MAX_ARTWORK_BYTES,
   MAX_ARTWORK_MB,
   getArtworkUploadMessage,
-  validateArtworkFile,
+  prepareArtworkFile,
 } from '@/utils/uploadArtworkFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 import ConfigCard from '@/components/design/layout/ConfigCard';
@@ -532,6 +532,7 @@ const Design: React.FC = () => {
   const fileUploaderRef = useRef<FileUploaderHandle>(null);
   const uploadedFileRef = useRef<UploadedArtworkFile | null>(null);
   const activeUploadFileRef = useRef<File | null>(null);
+  const preparingUploadRef = useRef(false);
   const activeUploadPromiseRef = useRef<Promise<UploadedArtworkFile | null> | null>(null);
   const activeUploadAbortControllerRef = useRef<AbortController | null>(null);
   const uploadGenerationRef = useRef(0);
@@ -1408,16 +1409,23 @@ const Design: React.FC = () => {
   }, []);
 
   const handleFileUpload = useCallback(async (file: File) => {
-    const validationError = validateArtworkFile(file);
-    if (validationError) {
-      logUx('upload_error', {
-        ...getArtworkUploadDiagnostic(null, file),
-        phase: 'validation',
-        status: file.size > MAX_ARTWORK_BYTES ? 413 : file.size <= 0 ? 400 : 415,
-      }, getArtworkUploadEvidence(validationError, file));
-      setUploadError(validationError);
+    if (preparingUploadRef.current) return;
+    preparingUploadRef.current = true;
+    const previousGeneration = uploadGenerationRef.current;
+    setIsUploading(true);
+    setUploadError('');
+    try {
+      file = await prepareArtworkFile(file);
+    } catch (error) {
+      if (previousGeneration !== uploadGenerationRef.current) return;
+      logUx('upload_error', getArtworkUploadDiagnostic(error, file), getArtworkUploadEvidence(error, file));
+      setUploadError(getArtworkUploadMessage(error));
+      setIsUploading(false);
       return;
+    } finally {
+      preparingUploadRef.current = false;
     }
+    if (previousGeneration !== uploadGenerationRef.current) return;
 
     // A prepared preview is tied to one exact source identity. Never allow a
     // newly selected file to inherit the previous file's verified artifact.

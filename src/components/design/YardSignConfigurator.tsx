@@ -41,7 +41,7 @@ import {
   uploadArtworkFile,
   MAX_ARTWORK_BYTES,
   getArtworkUploadMessage,
-  validateArtworkFile,
+  prepareArtworkFile,
 } from '@/utils/uploadArtworkFile';
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
@@ -399,14 +399,9 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
       setUploadError(`Maximum ${YARD_SIGN_MAX_DESIGNS} designs per order.`);
       return;
     }
-    const validationError = validateArtworkFile(file);
-    if (validationError) {
-      setUploadError(validationError);
-      return;
-    }
-
     setIsUploading(true);
     try {
+      file = await prepareArtworkFile(file);
       const result = await uploadArtworkFile(file, {
         correlationId: `yard-sign-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       });

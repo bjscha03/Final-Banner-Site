@@ -12,7 +12,7 @@ import { createPermanentPlacementPreview } from '@/lib/previewArtifactCoordinato
 import { PREVIEW_ARTIFACT_VERSION, type ArtworkCompositionSpec, type NormalizedArtworkTransform } from '@/lib/previewLifecycle';
 import { exportSpecialtyPanel, specialtyArtworkPpi, type SpecialtySavedPanel } from '@/lib/specialtyArtwork';
 import ArtworkPreviewEditor, { type ArtworkPreviewEditorHandle, type ArtworkTransform } from '@/components/design/ArtworkPreviewEditor';
-import { uploadArtworkFile, validateArtworkFile } from '@/utils/uploadArtworkFile';
+import { uploadArtworkFile, prepareArtworkFile } from '@/utils/uploadArtworkFile';
 import { renderPositionedThumbnailBlob } from '@/utils/generatePositionedThumbnail';
 import SpecialtyPreview, { SpecialtyTemplateGuide } from './SpecialtyPreview';
 import SpecialtyOptions from './SpecialtyOptions';
@@ -115,7 +115,7 @@ export default function SpecialtyDesigner({ product, offer }: { product: Special
   async function upload(file: File, propagateError=false) {
     if (busy) return;const token=++revision.current;setBusy('Uploading your original artwork…');setError('');
     try {
-      const validation=validateArtworkFile(file);if(validation) throw new Error(typeof validation==='string'?validation: 'Choose a PDF, PNG or JPG file up to 300 MB.');
+      file = await prepareArtworkFile(file);
       const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name);
       if (isPdf) {const {PDFDocument}=await import('pdf-lib');const doc=await PDFDocument.load(await file.arrayBuffer());if(doc.getPageCount()!==1) throw new Error('Use a separate single-page PDF for each panel. This file contains more than one page.');}
       const saved=await uploadArtworkFile(file);let previewUrl=saved.previewUrl;let pixelWidth=saved.width,pixelHeight=saved.height;
