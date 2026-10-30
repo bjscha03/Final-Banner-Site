@@ -32,6 +32,8 @@ jobs:
           set -euo pipefail
           for file in server/daniel-agent/*.mjs; do node --check "$file"; done
           node --test --test-concurrency=1 server/daniel-agent/*.test.mjs server/daniel-agent/tests/*.test.mjs 2>&1 | tee daniel-test-results.tap
+      - name: Verify existing production application build and prerender checks
+        run: npm run build
       - uses: actions/upload-artifact@v4
         if: always()
         with:
