@@ -10,6 +10,7 @@ import { saveDraft,audit } from './store.mjs';
 import { report } from './reporting.mjs';
 import { mode,gmailTestRecipients } from './config.mjs';
 import { routeApproval } from './automation.mjs';
+import { MAX_DRAFT_ATTEMPTS,retryDecision } from './draft-quality.mjs';
 export async function runWorker(env=process.env,options={}) {
  const sql=options.sql || database(env),owner=randomUUID();
  const [lock]=await sql`INSERT INTO daniel_sales.worker_locks(name,owner,expires_at) VALUES('worker',${owner},now()+interval '14 minutes') ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,expires_at=excluded.expires_at WHERE daniel_sales.worker_locks.expires_at<now() RETURNING owner`;
@@ -33,8 +34,6 @@ export async function runWorker(env=process.env,options={}) {
   if(box?.encrypted_refresh_token) {
    try {
     token=await (options.accessToken || accessToken)(env,sql);
-    // Pause controls OUTBOUND actions, not visibility of replies or opt-outs.
-    // Drain a bounded number of history pages; dispatch still requires complete.
     for(let page=0;page<5;page++) {
      const current=options.gmailTest?await syncControlledInbox(sql,token,env):await (options.syncMailbox || syncMailbox)(sql,token);
      const previous=summary.inbox || {count:0,created:0,duplicates:0};
@@ -55,7 +54,6 @@ export async function runWorker(env=process.env,options={}) {
   if((mode(env)==='live' || options.gmailTest) && !summary.inbox?.complete){summary.status='syncing';return summary;}
   const effectiveSettings=options.gmailTest?{...freshSettings,auto_reply:true,auto_prospect:options.discover===true}:freshSettings;
   summary.reconciliation=await reconcile(sql,env,token);
-  // Customer conversations take precedence over searching for new prospects.
   const tasks=options.gmailTest
    ? await sql`SELECT t.* FROM daniel_sales.tasks t JOIN daniel_sales.contacts c ON c.id=t.contact_id WHERE t.status='pending' AND t.due_at<=now() AND t.kind IN ('followup','reply') AND lower(c.email)=ANY(${testRecipients}::text[]) ORDER BY (t.kind='reply') DESC,t.due_at LIMIT 3`
    : await sql`SELECT * FROM daniel_sales.tasks WHERE status='pending' AND due_at<=now() AND kind IN ('followup','reply') ORDER BY (kind='reply') DESC,due_at LIMIT 3`;
@@ -63,27 +61,41 @@ export async function runWorker(env=process.env,options={}) {
    if(!effectiveSettings.auto_reply)continue;
    const [c]=await sql`SELECT * FROM daniel_sales.contacts WHERE id=${t.contact_id}`;
    if(!c || c.suppressed_at || (t.kind==='followup' && c.replied_at)){await sql`UPDATE daniel_sales.tasks SET status='cancelled' WHERE id=${t.id}`;continue;}
-   const [existing]=await sql`SELECT * FROM daniel_sales.messages WHERE idempotency_key=${'task:'+t.id}`;
-   if(existing) {
-    await routeApproval(sql,existing,effectiveSettings,env).catch(()=>{});
-    await sql`UPDATE daniel_sales.tasks SET status='completed' WHERE id=${t.id}`;continue;
+   if(Number(t.attempt_count)>=MAX_DRAFT_ATTEMPTS) {
+    await sql`UPDATE daniel_sales.tasks SET status='needs_review',note='Retry ceiling reached. Held for review; original attempts and history retained.' WHERE id=${t.id} AND status='pending'`;
+    await audit(sql,'daniel-worker','draft_retry_exhausted','task',t.id,{attempts:t.attempt_count,kind:t.kind,max_attempts:MAX_DRAFT_ATTEMPTS});
+    summary.draftHolds=(summary.draftHolds || 0)+1;
+    summary.health='needs_attention';
+    continue;
    }
    try {
+    const [existing]=await sql`SELECT * FROM daniel_sales.messages WHERE idempotency_key=${'task:'+t.id}`;
+    if(existing) {
+     await routeApproval(sql,existing,effectiveSettings,env);
+     await sql`UPDATE daniel_sales.tasks SET status='completed' WHERE id=${t.id}`;
+     continue;
+    }
     const draft=await (options.generateDraft || generateDraft)(sql,c.id,t.kind,env);
     const m=await saveDraft(sql,{...draft,idempotency_key:'task:'+t.id},'daniel-worker');
     await routeApproval(sql,m,effectiveSettings,env);
     await sql`UPDATE daniel_sales.tasks SET status='completed',attempt_count=attempt_count+1 WHERE id=${t.id}`;
    } catch(e) {
-    await sql`UPDATE daniel_sales.tasks SET attempt_count=attempt_count+1,due_at=now()+interval '1 hour',note='Draft generation or review failed; will retry safely' WHERE id=${t.id}`;
+    const failure=retryDecision(t.attempt_count,e);
+    const note=failure.code+': '+failure.note+(failure.status==='needs_review'?' Review required; automatic retries stopped.':' A bounded retry is scheduled.');
+    await sql`UPDATE daniel_sales.tasks SET attempt_count=attempt_count+1,status=${failure.status},due_at=now()+(${failure.delayHours}::int * interval '1 hour'),note=${note} WHERE id=${t.id} AND status='pending'`;
+    await audit(sql,'daniel-worker','draft_attempt_failed','task',t.id,{kind:t.kind,attempts:failure.attempts,code:failure.code,status:failure.status});
     summary.draftErrors=(summary.draftErrors || 0)+1;
+    summary.health='needs_attention';
+    if(failure.status==='needs_review')summary.draftHolds=(summary.draftHolds || 0)+1;
    }
   }
   if((!options.gmailTest && freshSettings.auto_prospect) || (options.gmailTest && options.discover)) {
-   try{summary.discovery=await discover(sql,env,effectiveSettings,options);}catch(e){summary.discoveryError=String(e.message).slice(0,500);}
+   try{summary.discovery=await discover(sql,env,effectiveSettings,options);}catch(e){summary.discoveryError=String(e.message).slice(0,500);summary.health='needs_attention';}
   }
   Object.assign(summary,await dispatch(sql,env,token,options));summary.report=await report(sql);
+  if(summary.report.pendingApprovals>0 || summary.report.uncertain>0)summary.health='needs_attention';
   if(!options.gmailTest || options.sendReport) {
-   try{summary.reportEmail=await emailDailyReport(sql,env,token,options);}catch{summary.reportError='Daily email failed or uncertain; inspect report outbox';}
+   try{summary.reportEmail=await emailDailyReport(sql,env,token,options);}catch{summary.reportError='Daily email failed or uncertain; inspect report outbox';summary.health='needs_attention';}
   }
   summary.status='completed';return summary;
  } catch(e) {
