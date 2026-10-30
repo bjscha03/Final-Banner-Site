@@ -1,3 +1,4 @@
+import { checkDispatchConversation } from './dispatch-safety.mjs';
 import { renderSalesEmail } from './email-design.mjs';
 import { validTeamOffer } from './team-offer.mjs';
 import { BUSINESS_ADDRESS, BOF_SENDER, verifySender } from "./identity.mjs";
@@ -17,7 +18,7 @@ export async function finish(sql, m, result, preview) {
     const [stats] =
       await sql`SELECT count(*)::int AS n FROM daniel_sales.messages WHERE contact_id=${m.contact_id} AND kind='followup' AND status IN ('sent','simulated')`;
     if (stats.n < 2)
-      await sql`INSERT INTO daniel_sales.tasks(contact_id,opportunity_id,kind,due_at,note,dedupe_key) VALUES(${m.contact_id},${m.opportunity_id},'followup',${nextBusinessFollowup(new Date())},'Prepare follow-up if still unanswered',${"followup:" + m.id}) ON CONFLICT(dedupe_key) DO NOTHING`;
+      await sql`INSERT INTO daniel_sales.tasks(contact_id,opportunity_id,kind,due_at,note,dedupe_key) SELECT ${m.contact_id},${m.opportunity_id},'followup',${nextBusinessFollowup(new Date())},'Prepare follow-up if still unanswered',${"followup:" + m.id} WHERE NOT EXISTS(SELECT 1 FROM daniel_sales.contacts p WHERE p.account_id=(SELECT account_id FROM daniel_sales.contacts WHERE id=${m.contact_id}) AND p.replied_at IS NOT NULL) ON CONFLICT(dedupe_key) DO NOTHING`;
     if (!preview)
       await sql`UPDATE daniel_sales.opportunities SET stage='contacted',next_action='Review response or scheduled follow-up',next_action_at=${nextBusinessFollowup(new Date())} WHERE id=${m.opportunity_id} AND stage IN ('researched','qualified','contacted')`;
   }
@@ -26,7 +27,7 @@ export async function dispatch(
   sql,
   env,
   token,
-  { send = sendGmail, getMessage = getGmail, now = new Date(), gmailTest = false, verifyIdentity = verifySender } = {},
+  { send = sendGmail, getMessage = getGmail, now = new Date(), gmailTest = false, verifyIdentity = verifySender, request = gmailRequest } = {},
 ) {
   const preview = mode(env) !== "live" && !gmailTest;
   if (gmailTest && !gmailTestRecipients(env).length) throw Error("Controlled Gmail testing is disabled or expired");
@@ -82,6 +83,20 @@ export async function dispatch(
       } else held++;
       continue;
     }
+    const conversation = await checkDispatchConversation(sql, item, c, token, {preview, gmailTest, request});
+    if (!conversation.ok) {
+      if (conversation.retryable) {
+        await sql`UPDATE daniel_sales.messages SET error=${conversation.reason},updated_at=now() WHERE id=${item.id} AND status='queued'`;
+        held++;
+      } else {
+        await sql`UPDATE daniel_sales.messages SET status='blocked',error=${conversation.reason},updated_at=now() WHERE id=${item.id} AND status='queued'`;
+        await audit(sql, 'daniel-worker', 'conversation_dispatch_blocked', 'message', item.id, {reason:conversation.reason,thread_id:item.thread_key});
+        blocked++;
+      }
+      continue;
+    }
+    const recipient = conversation.recipient;
+    if (gmailTest && !gmailTestRecipients(env).includes(recipient.toLowerCase())) { held++; continue; }
     const [m] =
       gmailTest ? await sql`SELECT * FROM daniel_sales.claim_test_message(${item.id}::uuid,${item.kind === "intro" ? 10 : 5},${c.email})` : await sql`SELECT * FROM daniel_sales.claim_message(${item.id}::uuid,${item.kind === "intro" ? 10 : 5})`;
     if (!m) {
@@ -89,19 +104,19 @@ export async function dispatch(
       continue;
     }
     try {
-      // Final suppression check narrows the provider-call race after claiming.
+      // Final suppression and pause check narrows the provider-call race after claiming.
       const [valid] =
-        await sql`SELECT c.id FROM daniel_sales.contacts c WHERE c.id=${c.id} AND c.suppressed_at IS NULL AND NOT EXISTS(SELECT 1 FROM daniel_sales.suppressions s WHERE s.email=lower(c.email)) AND NOT (c.replied_at IS NOT NULL AND ${m.kind} IN ('intro','followup'))`;
+        await sql`SELECT c.id FROM daniel_sales.contacts c WHERE c.id=${c.id} AND c.suppressed_at IS NULL AND NOT EXISTS(SELECT 1 FROM daniel_sales.suppressions s WHERE s.email IN (lower(c.email),lower(${recipient}))) AND (${gmailTest} OR EXISTS(SELECT 1 FROM daniel_sales.settings WHERE id=1 AND paused=false)) AND NOT (${m.kind} IN ('intro','followup') AND EXISTS(SELECT 1 FROM daniel_sales.contacts p WHERE p.account_id=c.account_id AND p.replied_at IS NOT NULL))`;
       if (!valid) {
         await sql.transaction([
-          sql`UPDATE daniel_sales.messages SET status='blocked',error='Suppressed before dispatch',updated_at=now() WHERE id=${m.id}`,
+          sql`UPDATE daniel_sales.messages SET status='blocked',error='Paused, suppressed or replied before dispatch',updated_at=now() WHERE id=${m.id}`,
           sql`UPDATE daniel_sales.daily_limits SET reserved_count=greatest(0,reserved_count-1) WHERE local_date=${m.quota_date} AND kind=${m.quota_kind}`,
         ]);
         blocked++;
         continue;
       }
       if (preview) {
-        await sql`INSERT INTO daniel_sales.test_deliveries(message_id,recipient,subject,body,thread_key) VALUES(${m.id},${c.email},${m.subject},${m.body},${m.thread_key || "test:" + m.id}) ON CONFLICT DO NOTHING`;
+        await sql`INSERT INTO daniel_sales.test_deliveries(message_id,recipient,subject,body,thread_key) VALUES(${m.id},${recipient},${m.subject},${m.body},${m.thread_key || "test:" + m.id}) ON CONFLICT DO NOTHING`;
         await finish(
           sql,
           m,
@@ -116,13 +131,13 @@ export async function dispatch(
         )
           throw Error("Live sender configuration incomplete");
         if (gmailTest) {
-          if (!gmailTestRecipients(env).includes(c.email.toLowerCase())) throw Error("Test recipient permission expired");
+          if (!gmailTestRecipients(env).includes(recipient.toLowerCase())) throw Error("Test recipient permission expired");
           await sql`UPDATE daniel_sales.messages SET ai_metadata=ai_metadata || '{"gmail_test":true}'::jsonb WHERE id=${m.id}`;
         }
         const html = renderSalesEmail(m.body);
         const result = await send(token, {
           from: "Daniel | Banners On The Fly <" + env.DANIEL_SENDER_EMAIL + ">",
-          to: c.email,
+          to: recipient,
           replyTo: BOF_SENDER,
           subject: m.subject,
           html,
