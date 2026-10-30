@@ -17,6 +17,9 @@ import { renderPositionedThumbnailBlob } from '@/utils/generatePositionedThumbna
 import SpecialtyPreview, { SpecialtyTemplateGuide } from './SpecialtyPreview';
 import SpecialtyOptions from './SpecialtyOptions';
 import SpecialtyProductResources, {SpecialtyProductGallery} from './SpecialtyProductResources';
+import AIArtworkFitDialog, { ArtworkFitButton } from '@/components/design/AIArtworkFitDialog';
+import { artworkFitIdentity, type ArtworkFitProduct } from '@/components/design/ai/artworkFit';
+import { ENABLE_AI } from '@/lib/featureFlags';
 
 type DraftPanel = { artwork: UploadedArtworkFile; originalArtwork?: UploadedArtworkFile; transform: NormalizedArtworkTransform; revision: number; reviewed: boolean };
 const initialTransform = { xPct: 0, yPct: 0, scaleX: 1, scaleY: 1 };
@@ -28,7 +31,7 @@ const clearSubstrateStyle = {
   backgroundPosition: '0 0,0 8px,8px -8px,-8px 0',
 };
 
-export default function SpecialtyDesigner({ product, offer }: { product: SpecialtyProduct; offer: ReturnType<typeof useProductFirstOrderOffer> }) {
+export default function SpecialtyDesigner({ product, offer, landingPage = false, enableArtworkFit = false }: { product: SpecialtyProduct; offer: ReturnType<typeof useProductFirstOrderOffer>; landingPage?: boolean; enableArtworkFit?: boolean }) {
   const navigate=useNavigate(); const [params]=useSearchParams();
   const editId=params.get('editItem'); const existing=useCartStore(s=>s.items.find(x=>x.id===editId && x.specialty_config?.productSlug===product.slug));
   const initialVariant=product.variants.find(v=>v.id===existing?.specialty_config?.variantId) || product.variants.find(v=>v.priceMatch) || product.variants[0];
@@ -54,6 +57,25 @@ export default function SpecialtyDesigner({ product, offer }: { product: Special
   const editor=useRef<ArtworkPreviewEditorHandle>(null); const revision=useRef(0); const frame=useRef(0);
   const input=useRef<HTMLInputElement>(null); const unmounted=useRef(false);
   const draft=drafts[panel.id]; const artwork=draft?.artwork || null;
+  const [fitOpen, setFitOpen] = useState(false);
+  const fitProduct: ArtworkFitProduct = `specialty:${product.slug}:${variant.id}:${panel.id}`;
+  const fitIdentity = artworkFitIdentity(artwork, template.widthIn, template.heightIn, fitProduct);
+  const fitIdentityRef = useRef(fitIdentity); fitIdentityRef.current = fitIdentity;
+  function applyFittedArtwork(next: UploadedArtworkFile, expectedIdentity: string) {
+    if (unmounted.current || expectedIdentity !== fitIdentityRef.current || !artwork) throw new Error('Your product or artwork changed. Fit your current design again.');
+    cancelAnimationFrame(frame.current); revision.current++;
+    setDrafts(current => ({...current, [panel.id]: {artwork: next, originalArtwork: current[panel.id].originalArtwork || current[panel.id].artwork, transform: initialTransform, revision: current[panel.id].revision + 1, reviewed: false}}));
+    setPixels(initialPixels); setPreview(''); setError('');
+  }
+  function restoreOriginalArtwork() {
+    if (!draft?.originalArtwork || busy) return;
+    cancelAnimationFrame(frame.current); revision.current++; setFitOpen(false);
+    setDrafts(current => ({...current, [panel.id]: {artwork: current[panel.id].originalArtwork!, transform: initialTransform, revision: current[panel.id].revision + 1, reviewed: false}}));
+    setPixels(initialPixels); setPreview(''); setError('');
+  }
+  function selectVariant(id: string) {
+    changeConfiguration(() => { const next=product.variants.find(v=>v.id===id)!; setVariantId(next.id); setOptions(specialtyOptions(next)); setCustomHoles([]); if(next.customSize){setWidth('96');setHeight('96');} setPanelId('front'); });
+  }
   const compositionKey=[product.slug,variant.id,panel.id,artwork?.fileKey,template.widthIn,template.heightIn].join('|');
   const effectivePpi=artwork&&draft?specialtyArtworkPpi(artwork,{widthIn:template.widthIn,heightIn:template.heightIn,transform:draft.transform}):null;
   let pricing:ReturnType<typeof specialtyConfigurationPrice>|undefined,unit=0,priceError='';
@@ -85,11 +107,12 @@ export default function SpecialtyDesigner({ product, offer }: { product: Special
     });
   }
   function changeConfiguration(next: ()=>void) {
-    capture();revision.current++; next();setPixels(initialPixels);setPreview('');
+    capture();revision.current++; setFitOpen(false); next();setPixels(initialPixels);setPreview('');
     setDrafts(d=>Object.fromEntries(Object.entries(d).map(([key,value])=>[key,{...value,transform:initialTransform,revision:value.revision+1,reviewed:false}])));
   }
   function removeArtwork() {
     if (busy) return;
+    setFitOpen(false);
     revision.current++;
     cancelAnimationFrame(frame.current);
     setDrafts(current => {
@@ -113,7 +136,7 @@ export default function SpecialtyDesigner({ product, offer }: { product: Special
   },[compositionKey,JSON.stringify(options),draft?.transform.xPct,draft?.transform.yPct,draft?.transform.scaleX,draft?.transform.scaleY]);
 
   async function upload(file: File, propagateError=false) {
-    if (busy) return;const token=++revision.current;setBusy('Uploading your original artwork…');setError('');
+    if (busy) return;setFitOpen(false);const token=++revision.current;setBusy('Uploading your original artwork…');setError('');
     try {
       file = await prepareArtworkFile(file);
       const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name);
@@ -149,10 +172,10 @@ export default function SpecialtyDesigner({ product, offer }: { product: Special
   const allReviewed=definitions.every(p=>drafts[p.id]?.reviewed);
   return <div className="min-w-0 space-y-8">
     <div className="grid min-w-0 grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-      <SpecialtyProductGallery product={product} variant={variant} options={options} width={Number(width)} height={Number(height)} showBadge={offer.showBadge}/>
-      <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 sm:p-8" aria-label="Product configuration">
+      <div className={landingPage ? 'order-last min-w-0' : 'min-w-0'}><SpecialtyProductGallery product={product} variant={variant} options={options} width={Number(width)} height={Number(height)} showBadge={offer.showBadge}/></div>
+      <section className={`min-w-0 rounded-2xl border border-slate-200 bg-white p-5 sm:p-8 ${landingPage ? 'order-first' : ''}`} aria-label="Product configuration">
         <p className="text-xs font-black uppercase tracking-widest text-orange-700">1 · Choose options</p><h2 className="mt-2 text-2xl font-bold">Choose your size & options</h2>
-        <label htmlFor="specialty-variant" className="mt-6 block text-sm font-bold">Size & configuration</label><select id="specialty-variant" value={variantId} disabled={!!busy} onChange={e=>changeConfiguration(()=>{const next=product.variants.find(v=>v.id===e.target.value)!;setVariantId(next.id);setOptions(specialtyOptions(next));setCustomHoles([]);if(next.customSize){setWidth('96');setHeight('96');}setPanelId('front');})} className="mt-2 min-h-12 min-w-0 max-w-full w-full rounded-lg border border-slate-300 bg-white px-3">{product.variants.map(v=><option key={v.id} value={v.id}>{v.label}</option>)}</select>
+        {landingPage ? <fieldset className="mt-6"><legend className="text-sm font-bold">Backdrop size</legend><div className="mt-3 grid grid-cols-2 gap-3">{product.variants.map(v=><label key={v.id} className={`flex min-h-20 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 px-3 text-center font-bold ${variantId===v.id?'border-orange-600 bg-orange-50':'border-slate-200 bg-white'}`}><input type="radio" name="backdrop-size" value={v.id} checked={variantId===v.id} disabled={!!busy} onChange={()=>selectVariant(v.id)} className="h-4 w-4 accent-orange-600"/>{v.label}</label>)}</div></fieldset> : <><label htmlFor="specialty-variant" className="mt-6 block text-sm font-bold">Size & configuration</label><select id="specialty-variant" value={variantId} disabled={!!busy} onChange={e=>selectVariant(e.target.value)} className="mt-2 min-h-12 min-w-0 max-w-full w-full rounded-lg border border-slate-300 bg-white px-3">{product.variants.map(v=><option key={v.id} value={v.id}>{v.label}</option>)}</select></>}
         {(product.priceUnit==='sqft'||variant.customSize)&&<div className="mt-4 grid grid-cols-2 gap-4">{[['Width',width,setWidth],['Height',height,setHeight]].map(([label,value,setter])=><label key={String(label)} className="min-w-0 text-sm font-bold">{String(label)} (in)<input type="number" min={product.sizeLimits?.min} step={variant.customSize?.step||.25} value={String(value)} disabled={!!busy} onChange={e=>changeConfiguration(()=>{(setter as (s:string)=>void)(e.target.value);if(product.priceUnit==='sqft'&&options.size)setOptions(specialtyOptions(variant,{...options,size:'custom_size'}));})} className="mt-2 min-h-12 min-w-0 max-w-full w-full rounded-lg border px-3"/></label>)}</div>}
         {product.priceMatches&&<div className="mt-3 flex flex-wrap gap-2" aria-label="Standard priced sizes">{product.priceMatches.map(size=><button type="button" disabled={!!busy} key={`${size.widthIn}x${size.heightIn}`} className="min-h-11 rounded-lg border px-3 text-sm font-semibold hover:border-orange-600" onClick={()=>changeConfiguration(()=>{setWidth(String(size.widthIn));setHeight(String(size.heightIn));})}>{size.widthIn} × {size.heightIn} in · {formatSpecialtyPrice(specialtyConfigurationPrice(product,variant,size.widthIn!,size.heightIn!).unitCents)}</button>)}</div>}
         <SpecialtyOptions product={product} variant={variant} value={options} onChange={changeOptions} disabled={!!busy} width={Number(width)} height={Number(height)} basePriced={!!pricing?.baseVerified}/>
@@ -179,6 +202,8 @@ export default function SpecialtyDesigner({ product, offer }: { product: Special
       {definitions.length>1&&<div className="my-5 flex flex-wrap gap-2" role="tablist" aria-label="Print panels">{definitions.map(p=><button role="tab" type="button" aria-selected={panel.id===p.id} key={p.id} disabled={!!busy} onClick={()=>{capture();setPanelId(p.id);setPixels(initialPixels);}} className={`min-h-11 rounded-lg border px-4 text-sm font-bold ${panel.id===p.id?'border-orange-600 bg-orange-50':'border-slate-300'}`}>{p.label}{drafts[p.id]?.reviewed?' ✓':''}</button>)}</div>}
       <div className="mt-6 flex flex-wrap gap-3"><input ref={input} type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={e=>{if(e.target.files?.[0])void upload(e.target.files[0]);}} className="sr-only" aria-label={`Upload ${panel.label} artwork`}/><button type="button" disabled={!!busy||!!priceError} onClick={()=>input.current?.click()} className="inline-flex min-h-12 items-center gap-2 rounded-lg bg-slate-900 px-5 font-bold text-white disabled:opacity-50"><Upload className="h-4 w-4"/>{artwork?'Replace artwork':'Upload artwork'}</button>{template.sourceUrl&&<a href={template.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center px-2 text-sm font-semibold text-blue-800 underline">Download setup template (optional)</a>}</div>
       <details className="mt-5 rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-700"><summary className="cursor-pointer font-semibold">Artwork size & safe-area guidance</summary><strong>{panel.label}: {template.widthIn.toFixed(2).replace(/\.00$/,'')}″ × {template.heightIn.toFixed(2).replace(/\.00$/,'')}″ artwork</strong><p>{template.fitNotes}</p>{template.safeInsetsIn&&<p>Safe margins: top {template.safeInsetsIn[0]}″, right {template.safeInsetsIn[1]}″, bottom {template.safeInsetsIn[2]}″, left {template.safeInsetsIn[3]}″.</p>}{template.exportScale!==1&&<p>The downloaded print PDF uses the supplier’s 1:{1/template.exportScale} template scale.</p>}</details>
+      {enableArtworkFit && ENABLE_AI && artwork && <ArtworkFitButton disabled={!!busy} onClick={()=>{capture();setFitOpen(true);}} onRestore={draft.originalArtwork ? restoreOriginalArtwork : undefined} />}
+      {draft?.originalArtwork && !(enableArtworkFit && ENABLE_AI) && <button type="button" disabled={!!busy} onClick={restoreOriginalArtwork} className="mt-4 min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold">Restore original</button>}
       {artwork?<><div className="mt-6 grid items-start gap-6 lg:grid-cols-2"><div className={busy?'pointer-events-none opacity-75':''}><div className="mb-3 flex items-center justify-between"><h3 className="font-bold">Artwork placement</h3><label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={guides} onChange={e=>setGuides(e.target.checked)}/>Show guides</label></div><div className="mx-auto pt-20" style={{maxWidth:Math.min(600,460*template.widthIn/template.heightIn)}}><ArtworkPreviewEditor key={compositionKey} ref={editor} compositionKey={compositionKey} src={artwork.url} previewUrl={artwork.permanentPreviewUrl||artwork.previewUrl} productionUrl={artwork.productionUrl} resourceType={artwork.resourceType} mimeType={artwork.mimeType} paddingPct={`${template.heightIn/template.widthIn*100}%`} value={pixels} onChange={move} constrain={constrain} onConstrainChange={setConstrain} initialNormalizedTransform={draft.transform} initialCompositionRevision={draft.revision} productLabel="print area" enableCropping={false} onDelete={removeArtwork} canvasStyle={product.slug==='acrylic-signs'?clearSubstrateStyle:undefined} mobileToolbarContainer={toolbarContainer} overlay={guides?<SpecialtyTemplateGuide template={template}/>:undefined}/></div><div ref={setToolbarContainer} className="mt-4 w-full min-w-0"/><p className="mt-3 break-all text-xs text-slate-500">{artwork.name} · Original file preserved</p></div><div className="order-first min-w-0 lg:order-last" data-testid="specialty-live-preview"><div className="mb-3 flex min-h-11 flex-wrap items-center justify-between gap-2"><h3 className="font-bold">{showRealistic&&hasAppearancePreview?'Your finished product':`${panel.label} print layout`}</h3>{hasAppearancePreview&&<button type="button" className="min-h-11 text-sm font-semibold text-blue-800 underline" onClick={()=>setShowRealistic(v=>!v)}>{showRealistic?'See flat artwork':'See product'}</button>}</div>{preview?(showRealistic&&hasAppearancePreview?<SpecialtyPreview product={product} template={template} imageUrl={preview} options={options} variant={variant} customHoles={customHoles} className="[&_svg]:max-h-[280px] lg:[&_svg]:max-h-[460px]"/>:<img src={preview} alt={`${panel.label} flat artwork without guides`} className="mx-auto max-h-[520px] w-full rounded-lg border object-contain" style={{maxWidth:Math.min(600,520*template.widthIn/template.heightIn),...(product.slug==='acrylic-signs'?clearSubstrateStyle:{})}}/>):<div role="status" className="flex min-h-60 items-center justify-center gap-2 rounded-lg bg-slate-50"><Loader2 className="h-5 w-5 animate-spin"/>Updating preview…</div>}{!hasAppearancePreview&&<p className="mt-3 text-xs leading-5 text-slate-600">Flat print layout for this panel. Fabric folds and assembled surfaces can change its appearance; use the safe-area guides to check placement.</p>}{product.slug==='acrylic-signs'&&!showRealistic&&<p className="mt-3 text-xs leading-5 text-slate-600">Checkerboard areas are clear, unprinted acrylic. The checkerboard is not part of your print file.</p>}</div></div><p className="mt-8 text-xs font-black uppercase tracking-widest text-orange-700">3 · Review & add to cart</p><label className="mt-4 flex items-start gap-3 rounded-xl border border-slate-200 p-4 text-sm leading-6"><input type="checkbox" checked={draft.reviewed} disabled={!!busy||!preview} onChange={e=>{if(!capture())return;const checked=e.target.checked;setDrafts(d=>({...d,[panel.id]:{...d[panel.id],reviewed:checked}}));}} className="mt-1 h-5 w-5 accent-orange-600"/><span>I checked the {panel.label.toLowerCase()} artwork, wording, image clarity, and placement inside the safe area.</span></label></>:<div className="mt-6 rounded-xl border-2 border-dashed border-slate-200 p-12 text-center text-slate-500"><Upload className="mx-auto mb-3 h-8 w-8"/><p>Your {panel.label.toLowerCase()} artwork and product preview will appear here.</p></div>}
       {effectivePpi!==null&&effectivePpi<150&&<p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Image resolution at this placement: approximately {Math.round(effectivePpi)} pixels per inch. For sharper print, use artwork with at least 150 pixels per inch at full size, or a vector PDF. Check small text carefully before approving.</p>}
       {(error||priceError)&&<p role="alert" className="mt-5 rounded-lg bg-red-50 p-4 text-sm text-red-800">{error||priceError}</p>}
@@ -193,5 +218,7 @@ export default function SpecialtyDesigner({ product, offer }: { product: Special
         onClick: () => { if(allReviewed) { void addToCart(); return; } document.getElementById('specialty-artwork')?.scrollIntoView({behavior:'smooth',block:'start'}); if(!artwork) input.current?.click(); } }}
       cartItemCount={useCartStore.getState().items.length} onViewCart={()=>navigate('/checkout')} />
     <SpecialtyProductResources product={product} variant={variant} options={options} width={Number(width)} height={Number(height)}/>
+    {enableArtworkFit && ENABLE_AI && <AIArtworkFitDialog open={fitOpen} onOpenChange={setFitOpen} artwork={artwork} widthIn={template.widthIn} heightIn={template.heightIn} productType={fitProduct} onApply={applyFittedArtwork} />}
   </div>;
 }
+

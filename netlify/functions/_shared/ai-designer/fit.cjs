@@ -5,11 +5,17 @@ const { resolveSpecialtyTemplate, specialtyPrompt } = require('../specialty-prod
 const {layoutContext,cropForRatio,layoutGuide,guideInstruction,visibleArtwork}=require('./specialty-layout.cjs');
 const FIT_MODEL = 'gpt-image-2.5-sunburst-2026-09-08';
 const FIT_INSPECTION_MODEL = 'gpt-6-astra';
+// Only the two fixed, rectangular backdrop templates are qualified for fit.
+// Generation and specialty products with shaped/multiple surfaces stay gated.
+const BACKDROP_FIT_PRODUCTS = new Set([
+  'specialty:step-and-repeat-backdrop:step-and-repeat-backdrop-8x8:front',
+  'specialty:step-and-repeat-backdrop:step-and-repeat-backdrop-1:front',
+]);
 
 function validateFitRequest(body) {
   const productType = body.productType ?? 'banner';
   const specialty = String(productType).startsWith('specialty:');
-  if (specialty) throw Object.assign(new Error('Upload print-ready artwork for this product. AI design and fitting are not available for its print template.'), {code:'SPECIALTY_AI_UNAVAILABLE',statusCode:409});
+  if (specialty && !BACKDROP_FIT_PRODUCTS.has(productType)) throw Object.assign(new Error('Upload print-ready artwork for this product. AI design and fitting are not available for its print template.'), {code:'SPECIALTY_AI_UNAVAILABLE',statusCode:409});
   if (specialty) resolveSpecialtyTemplate(productType, Number(body.widthIn), Number(body.heightIn));
   if (!specialty && !['banner', 'yard_sign', 'car_magnet'].includes(productType)) {
     throw Object.assign(new Error('Choose a supported print product.'), { code: 'INVALID_REQUEST' });
@@ -230,3 +236,4 @@ async function runFitRequest(body, session, jobId, report = async () => {}, depe
 }
 
 module.exports = { FIT_MODEL, FIT_INSPECTION_MODEL, validateFitRequest, compareWording, buildFitPrompt, prepareFitRecovery, runFitRequest };
+
