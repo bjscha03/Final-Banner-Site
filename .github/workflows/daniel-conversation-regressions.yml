@@ -1,0 +1,40 @@
+name: Daniel conversation regressions
+on:
+  push:
+    branches: [fix/daniel-reply-followup-guard-20261029]
+    paths:
+      - 'server/daniel-agent/**'
+      - '.github/workflows/daniel-conversation-regressions.yml'
+  pull_request:
+    paths:
+      - 'server/daniel-agent/**'
+      - '.github/workflows/daniel-conversation-regressions.yml'
+permissions:
+  contents: read
+concurrency:
+  group: daniel-regressions-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked test dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify syntax and execute all Daniel policy, database and workflow regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in server/daniel-agent/*.mjs; do node --check "$file"; done
+          node --test --test-concurrency=1 server/daniel-agent/*.test.mjs server/daniel-agent/tests/*.test.mjs 2>&1 | tee daniel-test-results.tap
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: daniel-conversation-regression-results
+          path: daniel-test-results.tap
+          if-no-files-found: ignore
