@@ -146,9 +146,9 @@ test('routine worker simulation is automatic while exceptions remain in owner qu
  await sql`UPDATE daniel_sales.settings SET paused=false,auto_reply=true WHERE id=1`;
  const normal=await prospect(),exception=await prospect();
  for(const p of [normal,exception]) {
-  // A follow-up fixture must have an actual prior message and canonical parent.
   const prior=await saveDraft(sql,{contact_id:p.contact_id,kind:'intro',subject:'Signage',body:'Original invitation'},'test');
-  await sql`UPDATE daniel_sales.messages SET status='simulated',thread_key=${'auto-thread:'+p.contact_id},rfc_message_id=${'<auto-parent:'+p.contact_id+'@test>'},updated_at=now()-interval '10 days' WHERE id=${prior.id}`;
+  const priorSent=new Date(now.getTime()-10*86400000).toISOString();
+  await sql`UPDATE daniel_sales.messages SET status='simulated',thread_key=${'auto-thread:'+p.contact_id},rfc_message_id=${'<auto-parent:'+p.contact_id+'@test>'},updated_at=${priorSent}::timestamptz WHERE id=${prior.id}`;
   await sql`INSERT INTO daniel_sales.tasks(contact_id,opportunity_id,kind,due_at,dedupe_key) VALUES(${p.contact_id},${p.opportunity_id},'followup',now(),${'auto-test:'+p.contact_id})`;
  }
  const generate=async(_,contactId,kind)=>({contact_id:contactId,kind,subject:'Following up on signage',body:contactId===normal.contact_id?'Would you like help choosing vinyl banners for your locations?':'We can discuss custom pricing.',thread_key:'auto-thread:'+contactId,reply_to_id:'<auto-parent:'+contactId+'@test>',ai_metadata:{knowledge_version:'bof-team-offer-v2',requires_approval:contactId===exception.contact_id,model_classification:'followup',fact_ids:['products']}});
