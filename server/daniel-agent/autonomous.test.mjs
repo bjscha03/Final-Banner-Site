@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { publicIPv4, validateEvidence } from './discovery.mjs';
 import { introductionEligible } from './automation.mjs';
+import { replyHash } from './reply-review.mjs';
 import { BUSINESS_ADDRESS, BOF_SENDER, verifySender } from './identity.mjs';
 import { renderSignature } from './operations.mjs';
 import { renderReport, reportDue } from './report-email.mjs';
@@ -66,16 +67,13 @@ test('an alternative company email domain is accepted only with exact official c
  assert.throws(()=>validateEvidence({...c,email:'main@guessed-group.com'},fetched));
  assert.throws(()=>validateEvidence({...c,contact_url:'https://example.com/not-fetched'},fetched));
 });
-
 test('structured reviews explicitly request JSON in the Responses input',async()=>{
  const {modelJSON}=await import('./discovery.mjs');
  await modelJSON({OPENAI_API_KEY:'test'},'Review source evidence',{website:'https://example.com'}, {fetcher:async(_url,opts)=>{const request=JSON.parse(opts.body);assert.match(request.input,/json/i);assert.equal(request.text.format.type,'json_object');return Response.json({output:[{type:'message',content:[{type:'output_text',text:'{"approved":true}'}]}]});}});
 });
-
 test('published contact matching rejects addresses that only contain the candidate as a substring',()=>{
  for(const deceptive of ['notmarketing@example.com','marketing@example.com.attacker.test'])assert.throws(()=>validateEvidence(candidate,[pages[0],{...pages[1],text:candidate.facts[1].quote+' '+deceptive}]));
 });
-
 test('qualification requires a signage opportunity rather than unrelated business consulting',()=>{
  assert.throws(()=>validateEvidence({...candidate,opportunity:'Expand franchise brands and streamline operations'},pages));
 });
@@ -92,6 +90,10 @@ test('published vinyl-banner shipping threshold is routine but other prices rema
  const facts={vinyl_banner_shipping:'Free Next-Day Air shipping in the U.S. for qualifying orders of $20 or more'};
  const body='Our vinyl banners qualify for free next-day air shipping in the U.S. on orders of $20 or more, with 24-hour production.';
  assert.ok(!routinePolicyText(body,facts).includes('$'));assert.ok(routinePolicyText(body,{}).includes('$20'));assert.ok(routinePolicyText('A banner costs $20.',facts).includes('$20'));assert.ok(routinePolicyText(body+' Your custom price is $50.',facts).includes('$50'));
- const m={kind:'reply',subject:'Products',body,ai_metadata:{requires_approval:false,knowledge_version:'v1',fact_ids:['vinyl_banner_shipping'],classification:'needs_review',model_classification:'routine_product'}};
- assert.equal(routineEligible(m,{version:'v1',facts}),true);assert.equal(routineEligible({...m,body:body+' I can offer a 30% discount.'},{version:'v1',facts}),false);
+ const m={kind:'reply',subject:'Products',body,reply_to_id:'<shipping-question@test>',ai_metadata:{requires_approval:false,knowledge_version:'v1',fact_ids:['vinyl_banner_shipping'],classification:'needs_review',model_classification:'routine_product'}};
+ m.ai_metadata.conversation_review={approved:true,response_id:'shipping-review',inbound_rfc:m.reply_to_id,content_hash:replyHash(m)};
+ assert.equal(routineEligible(m,{version:'v1',facts}),true);
+ const bad={...m,body:body+' I can offer a 30% discount.',ai_metadata:{...m.ai_metadata}};
+ bad.ai_metadata.conversation_review={approved:true,response_id:'unsafe-review',inbound_rfc:bad.reply_to_id,content_hash:replyHash(bad)};
+ assert.equal(routineEligible(bad,{version:'v1',facts}),false);
 });
