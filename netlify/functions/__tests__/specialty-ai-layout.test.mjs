@@ -11,9 +11,15 @@ const {layoutContext,layoutGuide,cropForRatio,visibleArtwork}=require('../_share
 const cases=catalog.flatMap(product=>product.variants.flatMap(variant=>allPanelDefinitions(variant).map(panel=>({productType:`specialty:${product.slug}:${variant.id}:${panel.id}`,...templates[panel.templateId]}))));
 const inventory={lines:['FARM MARKET'],elements:['Farm logo'],allTextLegible:true,contentPreserved:true,confidence:1,issues:[],blockingIssues:[]};
 describe('supplier geometry throughout AI',()=>{
- it.each(cases)('blocks generation and fitting for unqualified $productType',target=>{
+ it.each(cases)('validates fit eligibility and registered dimensions for $productType',target=>{
   expect(()=>normalizeBrief({...target,description:'FARM MARKET'})).toThrow(/AI design and fitting are not available/);
-  expect(()=>validateFitRequest({...target,sourceImage:'data:image/png;base64,eA=='})).toThrow(/AI design and fitting are not available/);
+  const fit = {...target,sourceImage:'data:image/png;base64,eA=='};
+  if (['standard-retractable-banner','deluxe-retractable-banner','premium-retractable-banner'].includes(target.productType.split(':')[1])) {
+    expect(validateFitRequest(fit)).toMatchObject({productType:target.productType,widthIn:target.widthIn,heightIn:target.heightIn});
+    expect(()=>validateFitRequest({...fit,heightIn:fit.heightIn+1})).toThrow(/dimensions do not match/);
+  } else {
+    expect(()=>validateFitRequest(fit)).toThrow(/AI design and fitting are not available/);
+  }
   const context=layoutContext(target.productType,target.widthIn,target.heightIn);
   expect([context.template.widthIn,context.template.heightIn]).toEqual([target.widthIn,target.heightIn]);
  });
@@ -33,3 +39,4 @@ describe('supplier geometry throughout AI',()=>{
   expect(edit).not.toHaveBeenCalled();expect(inspect).not.toHaveBeenCalled();
  });
 });
+

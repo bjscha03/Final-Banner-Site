@@ -83,12 +83,43 @@ describe('checkout contact form', () => {
     expect(host.querySelector('input')?.id).toBe('checkout-email');
     expect(host.textContent).toContain('Place test order · $33.92');
     expect(host.textContent).toContain('No payment will be taken.');
-    expect(host.querySelector<HTMLButtonElement>('[aria-label="Apple Pay — preview only"]')?.disabled).toBe(true);
-    expect(host.querySelector<HTMLButtonElement>('[aria-label="PayPal — preview only"]')?.disabled).toBe(true);
+    for (const method of ['Apple Pay', 'PayPal']) {
+      const button = Array.from(host.querySelectorAll('button')).find(candidate => candidate.textContent === `Test ${method}`)!;
+      expect(button.disabled).toBe(false);
+      await act(async () => button.click());
+      const review = host.querySelector(`[aria-label="${method} test order"]`);
+      expect(review?.textContent).toContain('$33.92');
+      expect(review?.textContent).toContain('Confirm test order');
+      const cancel = Array.from(review!.querySelectorAll('button')).find(candidate => candidate.textContent === 'Cancel')!;
+      await act(async () => cancel.click());
+      expect(host.querySelector(`[aria-label="${method} test order"]`)).toBeNull();
+    }
     expect(host.querySelector('.checkout-preview-card input')).toBeNull();
     expect(host.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(true);
     expect(mocks.paypalProvider).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each(['Apple Pay', 'PayPal'])('submits one no-charge test order when %s is confirmed twice', async method => {
+    const onSuccess = vi.fn();
+    const order = { id: 'preview-order' };
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: order.id, order })));
+    vi.stubGlobal('fetch', fetch);
+    await act(async () => root.render(<PayPalCheckoutReliable total={3392} onSuccess={onSuccess} onError={vi.fn()} />));
+    const select = Array.from(host.querySelectorAll('button')).find(button => button.textContent === `Test ${method}`)!;
+    await act(async () => select.click());
+    expect(fetch).not.toHaveBeenCalled();
+    const confirm = Array.from(host.querySelectorAll('button')).find(button => button.textContent === 'Confirm test order')!;
+    await act(async () => { confirm.click(); confirm.click(); });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe('/.netlify/functions/create-order');
+    expect(JSON.parse(init.body)).toMatchObject({
+      checkout_mode: 'admin_deploy_preview_test', payment_method: 'admin_deploy_preview_test',
+      checkout_idempotency_key: expect.any(String), total_cents: 3392,
+    });
+    expect(onSuccess).toHaveBeenCalledWith(order.id, order);
+    expect(mocks.paypalProvider).not.toHaveBeenCalled();
   });
 
   it('lets customers review the order after card details and before submitting payment', async () => {

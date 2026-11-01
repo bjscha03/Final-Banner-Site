@@ -1,27 +1,46 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CreditCard, Lock } from 'lucide-react';
 import { CheckoutCardDivider } from './CheckoutCardDivider';
 
-/** Design-only controls for the existing no-charge deploy-preview checkout.
- * Never mount a provider SDK or collect card information in this component.
- */
-export function PreviewExpressCheckout() {
+type PreviewWallet = 'Apple Pay' | 'PayPal';
+
+type PreviewExpressProps = {
+  total: number;
+  disabled: boolean;
+  processing: boolean;
+  error: string | null;
+  onTestOrder: () => Promise<void>;
+};
+
+export function PreviewExpressCheckout({ total, disabled, processing, error, onTestOrder }: PreviewExpressProps) {
+  const [selected, setSelected] = useState<PreviewWallet | null>(null);
+  const amount = `$${(total / 100).toFixed(2)}`;
+
   return (
     <section aria-label="Express checkout preview">
-      <div className="checkout-preview-heading">
-        <p className="checkout-express-label">Express checkout</p>
-        <span>Preview · no charges</span>
+      <p className="checkout-express-label">Test express checkout</p>
+      <p className="checkout-test-wallet-help">Try a wallet checkout with a no-charge test order.</p>
+      <div className="checkout-test-wallets" role="group" aria-label="Test payment method">
+        {(['Apple Pay', 'PayPal'] as const).map(method => (
+          <button key={method} type="button" disabled={disabled} aria-pressed={selected === method}
+            onClick={() => setSelected(method)}>
+            Test {method}
+          </button>
+        ))}
       </div>
-      <div className="checkout-express-options has-wallet checkout-preview-wallets">
-        <button type="button" disabled aria-label="Apple Pay — preview only" aria-describedby="checkout-preview-note" className="checkout-apple-preview">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.3.75 3.1.81 1.2-.24 2.35-.94 3.63-.85 1.54.12 2.7.73 3.47 1.84-3.17 1.9-2.41 6.07.5 7.24-.58 1.53-1.34 3.05-2.71 3.94l.01-.01ZM12.03 7.25C11.88 4.98 13.72 3.11 15.83 3c.29 2.62-2.38 4.58-3.8 4.25Z" /></svg>
-          <span>Pay</span>
-        </button>
-        <button type="button" disabled aria-label="PayPal — preview only" aria-describedby="checkout-preview-note" className="checkout-paypal-choice">
-          <span><span className="text-[#003087]">Pay</span><span className="text-[#0070BA]">Pal</span></span>
-        </button>
-      </div>
-      <p id="checkout-preview-note" className="checkout-preview-note">Payment controls are display-only in this preview.</p>
+      {selected && (
+        <section className="checkout-test-wallet-review" aria-label={`${selected} test order`}>
+          <p><strong>{selected} test order</strong></p>
+          <p>Order total <strong>{amount}</strong>. No wallet will open or be charged.</p>
+          <div className="checkout-test-wallet-actions">
+            <button type="button" className="checkout-pay-button" disabled={disabled} onClick={onTestOrder}>
+              {processing ? 'Placing test order…' : 'Confirm test order'}
+            </button>
+            <button type="button" disabled={processing} onClick={() => setSelected(null)}>Cancel</button>
+          </div>
+          {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+        </section>
+      )}
       <CheckoutCardDivider />
     </section>
   );

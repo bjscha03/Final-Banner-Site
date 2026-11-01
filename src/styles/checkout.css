@@ -88,12 +88,14 @@
 .checkout-fallback-methods { padding-bottom: 14px; border-bottom: 1px solid var(--checkout-border); }
 .checkout-fallback-methods img { max-width: 180px; }
 .checkout-mobile-pricing { scroll-margin-top: 90px; border-top: 1px solid var(--checkout-border); }
-.checkout-preview-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.checkout-preview-heading > span { font-size: 10px; color: #64748b; white-space: nowrap; }
 .checkout-preview-note { margin-top: 8px; font-size: 11px; line-height: 1.5; color: #64748b; }
-.checkout-preview-wallets button:disabled { opacity: 1; }
-.checkout-apple-preview { display: flex; align-items: center; justify-content: center; height: 48px; border-radius: 6px; background: #000; color: #fff; font-size: 27px; font-weight: 500; letter-spacing: -1px; }
-.checkout-apple-preview svg { width: 29px; height: 29px; }
+.checkout-test-wallet-help, .checkout-test-wallet-review p { font-size: 14px; color: #334155; }
+.checkout-test-wallets, .checkout-test-wallet-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.checkout-test-wallets button, .checkout-test-wallet-actions button { min-height: 44px; padding: 0 16px; border-radius: 8px; font-size: 14px; font-weight: 600; }
+.checkout-test-wallets button { flex: 1 1 120px; border: 1px solid #94a3b8; background: white; color: #071c35; }
+.checkout-test-wallets button[aria-pressed=true] { border-color: #ea580c; background: #fff7ed; }
+.checkout-test-wallet-review { margin-top: 12px; border: 1px solid var(--checkout-border); border-radius: 8px; padding: 12px; }
+.checkout-test-wallet-review > p + p { margin-top: 4px; }
 .checkout-card-alternative { margin-top: 18px; }
 .checkout-payment-divider { display: flex; align-items: center; gap: 14px; color: #64748b; font-size: 12px; }
 .checkout-payment-divider > span { height: 1px; flex: 1; background: var(--checkout-border); }

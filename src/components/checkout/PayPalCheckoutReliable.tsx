@@ -767,7 +767,10 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     };
   }, [isDeployPreview]);
 
+  const testOrderPending = useRef(false);
   const handleTestPayment = async () => {
+    if (testOrderPending.current) return;
+    testOrderPending.current = true;
     setIsPreparing(true);
     setCheckoutError(null);
     try {
@@ -788,6 +791,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
           saturdayDelivery: Boolean(saturdayDelivery),
           attribution: getStoredAttribution(),
           checkout_mode: 'admin_deploy_preview_test',
+          checkout_idempotency_key: checkoutKeyRef.current,
           payment_method: 'admin_deploy_preview_test',
         }),
       });
@@ -803,6 +807,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       setCheckoutError(message);
       onError(error);
     } finally {
+      testOrderPending.current = false;
       setIsPreparing(false);
     }
   };
@@ -1380,7 +1385,13 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   if (isDeployPreview) {
     return (
       <div className="space-y-4">
-        <PreviewExpressCheckout />
+        <PreviewExpressCheckout
+          total={total}
+          disabled={disabled || providerLocked || isPreparing}
+          processing={isPreparing}
+          error={checkoutError}
+          onTestOrder={handleTestPayment}
+        />
         {orderIntro}
         {renderCustomerDetails()}
         <PreviewCardPayment />
