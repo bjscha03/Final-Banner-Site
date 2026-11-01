@@ -115,7 +115,8 @@ describe('checkout contact form', () => {
     const [url, init] = fetch.mock.calls[0];
     expect(url).toBe('/.netlify/functions/create-order');
     expect(JSON.parse(init.body)).toMatchObject({
-      checkout_mode: 'admin_deploy_preview_test', payment_method: 'admin_deploy_preview_test', total_cents: 3392,
+      checkout_mode: 'admin_deploy_preview_test', payment_method: 'admin_deploy_preview_test',
+      checkout_idempotency_key: expect.any(String), total_cents: 3392,
     });
     expect(onSuccess).toHaveBeenCalledWith(order.id, order);
     expect(mocks.paypalProvider).not.toHaveBeenCalled();

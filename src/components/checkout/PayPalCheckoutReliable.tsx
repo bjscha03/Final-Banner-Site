@@ -791,6 +791,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
           saturdayDelivery: Boolean(saturdayDelivery),
           attribution: getStoredAttribution(),
           checkout_mode: 'admin_deploy_preview_test',
+          checkout_idempotency_key: checkoutKeyRef.current,
           payment_method: 'admin_deploy_preview_test',
         }),
       });
