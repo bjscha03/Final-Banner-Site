@@ -42,8 +42,9 @@ const Logo: React.FC<LogoProps> = ({
   };
 
   const defaultDimensions = getDefaultDimensions();
-  const logoWidth = width || defaultDimensions.width;
-  const logoHeight = height || defaultDimensions.height;
+  const aspectRatio = variant === 'icon' ? 1 : 1082 / 255;
+  const logoWidth = width || (height ? Math.round(height * aspectRatio) : defaultDimensions.width);
+  const logoHeight = height || Math.round(logoWidth / aspectRatio);
 
   return (
     <img

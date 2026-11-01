@@ -41,7 +41,10 @@ const SEO: React.FC<SEOProps> = ({
 }) => {
   const siteUrl = 'https://bannersonthefly.com';
   const fullCanonical = canonical || siteUrl;
-  const fullOgImage = ogImage.startsWith('http') ? ogImage : `${siteUrl}${ogImage}`;
+  const resolvedOgImage = ogImage.startsWith('http') ? ogImage : `${siteUrl}${ogImage}`;
+  const fullOgImage = /\/images\/og-(vinyl-banners|yard-signs|car-magnets|ai-banner-designer|default)\.png$/.test(resolvedOgImage)
+    ? `${resolvedOgImage}?brand=20261101`
+    : resolvedOgImage;
   const fullPreloadImage = preloadImage
     ? (preloadImage.startsWith('http') ? preloadImage : `${siteUrl}${preloadImage}`)
     : undefined;
