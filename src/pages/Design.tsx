@@ -1,3 +1,4 @@
+import { BannerTypeSelector, RetractableBuilder, RetractableHero, useBannerType } from '@/components/design/BannerTypeSelector';
 import { productDisplayPrice } from '@/lib/specialtyDisplayPrice';
 import AIArtworkFitDialog, { ArtworkFitButton } from '@/components/design/AIArtworkFitDialog';
 import { artworkFitIdentity } from '@/components/design/ai/artworkFit';
@@ -247,6 +248,7 @@ const Design: React.FC = () => {
   })();
   const [productType, setProductType] = useState<ProductTypeSlug>(initialProductType);
   const isYardSign = productType === 'yard_sign';
+  const bannerType = useBannerType(productType === 'banner' && !new URLSearchParams(location.search).has('editItem'));
   const isCarMagnet = productType === 'car_magnet';
 
   // Yard sign specific state (multi-design)
@@ -3019,7 +3021,7 @@ const Design: React.FC = () => {
 
       {productType === 'banner' && <div className="hidden lg:block"><GoogleReviewSpotlight /></div>}
 
-      <DesignPageHero productType={productType} onStart={scrollToOrder} />
+      {bannerType.retractable ? <RetractableHero /> : <DesignPageHero productType={productType} onStart={scrollToOrder} />}
 
       <RealOrdersStrip />
 
@@ -3034,7 +3036,9 @@ const Design: React.FC = () => {
           >
             {isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
           </h2>
-          {showPostAddResetNotice && (
+          <BannerTypeSelector selection={bannerType} />
+            {bannerType.visited && <div hidden={!bannerType.retractable}><RetractableBuilder /></div>}
+            {!bannerType.retractable && <>{showPostAddResetNotice && (
             <div role="status" className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 text-center">
               <p className="text-sm text-green-800">Your artwork is saved in your cart.</p>
               <button type="button" onClick={() => setIsCartOpen(true)} className="mt-3 min-h-11 rounded-lg bg-[#18448D] px-5 py-2 font-semibold text-white">View cart &amp; checkout</button>
@@ -3710,12 +3714,13 @@ const Design: React.FC = () => {
             </div>
           </div>
           )}
-        </div>
+        </>}
+          </div>
       </section>
 
-      <TrustStrip />
+      {!bannerType.retractable && <TrustStrip />}
 
-      <MobileSubtotalBar compact
+      {!bannerType.retractable && <MobileSubtotalBar compact
         selectionLabel={`${widthDisplay} × ${heightDisplay} · Qty ${isYardSign ? yardSignTotalQty : quantity}`}
         compactDiscountLabel={isYardSign || isCarMagnet ? nonBannerOffer.label : bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? '20% off applied' : null}
         primaryAction={{label:mobileCta.label, disabled:mobileCta.disabled || firstOrderOffer.checking, onClick:mobileCta.onClick || scrollToOrder}}
@@ -3735,7 +3740,7 @@ const Design: React.FC = () => {
             <p className="text-xl font-bold text-white">{usd(totals.materialTotal)}</p>
           )
         }
-      />
+      />}
 
       <AIArtworkFitDialog open={fitModalOpen && !isYardSign} productType={isCarMagnet ? 'car_magnet' : 'banner'} onOpenChange={setFitModalOpen}
         artwork={uploadedFile} widthIn={widthIn} heightIn={heightIn} onApply={applyFittedArtwork} />
@@ -3905,3 +3910,4 @@ const DesignerRoute: React.FC = () => {
   return /^(yard[-_]?signs?|car[-_]?magnets?)$/.test(product) ? <Design /> : <><PromoBanner /><GoogleAdsBanner /></>;
 };
 export default DesignerRoute;
+

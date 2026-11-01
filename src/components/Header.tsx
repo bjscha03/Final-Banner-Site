@@ -49,7 +49,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
 
   const navItems = [
     { name: 'Home', href: '/' },
-    { name: 'Vinyl Banners', href: '/design?product=banner' },
+    { name: 'Banners', href: '/design?product=banner' },
     { name: 'Yard Signs', href: '/design?product=yard-signs' },
     { name: 'Car Magnets', href: '/design?product=car-magnets' },
     ...(availableSpecialtyProducts.length ? [{ name: 'Displays & Signs', href: '/products' }] : []),
@@ -267,7 +267,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
 
           <nav className="hidden items-center gap-3 xl:gap-4 2xl:gap-6 lg:flex" aria-label="Primary navigation">
             {[
-              { name: 'Vinyl Banners', href: '/design?product=banner' },
+              { name: 'Banners', href: '/design?product=banner' },
               { name: 'Yard Signs', href: '/design?product=yard-signs' },
               { name: 'Car Magnets', href: '/design?product=car-magnets' },
     ...(availableSpecialtyProducts.length ? [{ name: 'Displays & Signs', href: '/products' }] : []),

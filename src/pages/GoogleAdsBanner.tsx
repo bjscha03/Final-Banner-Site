@@ -1,4 +1,5 @@
 import QuantityStepper from '@/components/design/QuantityStepper';
+import { BannerTypeSelector, RetractableBuilder, RetractableHero, useBannerType } from '@/components/design/BannerTypeSelector';
 import { productDisplayPrice } from '@/lib/specialtyDisplayPrice';
 import AIArtworkFitDialog, { ArtworkFitButton } from '@/components/design/AIArtworkFitDialog';
 import { artworkFitIdentity } from '@/components/design/ai/artworkFit';
@@ -240,6 +241,7 @@ const GoogleAdsBanner: React.FC = () => {
   })();
   const [productType, setProductType] = useState<ProductTypeSlug>(initialProductType);
   const isYardSign = productType === 'yard_sign';
+  const bannerType = useBannerType(productType === 'banner' && !new URLSearchParams(location.search).has('editItem'));
   const isCarMagnet = productType === 'car_magnet';
   const compactMobileLanding = !isYardSign && !isCarMagnet && !isLargeBannerLanding && !isFallFestivalLanding;
 
@@ -3383,7 +3385,7 @@ const GoogleAdsBanner: React.FC = () => {
         {!isYardSign && !isCarMagnet && !mobilePaidLayout && <div className="hidden lg:block"><GoogleReviewSpotlight /></div>}
 
         {/* HERO */}
-        {!isYardSign && !isCarMagnet ? (
+        {bannerType.retractable ? <RetractableHero /> : !isYardSign && !isCarMagnet ? (
           isLargeBannerLanding ? <ProductPageHero productSlug="large-banners-fast" ctaUrl="#order-builder" onStart={scrollToOrder} /> : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <><MobileBannerLandingHero redesigned={paidBannerLanding} halloween={isHalloweenLanding} showFirstOrderBadge={!isHalloweenLanding && bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20'} /><div className="hidden lg:block"><FastBannerAdHero onStart={scrollToOrder} halloween={isHalloweenLanding} /></div></>
         ) : (
         <LightProductHero
@@ -3404,7 +3406,7 @@ const GoogleAdsBanner: React.FC = () => {
         <section ref={orderRef} id="order-builder" className={paidBannerLanding ? "bg-white px-4 py-3 lg:bg-gray-50 lg:py-12" : compactMobileLanding ? "bg-gray-50 px-4 py-3 lg:py-12" : "py-12 px-4 bg-gray-50"}>
           <div className={mobilePaidLayout ? 'mx-auto max-w-xl' : 'max-w-4xl lg:max-w-7xl mx-auto'}>
             <p className={`mb-3 text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF6A00] ${compactMobileLanding ? "hidden lg:block" : ""}`}>
-              {isDoubleSidedBanner ? 'Double-sided · 18 oz vinyl' : isYardSign ? '24″ × 18″ yard signs' : isCarMagnet ? 'Custom car magnets' : 'Custom vinyl banners'}
+              {bannerType.retractable ? 'Retractable banners' : isDoubleSidedBanner ? 'Double-sided · 18 oz vinyl' : isYardSign ? '24″ × 18″ yard signs' : isCarMagnet ? 'Custom car magnets' : 'Custom banners'}
             </p>
             {compactMobileLanding && !paidBannerLanding && <p className="mb-2 flex items-center justify-between gap-2 text-xs font-medium text-slate-500 lg:hidden" aria-label="Ordering steps"><span className="font-bold text-orange-700" aria-current="step">1 Design</span><span aria-hidden="true">→</span><span>2 Finishing</span><span aria-hidden="true">→</span><span>3 Checkout</span></p>}
             {mobilePaidLayout && isHalloweenLanding && <>
@@ -3415,9 +3417,11 @@ const GoogleAdsBanner: React.FC = () => {
               id="builder-start"
               className={compactMobileLanding ? "sr-only homepage-condensed scroll-mt-20 lg:not-sr-only lg:mb-10 lg:bg-[#061A31] lg:px-4 lg:py-6 lg:text-center lg:text-5xl lg:font-bold lg:uppercase lg:text-white" : "homepage-condensed bg-[#061A31] px-4 py-6 text-4xl md:text-5xl uppercase text-white font-bold text-center mb-10 scroll-mt-[140px] md:scroll-mt-24"}
             >
-              {isLargeBannerLanding ? 'Build Your Large Banner' : isDoubleSidedBanner ? 'Build Your Double-Sided Banner' : isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
+              {bannerType.retractable ? 'Build Your Banner' : isLargeBannerLanding ? 'Build Your Large Banner' : isDoubleSidedBanner ? 'Build Your Double-Sided Banner' : isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
             </h2>
-            {showPostAddResetNotice && (
+            <BannerTypeSelector selection={bannerType} />
+            {bannerType.visited && <div hidden={!bannerType.retractable}><RetractableBuilder compactUpload={mobilePaidLayout} /></div>}
+            {!bannerType.retractable && <>{showPostAddResetNotice && (
               <div
                 role="status"
                 aria-live="polite"
@@ -3633,11 +3637,12 @@ const GoogleAdsBanner: React.FC = () => {
               </div>
             </div>
             )}
+          </>}
           </div>
         </section>
 
-        {compactMobileLanding && !paidBannerLanding && <MobileBannerLandingProof />}
-        <TrustStrip className={paidBannerLanding ? 'hidden lg:block' : undefined} />
+        {!bannerType.retractable && compactMobileLanding && !paidBannerLanding && <MobileBannerLandingProof />}
+        {!bannerType.retractable && <TrustStrip className={paidBannerLanding ? 'hidden lg:block' : undefined} />}
 
         <div className="py-4 pb-24 md:pb-4 text-center text-xs text-gray-400 border-t border-gray-100">
           <div className="mb-2">
@@ -3687,7 +3692,7 @@ const GoogleAdsBanner: React.FC = () => {
           {bannerFinishingOptions}
           {(!activeCartPromo || activeCartPromo.code === 'NEW20') && firstOrderOffer.status === 'unavailable' && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{firstOrderOffer.message} <button type="button" onClick={firstOrderOffer.retry} className="min-h-11 font-semibold underline">Retry offer</button></p>}
         </MobileFinishingStep>
-        <MobileSubtotalBar
+        {!bannerType.retractable && <MobileSubtotalBar
           compact
           compactDiscountLabel={isYardSign || isCarMagnet ? nonBannerOffer.label : mobileDiscountLabel}
           selectionLabel={`${widthDisplay} × ${heightDisplay} · ${isYardSign ? `Qty ${yardSignTotalQty}` : isCarMagnet ? `Qty ${quantity}` : quantity > 1 ? `Qty ${quantity}` : isDoubleSidedBanner ? '18oz · 2 sides' : material}`}
@@ -3711,7 +3716,7 @@ const GoogleAdsBanner: React.FC = () => {
               <p className="text-xl font-bold text-white">{usd(totals.materialTotal)}</p>
             )
           }
-        />
+        />}
 
       {!uploadedFile && undoDeletedArtwork && <div role="status" className="fixed bottom-24 left-1/2 z-[11030] flex -translate-x-1/2 items-center gap-3 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm shadow-lg">
         Artwork deleted<button type="button" onClick={undoDeletedArtwork} className="min-h-11 px-3 font-semibold text-violet-700">Undo delete</button>
@@ -3870,3 +3875,4 @@ const GoogleAdsBanner: React.FC = () => {
 };
 
 export default GoogleAdsBanner;
+
