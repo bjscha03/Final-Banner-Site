@@ -89,6 +89,14 @@ for (const route of ['/design', '/google-ads-banner']) {
     await expect(stage.getByText('Artwork placement',{exact:true})).toBeVisible();
     await expect(area.getByTestId('specialty-live-preview')).toHaveCount(0);
     await expect(area.getByLabel('Replace artwork', {exact:true})).toBeVisible();
+    await expect(area.getByText(/Image resolution at this placement/)).toHaveCount(0);
+    await area.getByRole('button',{name:'Fit with AI',exact:true}).filter({visible:true}).click();
+    const dialog = page.getByRole('dialog').filter({has:page.getByRole('button',{name:'Approve design'})});
+    await expect(dialog.getByRole('img',{name:'Your fitted design'})).toBeVisible({timeout:30000});
+    await dialog.getByRole('button',{name:'Approve design'}).click();
+    await expect(area.getByText(/ai-fit-.*Original file preserved/)).toBeVisible();
+    await area.getByRole('button',{name:'Restore original'}).click();
+    await expect(area.getByText(/stand-print.png · Original file preserved/)).toBeVisible();
   });
 }
 
