@@ -12,6 +12,8 @@
  */
 
 import { getProductConfig, type PredefinedSize, type MaterialMultiplier } from './products';
+import { productDisplayPrice } from './specialtyDisplayPrice';
+import type { PromoDiscountInput } from './discount-resolver';
 import type { PlacementPreviewManifest } from '@/types/artwork';
 
 const YARD_SIGN_SLUG = 'yard_sign';
@@ -80,7 +82,7 @@ export function calcYardSignPricing(
   totalSignQuantity: number,
   addStepStakes: boolean,
   stepStakeQuantity: number,
-  promoDiscountRate: number = 0,
+  promotion: number | PromoDiscountInput | null = 0,
 ): YardSignPricing {
   const config = getProductConfig(YARD_SIGN_SLUG);
 
@@ -92,7 +94,10 @@ export function calcYardSignPricing(
     : 0;
 
   const subtotalCents = signSubtotalCents + stepStakeTotalCents;
-  const promoDiscountCents = Math.round(subtotalCents * promoDiscountRate);
+  const promoDiscountCents = typeof promotion === 'number'
+    ? Math.round(subtotalCents * promotion)
+    : productDisplayPrice(subtotalCents, promotion, 'yard_sign').discountCents;
+  const promoDiscountRate = subtotalCents > 0 ? promoDiscountCents / subtotalCents : 0;
   const totalCents = subtotalCents - promoDiscountCents;
   const taxRate = config.taxRate;
   const taxCents = Math.round(totalCents * taxRate);
@@ -121,6 +126,24 @@ export function calcYardSignPricing(
  */
 export function getTotalDesignQuantity(designs: YardSignDesign[]): number {
   return designs.reduce((sum, d) => sum + d.quantity, 0);
+}
+
+/** Move copies between artworks without changing the customer's order quantity. */
+export function assignYardSignCopies(designs: YardSignDesign[], id: string, requested: number): YardSignDesign[] {
+  const target = designs.find(design => design.id === id);
+  if (!target || designs.length < 2 || !Number.isFinite(requested)) return designs;
+
+  const max = getTotalDesignQuantity(designs) - (designs.length - 1);
+  const quantity = Math.max(1, Math.min(max, Math.trunc(requested)));
+  let needed = quantity - target.quantity;
+  if (needed === 0) return designs;
+  return designs.map(design => {
+    if (design.id === id) return { ...design, quantity };
+    // A negative transfer gives freed copies to the first other artwork.
+    const transfer = Math.min(needed, design.quantity - 1);
+    needed -= transfer;
+    return transfer ? { ...design, quantity: design.quantity - transfer } : design;
+  });
 }
 
 /** Yard signs must be ordered in increments of this value */

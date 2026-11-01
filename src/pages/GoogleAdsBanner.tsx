@@ -1,3 +1,4 @@
+import QuantityStepper from '@/components/design/QuantityStepper';
 import { productDisplayPrice } from '@/lib/specialtyDisplayPrice';
 import AIArtworkFitDialog, { ArtworkFitButton } from '@/components/design/AIArtworkFitDialog';
 import { artworkFitIdentity } from '@/components/design/ai/artworkFit';
@@ -68,6 +69,7 @@ import {
   validateYardSignQuantity,
   type YardSignSidedness,
   type YardSignDesign,
+  YARD_SIGN_MIN_QUANTITY,
   YARD_SIGN_WIDTH_IN,
   YARD_SIGN_HEIGHT_IN,
   YARD_SIGN_MAX_QUANTITY,
@@ -341,7 +343,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [activePreset, setActivePreset] = useState<number | null>(
     initialProductType === 'banner' ? (isLargeBannerLanding ? 5 : POPULAR_BANNER_PRESET.presetIndex) : null,
   );
-  const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
+  const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? YARD_SIGN_MIN_QUANTITY : 1);
   const storedPromoAtLoad = useCartStore.getState().discountCode;
   const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || 'NEW20');
   const [promoBusy, setPromoBusy] = useState(false);
@@ -545,10 +547,8 @@ const GoogleAdsBanner: React.FC = () => {
   }, [productType, finishingType, grommets, polePockets, addRope, ropePlacement, carMagnetRoundedCorners]);
 
   // Yard sign pricing (computed reactively)
-  const yardSignTotalQty = getTotalDesignQuantity(yardSignDesigns);
-  const yardSignPromoRate = promoApplied
-    ? Number(activeCartPromo?.discountPercentage || 0) / 100
-    : 0;
+  const yardSignTotalQty = yardSignDesigns.length ? getTotalDesignQuantity(yardSignDesigns) : quantity;
+  const yardSignPromo = firstOrderOffer.checking ? null : activeCartPromo;
   const yardSignPricing = useMemo(() => {
     if (!isYardSign) return null;
     return calcYardSignPricing(
@@ -556,9 +556,9 @@ const GoogleAdsBanner: React.FC = () => {
       yardSignTotalQty,
       yardSignAddStepStakes,
       yardSignStepStakeQty,
-      yardSignPromoRate,
+      yardSignPromo,
     );
-  }, [isYardSign, yardSignSidedness, yardSignTotalQty, yardSignAddStepStakes, yardSignStepStakeQty, yardSignPromoRate]);
+  }, [isYardSign, yardSignSidedness, yardSignTotalQty, yardSignAddStepStakes, yardSignStepStakeQty, yardSignPromo]);
 
   // Yard sign quantity validation
   const yardSignQuantityValid = validateYardSignQuantity(yardSignTotalQty);
@@ -907,6 +907,7 @@ const GoogleAdsBanner: React.FC = () => {
         placementPreview: d.placementPreview,
       }));
       setYardSignDesigns(restoredDesigns);
+      setQuantity(getTotalDesignQuantity(restoredDesigns) || item.quantity || YARD_SIGN_MIN_QUANTITY);
       setYardSignSidedness(item.yard_sign_sidedness || 'single');
       setYardSignAddStepStakes(item.yard_sign_step_stakes_enabled || false);
       setYardSignStepStakeQty(item.yard_sign_step_stakes_qty || 1);
@@ -1052,7 +1053,7 @@ const GoogleAdsBanner: React.FC = () => {
     setImgScaleY(restored.imgScaleY);
     setConstrainProps(restored.constrainProps);
     latestDesignRef.current = { ...restored };
-    setQuantity(newType === 'yard_sign' ? 10 : 1);
+    setQuantity(newType === 'yard_sign' ? YARD_SIGN_MIN_QUANTITY : 1);
     // A validated promotion belongs to the cart, so keep it when a customer
     // switches product context or returns through another paid-product URL.
     // Switching product tabs is otherwise a fresh start — clear confirmation flags so
@@ -1762,6 +1763,7 @@ const GoogleAdsBanner: React.FC = () => {
     setHasReviewedOptions(false);
     if (isYardSign) {
       setYardSignDesigns([]);
+      setQuantity(YARD_SIGN_MIN_QUANTITY);
     }
   }, [isYardSign, productType, removeArtwork]);
   const resetAfterSuccessfulAdd = useCallback(() => {
@@ -2929,15 +2931,7 @@ const GoogleAdsBanner: React.FC = () => {
                       <p><strong className="text-[#0B1F3A]">Premium magnetic material is included.</strong> There is no material choice for car magnets.</p>
                     </div>
                   )}
-                  <div className="flex items-center gap-3">
-                    <button type="button" aria-label="Decrease quantity" onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-11 h-11 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
-                      <Minus className="h-4 w-4 text-gray-600" />
-                    </button>
-                    <input type="number" min={1} max={999} value={quantity} aria-label="Quantity" onChange={e => setQuantity(Math.max(1, +e.target.value || 1))} className="h-11 w-20 border rounded-xl px-3 py-1.5 text-base text-center" />
-                    <button type="button" aria-label="Increase quantity" onClick={() => setQuantity(q => Math.min(999, q + 1))} className="w-11 h-11 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
-                      <Plus className="h-4 w-4 text-gray-600" />
-                    </button>
-                  </div>
+                  <QuantityStepper min={1} max={999} value={quantity} onChange={setQuantity} />
                   {!isCarMagnet && bannerPromoResolution.appliedDiscountType === 'quantity' && quantityDiscountRate > 0 && (
                     <p className="text-xs text-green-600 font-medium mt-1.5">
                       🎉 {Math.round(quantityDiscountRate * 100)}% bulk discount applied at checkout
@@ -3456,6 +3450,9 @@ const GoogleAdsBanner: React.FC = () => {
                     ref={yardSignConfiguratorRef}
                     designs={yardSignDesigns}
                     onDesignsChange={setYardSignDesigns}
+                    orderQuantity={yardSignTotalQty}
+                    onOrderQuantityChange={setQuantity}
+                    orderTotalCents={(yardSignPricing?.totalCents ?? 0) + previewSameDayFeeCents + previewSaturdayFeeCents}
                     sidedness={yardSignSidedness}
                     onSidednessChange={(s) => { setYardSignSidedness(s); setHasReviewedYardSignPrintSide(true); }}
                     addStepStakes={yardSignAddStepStakes}

@@ -52,6 +52,7 @@ import {
   validateYardSignQuantity,
   type YardSignSidedness,
   type YardSignDesign,
+  YARD_SIGN_MIN_QUANTITY,
   YARD_SIGN_WIDTH_IN,
   YARD_SIGN_HEIGHT_IN,
   YARD_SIGN_MAX_QUANTITY,
@@ -305,7 +306,7 @@ const Design: React.FC = () => {
     // Keep the latest mirror in sync immediately so a rapid second
     // switch can't re-stash the just-restored snapshot.
     latestDesignRef.current = { ...restored };
-    setQuantity(newType === 'yard_sign' ? 10 : 1);
+    setQuantity(newType === 'yard_sign' ? YARD_SIGN_MIN_QUANTITY : 1);
     // Switching product tabs is a fresh start — clear confirmation flags so
     // the new product's mobile guided flow walks the user back through
     // size → material → quantity → options → upload from Step 1.
@@ -405,6 +406,7 @@ const Design: React.FC = () => {
         placementPreview: d.placementPreview,
       }));
       setYardSignDesigns(restoredDesigns);
+      setQuantity(getTotalDesignQuantity(restoredDesigns) || item.quantity || YARD_SIGN_MIN_QUANTITY);
       setYardSignSidedness(item.yard_sign_sidedness || 'single');
       setYardSignAddStepStakes(item.yard_sign_step_stakes_enabled || false);
       setYardSignStepStakeQty(item.yard_sign_step_stakes_qty || 1);
@@ -556,7 +558,7 @@ const Design: React.FC = () => {
   // explicitly clicks a preset (e.g. 6′ × 3′) or confirms/changes a custom
   // size. Size recommendations never change the selected dimensions.
   const [activePreset, setActivePreset] = useState<number | null>(null);
-  const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
+  const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? YARD_SIGN_MIN_QUANTITY : 1);
   const storedPromoAtLoad = useCartStore.getState().discountCode;
   const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || '');
   const [promoApplied, setPromoApplied] = useState(Boolean(storedPromoAtLoad));
@@ -793,10 +795,8 @@ const Design: React.FC = () => {
   }, [productType, finishingType, grommets, polePockets, addRope, ropePlacement, carMagnetRoundedCorners]);
 
   // Yard sign pricing (computed reactively)
-  const yardSignTotalQty = getTotalDesignQuantity(yardSignDesigns);
-  const yardSignPromoRate = promoApplied
-    ? Number(activeCartPromo?.discountPercentage || 0) / 100
-    : 0;
+  const yardSignTotalQty = yardSignDesigns.length ? getTotalDesignQuantity(yardSignDesigns) : quantity;
+  const yardSignPromo = firstOrderOffer.checking ? null : activeCartPromo;
   const yardSignPricing = useMemo(() => {
     if (!isYardSign) return null;
     return calcYardSignPricing(
@@ -804,9 +804,9 @@ const Design: React.FC = () => {
       yardSignTotalQty,
       yardSignAddStepStakes,
       yardSignStepStakeQty,
-      yardSignPromoRate,
+      yardSignPromo,
     );
-  }, [isYardSign, yardSignSidedness, yardSignTotalQty, yardSignAddStepStakes, yardSignStepStakeQty, yardSignPromoRate]);
+  }, [isYardSign, yardSignSidedness, yardSignTotalQty, yardSignAddStepStakes, yardSignStepStakeQty, yardSignPromo]);
 
   // Yard sign quantity validation
   const yardSignQuantityValid = validateYardSignQuantity(yardSignTotalQty);
@@ -1006,8 +1006,8 @@ const Design: React.FC = () => {
   const selectedMaterial = MATERIALS.find(m => m.mapped === material) || MATERIALS[0];
   const materialLabel = isCarMagnet ? 'Premium Magnetic Material' : selectedMaterial.label;
   const grommetsLabel = DESIGN_GROMMET_OPTIONS.find(o => o.value === grommets)?.label || 'None';
-  const widthDisplay = isCarMagnet ? `${widthIn}"` : (widthInR > 0 ? `${widthFt}'${widthInR}"` : `${widthFt}'`);
-  const heightDisplay = isCarMagnet ? `${heightIn}"` : (heightInR > 0 ? `${heightFt}'${heightInR}"` : `${heightFt}'`);
+  const widthDisplay = (isYardSign || isCarMagnet) ? `${widthIn}"` : (widthInR > 0 ? `${widthFt}'${widthInR}"` : `${widthFt}'`);
+  const heightDisplay = (isYardSign || isCarMagnet) ? `${heightIn}"` : (heightInR > 0 ? `${heightFt}'${heightInR}"` : `${heightFt}'`);
 
   // Quantity discount info
   const quantityDiscountRate = bannerPricing.quantityDiscountRate;
@@ -1799,6 +1799,7 @@ const Design: React.FC = () => {
     setHasReviewedOptions(false);
     if (isYardSign) {
       setYardSignDesigns([]);
+      setQuantity(YARD_SIGN_MIN_QUANTITY);
     }
   }, [isYardSign, removeArtwork]);
 
@@ -3054,12 +3055,10 @@ const Design: React.FC = () => {
                 <YardSignConfigurator
                   ref={yardSignConfiguratorRef}
                   designs={yardSignDesigns}
-                  onDesignsChange={(next) => {
-                    // Mark stakes/print-side as reviewed implicitly when the
-                    // user actively engages with quantities — but defer the
-                    // explicit "Review Stakes" stop to the dedicated CTA.
-                    setYardSignDesigns(next);
-                  }}
+                  onDesignsChange={setYardSignDesigns}
+                  orderQuantity={yardSignTotalQty}
+                  onOrderQuantityChange={setQuantity}
+                  orderTotalCents={(yardSignPricing?.totalCents ?? 0) + previewSameDayFeeCents + previewSaturdayFeeCents}
                   sidedness={yardSignSidedness}
                   onSidednessChange={(s) => {
                     setYardSignSidedness(s);

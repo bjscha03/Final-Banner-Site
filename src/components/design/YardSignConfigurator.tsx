@@ -31,7 +31,7 @@ import {
   YARD_SIGN_DOUBLE_SIDED_CENTS,
   YARD_SIGN_WIDTH_IN,
   YARD_SIGN_HEIGHT_IN,
-  getTotalDesignQuantity,
+  assignYardSignCopies,
   validateYardSignQuantity,
 } from '@/lib/yard-sign-pricing';
 import { usd } from '@/lib/pricing';
@@ -60,6 +60,7 @@ import ArtworkPreviewEditor, {
 } from '@/components/design/ArtworkPreviewEditor';
 import ConfigCard from '@/components/design/layout/ConfigCard';
 import YardSignStakeOptions from './YardSignStakeOptions';
+import QuantityStepper from './QuantityStepper';
 import { logUx } from '@/lib/uxAnalytics';
 import { createStableCartItemId } from '@/lib/cartItemIdentity';
 import {
@@ -142,8 +143,9 @@ interface YardSignConfiguratorProps {
   onPromoRemove: () => void;
   /** When set, auto-opens the preview modal for this design ID on mount */
   autoOpenDesignId?: string | null;
-  /** Optional quantity preset to apply to first uploaded design */
-  initialDesignQuantity?: number;
+  orderQuantity: number;
+  onOrderQuantityChange: (quantity: number) => void;
+  orderTotalCents: number;
   /** Optional callback fired whenever the internal upload state changes — lets the parent drive the mobile sticky CTA. */
   onUploadStatusChange?: (status: { isUploading: boolean; uploadError: string | null }) => void;
   /** Optional callback fired when the user taps "Done" in the preview modal — lets the parent log analytics / advance the sticky CTA. */
@@ -179,7 +181,9 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
   onPromoApply,
   onPromoRemove,
   autoOpenDesignId,
-  initialDesignQuantity,
+  orderQuantity,
+  onOrderQuantityChange,
+  orderTotalCents,
   onUploadStatusChange,
   onPreviewDone,
   previewOpenTrigger,
@@ -191,6 +195,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [fitDesignId, setFitDesignId] = useState<string | null>(null);
   const designsRef = useRef(designs); designsRef.current = designs;
+  const orderQuantityRef = useRef(orderQuantity); orderQuantityRef.current = orderQuantity;
   const [fitUndo, setFitUndo] = useState<Record<string, { original: YardSignDesign; appliedFileKey: string; normalized: NormalizedArtworkTransform | null }>>({});
   const [restoredFitTransform, setRestoredFitTransform] = useState<NormalizedArtworkTransform | null>(null);
   const fitDesign = designs.find(design => design.id === fitDesignId);
@@ -217,8 +222,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
     });
   }, [showCreateWithAI]);
 
-  const totalQuantity = getTotalDesignQuantity(designs);
-  const quantityValidation = validateYardSignQuantity(totalQuantity);
+  const quantityValidation = validateYardSignQuantity(orderQuantity);
   const canAddMoreDesigns = designs.length < YARD_SIGN_MAX_DESIGNS;
 
   // Preview modal state
@@ -351,7 +355,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
           continue;
         }
 
-        onDesignsChange(designs.map((design) => design.id === previewDesignId ? {
+        onDesignsChange(designsRef.current.map((design) => design.id === previewDesignId ? {
           ...design,
           imgScale: artifact.scaleX,
           imgScaleY: artifact.scaleY,
@@ -407,10 +411,12 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
       });
       const isPdf = isPdfArtwork(file);
       const thumbnailUrl = result.previewUrl || result.secureUrl;
-      const presetFirstDesignQuantity = Math.max(
-        YARD_SIGN_MIN_QUANTITY,
-        Math.min(YARD_SIGN_MAX_QUANTITY, initialDesignQuantity || YARD_SIGN_MIN_QUANTITY),
-      );
+      // The customer can change quantity or artwork while the file is uploading.
+      const current = designsRef.current;
+      if (current.length >= YARD_SIGN_MAX_DESIGNS) {
+        setUploadError(`Maximum ${YARD_SIGN_MAX_DESIGNS} designs per order.`);
+        return;
+      }
       const newDesign: YardSignDesign = {
         id: createStableCartItemId('yard-design'),
         fileName: file.name,
@@ -418,17 +424,21 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
         fileKey: result.fileKey,
         thumbnailUrl,
         isPdf,
-        quantity: designs.length === 0 ? presetFirstDesignQuantity : 1,
+        quantity: current.length ? 0 : orderQuantityRef.current,
         imgScale: 1,
         imgPos: { x: 0, y: 0 },
       };
-      onDesignsChange([...designs, newDesign]);
+      const next = current.length
+        ? assignYardSignCopies([...current, newDesign], newDesign.id, 1)
+        : [newDesign];
+      designsRef.current = next;
+      onDesignsChange(next);
       setPreviewDesignId(newDesign.id);
       logUx('preview_opened', { source: 'yard_sign_after_upload', designId: newDesign.id });
       setPreviewImgPos({ x: 0, y: 0 });
       setPreviewImgScale(1);
       setUploadError('');
-      return newDesign;
+      return next[next.length - 1];
     } catch (error) {
       console.error('[YardSign] original upload failed', error);
       setUploadError(getArtworkUploadMessage(error));
@@ -439,16 +449,27 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
     } finally {
       setIsUploading(false);
     }
-  }, [canAddMoreDesigns, designs, onDesignsChange, initialDesignQuantity]);
+  }, [canAddMoreDesigns, onDesignsChange]);
 
   const removeDesign = useCallback((id: string) => {
-    onDesignsChange(designs.filter(d => d.id !== id));
+    const remaining = designs.filter(design => design.id !== id);
+    const removed = designs.find(design => design.id === id);
+    if (remaining.length && removed) {
+      remaining[0] = { ...remaining[0], quantity: remaining[0].quantity + removed.quantity };
+    }
+    onDesignsChange(remaining);
   }, [designs, onDesignsChange]);
 
-  const updateDesignQuantity = useCallback((id: string, qty: number) => {
-    const clamped = Math.max(1, Math.min(YARD_SIGN_MAX_QUANTITY, qty));
-    onDesignsChange(designs.map(d => d.id === id ? { ...d, quantity: clamped } : d));
-  }, [designs, onDesignsChange]);
+  function changeOrderQuantity(next: number) {
+    if (next === orderQuantity || !validateYardSignQuantity(next).valid) return;
+    onOrderQuantityChange(next);
+    if (!designs.length) return;
+    const perDesign = Math.floor(next / designs.length);
+    const remainder = next % designs.length;
+    onDesignsChange(designs.map((design, index) => ({
+      ...design, quantity: perDesign + (index < remainder ? 1 : 0),
+    })));
+  }
 
   return (
     <div className="space-y-6 max-w-full overflow-hidden">
@@ -514,33 +535,38 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
         </p>
       </ConfigCard>
 
-      <YardSignStakeOptions
-        totalQuantity={totalQuantity}
-        enabled={addStepStakes}
-        quantity={stepStakeQuantity}
-        onEnabledChange={onStepStakesChange}
-        onQuantityChange={onStepStakeQuantityChange}
-        restorationKey={autoOpenDesignId}
-      />
-
-      {/* Step 3 — Add Designs (upload + per-design quantity) */}
-      <ConfigCard step={3} title="Add Designs" id="yard-upload-section" headerRight={<span className="text-xs font-normal text-gray-400">Up to {YARD_SIGN_MAX_DESIGNS} designs per order</span>}>
-        <p className="text-xs text-gray-500 mb-2">
-          Upload up to {YARD_SIGN_MAX_DESIGNS} designs. Each will be printed at 24&quot; × 18&quot;. Assign a quantity to each design.
-        </p>
-        <div className="mt-4 mb-4 rounded-xl border border-amber-200/80 bg-amber-50/60 px-3.5 py-3 sm:px-4 sm:py-3.5">
-          <div className="flex items-start gap-2.5">
-            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-700" aria-hidden="true" />
-            <div className="border-l-2 border-amber-400/90 pl-3">
-              <p className="text-base sm:text-lg font-extrabold text-amber-900 leading-tight tracking-tight">
-                Minimum order: {YARD_SIGN_MIN_QUANTITY} signs
-              </p>
-              <p className="mt-1 text-sm sm:text-[0.95rem] font-medium text-amber-800/95 leading-snug">
-                Quantities must be ordered in increments of {YARD_SIGN_INCREMENT}.
-              </p>
-            </div>
+      <ConfigCard step={3} title="Quantity" id="yard-quantity-section">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <QuantityStepper min={YARD_SIGN_MIN_QUANTITY} max={YARD_SIGN_MAX_QUANTITY}
+            step={YARD_SIGN_INCREMENT} value={orderQuantity} onChange={changeOrderQuantity} />
+          <div aria-live="polite" className="min-w-0">
+            <p className="text-xs font-semibold text-slate-600">Order total before tax</p>
+            <strong data-yard-order-total className="text-2xl font-bold text-slate-900">{usd(orderTotalCents / 100)}</strong>
+            <span className="ml-2 text-sm text-slate-600">for {orderQuantity} signs</span>
           </div>
         </div>
+        <p className="mt-3 text-sm text-slate-600">
+          Choose {YARD_SIGN_MIN_QUANTITY}–{YARD_SIGN_MAX_QUANTITY} signs in increments of {YARD_SIGN_INCREMENT}.
+        </p>
+        <div role="group" aria-label="Quick sign quantities" className="mt-2 flex flex-wrap gap-2">
+          {Array.from({ length: (YARD_SIGN_MAX_QUANTITY - YARD_SIGN_MIN_QUANTITY) / YARD_SIGN_INCREMENT + 1 },
+            (_, index) => YARD_SIGN_MIN_QUANTITY + index * YARD_SIGN_INCREMENT).map(qty => (
+            <button key={qty} type="button" aria-pressed={orderQuantity === qty} onClick={() => changeOrderQuantity(qty)}
+              className={`min-h-10 min-w-11 rounded-lg border px-3 text-sm font-semibold transition-colors ${orderQuantity === qty
+                ? 'border-orange-500 bg-orange-500 text-white'
+                : 'border-slate-200 bg-white text-slate-700 hover:border-orange-400'}`}>
+              {qty}
+            </button>
+          ))}
+        </div>
+        {!quantityValidation.valid && <p role="alert" className="mt-2 text-sm text-red-700">{quantityValidation.message}</p>}
+      </ConfigCard>
+
+      <ConfigCard step={4} title="Upload your artwork" id="yard-upload-section" headerRight={<span className="text-xs font-normal text-gray-500">Up to {YARD_SIGN_MAX_DESIGNS} designs</span>}>
+        <p className="mb-3 text-sm text-slate-600">
+          Your {orderQuantity} signs can share one design or be split across multiple designs.
+          {designs.length > 1 && ' Adjust copies below. Changing the order quantity splits it evenly across your designs.'}
+        </p>
 
         {/* Design rows */}
         {designs.length > 0 && (
@@ -569,31 +595,37 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
                   <p className="text-sm font-medium text-gray-800 truncate max-w-full">{design.fileName}</p>
                   <p className="text-xs text-gray-400">Design {idx + 1}</p>
                 </div>
-                {/* Quantity control */}
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <button
-                    onClick={() => updateDesignQuantity(design.id, design.quantity - 1)}
-                    className="w-7 h-7 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors"
-                    aria-label="Decrease quantity"
-                  >
-                    <Minus className="h-3 w-3 text-gray-600" />
-                  </button>
-                  <input
-                    type="number"
-                    min={1}
-                    max={YARD_SIGN_MAX_QUANTITY}
-                    value={design.quantity}
-                    onChange={e => updateDesignQuantity(design.id, Math.max(1, +e.target.value || 1))}
-                    className="w-14 border rounded-lg px-2 py-1 text-sm text-center"
-                  />
-                  <button
-                    onClick={() => updateDesignQuantity(design.id, design.quantity + 1)}
-                    className="w-7 h-7 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors"
-                    aria-label="Increase quantity"
-                  >
-                    <Plus className="h-3 w-3 text-gray-600" />
-                  </button>
-                </div>
+                {designs.length === 1 ? (
+                  <span className="text-sm font-semibold text-slate-700">{orderQuantity} signs</span>
+                ) : (
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button
+                      disabled={design.quantity <= 1}
+                      onClick={() => onDesignsChange(assignYardSignCopies(designs, design.id, design.quantity - 1))}
+                      className="w-7 h-7 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors"
+                      aria-label={`Decrease copies of ${design.fileName}`}
+                    >
+                      <Minus className="h-3 w-3 text-gray-600" />
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      max={orderQuantity - designs.length + 1}
+                      aria-label={`Copies of ${design.fileName}`}
+                      value={design.quantity}
+                      onChange={e => onDesignsChange(assignYardSignCopies(designs, design.id, Number(e.target.value)))}
+                      className="w-14 border rounded-lg px-2 py-1 text-sm text-center"
+                    />
+                    <button
+                      disabled={design.quantity >= orderQuantity - designs.length + 1}
+                      onClick={() => onDesignsChange(assignYardSignCopies(designs, design.id, design.quantity + 1))}
+                      className="w-7 h-7 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors"
+                      aria-label={`Increase copies of ${design.fileName}`}
+                    >
+                      <Plus className="h-3 w-3 text-gray-600" />
+                    </button>
+                  </div>
+                )}
                 {/* Remove */}
                 <button
                   onClick={() => removeDesign(design.id)}
@@ -604,61 +636,6 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
                 </button>
               </div>
             ))}
-
-            {/* Running total — anchor target for "Assign Quantities" / "Fix Quantity" sticky CTA. */}
-            <div id="yard-quantity-section" className={`scroll-mt-32 flex items-center justify-between px-3 py-2 rounded-lg text-sm ${
-              !quantityValidation.valid && totalQuantity > 0 ? 'bg-red-50 border border-red-200' : 'bg-gray-50'
-            }`}>
-              <span className={!quantityValidation.valid && totalQuantity > 0 ? 'text-red-700 font-semibold' : 'text-gray-600 font-medium'}>
-                Total Signs: {totalQuantity}
-              </span>
-              {quantityValidation.valid && totalQuantity > 0 && (
-                <span className="text-green-600 text-xs flex items-center gap-1">
-                  <CheckCircle className="h-3.5 w-3.5" />
-                  Valid order
-                </span>
-              )}
-              {!quantityValidation.valid && totalQuantity > 0 && (
-                <span className="text-red-600 text-xs flex items-center gap-1">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  {totalQuantity > YARD_SIGN_MAX_QUANTITY ? `Max ${YARD_SIGN_MAX_QUANTITY}` : `Must be multiple of ${YARD_SIGN_INCREMENT}`}
-                </span>
-              )}
-              {totalQuantity === 0 && (
-                <span className="text-gray-400 text-xs">Min {YARD_SIGN_MIN_QUANTITY} signs</span>
-              )}
-            </div>
-
-            {/* Quick-select total quantity buttons */}
-            {designs.length > 0 && (
-              <div className="space-y-1.5">
-                <p className="text-xs text-gray-500 font-medium">Quick select total:</p>
-                <div className="flex flex-wrap gap-2">
-                  {[10, 20, 30, 40, 50, 60, 70, 80, 90].map(qty => (
-                    <button
-                      key={qty}
-                      onClick={() => {
-                        // Distribute quantity evenly across designs, remainder goes to first
-                        const perDesign = Math.floor(qty / designs.length);
-                        const remainder = qty % designs.length;
-                        const updated = designs.map((d, i) => ({
-                          ...d,
-                          quantity: perDesign + (i < remainder ? 1 : 0),
-                        }));
-                        onDesignsChange(updated);
-                      }}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
-                        totalQuantity === qty
-                          ? 'bg-orange-500 text-white border-orange-500'
-                          : 'bg-white text-gray-700 border-gray-200 hover:border-orange-400 hover:bg-orange-50'
-                      }`}
-                    >
-                      {qty}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -696,17 +673,16 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
             {uploadError}
           </p>
         )}
-
-        {/* 90-sign cap exceeded error */}
-        {!quantityValidation.valid && quantityValidation.message && (
-          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl">
-            <p className="text-sm text-red-700 font-medium flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-              {quantityValidation.message}
-            </p>
-          </div>
-        )}
       </ConfigCard>
+
+      <YardSignStakeOptions
+        totalQuantity={orderQuantity}
+        enabled={addStepStakes}
+        quantity={stepStakeQuantity}
+        onEnabledChange={onStepStakesChange}
+        onQuantityChange={onStepStakeQuantityChange}
+        restorationKey={autoOpenDesignId}
+      />
 
       {/* Helper text */}
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-1.5">

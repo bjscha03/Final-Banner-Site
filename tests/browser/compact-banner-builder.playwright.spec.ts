@@ -505,12 +505,52 @@ for (const route of ['/google-ads-banner', '/design?product=vinyl-banners']) {
   });
 }
 
+for (const route of ['/design?product=yard-signs', '/google-ads-banner?product=yard-signs']) {
+  test(`yard sign quantity and price are available before artwork on ${route}`, async ({ page }, info) => {
+    await installUploadAndFunctionHarness(page, `yard-quantity-${info.project.name}`);
+    await page.goto(route, { waitUntil: 'domcontentloaded' });
+    const quantity = page.locator('#yard-quantity-section');
+    const input = quantity.getByRole('spinbutton', { name: 'Quantity' });
+    const increase = quantity.getByRole('button', { name: 'Increase quantity' });
+    const decrease = quantity.getByRole('button', { name: 'Decrease quantity' });
+    const total = quantity.locator('[data-yard-order-total]');
+    await expect(input).toHaveValue('10');
+    await expect(decrease).toBeDisabled();
+    await expect(quantity.getByRole('button', { name: '10', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(total).toHaveText(/^\$(96|120)\.00$/);
+    await expect(page.getByText('Add a design to see pricing')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Checkout', exact: true }).first()).toBeDisabled();
+    expect(await page.locator('section[id^="yard-"]').evaluateAll(nodes => nodes.map(node => node.id))).toEqual([
+      'yard-size-section', 'yard-print-side-section', 'yard-quantity-section', 'yard-upload-section', 'yard-finishing-section',
+    ]);
+    await increase.click();
+    await expect(input).toHaveValue('20');
+    await expect(total).toHaveText(/^\$(192|240)\.00$/);
+    await input.fill('90');
+    await expect(increase).toBeDisabled();
+    await expect(total).toHaveText(/^\$(864|1080|1,080)\.00$/);
+    await input.fill('15');
+    await input.blur();
+    await expect(input).toHaveValue('90');
+    await quantity.getByRole('button', { name: '30', exact: true }).click();
+    await decrease.click();
+    await expect(input).toHaveValue('20');
+    await page.locator('#yard-print-side-section').getByRole('button', { name: /Double-Sided/ }).click();
+    await expect(total).toHaveText(/^\$(224|280)\.00$/);
+    const setup = page.locator('#yard-finishing-section');
+    await setup.getByText('With stakes', { exact: true }).click();
+    await expect(setup).toContainText('20 signs = 20 stakes');
+    await expect(total).toHaveText(/^\$(248|310)\.00$/);
+  });
+}
+
 test('yard sign hardware stays clear through upload, quantity changes and checkout', async ({ page }, info) => {
   await installUploadAndFunctionHarness(page, `yard-stakes-${info.project.name}`);
   const artwork = await sharp({ create: { width: 1200, height: 900, channels: 3, background: '#f8fafc' } })
     .composite([{ input: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900"><rect x="80" y="80" width="1040" height="740" fill="#18448d"/><circle cx="600" cy="450" r="220" fill="#ff6a00"/></svg>') }])
     .png().toBuffer();
   await page.goto('/design?product=yard-signs', { waitUntil: 'domcontentloaded' });
+  const quantity = page.locator('#yard-quantity-section');
   const setup = page.locator('#yard-finishing-section');
   const preview = page.getByRole('region', { name: 'Yard sign product preview' });
   await expect(setup.getByRole('heading')).toHaveText('Choose your setup');
@@ -519,19 +559,22 @@ test('yard sign hardware stays clear through upload, quantity changes and checko
   await expect(setup.getByRole('radio', { name: 'With stakes', exact: true })).toBeChecked();
   await expect(preview.locator('[data-yard-sign-hardware]')).toHaveCount(1);
   await setup.screenshot({ path: info.outputPath('yard-sign-stake-options.png') });
+  await quantity.getByRole('button', { name: 'Increase quantity' }).click();
+  await expect(setup).toContainText('20 signs = 20 stakes');
   const chooser = page.waitForEvent('filechooser');
   await page.locator('#yard-upload-section').getByRole('button', { name: /Upload your artwork/ }).click();
   await (await chooser).setFiles({ name: 'yard-sign-check.png', mimeType: 'image/png', buffer: artwork });
   await expect(page.getByRole('heading', { name: 'Yard Sign Preview', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Yard Sign Preview', exact: true })).toHaveCount(0);
-  await expect(setup).toContainText('10 signs = 10 stakes');
-  const upload = page.locator('#yard-upload-section');
-  await upload.getByRole('button', { name: '20', exact: true }).click();
+  await expect(setup).toContainText('20 signs = 20 stakes');
+  await expect(page.locator('#yard-upload-section')).toContainText('20 signs');
+  await quantity.getByRole('button', { name: '30', exact: true }).click();
+  await quantity.getByRole('button', { name: 'Decrease quantity' }).click();
   await expect(setup).toContainText('20 signs = 20 stakes');
   await setup.getByRole('button', { name: 'Adjust quantity', exact: true }).click();
   await setup.getByRole('button', { name: 'Decrease stakes', exact: true }).click();
-  await upload.getByRole('button', { name: '30', exact: true }).click();
+  await quantity.getByRole('button', { name: '30', exact: true }).click();
   await expect(setup.getByRole('spinbutton', { name: 'Stakes', exact: true })).toHaveValue('19');
   await setup.getByText('Without stakes', { exact: true }).click();
   await expect(setup).toContainText('No stakes included.');
