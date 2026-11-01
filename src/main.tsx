@@ -9,6 +9,7 @@ import { isPreviewEnvironment, isProductionHost } from './lib/environment';
 import { installPayPalCheckoutStorageGuard } from './lib/paypalCheckoutStorageGuard';
 import { installPayPalCaptureResponseGuard } from './lib/paypalCaptureResponseGuard';
 import { installChunkRecovery } from './lib/chunkRecovery';
+import { canHydrateRoute } from './lib/prerenderRoute';
 import { installSiteIssueMonitoring } from './lib/siteIssueReporter';
 import { consumeOrderViewCredentialFromCurrentRoute } from './lib/orderViewCredential';
 import { createPreviewAdminCookie, hasPreviewAdminCookie } from './lib/previewAdmin';
@@ -174,7 +175,11 @@ establishPreviewAdminSession();
 
 const RootComponent = shouldRequirePreviewGate() ? PreviewAccessGate : App;
 const rootElement = document.getElementById('root')!;
-const canHydrate = document.documentElement.dataset.prerendered === 'true' && RootComponent === App;
+const canHydrate = RootComponent === App && canHydrateRoute(
+  document.documentElement.dataset.prerendered,
+  document.documentElement.dataset.prerenderedPath,
+  window.location.pathname,
+);
 
 if (canHydrate) {
   hydrateRoot(rootElement, <RootComponent />, {
@@ -186,3 +191,4 @@ if (canHydrate) {
 }
 
 import './buildId';
+

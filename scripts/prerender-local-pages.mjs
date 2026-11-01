@@ -21,7 +21,7 @@ async function makeDocument(url) {
   const rendered = await render(url);
   let html = template;
   for (const pattern of managedTagPatterns) html = html.replace(pattern, '');
-  html = html.replace('<html lang="en">', `<html lang="en" data-prerendered="true"${rendered.htmlAttributes ? ` ${rendered.htmlAttributes}` : ''}>`);
+  html = html.replace('<html lang="en">', `<html lang="en" data-prerendered="true" data-prerendered-path="${url.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"${rendered.htmlAttributes ? ` ${rendered.htmlAttributes}` : ''}>`);
   if (rendered.bodyAttributes) html = html.replace('<body>', `<body ${rendered.bodyAttributes}>`);
   html = html.replace('</head>', `    ${rendered.headHtml}\n  </head>`);
   html = html.replace('<div id="root"></div>', `<div id="root">${rendered.appHtml}</div>`);
@@ -68,3 +68,4 @@ console.log(`Prerendered ${prerenderRoutes.length} routes plus 404.html; ${index
 // Its separate verification leaves all existing local-route gates unchanged.
 const { publishAIArticle } = await import('./prerender-ai-blog.mjs');
 await publishAIArticle({ distDir, makeDocument });
+

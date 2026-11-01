@@ -102,6 +102,16 @@ jobs:
       - name: Install exact dependencies
         run: npm ci
 
+      - name: Verify admin sessions, route hydration, and issue diagnostics
+        run: >-
+          npx vitest run --config vitest.ai.config.ts
+          src/lib/serverAuth.session.test.ts
+          src/lib/auth.logout.test.ts
+          src/lib/prerenderRoute.test.ts
+          src/lib/siteIssueReporter.test.ts
+          src/lib/siteIssueSchema.test.ts
+          src/lib/chunkRecovery.test.ts
+
       - name: Verify artwork removal and upload recovery
         run: >-
           npx vitest run
