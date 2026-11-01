@@ -123,8 +123,8 @@ const YardSignPriceBreakdown: React.FC<YardSignPriceSummaryProps> = ({
 
 const YardSignPriceSummary: React.FC<YardSignPriceSummaryProps> = (props) => (
   <>
-    <YardSignOrderPreview designs={props.designs} withStakes={props.pricing.addStepStakes} />
     <YardSignPriceBreakdown {...props} />
+    <YardSignOrderPreview designs={props.designs} withStakes={props.pricing.addStepStakes} />
   </>
 );
 

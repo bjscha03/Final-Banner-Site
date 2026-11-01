@@ -32,6 +32,7 @@ let designs: YardSignDesign[], root: ReturnType<typeof createRoot>, host: HTMLDi
 const changed = vi.fn();
 const render = async () => {
   await act(async () => root.render(<YardSignConfigurator designs={designs} onDesignsChange={next => { designs = next; changed(next); }}
+    orderQuantity={designs.reduce((sum, design) => sum + design.quantity, 0)} onOrderQuantityChange={vi.fn()} orderTotalCents={15500}
     sidedness="double" onSidednessChange={vi.fn()} addStepStakes stepStakeQuantity={10} onStepStakesChange={vi.fn()} onStepStakeQuantityChange={vi.fn()}
     promoCode="" promoApplied={false} onPromoCodeChange={vi.fn()} onPromoApply={vi.fn()} onPromoRemove={vi.fn()} />));
 };

@@ -4,11 +4,11 @@ import {
   dedupePreviewImageSources,
   preloadFirstAvailablePreviewImage,
 } from '@/lib/previewImageCache';
-import OriginalYardSignConfigurator from './YardSignConfigurator';
+import OriginalYardSignConfigurator, { type YardSignConfiguratorHandle } from './YardSignConfigurator';
 
-type YardSignConfiguratorProps = React.ComponentProps<typeof OriginalYardSignConfigurator>;
+type YardSignConfiguratorProps = React.ComponentPropsWithoutRef<typeof OriginalYardSignConfigurator>;
 
-const StableYardSignConfigurator: React.FC<YardSignConfiguratorProps> = (props) => {
+const StableYardSignConfigurator = React.forwardRef<YardSignConfiguratorHandle, YardSignConfiguratorProps>(function StableYardSignConfigurator(props, ref) {
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   useLayoutEffect(() => {
@@ -136,9 +136,9 @@ const StableYardSignConfigurator: React.FC<YardSignConfiguratorProps> = (props) 
           opacity: 1 !important;
         }
       `}</style>
-      <OriginalYardSignConfigurator {...props} />
+      <OriginalYardSignConfigurator {...props} ref={ref} />
     </div>
   );
-};
+});
 
 export default StableYardSignConfigurator;

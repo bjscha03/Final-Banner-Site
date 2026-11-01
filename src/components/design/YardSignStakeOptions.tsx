@@ -3,6 +3,7 @@ import { Check, Minus, Plus } from 'lucide-react';
 import { usd } from '@/lib/pricing';
 import { YARD_SIGN_MAX_QUANTITY, YARD_SIGN_MIN_QUANTITY, YARD_SIGN_STEP_STAKE_CENTS } from '@/lib/yard-sign-pricing';
 import YardSignMockup from './YardSignMockup';
+import StepHeader from './layout/StepHeader';
 
 interface Props {
   totalQuantity: number;
@@ -45,7 +46,7 @@ export default function YardSignStakeOptions({ totalQuantity, enabled, quantity,
 
   return (
     <section id="yard-finishing-section" aria-labelledby={`${groupName}-title`} className="min-w-0 scroll-mt-32 rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:scroll-mt-24 md:p-6">
-      <h3 id={`${groupName}-title`} className="text-lg font-bold text-[#0B1F3A]">Choose your setup</h3>
+      <div id={`${groupName}-title`}><StepHeader step={5} title="Choose your setup" /></div>
       <p className="mb-4 mt-1 text-sm text-slate-600">Need stakes for ground display?</p>
       <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Yard sign stakes">
         {[true, false].map(withStakes => (

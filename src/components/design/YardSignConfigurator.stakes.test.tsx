@@ -21,15 +21,18 @@ let restore: (designs: YardSignDesign[], enabled: boolean, quantity: number, key
 
 function Harness({ empty = false }: { empty?: boolean }) {
   const [designs, setDesigns] = useState(empty ? [] : [first, second]);
+  const [selectedTotal, setSelectedTotal] = useState(10);
+  const orderQuantity = designs.length ? getTotalDesignQuantity(designs) : selectedTotal;
   const [enabled, setEnabled] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [restoreKey, setRestoreKey] = useState<string | null>(null);
   const [sidedness, setSidedness] = useState<'single' | 'double'>('single');
-  const pricing = calcYardSignPricing(sidedness, getTotalDesignQuantity(designs), enabled, quantity);
-  state = { designs, enabled, quantity, total: pricing.totalCents, discounted: calcYardSignPricing(sidedness, getTotalDesignQuantity(designs), enabled, quantity, .2).totalCents };
+  const pricing = calcYardSignPricing(sidedness, orderQuantity, enabled, quantity);
+  state = { designs, enabled, quantity, total: pricing.totalCents, discounted: calcYardSignPricing(sidedness, orderQuantity, enabled, quantity, .2).totalCents };
   restore = (next, stakes, qty, key) => { setDesigns(next); setEnabled(stakes); setQuantity(qty); setRestoreKey(key); };
   return <>
     <YardSignConfigurator designs={designs} onDesignsChange={setDesigns} sidedness={sidedness} onSidednessChange={setSidedness}
+      orderQuantity={orderQuantity} onOrderQuantityChange={setSelectedTotal} orderTotalCents={pricing.totalCents}
       addStepStakes={enabled} stepStakeQuantity={quantity} onStepStakesChange={setEnabled} onStepStakeQuantityChange={setQuantity}
       autoOpenDesignId={restoreKey} promoCode="" promoApplied={false} onPromoCodeChange={vi.fn()} onPromoApply={vi.fn()} onPromoRemove={vi.fn()} />
     <YardSignOrderPreview designs={designs} withStakes={enabled} />
@@ -83,14 +86,17 @@ it('matches total quantities across designs and preserves a customer-adjusted st
   await clickText('40');
   expect(state.quantity).toBe(40);
   await clickSelector('button[aria-label="Remove second.pdf"]');
-  expect(state.quantity).toBe(20);
-  expect(state.designs[0]).toEqual({ ...first, quantity: 20 });
+  expect(state.quantity).toBe(40);
+  expect(state.designs[0]).toEqual({ ...first, quantity: 40 });
 });
 
 it('supports selecting stakes before upload and follows the first design quantity', async () => {
   await act(async () => root.render(<Harness key="empty" empty />));
+  expect(host.querySelector('[data-yard-order-total]')?.textContent).toBe('$120.00');
+  expect(host.querySelector<HTMLInputElement>('input[aria-label="Quantity"]')?.value).toBe('10');
   await clickSelector('input[aria-label="With stakes"]');
   expect(state.quantity).toBe(10);
+  expect(host.querySelector('[data-yard-order-total]')?.textContent).toBe('$135.00');
   // The parent receives upload results through the same designs prop.
   await act(async () => restore([{ ...first, quantity: 20 }], true, 10, null as any));
   expect(state.quantity).toBe(20);
@@ -126,4 +132,17 @@ it('keeps custom stakes within the existing 1–90 limit and uses accessible rea
   expect(radios.map(input => input.type)).toEqual(['radio', 'radio']);
   expect(radios[0].name).toBe(radios[1].name);
   expect(host.querySelector('#yard-finishing-section h3')?.textContent).toBe('Choose your setup');
+});
+
+it('keeps the chosen order total while reallocating copies or removing the final artwork', async () => {
+  await clickText('20');
+  await clickSelector('button[aria-label="Increase copies of second.pdf"]');
+  expect(state.designs.map(design => design.quantity)).toEqual([9, 11]);
+  expect(state.total).toBe(24000);
+  await clickSelector('button[aria-label="Remove original.pdf"]');
+  expect(state.designs).toEqual([{ ...second, quantity: 20 }]);
+  await clickSelector('button[aria-label="Remove second.pdf"]');
+  expect(state.designs).toEqual([]);
+  expect(host.querySelector<HTMLInputElement>('input[aria-label="Quantity"]')?.value).toBe('20');
+  expect(state.total).toBe(24000);
 });
