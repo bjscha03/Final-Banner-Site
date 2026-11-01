@@ -1,23 +1,9 @@
 import React from 'react';
 import LightProductHero from './LightProductHero';
 import BannerDiscountOffer from '@/components/design/BannerDiscountOffer';
-import {
-  Clock3,
-  Copy,
-  Layers3,
-  Monitor,
-  Signpost,
-  Truck,
-  type LucideIcon,
-} from 'lucide-react';
 import type { CityProductSlug } from '@/lib/seo/cityData';
 
 type HeroProductSlug = CityProductSlug | 'double-sided-banners' | 'large-banners-fast';
-
-interface HeroBenefit {
-  label: string;
-  icon: LucideIcon;
-}
 
 interface ProductHeroDefinition {
   eyebrow: string;
@@ -27,14 +13,7 @@ interface ProductHeroDefinition {
   secondaryLabel: string;
   secondaryUrl?: string;
   imageAlt: string;
-  benefits: HeroBenefit[];
 }
-
-const sharedBenefits: HeroBenefit[] = [
-  { label: '24-hour standard production', icon: Clock3 },
-  { label: 'Free next-day air after production', icon: Truck },
-  { label: 'Live print preview', icon: Monitor },
-];
 
 const HERO_DEFINITIONS: Record<HeroProductSlug, ProductHeroDefinition> = {
   'large-banners-fast': {
@@ -45,11 +24,6 @@ const HERO_DEFINITIONS: Record<HeroProductSlug, ProductHeroDefinition> = {
     secondaryLabel: 'Need a larger size? Request a custom quote',
     secondaryUrl: '/custom-quote',
     imageAlt: 'Large custom vinyl banner installed outside a business',
-    benefits: [
-      { label: '24-hour standard production', icon: Clock3 },
-      { label: 'Oversized banners may ship by freight', icon: Truck },
-      { label: 'Custom quote for larger projects', icon: Monitor },
-    ],
   },
   'double-sided-banners': {
     eyebrow: 'Double-sided banners · Heavy-duty 18 oz vinyl',
@@ -57,7 +31,6 @@ const HERO_DEFINITIONS: Record<HeroProductSlug, ProductHeroDefinition> = {
     primaryLabel: 'Design your double-sided banner',
     secondaryLabel: 'Choose your size & options',
     imageAlt: 'Front and back views of a finished green grand-opening vinyl banner with matching full-color artwork',
-    benefits: sharedBenefits,
   },
   'vinyl-banners': {
     eyebrow: 'Custom vinyl banners · Indoor · Outdoor · Mesh',
@@ -65,7 +38,6 @@ const HERO_DEFINITIONS: Record<HeroProductSlug, ProductHeroDefinition> = {
     primaryLabel: 'Design your vinyl banner',
     secondaryLabel: 'Explore materials & options',
     imageAlt: 'Custom Northline Market grand opening vinyl banner mounted to an outdoor railing',
-    benefits: sharedBenefits,
   },
   'yard-signs': {
     eyebrow: '24 × 18 yard signs · Single- or double-sided',
@@ -73,11 +45,6 @@ const HERO_DEFINITIONS: Record<HeroProductSlug, ProductHeroDefinition> = {
     primaryLabel: 'Design your yard signs',
     secondaryLabel: 'View sign options',
     imageAlt: 'Custom Highland Park Homes open house yard sign displayed in a front lawn',
-    benefits: [
-      { label: '24 × 18 corrugated plastic', icon: Layers3 },
-      { label: 'Single- or double-sided printing', icon: Copy },
-      { label: 'Optional step stakes', icon: Signpost },
-    ],
   },
   'car-magnets': {
     eyebrow: 'Custom car magnets · Square or rounded corners',
@@ -85,7 +52,6 @@ const HERO_DEFINITIONS: Record<HeroProductSlug, ProductHeroDefinition> = {
     primaryLabel: 'Design your car magnets',
     secondaryLabel: 'View size options',
     imageAlt: 'Custom Summit Home Services car magnet installed on a gray service vehicle',
-    benefits: sharedBenefits,
   },
 };
 
@@ -112,7 +78,6 @@ const ProductPageHero: React.FC<ProductPageHeroProps> = ({ productSlug, ctaUrl, 
       onStart={onStart}
       secondary={{ label: hero.secondaryLabel, href: hero.secondaryUrl ?? (productSlug === 'double-sided-banners' ? '#order-builder' : '#sizes-pricing') }}
       offer={isLargeBanner ? <BannerDiscountOffer /> : undefined}
-      benefits={hero.benefits}
     />
   );
 };

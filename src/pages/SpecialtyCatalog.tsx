@@ -3,7 +3,7 @@ import FirstOrderBadge from '@/components/product/FirstOrderBadge';
 import { useProductFirstOrderOffer } from '@/hooks/useProductFirstOrderOffer';
 import { specialtyDisplayPrice } from '@/lib/specialtyDisplayPrice';
 import { Link, useLocation } from 'react-router-dom';
-import { ArrowRight, Image, PencilLine, Truck } from 'lucide-react';
+import { ArrowRight, Truck } from 'lucide-react';
 import Layout from '@/components/Layout';
 import SEO from '@/components/SEO';
 import CompactProductHero from '@/components/product/CompactProductHero';
@@ -43,11 +43,6 @@ export default function SpecialtyCatalog() {
           {showBadge && <FirstOrderBadge />}
         </div>
       </div>
-      <div className="product-hero-benefits"><ul aria-label="Product ordering benefits">
-        <li><Truck aria-hidden="true" /><span>Free Next-Day Air Shipping</span></li>
-        <li><PencilLine aria-hidden="true" /><span>Easy Online Customization</span></li>
-        <li><Image aria-hidden="true" /><span>Vibrant Full-Color Printing</span></li>
-      </ul></div>
     </section>
 
     <div className="hidden lg:block"><GoogleReviewSpotlight /></div>

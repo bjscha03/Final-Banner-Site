@@ -89,6 +89,13 @@ for (const route of routes) {
   });
 }
 
+test('yard sign landing page shows production and shipping in the hero without a second benefits strip', async ({ page }) => {
+  await page.goto('/google-ads-banner?product=yard-signs');
+  const hero = page.locator('[data-google-product-hero="yard-signs"]');
+  await expect(hero.locator('.production-shipping-benefits li')).toContainText(['24 HOUR', 'FREE NEXT-DAY']);
+  await expect(page.getByRole('list', { name: 'Product ordering benefits', includeHidden: true })).toHaveCount(0);
+});
+
 test('catalog cards use the complete landscape photo without square padding',async({page},testInfo)=>{
   await page.goto('/products');
   const photo=page.locator('[data-product-card-photo]').first();
