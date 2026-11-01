@@ -59,7 +59,12 @@ test('approved responsive layout keeps artwork and authoritative totals visible'
     walletBoxes.push(box);
   }
   expect(Math.abs(walletBoxes[0].y - walletBoxes[1].y)).toBeLessThanOrEqual(1);
-  expect(Math.abs(walletBoxes[1].y - walletBoxes[2].y)).toBeLessThanOrEqual(1);
+  const rowWidth = await page.locator('.checkout-express-options').evaluate(row => row.clientWidth);
+  if (rowWidth >= 320) {
+    expect(Math.abs(walletBoxes[1].y - walletBoxes[2].y)).toBeLessThanOrEqual(1);
+  } else {
+    expect(walletBoxes[0].y).toBeGreaterThanOrEqual(walletBoxes[2].y + walletBoxes[2].height);
+  }
   await expectCardLogos(page);
   if ((page.viewportSize()?.width || 0) >= 1024) {
     expect(summaryBox!.x).toBeGreaterThan(formBox!.x + formBox!.width);
@@ -93,6 +98,25 @@ test('approved responsive layout keeps artwork and authoritative totals visible'
   await policy.locator('summary').click();
   await expect(policy.getByText(/We are not responsible for carrier delays/)).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test('all three express methods fit the checkout column at narrow phone widths', async ({ page }) => {
+  for (const width of [320, 360, 375, 390]) {
+    await page.setViewportSize({ width, height: 812 });
+    await page.goto('/checkout');
+    const row = page.locator('.checkout-express-options');
+    const methods = ['PayPal', 'Apple Pay test fixture', 'Google Pay test fixture']
+      .map(name => row.getByRole('button', { name, exact: true }));
+    for (const method of methods) await expect(method).toBeVisible();
+    const bounds = (await row.boundingBox())!;
+    for (const method of methods) {
+      const box = (await method.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(bounds.x - 1);
+      expect(box.x + box.width).toBeLessThanOrEqual(bounds.x + bounds.width + 1);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+    expect(await row.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  }
 });
 
 test('single-wallet and card-only devices retain clear payment choices', async ({ page }) => {
