@@ -1,3 +1,4 @@
+import { visibleArtworkBounds } from '@/components/design/artworkViewport';
 import retractableFitProducts from '../../../shared/retractable-fit-products.json';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
 import AIArtworkFitDialog from '@/components/design/AIArtworkFitDialog';
@@ -55,6 +56,8 @@ export default function SpecialtyDesigner({ product, offer, embedded = false, co
   const [constrain,setConstrain]=useState(true); const [guides,setGuides]=useState(true);
   const [busy,setBusy]=useState(''); const [error,setError]=useState(''); const [preview,setPreview]=useState('');
   const picker = useRef<FileUploaderHandle>(null);
+  const placementHeading = useRef<HTMLHeadingElement>(null);
+  const pendingUploadReveal = useRef<string>();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [fitOpen, setFitOpen] = useState(false);
   const fitProduct = `specialty:${product.slug}:${variant.id}:${panel.id}` as const;
@@ -65,6 +68,18 @@ export default function SpecialtyDesigner({ product, offer, embedded = false, co
   const input=useRef<HTMLInputElement>(null); const unmounted=useRef(false);
   const draft=drafts[panel.id]; const artwork=draft?.artwork || null;
   const compositionKey=[product.slug,variant.id,panel.id,artwork?.fileKey,template.widthIn,template.heightIn].join('|');
+  useEffect(() => {
+    if (!artwork?.editorIdentity || pendingUploadReveal.current !== artwork.editorIdentity) return;
+    const frame = requestAnimationFrame(() => {
+      pendingUploadReveal.current = undefined;
+      const heading = placementHeading.current;
+      if (!heading?.getClientRects().length) return;
+      const top = window.scrollY + heading.getBoundingClientRect().top - visibleArtworkBounds().top;
+      window.scrollTo({ top, behavior: 'instant' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [artwork?.editorIdentity]);
+
   function replacePlacement(next: UploadedArtworkFile, original?: UploadedArtworkFile) {
     revision.current++;
     setDrafts(current => ({...current, [panel.id]: {artwork: next, originalArtwork: original, transform: initialTransform, revision: 0, reviewed: false}}));
@@ -142,6 +157,7 @@ export default function SpecialtyDesigner({ product, offer, embedded = false, co
       if(isPdf){setBusy('Preparing a clear PDF preview…');const {renderPdfToDataUrl}=await import('@/utils/pdf/renderPdfToDataUrl');const raster=await renderPdfToDataUrl(file,{minWidth:1800,minHeight:1800,maxPixels:4_000_000,transparentBackground:product.slug==='acrylic-signs'});try {const blob=await (await fetch(raster.previewUrl)).blob();const uploaded=await uploadArtworkFile(new File([blob],blob.type==='image/png'?'pdf-preview.png':'pdf-preview.jpg',{type:blob.type}));previewUrl=uploaded.previewUrl;pixelWidth=raster.width;pixelHeight=raster.height;}finally{raster.cleanup();}}
       if (unmounted.current||token!==revision.current) {if(propagateError)throw new Error('The selected product or panel changed while saving. Please upload again for the current selection.');return;}
       const next:UploadedArtworkFile={editorIdentity:`${saved.fileKey}:${Date.now()}`,name:file.name,url:saved.secureUrl,fileKey:saved.fileKey,size:file.size,isPdf,previewUrl,permanentPreviewUrl:previewUrl,thumbnailUrl:previewUrl,productionUrl:saved.productionUrl,productionPublicId:saved.productionPublicId,resourceType:saved.resourceType,mimeType:saved.mimeType,originalWidth:pixelWidth,originalHeight:pixelHeight,artworkManifest:saved.artworkManifest};
+      if (embedded) pendingUploadReveal.current = next.editorIdentity;
       setPreviewOpen(false);setDrafts(d=>({...d,[panel.id]:{artwork:next,transform:initialTransform,revision:0,reviewed:false}}));setPixels(initialPixels);
     }catch(e){setError((e as Error).message||'Upload failed. Your existing artwork is still available.');if(propagateError)throw e;}finally{if(!unmounted.current)setBusy('');if(input.current)input.current.value='';}
   }
@@ -199,7 +215,7 @@ export default function SpecialtyDesigner({ product, offer, embedded = false, co
         </label>
       </div>}
       <div className={embedded ? 'relative' : 'contents'} data-inline-artwork-stage={embedded || undefined}>
-      <div aria-hidden={embedded && previewOpen || undefined} className={embedded && previewOpen ? 'invisible pointer-events-none' : busy?'pointer-events-none opacity-75':''}><div className="mb-3 flex items-center justify-between"><h3 className="font-bold">Artwork placement</h3><label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={guides} onChange={e=>setGuides(e.target.checked)}/>Show guides</label></div><div className={embedded ? "banner-artwork-workspace rounded-xl border border-slate-400/70 bg-slate-300 px-3 pb-4 pt-[104px] shadow-inner" : ""}><div className={embedded ? "mx-auto" : "mx-auto pt-20"} style={{maxWidth:Math.min(600,460*template.widthIn/template.heightIn)}}><ArtworkPreviewEditor key={compositionKey} ref={editor} compositionKey={compositionKey} src={artwork.url} previewUrl={artwork.permanentPreviewUrl||artwork.previewUrl} productionUrl={artwork.productionUrl} resourceType={artwork.resourceType} mimeType={artwork.mimeType} paddingPct={`${template.heightIn/template.widthIn*100}%`} value={pixels} onChange={move} constrain={constrain} onConstrainChange={setConstrain} initialNormalizedTransform={draft.transform} initialCompositionRevision={draft.revision} productLabel="print area" enableCropping={false}
+      <div aria-hidden={embedded && previewOpen || undefined} className={embedded && previewOpen ? 'invisible pointer-events-none' : busy?'pointer-events-none opacity-75':''}><div className="mb-3 flex items-center justify-between"><h3 ref={placementHeading} className="font-bold">Artwork placement</h3><label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={guides} onChange={e=>setGuides(e.target.checked)}/>Show guides</label></div><div className={embedded ? "banner-artwork-workspace rounded-xl border border-slate-400/70 bg-slate-300 px-3 pb-4 pt-[104px] shadow-inner" : ""}><div className={embedded ? "mx-auto" : "mx-auto pt-20"} style={{maxWidth:Math.min(600,460*template.widthIn/template.heightIn)}}><ArtworkPreviewEditor key={compositionKey} ref={editor} compositionKey={compositionKey} src={artwork.url} previewUrl={artwork.permanentPreviewUrl||artwork.previewUrl} productionUrl={artwork.productionUrl} resourceType={artwork.resourceType} mimeType={artwork.mimeType} paddingPct={`${template.heightIn/template.widthIn*100}%`} value={pixels} onChange={move} constrain={constrain} onConstrainChange={setConstrain} initialNormalizedTransform={draft.transform} initialCompositionRevision={draft.revision} productLabel="print area" enableCropping={false}
         primaryFitControl={canFitArtwork ? <button type="button" disabled={!!busy} onClick={()=>setFitOpen(true)}
           className="inline-flex min-h-11 items-center justify-center gap-1 rounded-full bg-[var(--brand-orange)] px-3 text-xs font-bold text-white disabled:opacity-50"><Sparkles size={16} aria-hidden="true"/>Fit with AI</button> : undefined}
         onDelete={removeArtwork} canvasStyle={product.slug==='acrylic-signs'?clearSubstrateStyle:undefined} mobileToolbarContainer={toolbarContainer} overlay={guides?<SpecialtyTemplateGuide template={template}/>:undefined}/></div></div><div ref={setToolbarContainer} className="mt-4 w-full min-w-0"/><p className="mt-3 break-all text-xs text-slate-500">{artwork.name} · Original file preserved</p>{canFitArtwork && draft.originalArtwork && <button type="button" disabled={!!busy} onClick={()=>replacePlacement(draft.originalArtwork!)} className="mt-3 min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold">Restore original</button>}</div>

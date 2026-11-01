@@ -75,6 +75,13 @@ for (const route of ['/design', '/google-ads-banner']) {
     const chooser = page.waitForEvent('filechooser');
     await picker.click();
     await (await chooser).setFiles({name:'stand-print.png', mimeType:'image/png', buffer:await asymmetricArtwork()});
+    const placementHeading = area.getByRole('heading', {name:'Artwork placement',exact:true});
+    const checkUploadLanding = () => expect.poll(() => placementHeading.evaluate(heading => {
+      const header = document.querySelector('[data-site-header]')!.getBoundingClientRect();
+      const visibleTop = Math.max(window.visualViewport?.offsetTop ?? 0, header.bottom);
+      return Math.abs(heading.getBoundingClientRect().top - visibleTop - 8);
+    })).toBeLessThanOrEqual(2);
+    await checkUploadLanding();
     const toggle = area.getByRole('button', {name:'Realistic preview', exact:true});
     await expect(toggle).toHaveAttribute('aria-pressed', 'false');
     await expect(area.getByLabel('Upload your artwork', {exact:true})).toHaveCount(0);
@@ -97,6 +104,11 @@ for (const route of ['/design', '/google-ads-banner']) {
     await expect(area.getByText(/ai-fit-.*Original file preserved/)).toBeVisible();
     await area.getByRole('button',{name:'Restore original'}).click();
     await expect(area.getByText(/stand-print.png · Original file preserved/)).toBeVisible();
+    await area.getByLabel('Replace artwork', {exact:true}).setInputFiles({
+      name:'replacement.png', mimeType:'image/png', buffer:await asymmetricArtwork(),
+    });
+    await expect(area.getByText(/replacement.png · Original file preserved/)).toBeVisible();
+    await checkUploadLanding();
   });
 }
 
