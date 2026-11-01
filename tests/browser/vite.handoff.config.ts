@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
+import { createRequire } from 'node:module';
 import sharp from 'sharp';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
@@ -18,6 +19,9 @@ export default defineConfig({
         // Test-only receiver: WebKit route interception omits file bytes.
         // Receiving real multipart HTTP verifies the same bytes in every engine.
         const assets = new Map<string, Buffer>();
+        // Exercise the real validator, layout guide and worker; substitute the paid provider only.
+        const {runFitRequest} = createRequire(import.meta.url)(path.resolve('netlify/functions/_shared/ai-designer/fit.cjs'));
+        const fitResults = new Map<string, unknown>();
         const uploadGates = new Map<string, { promise: Promise<void>; release: () => void }>();
         server.middlewares.use(async (req, res, next) => {
           const url = new URL(req.url || '/', 'http://127.0.0.1:4175');
@@ -26,6 +30,31 @@ export default defineConfig({
             // Keep this fixture isolated from external services without enabling
             // Playwright's WebKit interception, which can strip multipart Blobs.
             res.setHeader('Content-Security-Policy', "connect-src 'self'; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-src 'none'");
+          }
+          if (browserScenario?.startsWith('selector-') && url.pathname.startsWith('/.netlify/functions/ai-designer-')) {
+            res.setHeader('Content-Type', 'application/json');
+            if (url.pathname.endsWith('/ai-designer-status')) { req.resume(); res.end(JSON.stringify({ready:true})); return; }
+            if (url.pathname.endsWith('/ai-designer-fit')) {
+              const chunks: Buffer[] = [];
+              for await (const chunk of req) chunks.push(Buffer.from(chunk));
+              const body = JSON.parse(Buffer.concat(chunks).toString());
+              try {
+                const result = await runFitRequest(body,{sub:'fixture'},browserScenario,undefined,{
+                  inspect: async () => ({lines:[],elements:[],allTextLegible:true,contentPreserved:true,confidence:1,issues:[],blockingIssues:[]}),
+                  edit: async ({referenceImage,currentImage}:{referenceImage:{buffer:Buffer},currentImage:Buffer}) => {
+                    const size = await sharp(referenceImage.buffer).metadata();
+                    return {buffer:await sharp(currentImage).resize(size.width,size.height).png().toBuffer(),model:'fixture'};
+                  },
+                });
+                fitResults.set(browserScenario,result);
+                res.end(JSON.stringify({jobRef:browserScenario,pollAfterMs:5}));
+              } catch (e) { res.statusCode=400; res.end(JSON.stringify({message:String(e)})); }
+              return;
+            }
+            req.resume();
+            if (url.pathname.endsWith('/ai-designer-job')) res.end(JSON.stringify({status:'completed',...fitResults.get(browserScenario) as object}));
+            else res.end('{}');
+            return;
           }
           if (browserScenario && url.pathname.startsWith('/.netlify/functions/')) {
             req.resume();
@@ -81,7 +110,7 @@ export default defineConfig({
             if (start < 4 || end <= start) throw new Error('Empty multipart file');
             const bytes = body.subarray(start, end);
             const metadata = await sharp(bytes).metadata();
-            const kind = filename.startsWith('placement-v3-') ? 'placement' : 'original';
+            const kind = filename.startsWith('placement-v3-') ? 'placement' : filename.startsWith('ai-fit-') ? 'fitted' : 'original';
             assets.set(`${scenario}:${kind}`, bytes);
             await uploadGates.get(scenario)?.promise;
             res.setHeader('Content-Type', 'application/json');
@@ -133,3 +162,4 @@ export default defineConfig({
     ],
   },
 });
+

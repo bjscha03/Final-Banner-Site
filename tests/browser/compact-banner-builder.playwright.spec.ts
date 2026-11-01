@@ -40,6 +40,78 @@ async function sparseArtwork(): Promise<Buffer> {
 }
 
 
+for (const route of ['/design', '/google-ads-banner']) {
+  test(`banner type changes price and shipping in place on ${route}`, async ({ page }, testInfo) => {
+    await installUploadAndFunctionHarness(page, 'selector-' + testInfo.project.name);
+    await page.goto(route);
+    const vinyl = page.getByRole('radio', { name: /^Vinyl\/Mesh Banners\b/ });
+    const stand = page.getByRole('radio', { name: /Retractable Banner/ });
+    await expect(vinyl).toBeChecked();
+    await stand.check();
+    await expect(page).toHaveURL(new RegExp(route + '$'));
+    const summary = page.getByRole('complementary').filter({ hasText: 'Your retractable banner' });
+    await expect(summary).toContainText('5 p.m. Eastern');
+    await expect(summary).toContainText('Free FedEx Next-Day Air');
+    const price = summary.getByTestId('specialty-subtotal');
+    await expect(price).toHaveText(/^\$[0-9,.]+$/);
+    const startingPrice = await price.innerText();
+    const quantity = page.getByRole('spinbutton', { name: 'Quantity' });
+    await quantity.fill('2');
+    await expect(price).not.toHaveText(startingPrice);
+    await vinyl.check();
+    await expect(page.locator('#size-section')).toBeVisible();
+    await expect(summary).toBeHidden();
+    await stand.check();
+    await expect(quantity).toHaveValue('2');
+    await expect(price).toHaveText(/^\$[0-9,.]+$/);
+    await page.getByText('Choose your banner type', { exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath('banner-type-preview.png') });
+    await expect(page.getByRole('img', { name: /Ridge Ride check-in banner/ }).filter({ visible: true })).toHaveCount(1);
+    await expect(page.getByText('Specifications', {exact:true})).toHaveCount(0);
+    await expect(page.getByText('Artwork templates & file setup', {exact:true})).toHaveCount(0);
+    await expect(page.getByText('Assembly & installation', {exact:true})).toHaveCount(0);
+    const area = page.locator('#specialty-artwork');
+    const picker = area.getByLabel('Upload your artwork', {exact:true});
+    const chooser = page.waitForEvent('filechooser');
+    await picker.click();
+    await (await chooser).setFiles({name:'stand-print.png', mimeType:'image/png', buffer:await asymmetricArtwork()});
+    const placementHeading = area.getByRole('heading', {name:'Artwork placement',exact:true});
+    const checkUploadLanding = () => expect.poll(() => placementHeading.evaluate(heading => {
+      const header = document.querySelector('[data-site-header]')!.getBoundingClientRect();
+      const visibleTop = Math.max(window.visualViewport?.offsetTop ?? 0, header.bottom);
+      return Math.abs(heading.getBoundingClientRect().top - visibleTop - 8);
+    })).toBeLessThanOrEqual(2);
+    await checkUploadLanding();
+    const toggle = area.getByRole('button', {name:'Realistic preview', exact:true});
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await expect(area.getByLabel('Upload your artwork', {exact:true})).toHaveCount(0);
+    const stage = area.locator('[data-inline-artwork-stage]');
+    const initial = await stage.boundingBox();
+    await toggle.click();
+    await expect(stage.getByRole('img',{ name: /Your artwork on/ })).toBeVisible();
+    await expect(stage.getByText('Artwork placement',{exact:true})).toBeHidden();
+    const shown = await stage.boundingBox();
+    expect(Math.abs(shown!.height - initial!.height)).toBeLessThan(2);
+    await area.getByRole('button',{name:'Edit artwork',exact:true}).click();
+    await expect(stage.getByText('Artwork placement',{exact:true})).toBeVisible();
+    await expect(area.getByTestId('specialty-live-preview')).toHaveCount(0);
+    await expect(area.getByLabel('Replace artwork', {exact:true})).toBeVisible();
+    await expect(area.getByText(/Image resolution at this placement/)).toHaveCount(0);
+    await area.getByRole('button',{name:'Fit with AI',exact:true}).filter({visible:true}).click();
+    const dialog = page.getByRole('dialog').filter({has:page.getByRole('button',{name:'Approve design'})});
+    await expect(dialog.getByRole('img',{name:'Your fitted design'})).toBeVisible({timeout:30000});
+    await dialog.getByRole('button',{name:'Approve design'}).click();
+    await expect(area.getByText(/ai-fit-.*Original file preserved/)).toBeVisible();
+    await area.getByRole('button',{name:'Restore original'}).click();
+    await expect(area.getByText(/stand-print.png · Original file preserved/)).toBeVisible();
+    await area.getByLabel('Replace artwork', {exact:true}).setInputFiles({
+      name:'replacement.png', mimeType:'image/png', buffer:await asymmetricArtwork(),
+    });
+    await expect(area.getByText(/replacement.png · Original file preserved/)).toBeVisible();
+    await checkUploadLanding();
+  });
+}
+
 test('banner finishing preserves the artwork, price and cart through add-another and checkout', async ({ page }, testInfo) => {
   const artwork = await asymmetricArtwork();
   const harness = await installUploadAndFunctionHarness(page, `compact-${testInfo.project.name}`);
@@ -598,3 +670,4 @@ test('yard sign hardware stays clear through upload, quantity changes and checko
   expect(cart[0].yard_sign_designs[0].quantity).toBe(30);
   expect(cart[0].yard_sign_designs[0].placementPreview.previewUrl).toBe(savedPreview);
 });
+
