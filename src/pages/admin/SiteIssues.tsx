@@ -81,7 +81,7 @@ export default function SiteIssues() {
       {!['resolved', 'archived'].includes(issue.status) && <div className="mt-3 flex flex-col gap-2">
         <label htmlFor={`resolution-${issue.id}`} className="text-sm font-semibold">Fix and verification notes</label>
         <textarea id={`resolution-${issue.id}`} className="min-h-20 rounded border p-2 text-sm" maxLength={1500} placeholder="What caused it, what changed, and how the fix was verified" value={resolutionNotes[issue.id] || ''} onChange={event => setResolutionNotes(notes => ({ ...notes, [issue.id]: event.target.value }))} />
-        <Button className="self-start" variant="outline" size="sm" disabled={!!busy || !(resolutionNotes[issue.id] || '').trim()} onClick={() => void review(issue, 'new')}>Save investigation notes</Button>
+        <Button className="self-start" variant="outline" size="sm" disabled={!!busy || !(resolutionNotes[issue.id] || '').trim()} onClick={() => void review(issue, issue.status)}>Save investigation notes</Button>
         <Button className="self-start" size="sm" disabled={!!busy || (resolutionNotes[issue.id] || '').trim().length < 20} onClick={() => void review(issue, 'resolved')}>Mark resolved</Button>
         <Button className="self-start" variant="outline" size="sm" disabled={!!busy || (resolutionNotes[issue.id] || '').trim().length < 20} onClick={() => void review(issue, 'archived')}>Archive without confirmed fix</Button>
         {issue.traffic === 'customer' && <Button className="self-start" variant="outline" size="sm" disabled={!!busy || (resolutionNotes[issue.id] || '').trim().length < 20} onClick={() => void review(issue, 'resolved', 'crawler')}>Classify as verified crawler</Button>}
@@ -91,3 +91,4 @@ export default function SiteIssues() {
     <p className="mt-6 text-xs leading-5 text-slate-500">A report signals a problem to investigate; it does not prove a lost order. Browser reports may arrive after connectivity returns. If a browser cannot run the site or contact the server, a report may not arrive. This page does not send email or push alerts.</p>
   </div></div></Layout>;
 }
+
