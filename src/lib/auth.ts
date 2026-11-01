@@ -298,7 +298,8 @@ export function useAuth() {
       ++loadVersion;
       storageTimer = setTimeout(() => {
         if (!current) return;
-        setServerSessionToken(safeStorage.getItem('banners_server_session'));
+        // Reading synchronizes this tab without writing back into other tabs.
+        getServerSessionToken();
         void loadUser();
       }, 0);
     };
@@ -348,3 +349,4 @@ export function useAuth() {
 export function isAdmin(user: User | null): boolean {
   return user?.is_admin === true;
 }
+

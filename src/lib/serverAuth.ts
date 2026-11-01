@@ -7,18 +7,17 @@ const SESSION_TTL_SECONDS = 8 * 60 * 60;
 const isDeployPreview = () => typeof window !== 'undefined'
   && /^deploy-preview-\d+--.+\.netlify\.app$/i.test(window.location.hostname);
 
-function readStorage(storage: Storage | undefined): string | null {
-  if (!storage) return null;
+function readStorage(kind: 'localStorage' | 'sessionStorage'): string | null | undefined {
   try {
-    return storage.getItem(TOKEN_KEY);
+    return window[kind].getItem(TOKEN_KEY);
   } catch {
-    return null;
+    return undefined;
   }
 }
 
-function writeStorage(storage: Storage | undefined, token?: string | null) {
-  if (!storage) return;
+function writeStorage(kind: 'localStorage' | 'sessionStorage', token?: string | null) {
   try {
+    const storage = window[kind];
     if (token) storage.setItem(TOKEN_KEY, token);
     else storage.removeItem(TOKEN_KEY);
   } catch {
@@ -63,30 +62,27 @@ export function setServerSessionToken(token?: string | null) {
   // Persist the signed, server-verified token for its eight-hour lifetime so
   // opening the admin preview in a new tab does not leave the durable admin
   // identity in localStorage while losing the token in sessionStorage.
-  writeStorage(window.localStorage, token);
-  writeStorage(window.sessionStorage, token);
+  writeStorage('localStorage', token);
+  writeStorage('sessionStorage', token);
   writeSessionCookie(token);
 }
 
 export function getServerSessionToken(): string | null {
   if (typeof window === 'undefined') return null;
 
-  const sessionToken = readStorage(window.sessionStorage);
-  if (sessionToken) {
-    writeSessionCookie(sessionToken);
-    return sessionToken;
-  }
-
-  const persistentToken = readStorage(window.localStorage);
-  if (persistentToken) {
-    // Rehydrate the tab-local copy for existing callers while retaining the
-    // persistent copy for other tabs on the same deploy origin.
-    writeStorage(window.sessionStorage, persistentToken);
+  // Shared storage is authoritative, including an explicit logout. A stale
+  // tab must never replace a newer sign-in with its old sessionStorage token.
+  // Only fall back to tab storage when shared storage is inaccessible.
+  const persistentToken = readStorage('localStorage');
+  if (persistentToken !== undefined) {
+    writeStorage('sessionStorage', persistentToken);
     writeSessionCookie(persistentToken);
     return persistentToken;
   }
 
-  return null;
+  const sessionToken = readStorage('sessionStorage') ?? null;
+  writeSessionCookie(sessionToken);
+  return sessionToken;
 }
 
 export function authorizedHeaders(headers: Record<string, string> = {}): Record<string, string> {
@@ -134,7 +130,10 @@ export async function adminFetch(input: RequestInfo | URL, init: RequestInit = {
 
   const response = await fetch(input, { ...init, headers });
 
-  if (response.status === 401 && isAdminPage) {
+  // A request issued before a new sign-in may finish afterward. Its 401
+  // belongs to the old session and must not sign out the replacement session.
+  if (response.status === 401 && isAdminPage && !init.signal?.aborted
+    && getServerSessionToken() === token) {
     setServerSessionToken(null);
     clearStaleAdminIdentity();
     redirectToAdminLogin();
@@ -142,3 +141,4 @@ export async function adminFetch(input: RequestInfo | URL, init: RequestInit = {
 
   return response;
 }
+
