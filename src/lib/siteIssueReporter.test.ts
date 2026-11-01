@@ -82,7 +82,7 @@ it('deduplicates crashes despite intervening breadcrumbs', async () => {
   reportSiteIssue('page_crash', { errorMessage: 'Unable to preload CSS for /assets/page.css' });
   recordIssueAction('button_clicked');
   reportSiteIssue('page_crash', { errorMessage: 'Unable to preload CSS for /assets/page.css' });
-  await vi.advanceTimersByTimeAsync(300);
+  await vi.advanceTimersByTimeAsync(800);
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 
@@ -95,7 +95,7 @@ it('coalesces resource, preload and boundary failures while retaining crash evid
   error.stack = 'Error: failed\n at preload (/assets/index-current.js:2:2199)';
   reportPageIssue('page_error', error);
   reportPageIssue('page_crash', error, undefined, undefined, undefined, 'at Checkout\nat Lazy');
-  await vi.advanceTimersByTimeAsync(300);
+  await vi.advanceTimersByTimeAsync(800);
   expect(fetch).toHaveBeenCalledTimes(1);
   const sent = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
   expect(sent.id).toBe(stored[0].id);
@@ -103,23 +103,24 @@ it('coalesces resource, preload and boundary failures while retaining crash evid
   expect(sent.details).toMatchObject({ source: '/assets/checkout-old.css', phase: 'asset_load', componentStack: 'at Checkout\nat Lazy' });
   expect(sent.details.stack).toContain('/assets/index-current.js:2:2199');
   reportPageIssue('page_error', error);
-  await vi.advanceTimersByTimeAsync(300);
+  await vi.advanceTimersByTimeAsync(800);
   expect(fetch).toHaveBeenCalledTimes(1);
   await vi.advanceTimersByTimeAsync(5000);
   reportPageIssue('page_error', error);
-  await vi.advanceTimersByTimeAsync(300);
+  await vi.advanceTimersByTimeAsync(800);
   expect(fetch).toHaveBeenCalledTimes(2); // a later recurrence remains visible
 });
 
-it('keeps distinct files, opaque Safari errors and checkout failures visible', async () => {
+it('groups related files while keeping opaque Safari errors and checkout failures visible', async () => {
   const { reportSiteIssue, reportPageIssue } = await import('./siteIssueReporter');
   reportPageIssue('page_error', new TypeError('Failed to fetch dynamically imported module: /assets/a.js'));
   reportPageIssue('page_error', new TypeError('Failed to fetch dynamically imported module: /assets/b.js'));
   reportPageIssue('page_error', 'Script error.');
   reportSiteIssue('checkout_error', { code: 'STRIPE_CHECKOUT_ERROR', provider: 'stripe' });
-  await vi.advanceTimersByTimeAsync(300);
+  await vi.advanceTimersByTimeAsync(800);
   const sent = vi.mocked(fetch).mock.calls.map(call => JSON.parse(call[1]!.body as string));
-  expect(sent).toHaveLength(4);
+  expect(sent).toHaveLength(3);
+  expect(sent[0].details).toMatchObject({ assetSources: '/assets/a.js\n/assets/b.js', assetCount: 2 });
   expect(sent.some(item => item.details.recovery === 'browser_details_withheld')).toBe(true);
   expect(sent.some(item => item.kind === 'checkout_error')).toBe(true);
 });
@@ -131,7 +132,7 @@ it('flushes a persisted asset incident before the recovery navigation', async ()
   await flushSiteIssues(); // same path as the pagehide recovery hook
   expect(fetch).toHaveBeenCalledTimes(1);
   expect(vi.mocked(fetch).mock.calls[0][1]!.keepalive).toBe(true);
-  await vi.advanceTimersByTimeAsync(300);
+  await vi.advanceTimersByTimeAsync(800);
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 it('preserves asset/request evidence and strips secrets', async () => {
@@ -140,4 +141,50 @@ it('preserves asset/request evidence and strips secrets', async () => {
   expect(details).toMatchObject({ source: '/assets/page-123.css', attempt: 3, chunkIndex: 4, canonicalQuoteApplied: true });
   expect(details.errorMessage).toContain('/assets/page-123.css');
   expect(JSON.stringify(details)).not.toMatch(/secret|password|token=/);
+});
+
+
+it('retains all files in a staggered route failure and the final crash', async () => {
+  const { reportSiteIssue, reportPageIssue } = await import('./siteIssueReporter');
+  for (let i = 0; i < 9; i++) {
+    reportSiteIssue('page_error', { phase: 'asset_load', source: `/assets/dependency-${i}.js` });
+    await vi.advanceTimersByTimeAsync(150);
+  }
+  reportPageIssue('page_crash', new TypeError('Importing a module script failed.'), undefined, undefined, undefined, 'at BlogPostPage');
+  await vi.advanceTimersByTimeAsync(800);
+  expect(fetch).toHaveBeenCalledTimes(1);
+  const sent = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+  expect(sent.kind).toBe('page_crash');
+  expect(sent.details.assetCount).toBe(9);
+  expect(sent.details.componentStack).toBe('at BlogPostPage');
+});
+
+it('does not hide a new asset failure or a crash after an earlier report was sent', async () => {
+  const { reportSiteIssue, reportPageIssue } = await import('./siteIssueReporter');
+  reportSiteIssue('page_error', { phase: 'asset_load', source: '/assets/a.js' });
+  await vi.advanceTimersByTimeAsync(800);
+  reportSiteIssue('page_error', { phase: 'asset_load', source: '/assets/b.js' });
+  await vi.advanceTimersByTimeAsync(800);
+  reportPageIssue('page_crash', new TypeError('Failed to fetch dynamically imported module: /assets/b.js'));
+  await vi.advanceTimersByTimeAsync(800);
+  expect(fetch).toHaveBeenCalledTimes(3);
+  expect(JSON.parse(vi.mocked(fetch).mock.calls[2][1]!.body as string).kind).toBe('page_crash');
+});
+
+it('keeps another route and a recovery attempt separate', async () => {
+  const { reportSiteIssue } = await import('./siteIssueReporter');
+  reportSiteIssue('page_error', { phase: 'asset_load', source: '/assets/a.js' });
+  window.history.replaceState({}, '', '/products');
+  reportSiteIssue('page_error', { phase: 'asset_load', source: '/assets/b.js' });
+  window.history.replaceState({}, '', '/products?_botf_refresh=1');
+  reportSiteIssue('page_error', { phase: 'asset_load', source: '/assets/b.js' });
+  await vi.advanceTimersByTimeAsync(800);
+  expect(fetch).toHaveBeenCalledTimes(3);
+});
+
+it('sanitizes grouped asset evidence without retaining private URLs', async () => {
+  const { issueDetails } = await import('./siteIssueSchema');
+  const details = issueDetails({ assetCount: 2, assetSources: '/assets/a.js\nhttps://example.com/private?token=secret\n/assets/b.css\n/assets/a.js' });
+  expect(details).toMatchObject({ assetCount: 2, assetSources: '/assets/a.js\n/assets/b.css' });
+  expect(JSON.stringify(details)).not.toContain('secret');
 });

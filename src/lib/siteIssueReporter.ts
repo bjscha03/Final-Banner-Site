@@ -15,8 +15,12 @@ let retries = 0;
 let lastWindow = 0;
 let sentInWindow = 0;
 const recent = new Map<string, number>();
-const recentAssets = new Map<string, { id: string; at: number }>();
+const recentAssets = new Map<string, { id: string; at: number; sources: Set<string>; crashed: boolean }>();
 let assetFlushTimer: ReturnType<typeof setTimeout> | undefined;
+function scheduleAssetFlush() {
+  if (assetFlushTimer) clearTimeout(assetFlushTimer);
+  assetFlushTimer = setTimeout(() => { assetFlushTimer = undefined; void flushSiteIssues(); }, 750);
+}
 let uploadStartedAt = 0;
 const breadcrumbs: string[] = [];
 export function recordIssueAction(action: string): void {
@@ -85,10 +89,16 @@ export function reportSiteIssue(kind: SiteIssueKind, details: Record<string, unk
     const page = issuePage(window.location.pathname);
     const pageFailure = kind === 'page_error' || kind === 'page_crash';
     const asset = pageFailure && (safeDetails.phase === 'asset_load' || isChunkLoadFailure(safeDetails.errorMessage))
-      ? String(safeDetails.errorMessage || '').match(/\/assets\/[A-Za-z0-9_.-]+\.(?:css|m?js)\b/)?.[0] || safeDetails.source || 'unknown-module'
+      ? String(safeDetails.errorMessage || '').match(/\/assets\/[A-Za-z0-9_.-]+\.(?:css|m?js)\b/)?.[0] || String(safeDetails.source || 'unknown-module')
       : null;
-    const assetKey = asset ? JSON.stringify([page, asset, safeDetails.recoveryAttempted]) : null;
-    if (assetKey) {
+    // A failed route import can fail many dependent preloads at once. Keep
+    // that burst as one incident and retain each failed asset as evidence.
+    const assetKey = asset ? JSON.stringify([page, safeDetails.clientBuild, safeDetails.recoveryAttempted]) : null;
+    if (asset && asset !== 'unknown-module') {
+      safeDetails.assetSources = asset;
+      safeDetails.assetCount = 1;
+    }
+    if (assetKey && asset) {
       const previous = recentAssets.get(assetKey);
       if (previous && now - previous.at < 5000) {
         // Resource error -> Vite rejection -> React boundary is one incident.
@@ -96,11 +106,27 @@ export function reportSiteIssue(kind: SiteIssueKind, details: Record<string, unk
         // severity and component stack instead of creating three admin rows.
         const pending = getQueue().find(item => item.id === previous.id);
         if (pending) {
+          const sources = Array.from(new Set([
+            ...String(pending.details.assetSources || pending.details.source || '').split('\n'), asset,
+          ].filter(value => value && value !== 'unknown-module'))).slice(0, 20);
+          const wasCrash = pending.kind === 'page_crash';
           if (kind === 'page_crash') pending.kind = kind;
-          pending.details = { ...pending.details, ...safeDetails, source: asset };
+          previous.sources.add(asset);
+          previous.crashed ||= kind === 'page_crash';
+          const source = pending.details.source || sources[0];
+          pending.details = {
+            ...pending.details, ...safeDetails,
+            ...(source ? { source } : {}),
+            assetSources: sources.join('\n'), assetCount: sources.length,
+            ...(wasCrash && kind !== 'page_crash' && pending.details.errorMessage ? { errorMessage: pending.details.errorMessage } : {}),
+          };
           persist();
+          scheduleAssetFlush();
+          return;
         }
-        return;
+        // After transmission, suppress only evidence already represented by
+        // that incident. A newly failed asset or later crash must stay visible.
+        if (previous.sources.has(asset) && (kind !== 'page_crash' || previous.crashed)) return;
       }
     }
     if (sentInWindow >= 10) return;
@@ -114,11 +140,11 @@ export function reportSiteIssue(kind: SiteIssueKind, details: Record<string, unk
       online: navigator.onLine, details: safeDetails });
     if (queue!.length > 20) queue!.shift();
     persist();
-    if (assetKey) {
-      recentAssets.set(assetKey, { id, at: now });
+    if (assetKey && asset) {
+      recentAssets.set(assetKey, { id, at: now, sources: new Set([asset]), crashed: kind === 'page_crash' });
       // Only asset failures coalesce; checkout/upload failures send immediately.
       // Persist first so a reload cannot lose an unsent incident.
-      if (!assetFlushTimer) assetFlushTimer = setTimeout(() => { assetFlushTimer = undefined; void flushSiteIssues(); }, 250);
+      scheduleAssetFlush();
     } else void flushSiteIssues();
   } catch { /* Never throw into an upload or checkout. */ }
 }
@@ -203,3 +229,4 @@ export function installSiteIssueMonitoring() {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { retries = 0; void flushSiteIssues(); } });
   void flushSiteIssues();
 }
+

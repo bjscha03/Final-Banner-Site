@@ -50,7 +50,7 @@ export function issueDetails(input: unknown): SiteIssue['details'] {
     if (typeof value === 'string' && /^[A-Za-z0-9_.<>+/-]{1,100}$/.test(value)) result[key] = value;
     if (key === 'status' && typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 599) result[key] = value;
   }
-  for (const key of ['durationMs', 'line', 'column', 'attempt', 'chunkIndex', 'chunkCount', 'expectedTotalCents', 'serverTotalCents', 'viewportWidth', 'viewportHeight']) {
+  for (const key of ['durationMs', 'line', 'column', 'attempt', 'chunkIndex', 'chunkCount', 'expectedTotalCents', 'serverTotalCents', 'viewportWidth', 'viewportHeight', 'assetCount']) {
     const value = values[key];
     if (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 86_400_000) result[key] = Math.round(value);
   }
@@ -63,6 +63,10 @@ export function issueDetails(input: unknown): SiteIssue['details'] {
   }
   for (const key of ['retryable', 'canonicalQuoteApplied', 'recoveryAttempted']) if (typeof values[key] === 'boolean') result[key] = values[key];
   if (typeof values.source === 'string' && /^\/assets\/[A-Za-z0-9_.-]{1,140}\.(?:js|css|mjs)$/.test(values.source)) result.source = values.source;
+  if (typeof values.assetSources === 'string') {
+    result.assetSources = Array.from(new Set(values.assetSources.split('\n')
+      .filter(source => /^\/assets\/[A-Za-z0-9_.-]{1,140}\.(?:js|css|mjs)$/.test(source)))).slice(0, 20).join('\n');
+  }
   return result;
 }
 export function deviceInfo(agent: string) {
@@ -72,3 +76,4 @@ export function deviceInfo(agent: string) {
     os: /iPhone|iPad|iPod/.test(agent) ? 'iOS' : /Android/.test(agent) ? 'Android' : /Windows/.test(agent) ? 'Windows' : /Macintosh/.test(agent) ? 'macOS' : 'Other',
   };
 }
+
