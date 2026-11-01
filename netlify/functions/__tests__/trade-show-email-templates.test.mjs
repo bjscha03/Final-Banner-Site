@@ -37,7 +37,7 @@ describe('trade show email template system', () => {
     expect(email.text).toContain('custom vinyl banners and mesh banners');
     expect(email.html).toContain('background:#f7faff');
     expect(email.html).toContain('border-bottom:4px solid #ff6a00');
-    expect(email.html).toContain('src="https://bannersonthefly.com/images/header-logo.png"');
+    expect(email.html).toContain('src="https://bannersonthefly.com/images/bof-logo-20261101.png"');
     expect(email.html).not.toContain('res.cloudinary.com');
     expect(email.html).toContain('<strong style="color:#e45700;font-weight:900;">24-hour production</strong>');
     expect(email.html).toContain('<strong style="color:#e45700;font-weight:900;">Free Next-Day Air delivery</strong>');
@@ -213,3 +213,4 @@ describe('trade show email template system', () => {
     }
   });
 });
+

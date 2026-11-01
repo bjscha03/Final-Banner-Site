@@ -45,7 +45,7 @@ for (const path of ['/design', '/google-ads-banner']) {
     await page.waitForTimeout(1800); await expect(help).toHaveCount(0);
     await adjust(page); await expect(help).toBeVisible();
     const placement = await page.getByTestId('artwork-selection').first().getAttribute('style');
-    await expect(help.getByAltText('Banners On The Fly')).toHaveAttribute('src', '/images/header-logo.png');
+    await expect(help.getByAltText('Banners On The Fly')).toHaveAttribute('src', '/images/bof-logo-20261101.png');
     await expect(help.getByRole('button', { name: 'Fit with AI', exact: true })).toHaveCSS('background-color', 'rgb(234, 88, 12)');
     await expect(help.getByRole('button', { name: 'Keep editing', exact: true })).toBeInViewport();
     await expect(help.getByRole('button', { name: 'Close fitting help' })).toBeInViewport();
@@ -78,3 +78,4 @@ test('Fit with AI opens the existing preview flow without starting or applying g
   await fitter.getByRole('button', { name: 'Keep original', exact: true }).click();
   await expect(image).toHaveAttribute('src', source!);
 });
+

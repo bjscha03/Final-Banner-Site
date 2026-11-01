@@ -2,7 +2,7 @@ const { neon } = require('@neondatabase/serverless');
 
 // Email-compatible logo header HTML
 function createEmailLogoHeader() {
-  const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
+  const logoUrl = 'https://bannersonthefly.com/images/bof-logo-20261101.png';
   
   return `
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 0;">
@@ -349,4 +349,5 @@ exports.handler = async (event, context) => {
     };
   }
 };
+
 

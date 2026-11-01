@@ -255,10 +255,10 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
           <div className="flex-shrink-0">
             <ScrollToTopLink to="/" className="flex items-center">
               <img
-                src="/images/header-logo.png"
+                src="/images/bof-logo-20261101.png"
                 alt="Banners On The Fly"
                 width="248"
-                height="70"
+                height="58"
                 className={isHomepage ? 'h-10 w-auto max-w-[205px] object-contain sm:h-12 sm:max-w-[260px] lg:h-[58px]' : compactMobile ? 'h-8 w-auto max-w-[175px] object-contain sm:max-w-[220px] lg:h-[54px]' : 'h-10 w-auto max-w-[205px] object-contain sm:h-12 sm:max-w-[250px] lg:h-[54px]'}
               />
             </ScrollToTopLink>
@@ -408,3 +408,4 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
 };
 
 export default Header;
+

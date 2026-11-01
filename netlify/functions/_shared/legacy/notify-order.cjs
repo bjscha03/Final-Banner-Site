@@ -31,7 +31,7 @@ function getThumbnailUrl(item, maxWidth = 300) {
 
 // Email-compatible logo header HTML
 function createEmailLogoHeader() {
-  const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
+  const logoUrl = 'https://bannersonthefly.com/images/bof-logo-20261101.png';
   
   return `
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 0;">
@@ -86,7 +86,7 @@ function createEmailContainer(content) {
 function createAdminOrderEmailHtml(payload) {
   const order = payload.order;
   const invoiceUrl = payload.invoiceUrl;
-  const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
+  const logoUrl = 'https://bannersonthefly.com/images/bof-logo-20261101.png';
 
   // Format date
   const formattedDate = order.created_at
@@ -1228,3 +1228,4 @@ exports.handler = async (event) => {
     };
   }
 };
+

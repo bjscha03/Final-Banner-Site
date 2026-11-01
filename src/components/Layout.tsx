@@ -35,7 +35,7 @@ const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false, compact
       <ScrollToTop />
       {!isCheckout && !location.pathname.startsWith('/admin') && <PromoBanner showStandardPromo={isHomepage} />}
       {isCheckout ? <header data-site-header data-checkout-header className="checkout-simple-header">
-        <div><img src="/images/header-logo.png" alt="Banners On The Fly" width="248" height="70" /><span><Lock aria-hidden="true" />Secure checkout</span></div>
+        <div><img src="/images/bof-logo-20261101.png" alt="Banners On The Fly" width="248" height="58" /><span><Lock aria-hidden="true" />Secure checkout</span></div>
       </header> : <Header compactMobile={compactMobileHeader} cartCount={hasMounted ? getItemCount() : 0} onCartClick={openCart} />}
       <main className="w-full max-w-[100vw] overflow-x-clip">
         {location.pathname.startsWith('/admin') && location.pathname !== '/admin/setup' && location.pathname !== '/admin/site-issues' && <React.Suspense fallback={null}><SiteIssueAlert /></React.Suspense>}
@@ -61,3 +61,4 @@ const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false, compact
 };
 
 export default Layout;
+

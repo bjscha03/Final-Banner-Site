@@ -412,7 +412,7 @@ test('a 72x36 recovery email preserves artwork and checkout without issuing the 
   assert.doesNotMatch(fixture.state.payload.html, /25%|RECOVER25|ONE-HOUR/);
   assert.doesNotMatch(fixture.state.payload.text, /25%|RECOVER25|ONE-HOUR/);
   assert.match(fixture.state.payload.html, /customer-preview\.png/);
-  assert.match(fixture.state.payload.html, /logo-compact\.svg/);
+  assert.match(fixture.state.payload.html, /bof-logo-20261101\.png/);
   assert.match(fixture.state.payload.html, /\/checkout#recovery=/);
   assert.equal(fixture.state.queries.some(({ query }) => /inserted_offer AS/.test(query)), false);
 
@@ -939,3 +939,4 @@ test('a refunded completed order stops delivery without recording positive recov
   assert.match(query, /recovery_status = \?/);
   assert.match(query, /WHERE \?\s+AND NOT EXISTS/);
 });
+

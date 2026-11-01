@@ -12,7 +12,7 @@ describe("BOF activation email contract", () => {
     expect(result.html).not.toMatch(/facebook\.com|sms:|mailto:|share=facebook|share=text|share=email/);
     expect(result.text).toContain("including guest orders");
     expect(result.text).toContain("No photos, reviews, or public posts required");
-    expect(result.html).toContain("/images/header-logo.png");
+    expect(result.html).toContain("/images/bof-logo-20261101.png");
     expect(result.html).toContain("/images/email/september-grand-opening-banner.jpg");
   });
 
@@ -26,7 +26,7 @@ describe("BOF activation email contract", () => {
     expect(link).toMatch(/^https:\/\/bof-isolated-test\.netlify\.app\/bof-cash#claim=/);
     expect(link).not.toContain("guest@example.com");
     const result = email.content({ link });
-    expect(result.html).toContain("https://bof-isolated-test.netlify.app/images/header-logo.png");
+    expect(result.html).toContain("https://bof-isolated-test.netlify.app/images/bof-logo-20261101.png");
     expect(result.text).toContain("https://bof-isolated-test.netlify.app/bof-cash#terms");
     expect(result.html).not.toContain("https://bannersonthefly.com");
     expect(sql.mock.calls[0][3]).not.toContain(link.split("#claim=")[1]);
@@ -52,3 +52,4 @@ describe("BOF activation email contract", () => {
     expect(result.html).not.toContain("Unsubscribe from marketing emails");
   });
 });
+

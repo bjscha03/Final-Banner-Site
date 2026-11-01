@@ -286,7 +286,7 @@ async function sendEmails(submission, quoteNumber, createdAt, files) {
   const emailFrom = process.env.EMAIL_FROM || 'info@bannersonthefly.com';
   const adminEmail = process.env.ADMIN_EMAIL || 'info@bannersonthefly.com';
   const replyTo = process.env.EMAIL_REPLY_TO || 'support@bannersonthefly.com';
-  const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
+  const logoUrl = 'https://bannersonthefly.com/images/bof-logo-20261101.png';
   const product = PRODUCT_LABELS[submission.productType];
   const submitted = new Date(createdAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/New_York' });
   const size = submission.productType === 'specialty' && !submission.width && !submission.height ? 'See selected configuration' : `${submission.width} × ${submission.height} ${submission.unit}`;
@@ -392,4 +392,5 @@ exports.handler = async (event) => {
 };
 
 exports.normalizeSubmission = normalizeSubmission;
+
 

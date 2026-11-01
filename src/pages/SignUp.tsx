@@ -165,7 +165,7 @@ const SignUp: React.FC = () => {
           {/* Header */}
           <div className="text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center">
-              <img src="/images/logo-icon.svg" alt="Banners on the Fly" className="h-16 w-16" />
+              <img src="/images/bof-icon-20261101.png" alt="Banners on the Fly" className="h-16 w-16" />
             </div>
             <h2
               ref={titleRef}
@@ -318,3 +318,4 @@ const SignUp: React.FC = () => {
 
 export default SignUp;
 // Cache buster: Sat Nov  1 21:33:50 EDT 2025
+

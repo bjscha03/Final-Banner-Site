@@ -18,41 +18,43 @@ const Logo: React.FC<LogoProps> = ({
   const getLogoPath = () => {
     switch (variant) {
       case 'compact':
-        return '/images/header-logo.png';
+        return '/images/bof-logo-20261101.png';
       case 'icon':
-        return '/images/logo-icon.svg';
+        return '/images/bof-icon-20261101.png';
       case 'hero':
-        return '/images/logo-hero.svg';
+        return '/images/bof-logo-20261101.png';
       default:
-        return '/images/logo-full.svg';
+        return '/images/bof-logo-20261101.png';
     }
   };
 
   const getDefaultDimensions = () => {
     switch (variant) {
       case 'compact':
-        return { width: 240, height: 60 };
+        return { width: 240, height: 57 };
       case 'icon':
         return { width: 80, height: 80 };
       case 'hero':
-        return { width: 800, height: 240 };
+        return { width: 800, height: 189 };
       default:
-        return { width: 500, height: 150 };
+        return { width: 500, height: 118 };
     }
   };
 
   const defaultDimensions = getDefaultDimensions();
-  const logoWidth = width || defaultDimensions.width;
-  const logoHeight = height || defaultDimensions.height;
+  const aspectRatio = variant === 'icon' ? 1 : 1082 / 255;
+  const logoWidth = width || (height ? Math.round(height * aspectRatio) : defaultDimensions.width);
+  const logoHeight = height || Math.round(logoWidth / aspectRatio);
 
   return (
     <img
       src={getLogoPath()}
       alt="Banners On The Fly"
+      width={logoWidth}
+      height={logoHeight}
       className={`site-logo w-auto object-contain ${className} ${animated ? 'hover:scale-105 transition-transform duration-300' : ''}`}
       style={{
-        maxWidth: '100%',
-        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+        maxWidth: '100%'
       }}
     />
   );

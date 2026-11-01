@@ -1,4 +1,4 @@
-const BRAND_LOGO_URL = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
+const BRAND_LOGO_URL = 'https://bannersonthefly.com/images/bof-logo-20261101.png';
 const BRAND_ORANGE = '#ff6b35';
 const BRAND_ORANGE_DARK = '#f45a24';
 const BRAND_NAVY = '#18448D';
@@ -258,3 +258,4 @@ module.exports = {
   renderEmailLayout,
   escapeHtml,
 };
+

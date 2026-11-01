@@ -126,7 +126,7 @@ exports.handler = async (event, context) => {
         const emailFrom = process.env.EMAIL_FROM || 'info@bannersonthefly.com';
         const emailReplyTo = process.env.EMAIL_REPLY_TO || 'support@bannersonthefly.com';
         const adminEmail = process.env.ADMIN_EMAIL || 'info@bannersonthefly.com';
-        const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
+        const logoUrl = 'https://bannersonthefly.com/images/bof-logo-20261101.png';
         const formattedDate = new Date(createdAt).toLocaleString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' });
         const safeMessage = message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -219,4 +219,5 @@ exports.handler = async (event, context) => {
     };
   }
 };
+
 

@@ -14,7 +14,7 @@ const localSvg = `
 `;
 
 const localBlobUrl = URL.createObjectURL(new Blob([localSvg], { type: 'image/svg+xml' }));
-const permanentUrl = `${window.location.origin}/images/header-logo.png?preview-handoff-test=1`;
+const permanentUrl = `${window.location.origin}/images/bof-logo-20261101.png?preview-handoff-test=1`;
 
 function isPaintedImage(image) {
   if (!(image instanceof HTMLImageElement)) return false;
@@ -235,3 +235,4 @@ function PreviewHandoffHarness() {
 }
 
 createRoot(document.getElementById('preview-handoff-root')).render(<PreviewHandoffHarness />);
+
