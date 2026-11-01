@@ -70,14 +70,27 @@ export default function SpecialtyDesigner({ product, offer, embedded = false, co
   const compositionKey=[product.slug,variant.id,panel.id,artwork?.fileKey,template.widthIn,template.heightIn].join('|');
   useEffect(() => {
     if (!artwork?.editorIdentity || pendingUploadReveal.current !== artwork.editorIdentity) return;
-    const frame = requestAnimationFrame(() => {
+    const heading = placementHeading.current;
+    if (!heading) return;
+    // Safari can adjust page geometry after dismissing the native file picker.
+    // Recheck briefly while the editor settles, yielding immediately to input.
+    let frame = 0;
+    const until = performance.now() + 1200;
+    const cancel = () => cancelAnimationFrame(frame);
+    const align = () => {
       pendingUploadReveal.current = undefined;
-      const heading = placementHeading.current;
-      if (!heading?.getClientRects().length) return;
-      const top = window.scrollY + heading.getBoundingClientRect().top - visibleArtworkBounds().top;
-      window.scrollTo({ top, behavior: 'instant' });
-    });
-    return () => cancelAnimationFrame(frame);
+      if (!heading.getClientRects().length) return;
+      const delta = heading.getBoundingClientRect().top - visibleArtworkBounds().top;
+      if (Math.abs(delta) > 1) window.scrollTo({ top: window.scrollY + delta, behavior: 'instant' });
+      if (performance.now() < until) frame = requestAnimationFrame(align);
+    };
+    frame = requestAnimationFrame(align);
+    const events = ['touchstart', 'pointerdown', 'wheel', 'keydown'];
+    for (const event of events) window.addEventListener(event, cancel, { passive: true });
+    return () => {
+      cancel();
+      for (const event of events) window.removeEventListener(event, cancel);
+    };
   }, [artwork?.editorIdentity]);
 
   function replacePlacement(next: UploadedArtworkFile, original?: UploadedArtworkFile) {
