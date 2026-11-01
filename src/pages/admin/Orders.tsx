@@ -278,15 +278,9 @@ const ProductPreviewFrame: React.FC<{ item: any; thumbUrl: string | null; large?
       data-preview-failed={failed ? 'true' : 'false'}
     >
       {candidates.length > 0 && !failed ? (
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="xMidYMid meet"
-          className="absolute inset-0 h-full w-full"
-          aria-hidden="true"
-        >
-          {/* Fit artwork and hardware together, including in square rows and
-              height-limited lightboxes. Keep every artwork edge visible. */}
-          <foreignObject width={width} height={height}>
+        <>
+          {/* Keep the bitmap in HTML. Safari can composite positioned HTML
+              inside foreignObject at unscaled SVG units (e.g. 48px wide). */}
             <StablePreviewImage
               sources={candidates}
               alt=""
@@ -302,11 +296,17 @@ const ProductPreviewFrame: React.FC<{ item: any; thumbUrl: string | null; large?
                 setFailed(true);
               }}
             />
-          </foreignObject>
           {ready && (
-            <GrommetOverlay widthIn={width} heightIn={height} option={grommets} idSuffix={idSuffix} />
+            <svg
+              viewBox={`0 0 ${width} ${height}`}
+              preserveAspectRatio="xMidYMid meet"
+              className="pointer-events-none absolute inset-0 z-[3] h-full w-full"
+              aria-hidden="true"
+            >
+              <GrommetOverlay widthIn={width} heightIn={height} option={grommets} idSuffix={idSuffix} />
+            </svg>
           )}
-        </svg>
+        </>
       ) : (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50 px-2 text-center text-xs font-medium text-gray-500">
           Preview unavailable
@@ -364,6 +364,7 @@ const AdminOrders: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [reportReady, setReportReady] = useState(false);
+  const [reportError, setReportError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -465,6 +466,7 @@ const AdminOrders: React.FC = () => {
 
   const loadOrders = async (pageToLoad: number = page) => {
     abortDetailRequests();
+    setReportError(false);
     const { start, endExclusive } = getAdminOrderPeriodBounds(period, customRange);
     if (period === 'custom' && (!start || !endExclusive)) {
       reportAbortController.current?.abort();
@@ -508,6 +510,7 @@ const AdminOrders: React.FC = () => {
       setPagination(emptyPagination(pageToLoad));
       setBusinessMetrics(emptyBusinessMetrics());
       setReportReady(false);
+      setReportError(true);
       toast({
         title: "Error Loading Orders",
         description: "There was an error loading orders. Please try again.",
@@ -1397,7 +1400,8 @@ const AdminOrders: React.FC = () => {
                 <p className="text-xs text-gray-600">
                   {reportReady
                     ? `${pagination.totalItems.toLocaleString()} ${pagination.totalItems === 1 ? 'order' : 'orders'} · ${adminOrderPeriodLabel(period)}`
-                    : 'Loading exact metrics, search results, and pagination…'}
+                    : reportError ? 'Order history could not load. Retry below.'
+                      : 'Loading exact metrics, search results, and pagination…'}
                 </p>
                 {!loading && pendingDetailCount > 0 && (
                   <p className="inline-flex items-center gap-1.5 text-xs text-slate-500" data-admin-detail-page-status role="status" aria-live="polite">
@@ -1417,6 +1421,12 @@ const AdminOrders: React.FC = () => {
               <div className="p-8 text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="mt-4 text-gray-600">Loading orders...</p>
+              </div>
+            ) : reportError ? (
+              <div className="p-8 text-center" role="alert">
+                <h3 className="mb-2 text-lg font-semibold text-gray-900">Order history could not load</h3>
+                <p className="text-gray-600">The request failed. This does not mean your orders are missing.</p>
+                <Button type="button" className="mt-4" onClick={() => void loadOrders(page)}>Retry loading orders</Button>
               </div>
             ) : orders.length === 0 ? (
               <div className="p-8 text-center">
@@ -2263,3 +2273,4 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
 
 
 export default AdminOrders;
+
