@@ -3426,7 +3426,7 @@ const GoogleAdsBanner: React.FC = () => {
               {bannerType.retractable ? 'Build Your Banner' : isLargeBannerLanding ? 'Build Your Large Banner' : isDoubleSidedBanner ? 'Build Your Double-Sided Banner' : isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
             </h2>
             <BannerTypeSelector selection={bannerType} />
-            {bannerType.visited && <div hidden={!bannerType.retractable}><RetractableBuilder /></div>}
+            {bannerType.visited && <div hidden={!bannerType.retractable}><RetractableBuilder compactUpload={mobilePaidLayout} /></div>}
             {!bannerType.retractable && <>{showPostAddResetNotice && (
               <div
                 role="status"

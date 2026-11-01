@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import { ArrowRight } from 'lucide-react';
+import CompactProductHero from '@/components/product/CompactProductHero';
+import FirstOrderBadge from '@/components/product/FirstOrderBadge';
+import '@/styles/product-hero.css';
 import SpecialtyDesigner from '@/components/specialty/SpecialtyDesigner';
 import SpecialtyDeliveryStatus from '@/components/delivery/SpecialtyDeliveryStatus';
 import { getSpecialtyProduct, isSpecialtyProductAvailable } from '@/lib/specialtyProducts';
@@ -34,16 +38,29 @@ export function BannerTypeSelector({ selection }: { selection: ReturnType<typeof
   </fieldset>;
 }
 
-export function RetractableBuilder() {
+export function RetractableBuilder({ compactUpload = false }: { compactUpload?: boolean }) {
   const offer = useProductFirstOrderOffer();
-  return product ? <SpecialtyDesigner product={product} offer={offer} embedded /> : null;
+  return product ? <SpecialtyDesigner product={product} offer={offer} compactUpload={compactUpload} embedded /> : null;
 }
 
 export function RetractableHero() {
-  return <section className="bg-slate-50 py-5"><div className="brand-shell grid items-center gap-5 lg:grid-cols-2">
-    <div><h1 className="text-3xl font-bold text-[#061A31]">Retractable Banners</h1>
-    <p className="mt-2">Choose your stand, configure your display, and upload artwork below.</p>
-    <a href="#builder-start" className="mt-4 inline-flex rounded-lg bg-[#ef6400] px-5 py-3 font-bold text-white">Build your banner</a></div>
-    <SpecialtyDeliveryStatus />
-  </div></section>;
+  const offer = useProductFirstOrderOffer();
+  const photo = <img src="/images/banner-selector/retractable-expo.webp" alt="Retractable banner standing on its silver base at an expo" />;
+  const action = <a href="#builder-start" className="product-hero-cta">Design your retractable banner <ArrowRight aria-hidden="true" /></a>;
+  return <>
+    <CompactProductHero title="Retractable banners" accent="Ready to roll." specialty discount={offer.showBadge}
+      photo={photo} delivery={<SpecialtyDeliveryStatus featured />} action={action} />
+    <section className="product-hero-light hidden lg:block">
+      <div className="product-hero-stage">
+        <div className="product-hero-copy">
+          <p className="product-hero-eyebrow">Custom retractable banners</p>
+          <h1>Retractable banners<span className="product-hero-accent">Ready to roll.</span></h1>
+          <p className="product-hero-description">Pull up your graphic at the booth, then roll it into the base when the show is over.</p>
+          <div className="product-hero-actions">{action}</div>
+          <div className="product-hero-delivery"><SpecialtyDeliveryStatus featured /></div>
+        </div>
+        <div className="product-hero-media">{photo}{offer.showBadge && <FirstOrderBadge />}</div>
+      </div>
+    </section>
+  </>;
 }

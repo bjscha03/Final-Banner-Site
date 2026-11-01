@@ -66,6 +66,22 @@ for (const route of ['/design', '/google-ads-banner']) {
     await expect(price).toHaveText(/^\$[0-9,.]+$/);
     await page.getByText('Choose your banner type', { exact: true }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath('banner-type-preview.png') });
+    await expect(page.getByRole('img', { name: /Retractable banner standing/ }).filter({ visible: true })).toHaveCount(1);
+    await expect(page.getByText('Specifications', {exact:true})).toHaveCount(0);
+    await expect(page.getByText('Artwork templates & file setup', {exact:true})).toHaveCount(0);
+    await expect(page.getByText('Assembly & installation', {exact:true})).toHaveCount(0);
+    const area = page.locator('#specialty-artwork');
+    const picker = area.getByLabel('Upload your artwork', {exact:true});
+    const chooser = page.waitForEvent('filechooser');
+    await picker.click();
+    await (await chooser).setFiles({name:'stand-print.png', mimeType:'image/png', buffer:await asymmetricArtwork()});
+    const toggle = area.getByRole('button', {name:'Realistic preview', exact:true});
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await toggle.click();
+    await expect(area.getByTestId('specialty-live-preview').locator('svg').first()).toBeVisible();
+    await toggle.click();
+    await expect(area.getByTestId('specialty-live-preview')).toHaveCount(0);
+    await expect(area.getByLabel('Replace artwork', {exact:true})).toBeVisible();
   });
 }
 
