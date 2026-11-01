@@ -248,6 +248,31 @@
 .checkout-native-wallets { gap: 6px; }
 .checkout-native-wallet { flex-basis: 108px; width: 108px; }
 .checkout-wallet-choice, .checkout-paypal-choice { flex-basis: 108px; width: 108px; border-radius: 6px; }
+/* Size the three available methods from the actual checkout column, including
+   space for Stripe's focus rings. Small screens can use a second row. */
+.checkout-express-options.has-multiple-wallets:has(.checkout-paypal-choice) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 108px));
+  gap: 6px;
+  padding-inline: 4px;
+  container: wallet-row / inline-size;
+}
+.checkout-express-options.has-multiple-wallets:has(.checkout-paypal-choice) > .checkout-wallet-region {
+  grid-column: span 2;
+}
+.checkout-express-options.has-multiple-wallets:has(.checkout-paypal-choice) .checkout-native-wallets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.checkout-express-options.has-multiple-wallets:has(.checkout-paypal-choice) :is(.checkout-paypal-choice, .checkout-native-wallet) {
+  width: 100%;
+  min-width: 0;
+}
+@container wallet-row (width < 312px) {
+  .checkout-express-options.has-multiple-wallets:has(.checkout-paypal-choice) > :is(.checkout-paypal-choice, .checkout-wallet-region) {
+    grid-column: 1 / -1;
+  }
+}
 .checkout-accepted-cards { gap: 6px; margin-top: 7px; }
 .checkout-accepted-cards img { width: 34px; height: 22px; }
 .checkout-card-alternative { margin-top: 12px !important; }
