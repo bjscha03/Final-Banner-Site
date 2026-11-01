@@ -519,7 +519,8 @@ for (const route of ['/design?product=yard-signs', '/google-ads-banner?product=y
     await expect(quantity.getByRole('button', { name: '10', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(total).toHaveText(/^\$(96|120)\.00$/);
     await expect(page.getByText('Add a design to see pricing')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Checkout', exact: true }).first()).toBeDisabled();
+    const checkoutLabel = route.startsWith('/google-ads-banner') ? 'Review and continue' : 'Checkout';
+    await expect(page.getByRole('button', { name: checkoutLabel, exact: true }).first()).toBeDisabled();
     expect(await page.locator('section[id^="yard-"]').evaluateAll(nodes => nodes.map(node => node.id))).toEqual([
       'yard-size-section', 'yard-print-side-section', 'yard-quantity-section', 'yard-upload-section', 'yard-finishing-section',
     ]);
