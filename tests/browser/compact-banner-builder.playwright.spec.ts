@@ -40,6 +40,35 @@ async function sparseArtwork(): Promise<Buffer> {
 }
 
 
+for (const route of ['/design', '/google-ads-banner']) {
+  test(`banner type changes price and shipping in place on ${route}`, async ({ page }, testInfo) => {
+    await installUploadAndFunctionHarness(page, 'selector-' + testInfo.project.name);
+    await page.goto(route);
+    const vinyl = page.getByRole('radio', { name: /Hanging Vinyl Banner/ });
+    const stand = page.getByRole('radio', { name: /Retractable Banner/ });
+    await expect(vinyl).toBeChecked();
+    await stand.check();
+    await expect(page).toHaveURL(new RegExp(route + '$'));
+    const summary = page.getByRole('complementary').filter({ hasText: 'Your retractable banner' });
+    await expect(summary).toContainText('5 p.m. Eastern');
+    await expect(summary).toContainText('Free FedEx Next-Day Air');
+    const price = summary.getByTestId('specialty-subtotal');
+    await expect(price).toHaveText(/^\$[0-9,.]+$/);
+    const startingPrice = await price.innerText();
+    const quantity = page.getByRole('spinbutton', { name: 'Quantity' });
+    await quantity.fill('2');
+    await expect(price).not.toHaveText(startingPrice);
+    await vinyl.check();
+    await expect(page.locator('#size-section')).toBeVisible();
+    await expect(summary).toBeHidden();
+    await stand.check();
+    await expect(quantity).toHaveValue('2');
+    await expect(price).toHaveText(/^\$[0-9,.]+$/);
+    await page.getByText('Choose your banner type', { exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath('banner-type-preview.png') });
+  });
+}
+
 test('banner finishing preserves the artwork, price and cart through add-another and checkout', async ({ page }, testInfo) => {
   const artwork = await asymmetricArtwork();
   const harness = await installUploadAndFunctionHarness(page, `compact-${testInfo.project.name}`);
@@ -554,3 +583,4 @@ test('yard sign hardware stays clear through upload, quantity changes and checko
   expect(cart[0].yard_sign_designs[0].quantity).toBe(30);
   expect(cart[0].yard_sign_designs[0].placementPreview.previewUrl).toBe(savedPreview);
 });
+
