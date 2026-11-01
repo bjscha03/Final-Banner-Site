@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import CompactProductHero from '@/components/product/CompactProductHero';
 import FirstOrderBadge from '@/components/product/FirstOrderBadge';
 import '@/styles/product-hero.css';
+import './retractable-hero.css';
 import SpecialtyDesigner from '@/components/specialty/SpecialtyDesigner';
 import SpecialtyDeliveryStatus from '@/components/delivery/SpecialtyDeliveryStatus';
 import { getSpecialtyProduct, isSpecialtyProductAvailable } from '@/lib/specialtyProducts';
@@ -30,7 +31,7 @@ export function BannerTypeSelector({ selection }: { selection: ReturnType<typeof
     <div className="grid gap-2 md:grid-cols-2 md:gap-4">{choices.map(([title, detail], i) => {
       const active = selection.retractable === Boolean(i);
       return <label key={title} className={'flex cursor-pointer items-center gap-3 rounded-xl border p-2 focus-within:ring-2 focus-within:ring-orange-600 '+(active ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-orange-400')}>
-        <img src={'/images/banner-selector/photo-'+i+'.webp'} alt="" width="400" height="400" className="h-16 w-20 rounded-md object-cover md:h-32 md:w-1/3 lg:h-40"/>
+        <img src={i === 0 ? '/images/banner-selector/roastery.webp' : '/images/banner-selector/ridge-check-in.webp'} alt="" width="400" height="400" className={`h-16 w-20 rounded-md bg-slate-50 md:h-32 md:w-1/3 lg:h-40 ${i === 0 ? 'object-contain' : 'object-cover'}`}/>
         <input type="radio" name="banner-type" checked={active} onChange={()=>selection.select(Boolean(i))} className="h-5 w-5 shrink-0 accent-orange-600"/>
         <span><strong className="block text-[#061A31]">{title}</strong><span className="text-sm text-slate-600">{detail}</span></span>
       </label>;
@@ -45,12 +46,12 @@ export function RetractableBuilder({ compactUpload = false }: { compactUpload?: 
 
 export function RetractableHero() {
   const offer = useProductFirstOrderOffer();
-  const photo = <img src="/images/banner-selector/retractable-expo.webp" alt="Retractable banner standing on its silver base at an expo" />;
+  const photo = <img className="ridge-ride-photo" src="/images/banner-selector/ridge-ride-hero.webp" alt="Ridge Ride check-in banner beside the cycling registration table" />;
   const action = <a href="#builder-start" className="product-hero-cta">Design your retractable banner <ArrowRight aria-hidden="true" /></a>;
   return <>
     <CompactProductHero title="Retractable banners" accent="Ready to roll." specialty discount={offer.showBadge}
       photo={photo} delivery={<SpecialtyDeliveryStatus featured />} action={action} />
-    <section className="product-hero-light hidden lg:block">
+    <section className="product-hero-light retractable-designer-hero hidden lg:block">
       <div className="product-hero-stage">
         <div className="product-hero-copy">
           <p className="product-hero-eyebrow">Custom retractable banners</p>
