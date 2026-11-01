@@ -106,7 +106,7 @@ exports.handler = async (event) => {
         <div class="container">
           <!-- Logo Section -->
           <div class="logo-container">
-            <img src="https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg" alt="Banners On The Fly Logo" style="max-width: 200px; width: 100%; height: auto; display: inline-block;">
+            <img src="https://bannersonthefly.com/images/bof-logo-20261101.png" alt="Banners On The Fly Logo" style="max-width: 200px; width: 100%; height: auto; display: inline-block;">
           </div>
           
           <div class="header">
@@ -205,4 +205,5 @@ exports.handler = async (event) => {
     };
   }
 };
+
 

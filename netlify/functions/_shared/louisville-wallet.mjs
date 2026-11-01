@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
 import { promisify } from "node:util";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { getStore } from "@netlify/blobs";
 import forge from "node-forge";
 import { PKPass } from "passkit-generator";
@@ -177,15 +179,21 @@ async function passAssets() {
   if (!assets)
     assets = (async () => {
       const files = {};
-      const icon =
-        '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="96" height="96" rx="20" fill="#122641"/><path fill="#ff790e" d="M12 23h72L65 47l19 25H12z"/><text x="23" y="56" font-family="Arial,sans-serif" font-weight="bold" font-size="28" fill="#fff">BOF</text></svg>';
+      const icon = await readFile(path.join(process.cwd(), 'public/images/bof-icon-20261101.png'));
+      const logo = await readFile(path.join(process.cwd(), 'public/images/bof-logo-20261101.png'));
       for (const scale of [1, 2, 3])
         files[`icon${scale === 1 ? "" : `@${scale}x`}.png`] = await sharp(
-          Buffer.from(icon),
+          icon,
         )
           .resize(29 * scale, 29 * scale)
           .png()
           .toBuffer();
+      for (const scale of [1, 2, 3]) {
+        files[`logo${scale === 1 ? '' : `@${scale}x`}.png`] = await sharp(logo)
+          .resize(160 * scale)
+          .png()
+          .toBuffer();
+      }
       const strip =
         '<svg xmlns="http://www.w3.org/2000/svg" width="750" height="288"><rect width="750" height="288" fill="#122641"/><circle cx="700" cy="-20" r="220" fill="#1b3657"/><path d="M580 288L750 100V288" fill="#f45b08"/><text x="36" y="47" font-family="Arial,sans-serif" font-size="20" letter-spacing="3" fill="#ffb37d">A LITTLE LOCAL LOVE</text><text x="30" y="168" font-family="Arial,sans-serif" font-size="112" font-weight="bold" fill="#fff">25% OFF</text><text x="36" y="228" font-family="Arial,sans-serif" font-size="25" fill="#fff">YOUR NEXT BANNER</text></svg>';
       files["strip.png"] = await sharp(Buffer.from(strip))
@@ -271,3 +279,4 @@ export async function signedPass(lead) {
     );
   return buildPass(lead, config);
 }
+

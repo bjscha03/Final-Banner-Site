@@ -7,8 +7,8 @@ import {
   buildCompositionSignature,
 } from '@/lib/previewLifecycle';
 
-const goodSource = `${window.location.origin}/images/header-logo.png?order-surface-good=1`;
-const fallbackOriginal = `${window.location.origin}/images/header-logo.png?order-surface-original=1`;
+const goodSource = `${window.location.origin}/images/bof-logo-20261101.png?order-surface-good=1`;
+const fallbackOriginal = `${window.location.origin}/images/bof-logo-20261101.png?order-surface-original=1`;
 const badSource = `${window.location.origin}/images/does-not-exist-order-preview.png?bad=1`;
 const composition = {
   version: PREVIEW_ARTIFACT_VERSION,
@@ -282,3 +282,4 @@ function Harness() {
 }
 
 createRoot(document.getElementById('order-surface-preview-root')).render(<Harness />);
+

@@ -1,5 +1,5 @@
 const SITE_URL = 'https://bannersonthefly.com';
-const LOGO_URL = `${SITE_URL}/images/header-logo.png`;
+const LOGO_URL = `${SITE_URL}/images/bof-logo-20261101.png`;
 const SPORTS_BANNER_URL = `${SITE_URL}/images/email/september-football-banner.jpg`;
 const GRAND_OPENING_BANNER_URL = `${SITE_URL}/images/email/september-grand-opening-banner.jpg`;
 const DEFAULT_PHYSICAL_ADDRESS = 'PO Box 369, Crestwood, KY 40014';
@@ -234,3 +234,4 @@ export const _test = {
   SITE_URL,
   SPORTS_BANNER_URL,
 };
+

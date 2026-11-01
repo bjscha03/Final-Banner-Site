@@ -3,7 +3,7 @@
 const SITE_URL = 'https://bannersonthefly.com';
 const DESIGN_URL = `${SITE_URL}/design?utm_source=email&utm_medium=marketing&utm_campaign=company_intro_new20`;
 const LIVE_DELIVERY_URL = `${SITE_URL}/shipping?utm_source=email&utm_medium=marketing&utm_campaign=company_intro_new20`;
-const BRAND_LOGO_URL = `${SITE_URL}/images/header-logo.png`;
+const BRAND_LOGO_URL = `${SITE_URL}/images/bof-logo-20261101.png`;
 // Use the same direct Cloudinary delivery domain as the site's established
 // transactional email imagery. The immutable Git commit keeps this asset
 // available before and after the preview branch is merged or removed.
@@ -246,3 +246,4 @@ module.exports = {
   renderOutboundEmailPreview,
   renderOutboundDeliveryContent,
 };
+

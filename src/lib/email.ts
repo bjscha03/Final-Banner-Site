@@ -17,8 +17,8 @@ import { createGuestOrderViewUrl } from './orderViewUrl.server';
 
 // Email-compatible logo header HTML for inline templates
 export function createEmailLogoHeader(): string {
-  // Use Cloudinary URL for reliable email delivery
-  const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
+  // Use the versioned PNG directly to avoid stale Cloudinary and email image caches
+  const logoUrl = 'https://bannersonthefly.com/images/bof-logo-20261101.png';
   
   return `
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 0;">
@@ -373,3 +373,4 @@ export async function sendOrderConfirmation(order: any, customerEmail: string): 
     return true;
   }
 }
+

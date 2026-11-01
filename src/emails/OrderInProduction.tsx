@@ -32,7 +32,7 @@ interface OrderInProductionProps {
 }
 
 export default function OrderInProduction({ order }: OrderInProductionProps) {
-  const logoUrl = 'https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
+  const logoUrl = 'https://bannersonthefly.com/images/bof-logo-20261101.png';
 
   return (
     <Html>
@@ -45,7 +45,7 @@ export default function OrderInProduction({ order }: OrderInProductionProps) {
               src={logoUrl}
               alt="Banners On The Fly"
               width="200"
-              height="60"
+              height="47"
               style={logoStyle}
             />
           </Section>
@@ -334,3 +334,4 @@ const footerText = {
   color: '#6b7280',
   margin: '0 0 10px 0',
 };
+

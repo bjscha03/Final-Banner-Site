@@ -17,8 +17,8 @@ test('only the exact approved offer can bypass discount escalation',()=>{
 });
 test('branded signatures render escaped email-safe HTML with the real logo and correct address',()=>{
  const html=renderSalesEmail('Hi team,\n\n<script>alert(1)</script>');
- assert.match(html,/<table role="presentation"/);assert.match(html,/<img[^>]+header-logo.png/);
- assert.match(html,/width="240" height="68"/);assert.match(html,/PO Box 368/);
+ assert.match(html,/<table role="presentation"/);assert.match(html,/<img[^>]+bof-logo-20261101.png/);
+ assert.match(html,/width="240" height="57"/);assert.match(html,/PO Box 368/);
  assert.doesNotMatch(html,/<script>/);assert.match(html,/reply unsubscribe/);
  assert.match(signature('Brad','Team Manager'),/>Brad<\/strong>/);
 });
@@ -27,3 +27,4 @@ test('the full personalized redemption sentence is bold in HTML email',()=>{
  const code=promo.createTeamCode('Paristown',env);
  assert.ok(renderSalesEmail(offerText(code)).includes('<strong style="font-weight:700">Use '+code+' for 25% off sitewide.</strong>'));
 });
+

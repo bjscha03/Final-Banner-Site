@@ -101,7 +101,7 @@ export const getOrganizationSchema = () => ({
   '@type': 'Organization',
   name: 'Banners On The Fly',
   url: 'https://bannersonthefly.com',
-  logo: 'https://bannersonthefly.com/images/logo-social.svg',
+  logo: 'https://bannersonthefly.com/images/bof-logo-20261101.png',
   description: 'Online custom banner, yard sign, and car magnet printing with nationwide shipping.',
   contactPoint: {
     '@type': 'ContactPoint',
@@ -178,7 +178,7 @@ export const getWebPageSchema = (page: {
     name: 'Banners On The Fly',
     logo: {
       '@type': 'ImageObject',
-      url: 'https://bannersonthefly.com/images/logo-social.svg',
+      url: 'https://bannersonthefly.com/images/bof-logo-20261101.png',
     },
   },
 });
@@ -198,3 +198,4 @@ export const getFAQSchema = (faqs: { question: string; answer: string }[]) => ({
     },
   })),
 });
+

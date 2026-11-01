@@ -101,7 +101,7 @@ test('qualifying Email 1 shows actual artwork, full options, exact expiry, and a
 
   assert.equal(email.subject, 'Your banner is saved — 25% off for the next hour');
   assert.match(email.html, /Banners On The Fly/);
-  assert.match(email.html, /logo-compact\.svg/);
+  assert.match(email.html, /bof-logo-20261101\.png/);
   assert.match(email.html, /display:none!important;visibility:hidden/);
   assert.match(email.html, /You left this behind/);
   assert.match(email.html, /email-banner-thumbnail\?/);
@@ -270,3 +270,4 @@ test('recovery and unsubscribe links must be absolute HTTPS URLs', () => {
     /unsubscribeUrl must be an absolute HTTPS URL/,
   );
 });
+

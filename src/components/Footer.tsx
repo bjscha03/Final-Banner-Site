@@ -106,10 +106,10 @@ const Footer: React.FC = () => {
               className="inline-flex bg-white px-4 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A3D]"
             >
               <img
-                src="/images/logo-full.svg"
+                src="/images/bof-logo-20261101.png"
                 alt="Banners On The Fly"
                 width="260"
-                height="65"
+                height="61"
                 loading="lazy"
                 className="h-auto w-[210px] max-w-full"
               />
@@ -263,3 +263,4 @@ const Footer: React.FC = () => {
 };
 
 export default Footer;
+

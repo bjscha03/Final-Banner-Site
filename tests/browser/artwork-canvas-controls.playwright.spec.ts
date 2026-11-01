@@ -169,7 +169,7 @@ for (const kind of ['photo','logo','transparent','wide']) {
     test.skip(!['chromium-1440x900','chromium-pixel8-portrait','webkit-iphone15pro-portrait'].includes(info.project.name),'Representative desktop and phone coverage');
     let input: Buffer;
     if (kind==='photo') input = await sharp(await readFile('public/images/email/september-grand-opening-banner.jpg')).png().toBuffer();
-    else if (kind==='logo') input = await readFile('public/images/header-logo.png');
+    else if (kind==='logo') input = await readFile('public/images/bof-logo-20261101.png');
     else input = await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${kind==='wide'?2400:900}" height="${kind==='wide'?200:900}"><circle cx="100" cy="100" r="80" fill="#9333ea"/><path d="M100 30 L155 130 L45 130 Z" fill="#facc15"/></svg>`)).png().toBuffer();
     const scenario=`${kind}-${info.project.name}`;
     const image=await upload(page,scenario,input,`${kind}.png`);
@@ -203,3 +203,4 @@ test('native touch drag stays selected and does not scroll the page',async ({pag
   close((await box(selected)).x,b.x+24);
   close(await page.evaluate(()=>window.scrollY),before);
 });
+

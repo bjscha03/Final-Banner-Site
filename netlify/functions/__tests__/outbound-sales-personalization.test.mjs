@@ -296,7 +296,7 @@ describe('grounded copy contract and deterministic cost controls', () => {
     const html = renderOutboundEmailPreview({ subject: '<script>alert(1)</script>', bodyText: 'Hi team,\n\nUse <strong>safe</strong> banners.' });
     expect(html).toContain('#ff6b35');
     expect(html).toContain('#18448D');
-    expect(html).toContain('header-logo.png');
+    expect(html).toContain('bof-logo-20261101.png');
     expect(html).toContain('res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_1280/');
     expect(html).toContain('trade-show-booth-hero.webp');
     expect(html).toContain('trade show exhibitor booth');
@@ -655,3 +655,4 @@ describe('Phase 3 migration isolation and rollback contract', () => {
     expect(executable).toContain('DROP INDEX IF EXISTS outbound_messages_generation_key_uidx');
   });
 });
+

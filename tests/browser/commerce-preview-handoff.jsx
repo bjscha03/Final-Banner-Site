@@ -21,7 +21,7 @@ const localSvg = `
 `;
 
 const localBlobUrl = URL.createObjectURL(new Blob([localSvg], { type: 'image/svg+xml' }));
-const localImage = (marker) => `${window.location.origin}/images/header-logo.png?commerce-preview=${marker}`;
+const localImage = (marker) => `${window.location.origin}/images/bof-logo-20261101.png?commerce-preview=${marker}`;
 
 function readyPlacement(marker, widthIn, heightIn, productType = 'banner') {
   const previewUrl = localImage(marker);
@@ -486,3 +486,4 @@ function CommercePreviewHarness() {
 }
 
 createRoot(document.getElementById('commerce-preview-root')).render(<CommercePreviewHarness />);
+

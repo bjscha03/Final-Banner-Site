@@ -228,7 +228,7 @@ async function mock(
     } else if (
       url.hostname === "bannersonthefly.com" &&
       [
-        "/images/header-logo.png",
+        "/images/bof-logo-20261101.png",
         "/images/email/september-grand-opening-banner.jpg",
       ].includes(url.pathname)
     ) {
@@ -825,3 +825,4 @@ test("a friend opens a shared link and keeps the referral when shopping as a gue
   expect(saved.code).toBe("BOFREF-ABCDEF123456");
   expect(saved.expires).toBeGreaterThan(Date.now());
 });
+

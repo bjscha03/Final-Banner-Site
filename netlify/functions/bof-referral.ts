@@ -95,7 +95,7 @@ export function renderReferralPage(code: string, state: PageState, origin = SITE
   </style>
 </head>
 <body${active ? ` data-referral-code="${e(safeCode)}"` : ""}>
-  <header class="site-header"><div class="header-inner"><a href="/" aria-label="Banners On The Fly home"><img class="logo" src="${e(origin)}/images/header-logo.png" alt="Banners On The Fly" width="214" height="60"></a>${navigation.siteNavigation()}</div></header>
+  <header class="site-header"><div class="header-inner"><a href="/" aria-label="Banners On The Fly home"><img class="logo" src="${e(origin)}/images/bof-logo-20261101.png" alt="Banners On The Fly" width="214" height="60"></a>${navigation.siteNavigation()}</div></header>
   <main>
     <section class="hero" aria-labelledby="offer-heading">
       <div class="hero-copy">
@@ -158,3 +158,4 @@ export default async function handler(request: Request, context: Context) {
     return response(request, code, "unavailable", 503);
   }
 }
+

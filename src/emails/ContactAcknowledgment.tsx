@@ -21,8 +21,8 @@ interface ContactAcknowledgmentProps {
 }
 
 export default function ContactAcknowledgment({ contact }: ContactAcknowledgmentProps) {
-  // Logo URL for email - use environment-aware URL
-  const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
+  // Versioned PNG keeps the approved logo consistent across email clients
+  const logoUrl = 'https://bannersonthefly.com/images/bof-logo-20261101.png';
   return (
     <Html>
       <Head />
@@ -34,7 +34,7 @@ export default function ContactAcknowledgment({ contact }: ContactAcknowledgment
               src={logoUrl}
               alt="Banners On The Fly"
               width="200"
-              height="60"
+              height="47"
               style={logoStyle}
             />
           </Section>
@@ -231,3 +231,4 @@ const link = {
   color: '#2563eb',
   textDecoration: 'underline',
 };
+

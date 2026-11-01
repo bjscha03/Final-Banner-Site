@@ -691,7 +691,7 @@ function AIWorkspaceSession(props: Props) {
       <div className="ai-studio-header">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="ai-studio-brand">
-            <img src="/images/logo-full.svg" alt="Banners On The Fly" width="200" height="50" />
+            <img src="/images/bof-logo-20261101.png" alt="Banners On The Fly" width="200" height="50" />
             <span>AI DESIGN STUDIO</span>
           </div>
           <div className="flex items-center gap-2">
@@ -933,3 +933,4 @@ function AIWorkspaceSession(props: Props) {
     </div>
   );
 }
+

@@ -96,7 +96,7 @@ export default function ArtworkFitHelp({ open, onDismiss, assistance, imageSrc, 
         onCloseAutoFocus={event => { event.preventDefault(); if (!openingFitter.current) onReturnFocus(); }}>
         <div aria-hidden="true" className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-300 sm:hidden" />
         <div className="mb-4 flex items-center justify-between gap-4">
-          <img src="/images/header-logo.png" alt="Banners On The Fly" width={142} height={40} className="h-10 w-auto max-w-[160px] object-contain" />
+          <img src="/images/bof-logo-20261101.png" alt="Banners On The Fly" width={142} height={40} className="h-10 w-auto max-w-[160px] object-contain" />
           <Dialog.Close aria-label="Close fitting help" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#061A31] hover:bg-orange-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600"><X size={26} /></Dialog.Close>
         </div>
         <Dialog.Title className="pr-2 text-[26px] font-bold leading-tight tracking-tight text-[#061A31]">Having difficulty fitting your artwork?</Dialog.Title>
@@ -113,3 +113,4 @@ export default function ArtworkFitHelp({ open, onDismiss, assistance, imageSrc, 
     </Dialog.Portal>
   </Dialog.Root>;
 }
+

@@ -1,5 +1,5 @@
 const SITE_URL = 'https://bannersonthefly.com';
-const BRAND_LOGO_URL = `${SITE_URL}/images/header-logo.png`;
+const BRAND_LOGO_URL = `${SITE_URL}/images/bof-logo-20261101.png`;
 
 export function escapeTradeShowEmailHtml(value) {
   return String(value ?? '')
@@ -139,3 +139,4 @@ export function buildTradeShowEmail({ event, exhibitorName, discountCode, unsubs
 
   return { subject, html, text, eventDates, planningUrl };
 }
+
