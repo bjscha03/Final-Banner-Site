@@ -148,8 +148,13 @@ test('deploy preview matches the wallet and card layout without accepting paymen
     if (/paypal\.com\/sdk|js\.stripe\.com|\/(stripe-create-payment-intent|paypal-create-order|paypal-capture-minimal)(?:\?|$)/.test(request.url())) providerRequests.push(request.url());
   });
   await page.goto('/checkout?checkoutVisualMode=deploy-preview');
-  await expect(page.getByRole('button', { name: 'Apple Pay — preview only', exact: true })).toBeDisabled();
-  await expect(page.getByRole('button', { name: 'PayPal — preview only', exact: true })).toBeDisabled();
+  for (const method of ['Apple Pay', 'PayPal']) {
+    await page.getByRole('button', { name: `Test ${method}`, exact: true }).click();
+    const review = page.getByRole('region', { name: `${method} test order` });
+    await expect(review).toContainText('$76.32');
+    await review.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(review).toHaveCount(0);
+  }
   await expect(page.getByRole('heading', { name: 'Payment', exact: true })).toBeVisible();
   await expect(page.locator('#checkout-email')).toHaveAttribute('placeholder', 'you@example.com');
   await expect(page.locator('.checkout-fallback-methods')).toHaveCount(0);
@@ -167,7 +172,20 @@ test('deploy preview matches the wallet and card layout without accepting paymen
     testOrder = route.request().postDataJSON();
     return route.fulfill({ status: 403, json: { error: 'Preview order requires admin access.' } });
   });
+  for (const method of ['Apple Pay', 'PayPal']) {
+    testOrder = undefined;
+    await page.getByRole('button', { name: `Test ${method}`, exact: true }).click();
+    const review = page.getByRole('region', { name: `${method} test order` });
+    const submitted = page.waitForResponse(response => response.url().endsWith('/.netlify/functions/create-order'));
+    await review.getByRole('button', { name: 'Confirm test order' }).click();
+    await submitted;
+    await expect(review.getByRole('alert')).toHaveText('Preview order requires admin access.');
+    expect(testOrder).toMatchObject({ checkout_mode: 'admin_deploy_preview_test', payment_method: 'admin_deploy_preview_test', total_cents: 7632 });
+    await review.getByRole('button', { name: 'Cancel', exact: true }).click();
+  }
+  testOrder = undefined;
   await pay.click();
+  await expect.poll(() => testOrder).toBeDefined();
   await expect(page.getByText('Preview order requires admin access.', { exact: true }).first()).toBeVisible();
   expect(testOrder).toMatchObject({ checkout_mode: 'admin_deploy_preview_test', payment_method: 'admin_deploy_preview_test', total_cents: 7632 });
   expect(providerRequests).toEqual([]);
