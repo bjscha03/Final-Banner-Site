@@ -60,7 +60,7 @@ test('approved responsive layout keeps artwork and authoritative totals visible'
   }
   expect(Math.abs(walletBoxes[0].y - walletBoxes[1].y)).toBeLessThanOrEqual(1);
   const rowWidth = await page.locator('.checkout-express-options').evaluate(row => row.clientWidth);
-  if (rowWidth >= 320) {
+  if (rowWidth >= 328) {
     expect(Math.abs(walletBoxes[1].y - walletBoxes[2].y)).toBeLessThanOrEqual(1);
   } else {
     expect(walletBoxes[0].y).toBeGreaterThanOrEqual(walletBoxes[2].y + walletBoxes[2].height);
@@ -108,6 +108,11 @@ test('all three express methods fit the checkout column at narrow phone widths',
     const methods = ['PayPal', 'Apple Pay test fixture', 'Google Pay test fixture']
       .map(name => row.getByRole('button', { name, exact: true }));
     for (const method of methods) await expect(method).toBeVisible();
+    // Real Stripe wallets can suppress their mark or retain a stale iframe
+    // size when their host changes width after availability is reported.
+    const slots = row.locator('.checkout-native-wallet:not(.invisible)');
+    await expect(slots).toHaveCount(2);
+    for (const slot of await slots.all()) await expect(slot).toHaveCSS('width', '108px');
     const bounds = (await row.boundingBox())!;
     for (const method of methods) {
       const box = (await method.boundingBox())!;
