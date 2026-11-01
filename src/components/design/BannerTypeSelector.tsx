@@ -20,7 +20,7 @@ export function useBannerType(enabled: boolean) {
 }
 
 const choices = [
-  ['Hanging Vinyl Banner', 'Hang it on a fence, wall, or railing.'],
+  ['Vinyl/Mesh Banners', 'Hang it on a fence, wall, or railing.'],
   ['Retractable Banner', 'A freestanding display that rolls into its base.'],
 ];
 

@@ -44,7 +44,7 @@ for (const route of ['/design', '/google-ads-banner']) {
   test(`banner type changes price and shipping in place on ${route}`, async ({ page }, testInfo) => {
     await installUploadAndFunctionHarness(page, 'selector-' + testInfo.project.name);
     await page.goto(route);
-    const vinyl = page.getByRole('radio', { name: /Hanging Vinyl Banner/ });
+    const vinyl = page.getByRole('radio', { name: /^Vinyl\/Mesh Banners\b/ });
     const stand = page.getByRole('radio', { name: /Retractable Banner/ });
     await expect(vinyl).toBeChecked();
     await stand.check();
