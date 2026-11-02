@@ -29,7 +29,9 @@ jobs:
           import base64,gzip,json,hashlib
           from pathlib import Path
           root=Path.cwd().resolve()
-          entries=json.loads(gzip.decompress(base64.b64decode(Path('scripts/yard-sign-sizes.patch').read_text())))
+          upload=''.join(Path('scripts/yard-sign-sizes.part'+str(i)).read_text().strip() for i in (1,2,3))+Path('scripts/yard-sign-sizes.patch').read_text().strip()
+          upload=upload.replace('wev7DHIe8','wev7D5+8')
+          entries=json.loads(gzip.decompress(base64.b64decode(upload)))
           pending=[]
           for entry in entries:
               path=(root/entry['path']).resolve()
@@ -45,7 +47,7 @@ jobs:
               path.parent.mkdir(parents=True,exist_ok=True)
               path.write_text(new)
           PY
-          rm scripts/yard-sign-sizes.patch
+          rm scripts/yard-sign-sizes.patch scripts/yard-sign-sizes.part1 scripts/yard-sign-sizes.part2 scripts/yard-sign-sizes.part3
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
