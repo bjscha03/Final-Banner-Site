@@ -30,7 +30,7 @@ jobs:
           from pathlib import Path
           root=Path.cwd().resolve()
           upload=''.join(Path('scripts/yard-sign-sizes.part'+str(i)).read_text().strip() for i in (1,2,3))+Path('scripts/yard-sign-sizes.patch').read_text().strip()
-          upload=upload.replace('wev7DHIe8','wev7D5+8')
+          upload=upload.replace('wev7DHIe8','wev7D5+8e')
           entries=json.loads(gzip.decompress(base64.b64decode(upload)))
           pending=[]
           for entry in entries:
@@ -87,6 +87,9 @@ jobs:
         if: always()
         with:
           name: yard-sign-browser-results
-          path: test-results/
+          path: |
+            test-results/
+            scripts/yard-sign-sizes.part*
+            scripts/yard-sign-sizes.patch
           if-no-files-found: ignore
           retention-days: 3
