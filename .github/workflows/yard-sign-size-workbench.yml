@@ -21,33 +21,33 @@ jobs:
         with:
           ref: feat/yard-sign-sheet-sizes
           fetch-depth: 1
-      - name: Make browser fixture catalog loading compatible with Node
+      - name: Preserve native Node server imports
         run: |
           set -euo pipefail
           test "$GITHUB_REF" = 'refs/heads/feat/yard-sign-sheet-sizes'
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('tests/browser/yard-sign-sizes.playwright.spec.ts')
-          text=p.read_text()
-          text=text.replace("import catalog from '../../shared/yard-sign-sizes.json';", "import { readFileSync } from 'node:fs';\nconst catalog = JSON.parse(readFileSync(new URL('../../shared/yard-sign-sizes.json', import.meta.url), 'utf8'));")
-          p.write_text(text)
+          p=Path('src/lib/admin-profit-estimate.ts')
+          p.write_text(p.read_text().replace("from './yard-sign-sizes';", "from './yard-sign-sizes.ts';"))
+          p=Path('src/lib/yard-sign-sizes.ts')
+          p.write_text(p.read_text().replace("import catalog from '../../shared/yard-sign-sizes.json';", "import catalog from '../../shared/yard-sign-sizes.json' with { type: 'json' };"))
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add tests/browser/yard-sign-sizes.playwright.spec.ts
+          git add src/lib/admin-profit-estimate.ts src/lib/yard-sign-sizes.ts
           if ! git diff --cached --quiet; then
-            git commit -m 'Load shared size catalog in browser regression tests on Node 20'
+            git commit -m 'Keep shared yard sign catalog compatible with native server module loading'
             git push origin HEAD:refs/heads/feat/yard-sign-sheet-sizes
           fi
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
       - name: Install exact dependencies
         run: npm ci
       - name: Verify pricing, quantities, promotions, supplier costs and legacy products
         run: |
-          node --test netlify/functions/_shared/__tests__/yard-sign-sizes.test.cjs netlify/functions/__tests__/stripe-server-pricing.test.cjs
+          node --test netlify/functions/_shared/__tests__/yard-sign-sizes.test.cjs netlify/functions/__tests__/stripe-server-pricing.test.cjs netlify/functions/__tests__/get-orders-reporting.test.mjs netlify/functions/__tests__/payment-access-handler.test.mjs netlify/functions/__tests__/paypal-preview-containment.test.mjs netlify/functions/__tests__/security-data-integrity-regressions.test.mjs
           npx vitest run src/lib/__tests__/yard-sign-sizes.test.ts src/lib/__tests__/yard-sign-pricing.test.ts src/lib/yard-sign-first-order.test.ts src/lib/__tests__/admin-profit-estimate.test.ts src/lib/seo/__tests__/localPages.test.ts
       - name: Verify desktop and mobile designer flows
         run: |
