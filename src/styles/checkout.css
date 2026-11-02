@@ -273,8 +273,8 @@
 .checkout-accepted-cards img { width: 34px; height: 22px; }
 .checkout-card-alternative { margin-top: 12px !important; }
 @media (max-width: 1023px) {
-  .checkout-simple-header > div { min-height: 52px; padding: 8px 16px; }
-  .checkout-simple-header img { width: 142px; }
+  .checkout-simple-header > div { min-height: 52px; padding: 4px 16px; }
+  .checkout-simple-header img { width: 236px; min-width: 0; }
   .checkout-simple-header span { font-size: 11px; }
   .checkout-page { padding: 0 16px 0; }
   .checkout-page .checkout-back { min-height: 44px; height: 44px; }
@@ -311,6 +311,5 @@
   .checkout-shipment-dates svg { width: 18px; height: 18px; }
   .checkout-shipment-dates > div { gap: 5px; }
   .checkout-shipment-dates > div + div { padding-left: 7px; }
-  .checkout-simple-header img { width: 128px; }
   .checkout-payment-bar { gap: 8px; }
 }
