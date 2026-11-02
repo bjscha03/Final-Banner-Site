@@ -1,4 +1,4 @@
-import { contentHash } from './recovery-policy.mjs';
+import { followupHash } from './recovery-policy.mjs';
 
 export async function reviewFollowup(sql,message,knowledge,env,fetcher=fetch) {
   // Never import another pending or rejected draft as a conversation event.
@@ -18,5 +18,7 @@ export async function reviewFollowup(sql,message,knowledge,env,fetcher=fetch) {
   if(!response.ok) return {approved:false,reason:'Independent follow-up review failed'};
   const result=await response.json();let value;
   try{value=JSON.parse(result.choices[0].message.content);}catch{return {approved:false,reason:'Invalid independent review result'};}
-  return {approved:value.approved===true,reason:String(value.reason || '').slice(0,500),response_id:result.id || null,content_hash:contentHash(message),knowledge_version:knowledge.version,reviewed_at:new Date().toISOString()};
+  if(!value || typeof value!=='object' || Array.isArray(value) || typeof value.approved!=='boolean' || typeof value.reason!=='string')
+    return {approved:false,reason:'Invalid independent review schema'};
+  return {approved:value.approved===true,reason:value.reason.slice(0,500),response_id:result.id || null,content_hash:followupHash(message),knowledge_version:knowledge.version,reviewed_at:new Date().toISOString()};
 }
