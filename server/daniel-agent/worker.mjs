@@ -47,6 +47,7 @@ export async function runWorker(env=process.env,options={}) {
    }
   }
   const [freshSettings]=await sql`SELECT * FROM daniel_sales.settings WHERE id=1`;
+  summary.controls={paused:freshSettings.paused===true,coldOutreachPaused:freshSettings.cold_outreach_paused===true,requiredDraftContract:freshSettings.required_draft_contract || null};
   if(freshSettings.paused && !options.gmailTest) {
    summary.status='paused';summary.report=await report(sql);return summary;
   }
@@ -55,8 +56,8 @@ export async function runWorker(env=process.env,options={}) {
   const effectiveSettings=options.gmailTest?{...freshSettings,auto_reply:true,auto_prospect:options.discover===true}:freshSettings;
   summary.reconciliation=await reconcile(sql,env,token);
   const tasks=options.gmailTest
-   ? await sql`SELECT t.* FROM daniel_sales.tasks t JOIN daniel_sales.contacts c ON c.id=t.contact_id WHERE t.status='pending' AND t.due_at<=now() AND t.kind IN ('followup','reply') AND lower(c.email)=ANY(${testRecipients}::text[]) ORDER BY (t.kind='reply') DESC,t.due_at LIMIT 3`
-   : await sql`SELECT * FROM daniel_sales.tasks WHERE status='pending' AND due_at<=now() AND kind IN ('followup','reply') ORDER BY (kind='reply') DESC,due_at LIMIT 3`;
+   ? await sql`SELECT t.* FROM daniel_sales.tasks t JOIN daniel_sales.contacts c ON c.id=t.contact_id WHERE t.status='pending' AND t.due_at<=now() AND t.kind IN ('followup','reply') AND lower(c.email)=ANY(${testRecipients}::text[]) AND (NOT ${effectiveSettings.cold_outreach_paused===true} OR t.kind='reply') ORDER BY (t.kind='reply') DESC,t.due_at LIMIT 3`
+   : await sql`SELECT * FROM daniel_sales.tasks WHERE status='pending' AND due_at<=now() AND kind IN ('followup','reply') AND (NOT ${effectiveSettings.cold_outreach_paused===true} OR kind='reply') ORDER BY (kind='reply') DESC,due_at LIMIT 3`;
   for(const t of tasks) {
    if(!effectiveSettings.auto_reply)continue;
    const [c]=await sql`SELECT * FROM daniel_sales.contacts WHERE id=${t.contact_id}`;
@@ -69,16 +70,30 @@ export async function runWorker(env=process.env,options={}) {
     continue;
    }
    try {
+    if(effectiveSettings.required_draft_contract) {
+     // Inspect only the contract marker, not legacy draft content. Do not
+     // regenerate over an existing idempotency key or release its hold.
+     const [legacy]=await sql`SELECT id,ai_metadata->>'generation_contract' AS generation_contract FROM daniel_sales.messages WHERE idempotency_key=${'task:'+t.id}`;
+     if(legacy && legacy.generation_contract!==effectiveSettings.required_draft_contract) {
+      await sql`UPDATE daniel_sales.tasks SET status='needs_review',note='Existing legacy draft remains quarantined; individual review is unresolved.' WHERE id=${t.id} AND status='pending'`;
+      await audit(sql,'daniel-worker','legacy_draft_retained','task',t.id,{message_id:legacy.id});
+      summary.draftHolds=(summary.draftHolds || 0)+1;summary.health='needs_attention';continue;
+     }
+    }
     const [existing]=await sql`SELECT * FROM daniel_sales.messages WHERE idempotency_key=${'task:'+t.id}`;
     if(existing) {
-     await routeApproval(sql,existing,effectiveSettings,env);
-     await sql`UPDATE daniel_sales.tasks SET status='completed' WHERE id=${t.id}`;
+     const review=await routeApproval(sql,existing,effectiveSettings,env);
+     const prepared=['queued','sent','simulated'].includes(existing.status) || review?.status==='approved';
+     await sql`UPDATE daniel_sales.tasks SET status=${prepared?'completed':'needs_review'},note=${prepared?'Draft preparation completed; delivery status is tracked separately.':'Prepared draft remains held: '+(review?.status || 'review_required')} WHERE id=${t.id}`;
+     if(!prepared){summary.draftHolds=(summary.draftHolds || 0)+1;summary.health='needs_attention';}
      continue;
     }
     const draft=await (options.generateDraft || generateDraft)(sql,c.id,t.kind,env);
     const m=await saveDraft(sql,{...draft,idempotency_key:'task:'+t.id},'daniel-worker');
-    await routeApproval(sql,m,effectiveSettings,env);
-    await sql`UPDATE daniel_sales.tasks SET status='completed',attempt_count=attempt_count+1 WHERE id=${t.id}`;
+    const review=await routeApproval(sql,m,effectiveSettings,env);
+    const prepared=review?.status==='approved';
+    await sql`UPDATE daniel_sales.tasks SET status=${prepared?'completed':'needs_review'},attempt_count=attempt_count+1,note=${prepared?'Draft preparation completed; delivery status is tracked separately.':'Prepared draft remains held: '+(review?.status || 'review_required')} WHERE id=${t.id}`;
+    if(!prepared){summary.draftHolds=(summary.draftHolds || 0)+1;summary.health='needs_attention';}
    } catch(e) {
     const failure=retryDecision(t.attempt_count,e);
     const note=failure.code+': '+failure.note+(failure.status==='needs_review'?' Review required; automatic retries stopped.':' A bounded retry is scheduled.');
@@ -89,7 +104,7 @@ export async function runWorker(env=process.env,options={}) {
     if(failure.status==='needs_review')summary.draftHolds=(summary.draftHolds || 0)+1;
    }
   }
-  if((!options.gmailTest && freshSettings.auto_prospect) || (options.gmailTest && options.discover)) {
+  if(!effectiveSettings.cold_outreach_paused && ((!options.gmailTest && freshSettings.auto_prospect) || (options.gmailTest && options.discover))) {
    try{summary.discovery=await discover(sql,env,effectiveSettings,options);}catch(e){summary.discoveryError=String(e.message).slice(0,500);summary.health='needs_attention';}
   }
   Object.assign(summary,await dispatch(sql,env,token,options));summary.report=await report(sql);
