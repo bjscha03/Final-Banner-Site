@@ -1,0 +1,84 @@
+name: Yard sign sizes preview implementation
+on:
+  push:
+    branches: [feat/yard-sign-sheet-sizes-20261102]
+    paths: [.github/workflows/yard-sign-sizes-preview-work.yml]
+permissions:
+  contents: write
+concurrency:
+  group: yard-sign-sizes-preview-work
+  cancel-in-progress: false
+jobs:
+  implement-and-verify:
+    if: github.ref == 'refs/heads/feat/yard-sign-sheet-sizes-20261102'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/yard-sign-sheet-sizes-20261102
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install application and coding tools
+        run: |
+          npm ci
+          npm install -g @augmentcode/auggie
+      - name: Implement additive yard-sign sizes
+        env:
+          AUGMENT_SESSION_AUTH: ${{ secrets.AUGMENT_SESSION_AUTH }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/yard-sign-task.txt <<'TASK'
+          Implement this approved feature directly in the checked-out feature branch. Do not commit, push, merge, deploy, change credentials, or touch production data. Do not edit this workflow. Read the repository implementation before editing and run focused tests. The owner expects a real implementation, not documentation or a plan.
+
+          SCOPE: ONLY add sizes to yard signs on /design?product=yard-signs. Preserve all banner and car-magnet behavior and code paths. Existing 24x18 yard sign must remain default and behaviorally unchanged: $12 single/$14 double, min10/step10/max90, existing multi-design support. Do not change unrelated products, payment integrations, promotional rules, shipping, or theme.
+
+          NEW yard-sign catalog (prices per sign before promos, dollar amounts):
+          size id 12x18: 20 per sheet; min20, step20, max180; $8 single/$10 double; LANDSCAPE canvas width18 height12.
+          size id 18x24: 8 per sheet; min8, step8, max72; $13 single/$16 double; PORTRAIT canvas width18 height24.
+          size id 24x24: 8 per sheet; min8, step8, max72; $14 single/$17 double; SQUARE canvas width24 height24.
+          size id 24x36: 4 per sheet conservatively (never5); min4, step4, max36; $20 single/$24 double; LANDSCAPE canvas width36 height24.
+          existing size id24x18:10 per sheet; preserve width24 height18 and ALL current rules.
+          The catalog labels above are the exact supplier size names, distinct from landscape canvas width/height. Preserve a stable size ID/label, as well as actual width_in/height_in, throughout persistence so 12x18 vs18x24 cannot be confused or deduplicated. Existing cart/order records without a size ID must continue to work using their dimensions and legacy default where appropriate. Reject unknown new sizes server-side instead of silently pricing as default.
+
+          Supplier facts supplied by the owner today:48x96 sheets,4mm single-sided $44/sheet,double-sided $55/sheet independent of size. Only signs per sheet vary. Apply whole-sheet quantity/cost math for NEW sizes. Do not change existing24x18 prices or behavior. Stakes remain+$1.50/sign on all sizes. NEW20 and all promo/shipping behavior, including free next-day air on orders$20+, are unchanged. Double-sided is SAME artwork both sides, no back-design step.
+
+          REQUIREMENTS:
+          1. Add a size selector alongside current yard-sign options using existing brand UI. Default24x18 selected. Derive all preview/editor/upload/AI Create/AI Fit dimensions, ratios, orientation, saved placement manifests, previews, thumbnails and print exports from the selected catalog size. On size change keep original artwork but invalidate old size-dependent placements, AI-fit identity/undo and confirmations. Refit safely, no stretch, no stale async fit/save response can overwrite another size. Use existing fit-entire-artwork default and current approval flow; do not add DPI/technical warnings or back-artwork steps.
+          2. Size-specific quantity min/increment/max in the stepper, UI rule text, builder/sticky CTA, cart quantity updates and checkout/server validators. Switching size must select a valid quantity (round up then clamp), keep per-design assignments positive/summing to total and keep stake count coherent. Preserve legacy24x18 multi-design allocations. Never aggregate different sizes or single/double configurations to make an otherwise partial sheet valid. NEW-size multi-artwork allocations must not create partial supplier sheets per independently printed artwork; validate at all purchase paths. Existing24x18 behavior must not be changed.
+          3. Price consistently in frontend and authoritative backend, not merely UI. Audit Stripe/PayPal/legacy create-order paths. Shared serializable size catalog for frontend/backend is preferred; do not duplicate values in many places. Guard additions behind yard_sign checks in shared code.
+          4. Stable selected size and dimensions must survive add/edit cart, checkout, server sanitization, stored order, admin order row/details, original artwork/AI output download/print target and order emails. Use existing persisted metadata if possible; no production migrations. John must see exact supplier size label. Audit cart identity/merging so different sizes aren't merged.
+          5. Search source, shared product configuration, live copy, SEO/structured data and relevant blog/OG asset generator copy for yard-sign-only '24x18 only/fixed size/one size' assumptions. Make size-aware or generic. Leave factual mentions/examples of24x18 valid, don't alter banner/car-magnet content. Ensure structured data advertises supported sizes/pricing truthfully.
+          6. Add regression tests:all five catalog prices,sides,stakes,min/step/max,whole-sheet costs for new sizes,invalid quantities/unknown size,legacy24x18 unchanged,portrait/square/landscape ratios,cart edit/persistence and authoritative server pricing including promos. Include browser smoke test with mocked upload/AI/payment APIs if feasible (never send live emails/place real orders/charge cards or spend production AI credits). Verify uploaded art uses selected size and changing size clears stale confirmation. Run focused existing yard-sign/cart/checkout/pricing tests and full npm run build. Fix regressions caused by this change; don't mask or delete tests. Record exact commands/results and any baseline unrelated failures in docs/yard-sign-sizes-verification.md. Do not claim tests you didn't run.
+
+          Start by inspecting src/lib/yard-sign-pricing.ts,src/components/design/YardSignConfigurator.tsx,the parent Design page,src/lib/builderSteps.ts,src/pages/Checkout.tsx,cart store/types,netlify/functions/_shared/stripe-server-pricing.cjs,netlify/functions/_shared/legacy/create-order-core.cjs,admin profit estimate,SEO product data and product config. Follow dependencies, don't assume this list is exhaustive.
+          TASK
+          auggie --print --quiet "$(cat /tmp/yard-sign-task.txt)" 2>&1 | tee /tmp/yard-sign-implementation.log
+      - name: Independently verify production build
+        run: npm run build
+      - name: Commit implementation only to feature branch
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = 'feat/yard-sign-sheet-sizes-20261102'
+          git diff --check
+          git config user.name 'BOF Preview Development'
+          git config user.email '141862943+bjscha03@users.noreply.github.com'
+          git add src shared netlify content scripts public docs tests e2e 2>/dev/null || git add -A
+          git restore --staged .github/workflows/yard-sign-sizes-preview-work.yml || true
+          git diff --staged --quiet && { echo 'No implementation changes generated'; exit 1; }
+          git commit -m 'Add sheet-based yard-sign sizes without changing legacy products'
+          git push origin HEAD:refs/heads/feat/yard-sign-sheet-sizes-20261102
+      - name: Upload implementation and verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yard-sign-sizes-evidence
+          path: |
+            /tmp/yard-sign-implementation.log
+            docs/yard-sign-sizes-verification.md
+            playwright-report
+            test-results
+          retention-days: 7
