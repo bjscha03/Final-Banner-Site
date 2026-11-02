@@ -1,0 +1,24 @@
+name: Yard sign isolated test dependencies
+on:
+  push:
+    branches: [feat/yard-sign-sheet-sizes-20261102]
+    paths: [.github/workflows/yard-sign-deps-review.yml]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: tar -czf /tmp/yard-sign-test-dependencies.tar.gz node_modules
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yard-sign-test-dependencies
+          path: /tmp/yard-sign-test-dependencies.tar.gz
+          retention-days: 1
