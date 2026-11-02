@@ -5,7 +5,7 @@ import { approvalNeeded } from './operations.mjs';
 import { requestApproval,decide,audit } from './store.mjs';
 import { reviewReply,currentReplyReview } from './reply-review.mjs';
 import { reviewFollowup } from './followup-review.mjs';
-import { DRAFT_CONTRACT,currentFollowupReview,contentHash,recoveryEligibility } from './recovery-policy.mjs';
+import { DRAFT_CONTRACT,currentFollowupReview,followupHash,recoveryEligibility } from './recovery-policy.mjs';
 
 export function routineEligible(message,knowledge,env=process.env) {
  const meta=message.ai_metadata;
@@ -39,7 +39,7 @@ export async function routeApproval(sql,message,settings,env=process.env,{review
  if(message.kind==='followup' && message.ai_metadata?.generation_contract===DRAFT_CONTRACT && message.ai_metadata?.requires_approval===false && !currentFollowupReview(message)) {
   const prior=message.ai_metadata?.followup_review;
   // An exact-content independent rejection is a hold, never a retry-until-pass loop.
-  if(prior?.approved===false && prior?.response_id && prior.content_hash===contentHash(message)) return {status:'independent_review_hold'};
+  if(prior?.approved===false && prior?.response_id && prior.content_hash===followupHash(message)) return {status:'independent_review_hold'};
   const review=await followupReviewer(sql,message,knowledge,env);
   await sql`UPDATE daniel_sales.messages SET ai_metadata=ai_metadata || ${JSON.stringify({followup_review:review})}::jsonb WHERE id=${message.id} AND status IN ('draft','pending_approval')`;
   await audit(sql,'daniel-review','followup_context_reviewed','message',message.id,{approved:review.approved===true,reason:review.reason,response_id:review.response_id || null});
@@ -47,8 +47,8 @@ export async function routeApproval(sql,message,settings,env=process.env,{review
   if(!currentFollowupReview(message)) return {status:'independent_review_hold'};
  }
  if(settings.required_draft_contract) {
-  // Draft review is permitted while the global send pause is active; this does
-  // not dispatch anything, and the global pause is independently enforced below.
+  // Reviewing a draft while paused does not dispatch it. Global pause remains
+  // enforced independently by the worker, database claims and dispatcher.
   const gate=recoveryEligibility(message,{...settings,paused:false},knowledge);
   if(!gate.ok) return {status:'policy_hold',reason:gate.reason};
  }
