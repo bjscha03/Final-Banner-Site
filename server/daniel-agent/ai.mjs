@@ -79,12 +79,25 @@ Return JSON with subject, body (plain text, no signature), classification (routi
     throw Error("AI returned invalid JSON");
   }
   if (
+    !draft || typeof draft !== 'object' || Array.isArray(draft) ||
     typeof draft.subject !== "string" ||
     typeof draft.body !== "string" ||
     !draft.body.trim() ||
     draft.body.length > 12000
   )
     throw Error("AI returned an invalid draft");
+  // Malformed control fields are never coerced into an approval decision.
+  // Regeneration retains all independent review, suppression and send gates.
+  const validMetadata = typeof draft.requires_approval === 'boolean' &&
+    ['routine_product','followup','quote_request','meeting_request','escalate','needs_review'].includes(draft.classification) &&
+    typeof draft.reason === 'string' &&
+    Array.isArray(draft.fact_ids) &&
+    draft.fact_ids.every(key => typeof key === 'string' && Object.hasOwn(kb.facts, key));
+  if (!validMetadata) {
+    if (attempt < 1) return generateDraft(sql, contactId, kind, env, fetcher, attempt + 1,
+      [reviewFeedback, 'Correct the structured metadata: requires_approval must be a JSON boolean; classification must use the allowed enum; reason must be a string; fact_ids must contain only approved business fact keys actually used. Do not remove claims or approval safeguards to force eligibility.'].filter(Boolean).join('\n'));
+    throw Error('AI returned an invalid draft metadata schema or fact identifiers');
+  }
   if (
     kind === "intro" &&
     (/\b\d[\d,+]*\s+(?:(?:U\.?S\.?|U\.?K\.?|American|US-based)\s+)?(?:locations?|restaurants?|stores?|sites?|properties)\b/i.test(draft.body) || /thank(?:s| you) (?:for|about) (?:reaching out|contacting|your (?:interest|inquiry|enquiry|request|order))|following (?:up on|our) (?:your request|our (?:call|conversation))|as (?:we )?discussed/i.test(
