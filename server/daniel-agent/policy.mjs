@@ -111,7 +111,7 @@ export function shouldAutoReply(classification) {
 export function routinePolicyText(text, facts = {}) {
   if (!/\$20 or more/.test(facts.vinyl_banner_shipping || '')) return text;
   return String(text).split(/\n\s*\n/).map(paragraph =>
-    /vinyl banners?/i.test(paragraph) && /free next[- ]day air shipping/i.test(paragraph)
+    /vinyl[- ]banners?/i.test(paragraph) && /free next[- ]day air shipping/i.test(paragraph)
       ? paragraph.replace(/\borders of \$20 or more\b/gi, 'qualifying orders')
       : paragraph
   ).join('\n\n');

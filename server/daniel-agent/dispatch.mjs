@@ -1,6 +1,7 @@
 import { checkDispatchConversation } from './dispatch-safety.mjs';
 import { renderSalesEmail } from './email-design.mjs';
 import { validTeamOffer } from './team-offer.mjs';
+import { recoveryEligibility } from './recovery-policy.mjs';
 import { BUSINESS_ADDRESS, BOF_SENDER, verifySender } from "./identity.mjs";
 import { canDispatch, isEndBuyer } from "./operations.mjs";
 import { mode, gmailTestRecipients } from "./config.mjs";
@@ -31,14 +32,23 @@ export async function dispatch(
 ) {
   const preview = mode(env) !== "live" && !gmailTest;
   if (gmailTest && !gmailTestRecipients(env).length) throw Error("Controlled Gmail testing is disabled or expired");
+  const [storedSettings]=await sql`SELECT * FROM daniel_sales.settings WHERE id=1`;
+  const settings=storedSettings || {paused:true};
+  if(settings.paused && !gmailTest) return {sent:0,gmailTestSent:0,simulated:0,blocked:0,held:0,paused:true};
+  const effectiveSettings=gmailTest?{...settings,paused:false}:settings;
+  const [knowledge]=settings.required_draft_contract ? await sql`SELECT * FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1` : [];
   if (!preview) await verifyIdentity(token, gmailRequest);
   let simulated = 0,
     sent = 0,
     blocked = 0,
     held = 0;
+  // Do not read old draft bodies during isolated recovery. Their status and
+  // approval records remain untouched and unresolved.
   const queued =
-    await sql`SELECT * FROM daniel_sales.messages WHERE status='queued' AND due_at<=now() ORDER BY (kind='reply') DESC,due_at LIMIT 25`;
+    await sql`SELECT * FROM daniel_sales.messages WHERE status='queued' AND due_at<=now() AND (NOT ${settings.cold_outreach_paused===true} OR kind='reply') AND (${settings.required_draft_contract || null}::text IS NULL OR ai_metadata->>'generation_contract'=${settings.required_draft_contract || null}) ORDER BY (kind='reply') DESC,due_at LIMIT 25`;
   for (const item of queued) {
+    const recovery=recoveryEligibility(item,effectiveSettings,knowledge);
+    if(!recovery.ok) {held++;continue;}
     const [c] =
       await sql`SELECT c.*,a.segment,a.team_offer FROM daniel_sales.contacts c JOIN daniel_sales.accounts a ON a.id=c.account_id WHERE c.id=${item.contact_id}`;
     if (!c) continue;
@@ -104,12 +114,14 @@ export async function dispatch(
       continue;
     }
     try {
-      // Final suppression and pause check narrows the provider-call race after claiming.
+      // Revalidate the actual claimed bytes, then check fresh controls and
+      // suppression immediately before the provider call.
+      const claimedRecovery=recoveryEligibility(m,effectiveSettings,knowledge);
       const [valid] =
-        await sql`SELECT c.id FROM daniel_sales.contacts c WHERE c.id=${c.id} AND c.suppressed_at IS NULL AND NOT EXISTS(SELECT 1 FROM daniel_sales.suppressions s WHERE s.email IN (lower(c.email),lower(${recipient}))) AND (${gmailTest} OR EXISTS(SELECT 1 FROM daniel_sales.settings WHERE id=1 AND paused=false)) AND NOT (${m.kind} IN ('intro','followup') AND EXISTS(SELECT 1 FROM daniel_sales.contacts p WHERE p.account_id=c.account_id AND p.replied_at IS NOT NULL))`;
-      if (!valid) {
+        await sql`SELECT c.id FROM daniel_sales.contacts c WHERE c.id=${c.id} AND c.suppressed_at IS NULL AND NOT EXISTS(SELECT 1 FROM daniel_sales.suppressions s WHERE s.email IN (lower(c.email),lower(${recipient}))) AND EXISTS(SELECT 1 FROM daniel_sales.settings s WHERE s.id=1 AND (${gmailTest} OR s.paused=false) AND (s.cold_outreach_paused=false OR ${m.kind}='reply') AND (s.required_draft_contract IS NULL OR (s.required_draft_contract=${m.ai_metadata?.generation_contract || null} AND ${m.ai_metadata?.knowledge_version || null}=(SELECT version FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1)))) AND NOT (${m.kind} IN ('intro','followup') AND EXISTS(SELECT 1 FROM daniel_sales.contacts p WHERE p.account_id=c.account_id AND p.replied_at IS NOT NULL))`;
+      if (!valid || !claimedRecovery.ok) {
         await sql.transaction([
-          sql`UPDATE daniel_sales.messages SET status='blocked',error='Paused, suppressed or replied before dispatch',updated_at=now() WHERE id=${m.id}`,
+          sql`UPDATE daniel_sales.messages SET status='blocked',error='Paused, suppressed, replied or recovery review changed before dispatch',updated_at=now() WHERE id=${m.id}`,
           sql`UPDATE daniel_sales.daily_limits SET reserved_count=greatest(0,reserved_count-1) WHERE local_date=${m.quota_date} AND kind=${m.quota_kind}`,
         ]);
         blocked++;
@@ -163,7 +175,7 @@ export async function dispatch(
       });
     }
   }
-  return { sent: gmailTest ? 0 : sent, gmailTestSent: gmailTest ? sent : 0, simulated, blocked, held };
+  return { sent: gmailTest ? 0 : sent, gmailTestSent: gmailTest ? sent : 0, simulated, blocked, held, coldOutreachPaused:settings.cold_outreach_paused===true };
 }
 export async function reconcile(sql, env, token, options = {}) {
   const getMessage = options.getMessage || getGmail;

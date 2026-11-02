@@ -276,17 +276,24 @@ test('per-recipient rolling reply throttle holds excessive exchanges without usi
  const f=await replyFixture('rate-limit');await sql`INSERT INTO daniel_sales.messages(contact_id,direction,status,idempotency_key,kind,body,sent_at) SELECT ${f.contact_id},'outbound','sent','rate-fixture-'||g,'reply','Prior response',now() FROM generate_series(1,6) g`;
  assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},5)`).length,0);await sql`UPDATE daniel_sales.messages SET sent_at=now()-interval '2 hours' WHERE contact_id=${f.contact_id} AND status='sent'`;assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},5)`).length,1);
 });
-test('company offer is persisted before drafting, reused, and automatically approved without approving other discounts',async()=>{
- const {routineEligible}=await import('../automation.mjs'),p=await prospect(),e={...env,OPENAI_API_KEY:'test-key',DANIEL_PROMO_SIGNING_SECRET:'test-only-team-offer-key-at-least-32-characters'};
- const fetcher=async(_url,request)=>{const prompt=JSON.parse(request.body).messages[0].content;assert.match(prompt,/Louisville/);assert.match(prompt,/invent.*deadlines/);return Response.json({model:'test-model',choices:[{message:{content:JSON.stringify({subject:'A banner idea for your next opening',body:'Hi team,\n\nYour opening calendar made me think of temporary signage. We offer 24-hour vinyl-banner production and free next-day air shipping for qualifying orders. How do your locations coordinate event banners?',classification:'followup',requires_approval:false,reason:'Approved product facts',fact_ids:['vinyl_banner_production']})}}]});};
- const one=await generateDraft(sql,p.contact_id,'followup',e,fetcher),two=await generateDraft(sql,p.contact_id,'followup',e,fetcher);
+test('company offer is persisted for introductions, reused, and remains independently reviewed without approving other discounts',async()=>{
+ const {introductionEligible}=await import('../automation.mjs'),{contentHash}=await import('../recovery-policy.mjs'),p=await prospect(),e={...env,OPENAI_API_KEY:'test-key',DANIEL_PROMO_SIGNING_SECRET:'test-only-team-offer-key-at-least-32-characters'};
+ const fetcher=async(_url,request)=>{const prompt=JSON.parse(request.body).messages[0].content;assert.match(prompt,/Louisville/);assert.match(prompt,/invent.*deadlines/);return Response.json({model:'test-model',choices:[{message:{content:JSON.stringify({subject:'A banner idea for your next opening',body:'Hi team,\n\nYour event calendar made me think of reusable entrance signage. We offer 24-hour vinyl-banner production and free next-day air shipping for qualifying orders. Would reusable entrance banners fit your event setup?',classification:'routine_product',requires_approval:false,reason:'Approved product facts',fact_ids:['vinyl_banner_production']})}}]});};
+ const one=await generateDraft(sql,p.contact_id,'intro',e,fetcher),two=await generateDraft(sql,p.contact_id,'intro',e,fetcher);
  assert.equal(one.ai_metadata.team_offer.code,two.ai_metadata.team_offer.code);assert.match(one.body,/25% off sitewide/);assert.match(one.body,/as often as you like/);
- const [kb]=await sql`SELECT * FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1`;assert.equal(one.requires_approval,false);assert.equal(routineEligible(one,kb,e),true);
- const [a]=await sql`SELECT team_offer FROM daniel_sales.accounts WHERE id=${p.id}`;assert.equal(a.team_offer.code,one.ai_metadata.team_offer.code);assert.equal(routineEligible({...one,body:one.body+' We can also give you 40% off.'},kb,e),false);
+ const [kb]=await sql`SELECT * FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1`;
+ const research={verified:true,recurring_buyer:true,verified_at:new Date().toISOString(),reviewer:{response_id:'test-research'}};
+ assert.equal(one.requires_approval,false);assert.equal(!!introductionEligible(one,kb,research,new Date(),e),false);
+ one.ai_metadata.research_review={approved:true,response_id:'test-independent-review',content_hash:contentHash(one)};
+ assert.equal(!!introductionEligible(one,kb,research,new Date(),e),true);
+ const [a]=await sql`SELECT team_offer FROM daniel_sales.accounts WHERE id=${p.id}`;assert.equal(a.team_offer.code,one.ai_metadata.team_offer.code);
+ const unsafe={...one,body:one.body+' We can also give you 40% off.',ai_metadata:{...one.ai_metadata}};
+ unsafe.ai_metadata.research_review={approved:true,response_id:'test-independent-review',content_hash:contentHash(unsafe)};
+ assert.equal(!!introductionEligible(unsafe,kb,research,new Date(),e),false);
 });
-test('model-written duplicate offer is regenerated before the exact server offer is appended',async()=>{
+test('model-written duplicate offer is regenerated before the exact server offer is appended to an introduction',async()=>{
  const p=await prospect(),e={...env,OPENAI_API_KEY:'test-key',DANIEL_PROMO_SIGNING_SECRET:'test-only-team-offer-key-at-least-32-characters'};let calls=0;
- const fetcher=async(_url,request)=>{calls++;if(calls===2)assert.match(request.body,/Remove discount/);return Response.json({choices:[{message:{content:JSON.stringify({subject:'Signage for your next event',body:calls===1?'Try 25% off for your team.':'How do you coordinate your event banners?',classification:'followup',requires_approval:false,fact_ids:[],reason:'Controlled duplicate-offer fixture'})}}]});};
- const draft=await generateDraft(sql,p.contact_id,'followup',e,fetcher);assert.equal(calls,2);assert.equal(draft.requires_approval,false);assert.equal((draft.body.match(/25%/g)||[]).length,1);
+ const fetcher=async(_url,request)=>{calls++;if(calls===2)assert.match(request.body,/Remove discount/);return Response.json({choices:[{message:{content:JSON.stringify({subject:'Signage for your next event',body:calls===1?'Try 25% off for your team.':'Would a reusable entrance banner help at your events?',classification:'routine_product',requires_approval:false,fact_ids:[],reason:'Controlled duplicate-offer fixture'})}}]});};
+ const draft=await generateDraft(sql,p.contact_id,'intro',e,fetcher);assert.equal(calls,2);assert.equal(draft.requires_approval,false);assert.equal((draft.body.match(/25%/g)||[]).length,1);
 });
 test.after(()=>db.close());
