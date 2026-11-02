@@ -643,7 +643,13 @@ test('yard sign sizes refit the same upload from portrait to landscape through c
   await upload.getByRole('button', { name: 'Preview store-opening.png' }).click();
   await expect(page.getByAltText('Yard Sign preview', { exact: true })).toBeVisible();
   await expect.poll(ratio).toBeCloseTo(36 / 24, 2);
-  await expect(page.getByRole('button', { name: 'Fit my design with AI' }).filter({ visible: true }).first()).toBeEnabled();
+  const fitRequest = page.waitForRequest(request => request.url().endsWith('/ai-designer-fit') && request.method() === 'POST');
+  await page.getByRole('button', { name: 'Fit my design with AI' }).filter({ visible: true }).first().click();
+  expect((await fitRequest).postDataJSON()).toMatchObject({ widthIn: 36, heightIn: 24, productType: 'yard_sign' });
+  const fitDialog = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Approve design' }) });
+  await expect(fitDialog.getByAltText('Your fitted design')).toBeVisible({ timeout: 30_000 });
+  await fitDialog.getByRole('button', { name: 'Approve design' }).click();
+  await expect(fitDialog).toHaveCount(0);
   await page.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(canvas).toHaveCount(0);
   await page.getByRole('button', { name: 'Checkout', exact: true }).filter({ visible: true }).first().click();
