@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import sharp from 'sharp';
-import catalog from '../../shared/yard-sign-sizes.json';
+import { readFileSync } from 'node:fs';
+const catalog = JSON.parse(readFileSync(new URL('../../shared/yard-sign-sizes.json', import.meta.url), 'utf8'));
 test.beforeEach(async({page},info)=>{
  await page.context().addCookies([{name:'compact_browser_scenario',value:`selector-yard-sizes-${info.project.name}-${info.testId}`,url:'http://127.0.0.1:4175'}]);
 });
