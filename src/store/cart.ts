@@ -1,4 +1,4 @@
-import { findYardSignSize, yardSignArtworkStep } from '@/lib/yardSignSizes';
+import { newYardSignCartSize, yardSignArtworkStep } from '@/lib/yardSignSizes';
 import { calcYardSignPricing, distributeYardSignCopies, validateYardSignQuantity, yardSignCartPricing } from '@/lib/yard-sign-pricing';
 import type { SpecialtyConfiguration } from '@/lib/specialtyArtwork';
 import { getSpecialtyProduct, specialtyUnitPrice, specialtyTemplate, specialtyPanels, specialtyOptions, specialtyOptionSummary, specialtyConfigurationPrice, specialtyItemPrice } from '@/lib/specialtyProducts';
@@ -549,7 +549,7 @@ export const useCartStore = create<CartState>()(
         const exactPreviewUrl = requestedPlacement?.previewUrl;
         // Reorders can enter without a fresh designer quote.
         if (!pricing && requestedProductType === 'yard_sign') {
-          const size = findYardSignSize({ width_in: quote.widthIn, height_in: quote.heightIn });
+          const size = newYardSignCartSize({ product_type: requestedProductType, width_in: quote.widthIn, height_in: quote.heightIn });
           const metadata = (quote as any).yard_sign_metadata;
           if (size && metadata) pricing = yardSignCartPricing(calcYardSignPricing(
             metadata.sidedness, quote.quantity, metadata.addStepStakes, metadata.stepStakeQty || 0, 0, size,
@@ -825,9 +825,9 @@ export const useCartStore = create<CartState>()(
           items: state.items.map(item => {
             if (item.id !== id) return item;
 
-            if (item.product_type === 'yard_sign') {
-              const size = findYardSignSize(item);
-              if (!size || !validateYardSignQuantity(quantity, size).valid) return item;
+            const size = newYardSignCartSize(item);
+            if (size) {
+              if (!validateYardSignQuantity(quantity, size).valid) return item;
               const designs = item.yard_sign_designs || [];
               const step = yardSignArtworkStep(size);
               if (quantity < designs.length * step) return item;

@@ -3703,7 +3703,7 @@ const GoogleAdsBanner: React.FC = () => {
         {!bannerType.retractable && <MobileSubtotalBar
           compact
           compactDiscountLabel={isYardSign || isCarMagnet ? nonBannerOffer.label : mobileDiscountLabel}
-          selectionLabel={`${widthDisplay} × ${heightDisplay} · ${isYardSign ? `Qty ${yardSignTotalQty}` : isCarMagnet ? `Qty ${quantity}` : quantity > 1 ? `Qty ${quantity}` : isDoubleSidedBanner ? '18oz · 2 sides' : material}`}
+          selectionLabel={`${isYardSign ? yardSignSize.label : `${widthDisplay} × ${heightDisplay}`} · ${isYardSign ? `Qty ${yardSignTotalQty}` : isCarMagnet ? `Qty ${quantity}` : quantity > 1 ? `Qty ${quantity}` : isDoubleSidedBanner ? '18oz · 2 sides' : material}`}
           uploadRecovery={!isYardSign && !isCarMagnet && isUploading ? { onCancel: cancelArtworkUpload } : undefined}
           primaryAction={!isYardSign && !isCarMagnet ? mobilePaidLayout ? paidMobileAction : mobileBannerAction : { label: mobileCta.label, disabled: mobileCta.disabled || firstOrderOffer.checking, onClick: mobileCta.onClick || scrollToOrder }}
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}

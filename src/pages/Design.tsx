@@ -3729,7 +3729,7 @@ const Design: React.FC = () => {
       {!bannerType.retractable && <TrustStrip />}
 
       {!bannerType.retractable && <MobileSubtotalBar compact
-        selectionLabel={`${widthDisplay} × ${heightDisplay} · Qty ${isYardSign ? yardSignTotalQty : quantity}`}
+        selectionLabel={`${isYardSign ? yardSignSize.label : `${widthDisplay} × ${heightDisplay}`} · Qty ${isYardSign ? yardSignTotalQty : quantity}`}
         compactDiscountLabel={isYardSign || isCarMagnet ? nonBannerOffer.label : bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? '20% off applied' : null}
         primaryAction={{label:mobileCta.label, disabled:mobileCta.disabled || firstOrderOffer.checking, onClick:mobileCta.onClick || scrollToOrder}}
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}

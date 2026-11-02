@@ -125,7 +125,7 @@ export function assignYardSignCopies(designs: YardSignDesign[], id: string, requ
   if (!target || designs.length < 2 || !Number.isFinite(requested)) return designs;
 
   const max = getTotalDesignQuantity(designs) - (designs.length - 1) * step;
-  const quantity = Math.max(step, Math.min(max, Math.round(requested / step) * step));
+  const quantity = Math.max(step, Math.min(max, Math.trunc(requested / step) * step));
   let needed = quantity - target.quantity;
   if (needed === 0) return designs;
   return designs.map(design => {

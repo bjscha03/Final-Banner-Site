@@ -154,7 +154,7 @@ const ProductBuyingGuide: React.FC<ProductBuyingGuideProps> = ({
       <section className="border-y border-slate-200 bg-[#F7F7F7]" aria-label={`${product.plural} specifications`}>
         <div className="grid lg:grid-cols-3">
           {[
-            { title: isYardSign ? 'Available sizes' : 'Available sizes', values: product.sizes, icon: PackageCheck },
+            { title: 'Available sizes', values: product.sizes, icon: PackageCheck },
             { title: 'Materials', values: product.materials, icon: ShieldCheck },
             { title: 'Finishing & options', values: product.options, icon: Check },
           ].map(({ title, values, icon: Icon }, index) => (

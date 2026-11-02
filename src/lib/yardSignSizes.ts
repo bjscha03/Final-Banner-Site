@@ -10,6 +10,13 @@ export function findYardSignSize(item: { width_in?: number; height_in?: number }
   return sizes.find(size => size.widthIn === Number(item.width_in) && size.heightIn === Number(item.height_in));
 }
 
+// Limit new cart behavior to the four added sizes, including restored carts that only carry dimensions.
+export function newYardSignCartSize(item: { product_type?: string; width_in?: number; height_in?: number }) {
+  if (item.product_type !== 'yard_sign') return undefined;
+  const size = findYardSignSize(item);
+  return size?.id === DEFAULT_YARD_SIGN_SIZE.id ? undefined : size;
+}
+
 export function yardSignSizeLabel(item: { width_in?: number; height_in?: number }) {
   return findYardSignSize(item)?.label || `${item.width_in}" × ${item.height_in}"`;
 }

@@ -229,9 +229,10 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
   }, [showCreateWithAI]);
 
   const artworkStep = yardSignArtworkStep(size);
+  const maxDesigns = Math.min(YARD_SIGN_MAX_DESIGNS, size.maxQuantity / artworkStep);
   const minForDesigns = Math.max(size.perSheet, designs.length * artworkStep);
   const quantityValidation = validateYardSignQuantity(orderQuantity, size);
-  const canAddMoreDesigns = designs.length < YARD_SIGN_MAX_DESIGNS && (designs.length + 1) * artworkStep <= orderQuantity;
+  const canAddMoreDesigns = designs.length < maxDesigns && (designs.length + 1) * artworkStep <= orderQuantity;
 
   // Preview modal state
   const [previewDesignId, setPreviewDesignId] = useState<string | null>(null);
@@ -409,7 +410,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
   const handleFileUpload = useCallback(async (file: File) => {
     setUploadError('');
     if (!canAddMoreDesigns) {
-      setUploadError(`Maximum ${YARD_SIGN_MAX_DESIGNS} designs per order.`);
+      setUploadError(`Maximum ${maxDesigns} designs per order.`);
       return;
     }
     setIsUploading(true);
@@ -423,8 +424,8 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
       const thumbnailUrl = result.previewUrl || result.secureUrl;
       // The customer can change quantity or artwork while the file is uploading.
       const current = designsRef.current;
-      if (current.length >= YARD_SIGN_MAX_DESIGNS || (current.length + 1) * artworkStep > orderQuantityRef.current) {
-        setUploadError(`Maximum ${YARD_SIGN_MAX_DESIGNS} designs per order.`);
+      if (current.length >= maxDesigns || (current.length + 1) * artworkStep > orderQuantityRef.current) {
+        setUploadError(`Maximum ${maxDesigns} designs per order.`);
         return;
       }
       const newDesign: YardSignDesign = {
@@ -459,7 +460,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
     } finally {
       setIsUploading(false);
     }
-  }, [canAddMoreDesigns, onDesignsChange, artworkStep]);
+  }, [canAddMoreDesigns, onDesignsChange, artworkStep, maxDesigns]);
 
   const removeDesign = useCallback((id: string) => {
     const remaining = designs.filter(design => design.id !== id);
@@ -582,7 +583,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
         {!quantityValidation.valid && <p role="alert" className="mt-2 text-sm text-red-700">{quantityValidation.message}</p>}
       </ConfigCard>
 
-      <ConfigCard step={4} title="Upload your artwork" id="yard-upload-section" headerRight={<span className="text-xs font-normal text-gray-500">Up to {YARD_SIGN_MAX_DESIGNS} designs</span>}>
+      <ConfigCard step={4} title="Upload your artwork" id="yard-upload-section" headerRight={<span className="text-xs font-normal text-gray-500">Up to {maxDesigns} designs</span>}>
         <p className="mb-3 text-sm text-slate-600">
           {artworkStep === 1 ? `Your ${orderQuantity} signs can share one design or be split across multiple designs.` : `Each artwork takes a full sheet of ${artworkStep} signs. Choose another sheet to add another design.`}
           {designs.length > 1 && ' Adjust copies below. Changing the order quantity splits it evenly across your designs.'}
@@ -711,7 +712,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
         <p className="text-xs text-blue-700 font-medium">📋 Order Guidelines</p>
         <ul className="text-xs text-blue-600 space-y-1 list-disc list-inside">
           <li>Selected yard sign size: {size.label}</li>
-          <li>Upload up to {YARD_SIGN_MAX_DESIGNS} different designs per order</li>
+          <li>Upload up to {maxDesigns} different designs per order</li>
           <li>Assign a quantity to each uploaded design</li>
           <li className="font-semibold">{yardSignQuantityRule(size)}</li>
           <li>Maximum {size.maxQuantity} signs per order for 24-hour production</li>

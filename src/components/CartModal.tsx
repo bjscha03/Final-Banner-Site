@@ -1,4 +1,4 @@
-import { findYardSignSize, yardSignArtworkStep } from '@/lib/yardSignSizes';
+import { newYardSignCartSize, yardSignArtworkStep } from '@/lib/yardSignSizes';
 import SpecialtyCartDelivery from '@/components/delivery/SpecialtyCartDelivery';
 import SavedSpecialtyPreview from '@/components/specialty/SavedSpecialtyPreview';
 import {specialtyItemHasIncludedShipping, specialtyItemHasVerifiedPrice} from '@/lib/specialtyProducts';
@@ -376,7 +376,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 {items.map((item) => {
-                  const signSize = item.product_type === 'yard_sign' ? findYardSignSize(item) : undefined;
+                  const signSize = newYardSignCartSize(item);
                   const quantityStep = signSize?.perSheet ?? 1;
                   const minQuantity = signSize ? Math.max(quantityStep, (item.yard_sign_designs?.length || 0) * yardSignArtworkStep(signSize)) : 1;
                   const displayPrice = displayPrices.get(item.id)!;

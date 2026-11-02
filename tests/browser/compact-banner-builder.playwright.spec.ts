@@ -617,6 +617,44 @@ for (const route of ['/design?product=yard-signs', '/google-ads-banner?product=y
   });
 }
 
+test('yard sign sizes refit the same upload from portrait to landscape through checkout', async ({ page }, info) => {
+  await installUploadAndFunctionHarness(page, `yard-size-${info.project.name}`);
+  await page.goto('/design?product=yard-signs');
+  const select = page.getByLabel('Finished sign size');
+  const quantity = page.locator('#yard-quantity-section').getByRole('spinbutton', { name: 'Quantity' });
+  await expect(select).toHaveValue('24x18');
+  for (const [id, min, max] of [['12x18', 20, 180], ['24x24', 8, 72], ['24x36', 4, 36], ['18x24', 8, 72]] as const) {
+    await select.selectOption(id);
+    await expect(quantity).toHaveValue(String(min));
+    await expect(quantity).toHaveAttribute('step', String(min));
+    await expect(quantity).toHaveAttribute('max', String(max));
+  }
+  const upload = page.locator('#yard-upload-section');
+  const chooser = page.waitForEvent('filechooser');
+  await upload.getByRole('button', { name: /Upload your artwork/ }).click();
+  await (await chooser).setFiles({ name: 'store-opening.png', mimeType: 'image/png', buffer: await asymmetricArtwork() });
+  const canvas = page.getByTestId('artwork-canvas');
+  const ratio = () => canvas.evaluate(el => { const rect = el.getBoundingClientRect(); return rect.width / rect.height; });
+  await expect(page.getByAltText('Yard Sign preview', { exact: true })).toBeVisible();
+  await expect.poll(ratio).toBeCloseTo(18 / 24, 2);
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(canvas).toHaveCount(0);
+  await select.selectOption('24x36');
+  await upload.getByRole('button', { name: 'Preview store-opening.png' }).click();
+  await expect(page.getByAltText('Yard Sign preview', { exact: true })).toBeVisible();
+  await expect.poll(ratio).toBeCloseTo(36 / 24, 2);
+  await expect(page.getByRole('button', { name: 'Fit my design with AI' }).filter({ visible: true }).first()).toBeEnabled();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(canvas).toHaveCount(0);
+  await page.getByRole('button', { name: 'Checkout', exact: true }).filter({ visible: true }).first().click();
+  await expect(page).toHaveURL(/checkout/);
+  await expect(page.getByText('Custom Yard Sign 24" × 36"', { exact: true }).filter({ visible: true }).first()).toBeVisible();
+  const [line] = await page.evaluate(() => JSON.parse(localStorage.getItem('cart-storage')!).state.items);
+  expect(line).toMatchObject({ product_type: 'yard_sign', yard_sign_size_id: '24x36',
+    width_in: 36, height_in: 24, quantity: 4, unit_price_cents: 2000, line_total_cents: 8000 });
+  expect(line.yard_sign_designs[0].placementPreview).toMatchObject({ widthIn: 36, heightIn: 24 });
+});
+
 test('yard sign hardware stays clear through upload, quantity changes and checkout', async ({ page }, info) => {
   await installUploadAndFunctionHarness(page, `yard-stakes-${info.project.name}`);
   const artwork = await sharp({ create: { width: 1200, height: 900, channels: 3, background: '#f8fafc' } })

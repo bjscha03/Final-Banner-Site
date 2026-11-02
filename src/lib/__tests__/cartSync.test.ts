@@ -50,6 +50,15 @@ describe('Cart Synchronization', () => {
   });
 
   describe('Deep-Match Merge Logic', () => {
+    it('keeps separately ordered yard-sign sheets apart and reconciles a saved copy once', () => {
+      const local = createMockCartItem({ id: 'local-design', product_type: 'yard_sign', material: 'corrugated',
+        width_in: 18, height_in: 24, quantity: 8, yard_sign_sidedness: 'single', file_key: 'same-art' });
+      const differentSide = { ...local, id: 'other-design', yard_sign_sidedness: 'double' as const };
+      const differentSize = { ...local, id: 'other-size', width_in: 24, height_in: 24 };
+      const serverCopy = { ...local, quantity: 16 };
+      expect(cartSyncService.mergeCartItems([local], [differentSide, differentSize, serverCopy])).toEqual([local, differentSide, differentSize]);
+    });
+
     it('should merge items with exact same attributes by summing quantities', () => {
       const item1 = createMockCartItem({
         width_in: 48,
