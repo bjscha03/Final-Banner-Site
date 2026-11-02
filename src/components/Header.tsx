@@ -99,10 +99,10 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
         ? 'relative z-50 border-b border-[#e5dfd6] bg-white text-[#061A31]'
         : 'sticky top-0 z-50 border-b border-[#e5dfd6] bg-white text-[#061A31]'}
     >
-      <div className="mx-auto max-w-[1740px] px-4 sm:px-6 lg:px-8">
-        <div className={isHomepage ? 'flex h-[72px] items-center justify-between lg:h-[92px]' : compactMobile ? 'flex h-[52px] items-center justify-between lg:h-[78px]' : 'flex h-[72px] items-center justify-between lg:h-[78px]'}>
+      <div className="mx-auto max-w-[1740px] px-2 sm:px-6 lg:px-8">
+        <div className={isHomepage ? 'flex h-[72px] items-center justify-between lg:h-[92px]' : compactMobile ? 'flex min-h-[52px] items-center justify-between lg:h-[78px]' : 'flex h-[72px] items-center justify-between lg:h-[78px]'}>
           {/* Compact navigation for mobile and tablet */}
-          <div className="flex items-center w-12 lg:hidden" ref={menuRef}>
+          <div className="flex w-11 shrink-0 items-center lg:hidden" ref={menuRef}>
             <button
               onClick={() => {
                 setIsAccountMenuOpen(false);
@@ -252,14 +252,14 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
           </div>
 
           {/* Center: Logo */}
-          <div className="flex-shrink-0">
+          <div className="w-[272px] min-w-0 lg:w-auto lg:shrink-0">
             <ScrollToTopLink to="/" className="flex items-center">
               <img
                 src="/images/bof-logo-20261101.png"
                 alt="Banners On The Fly"
                 width="248"
                 height="58"
-                className={isHomepage ? 'h-10 w-auto max-w-[205px] object-contain sm:h-12 sm:max-w-[260px] lg:h-[58px]' : compactMobile ? 'h-8 w-auto max-w-[175px] object-contain sm:max-w-[220px] lg:h-[54px]' : 'h-10 w-auto max-w-[205px] object-contain sm:h-12 sm:max-w-[250px] lg:h-[54px]'}
+                className={`h-auto w-full object-contain lg:w-auto ${isHomepage ? 'lg:h-[58px] lg:max-w-[260px]' : compactMobile ? 'lg:h-[54px] lg:max-w-[220px]' : 'lg:h-[54px] lg:max-w-[250px]'}`}
               />
             </ScrollToTopLink>
             {checkoutMode && <p className="text-center text-[10px] font-semibold text-slate-600">Secure checkout</p>}
@@ -289,7 +289,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
           </nav>
 
           {/* Right: User, Cart Icons */}
-          <div className="flex items-center justify-end gap-1 lg:w-auto lg:gap-2">
+          <div className="flex min-w-[88px] shrink-0 items-center justify-end lg:min-w-0 lg:gap-2">
             <ScrollToTopLink
               to="/design"
                 className="mr-1 hidden min-h-11 items-center rounded-md bg-brand-orange px-4 text-sm font-bold text-white transition-colors hover:bg-brand-orange-hover hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 xl:inline-flex"

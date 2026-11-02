@@ -3357,10 +3357,10 @@ const GoogleAdsBanner: React.FC = () => {
         {/* Paid landing routes omit navigation. Sharing their mobile
             designer must not remove the storefront's menu or home link. */}
         {(location.pathname.replace(/\/+$/, "") === "/google-ads-banner" || isHalloweenLanding) ? (
-        <header data-site-header className="w-full border-b border-[#e5dfd6] bg-white py-2 px-4 sticky top-0 z-50 lg:py-3">
+        <header data-site-header className="w-full border-b border-[#e5dfd6] bg-white py-1 px-4 sticky top-0 z-50 lg:py-3">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div className={mobilePaidLayout ? "hidden w-10 lg:block" : "w-10"} />
-            <picture><img src="/images/bof-logo-20261101.png" alt="Banners On The Fly" width="248" height="58" className="h-8 w-auto object-contain lg:h-10" loading="eager" /></picture>
+            <picture className="min-w-0"><img src="/images/bof-logo-20261101.png" alt="Banners On The Fly" width="248" height="58" className="h-auto w-[248px] object-contain lg:h-10 lg:w-auto" loading="eager" /></picture>
             <button
               onClick={() => setIsCartOpen(true)}
               aria-label="Shopping cart"

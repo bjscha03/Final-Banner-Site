@@ -15,9 +15,9 @@ export default function MobileBannerReviewStep({ open, onBack, children, preview
         onEscapeKeyDown={event => { if (busy) event.preventDefault(); }}
         onPointerDownOutside={event => event.preventDefault()}
         onCloseAutoFocus={event => { event.preventDefault(); document.querySelector<HTMLButtonElement>('[data-banner-primary-action]')?.focus({ preventScroll: true }); }}>
-        <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-2">
+        <header className="shrink-0 border-b border-slate-200 bg-white px-4 py-1">
           <div className="mx-auto flex max-w-xl items-center justify-between">
-            <img src="/images/bof-logo-20261101.png" alt="Banners On The Fly" width="248" height="58" className="h-8 w-auto" />
+            <img src="/images/bof-logo-20261101.png" alt="Banners On The Fly" width="248" height="58" className="h-auto w-[248px] min-w-0" />
             <button type="button" aria-label={`Shopping cart (${cartItemCount})`} disabled={busy} onClick={onViewCart} className="relative flex h-10 w-10 items-center justify-center text-[#061A31] disabled:opacity-50"><ShoppingCart className="h-5 w-5" />{cartItemCount > 0 && <span className="absolute right-0 top-0 rounded-full bg-orange-600 px-1.5 text-[10px] text-white">{cartItemCount}</span>}</button>
           </div>
         </header>
