@@ -11,6 +11,10 @@ const rejectedBodies=[
  'Hi Operations team,\n\nJust checking in to see if you had a chance to consider how your team currently manages signage production and updates across your locations? Understanding your process could help us tailor our support to fit your needs best.\n\nLooking forward to your thoughts!',
  'Hi Operations team,\n\nJust checking in to see if you have a preferred process or vendor for your promotional signage. We would be happy to support your campaigns with quick-turn vinyl banners or yard signs. Would it be helpful to share some sample materials or discuss how we can streamline your signage orders?'
 ];
+const repeatedLocationBodies=[
+ 'Considering Align Communities’ multiple Central Florida locations, yard signs could be a practical way to highlight available units right at each leasing office or community entrance. Would using yard signs for this purpose be helpful for your teams?',
+ 'Considering Lunds & Byerlys’ multiple locations, yard signs could be a practical way to highlight seasonal specials at each store entrance. Would using yard signs for this purpose be helpful for your teams?'
+];
 function draft(body='A vinyl banner beside the event entrance could make the check-in point visible before visitors reach the door. Would that placement be useful for your recurring events?') {
  return {kind:'followup',contact_id:'qa-contact',thread_key:'qa-thread',reply_to_id:'<qa-parent@test>',subject:'Re: Event banners',body,ai_metadata:{generation_contract:DRAFT_CONTRACT,knowledge_version:kb.version,requires_approval:false,model_requires_approval:false,model_classification:'followup',fact_ids:['products']}};
 }
@@ -23,6 +27,14 @@ for(const [index,body] of rejectedBodies.entries())test('editorial regression: r
  m.ai_metadata.followup_review={approved:true,response_id:'mock-model-approved',content_hash:followupHash(m),knowledge_version:kb.version};
  const decision=recoveryEligibility(m,{paused:false,cold_outreach_paused:false,required_draft_contract:DRAFT_CONTRACT},kb);
  assert.equal(decision.ok,false);assert.equal(decision.reason,'followup_editorial_veto');
+});
+test('editorial regression: repeated multiple-location yard-sign template is held even after model approval',()=>{
+ for(const body of repeatedLocationBodies){
+  const issues=followupQualityIssues(body);assert.ok(issues.some(issue=>/repeated/i.test(issue)));
+  const m=draft(body);m.ai_metadata.followup_review={approved:true,response_id:'mock-model-approved',content_hash:followupHash(m),knowledge_version:kb.version};
+  const decision=recoveryEligibility(m,{paused:false,cold_outreach_paused:false,required_draft_contract:DRAFT_CONTRACT},kb);
+  assert.equal(decision.ok,false);assert.equal(decision.reason,'followup_editorial_veto');
+ }
 });
 test('editorial veto: unsupported samples and repetitive process surveys never call a model',async()=>{
  let calls=0;const fetcher=async()=>{calls++;return response({approved:true,reason:'Would otherwise rubber-stamp'});};
