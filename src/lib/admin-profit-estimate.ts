@@ -1,4 +1,4 @@
-import { findYardSignSize, DEFAULT_YARD_SIGN_SIZE, YARD_SIGN_SHEET_SINGLE_CENTS, YARD_SIGN_SHEET_DOUBLE_CENTS } from './yard-sign-sizes';
+import { findYardSignSize, DEFAULT_YARD_SIGN_SIZE, YARD_SIGN_SHEET_SINGLE_CENTS, YARD_SIGN_SHEET_DOUBLE_CENTS } from './yard-sign-sizes.ts';
 import type { Order, OrderItem } from './orders/types';
 import { normalizeSizeKey, resolveFixedProductCost } from './admin-product-costs.ts';
 

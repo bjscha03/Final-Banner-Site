@@ -1,4 +1,4 @@
-import catalog from '../../shared/yard-sign-sizes.json';
+import catalog from '../../shared/yard-sign-sizes.json' with { type: 'json' };
 
 /** Supplier size labels are independent of artwork orientation. Do not sort
  * dimensions: the legacy landscape 24x18 and new portrait 18x24 are different SKUs. */
