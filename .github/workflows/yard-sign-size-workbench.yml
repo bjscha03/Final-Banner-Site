@@ -1,0 +1,49 @@
+name: Yard sign size workbench
+on:
+  push:
+    branches: [feat/yard-sign-sheet-sizes]
+    paths:
+      - '.github/workflows/yard-sign-size-workbench.yml'
+      - 'scripts/yard-sign-sizes.patch'
+permissions:
+  contents: write
+jobs:
+  workbench:
+    if: github.ref == 'refs/heads/feat/yard-sign-sheet-sizes'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/yard-sign-sheet-sizes
+          fetch-depth: 1
+      - name: Export tracked source for implementation
+        run: git archive --format=zip --output=/tmp/yard-sign-source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yard-sign-source
+          path: /tmp/yard-sign-source.zip
+          retention-days: 1
+      - uses: actions/setup-node@v4
+        if: hashFiles('scripts/yard-sign-sizes.patch') != ''
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Apply reviewed yard-sign changes
+        if: hashFiles('scripts/yard-sign-sizes.patch') != ''
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/feat/yard-sign-sheet-sizes'
+          git apply --check scripts/yard-sign-sizes.patch
+          git apply scripts/yard-sign-sizes.patch
+          rm scripts/yard-sign-sizes.patch
+          rm .github/workflows/yard-sign-size-workbench.yml
+          npm ci
+          node --test netlify/functions/_shared/__tests__/yard-sign-sizes.test.cjs
+          npx vitest run src/lib/__tests__/yard-sign-sizes.test.ts
+          npm run build
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Add sheet-based yard sign sizes without changing existing products'
+          git push origin HEAD:refs/heads/feat/yard-sign-sheet-sizes
