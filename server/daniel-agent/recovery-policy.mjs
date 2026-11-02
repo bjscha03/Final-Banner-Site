@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { currentReplyReview } from './reply-review.mjs';
+import { followupQualityIssues } from './followup-quality.mjs';
 
 // Set only by the strict generator after its schema validation succeeds.
 export const DRAFT_CONTRACT = 'daniel-strict-metadata-20261102';
@@ -33,6 +34,7 @@ export function recoveryEligibility(message, settings={}, knowledge=null) {
        !meta.research_review?.response_id || meta.research_review.content_hash!==contentHash(message))
       return {ok:false,reason:'current_introduction_review_required'};
   } else if(message.kind==='followup') {
+    if(followupQualityIssues(message.body).length) return {ok:false,reason:'followup_editorial_veto'};
     if(meta.model_classification!=='followup' || !currentFollowupReview(message))
       return {ok:false,reason:'current_followup_review_required'};
   } else return {ok:false,reason:'invalid_message_kind'};
