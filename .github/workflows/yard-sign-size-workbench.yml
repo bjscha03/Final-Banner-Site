@@ -4,7 +4,8 @@ on:
     branches: [feat/yard-sign-sheet-sizes]
     paths:
       - '.github/workflows/yard-sign-size-workbench.yml'
-      - 'scripts/yard-sign-sizes.patch'
+      - 'tests/browser/yard-sign-sizes.playwright.spec.ts'
+      - 'playwright.yard-sign-sizes.config.ts'
 permissions:
   contents: write
 concurrency:
@@ -20,62 +21,42 @@ jobs:
         with:
           ref: feat/yard-sign-sheet-sizes
           fetch-depth: 1
-      - name: Apply reviewed source changes and push feature branch
-        if: hashFiles('scripts/yard-sign-sizes.patch') != ''
+      - name: Make browser fixture catalog loading compatible with Node
         run: |
           set -euo pipefail
           test "$GITHUB_REF" = 'refs/heads/feat/yard-sign-sheet-sizes'
           python3 - <<'PY'
-          import base64,gzip,json,hashlib
           from pathlib import Path
-          root=Path.cwd().resolve()
-          upload=''.join(Path('scripts/yard-sign-sizes.part'+str(i)).read_text().strip() for i in (1,2,3))+Path('scripts/yard-sign-sizes.patch').read_text().strip()
-          upload=upload.replace('wev7DHIe8','wev7D5+8e')
-          entries=json.loads(gzip.decompress(base64.b64decode(upload)))
-          pending=[]
-          for entry in entries:
-              path=(root/entry['path']).resolve()
-              assert path.is_relative_to(root) and '.git' not in path.relative_to(root).parts
-              old=path.read_text() if path.exists() else ''
-              assert hashlib.sha256(old.encode()).hexdigest()==entry['before'],entry['path']
-              new=old
-              for start,end,text in reversed(entry['edits']):
-                  new=new[:start]+text+new[end:]
-              assert hashlib.sha256(new.encode()).hexdigest()==entry['after'],entry['path']
-              pending.append((path,new))
-          for path,new in pending:
-              path.parent.mkdir(parents=True,exist_ok=True)
-              path.write_text(new)
+          p=Path('tests/browser/yard-sign-sizes.playwright.spec.ts')
+          text=p.read_text()
+          text=text.replace("import catalog from '../../shared/yard-sign-sizes.json';", "import { readFileSync } from 'node:fs';\nconst catalog = JSON.parse(readFileSync(new URL('../../shared/yard-sign-sizes.json', import.meta.url), 'utf8'));")
+          p.write_text(text)
           PY
-          rm scripts/yard-sign-sizes.patch scripts/yard-sign-sizes.part1 scripts/yard-sign-sizes.part2 scripts/yard-sign-sizes.part3
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'Add sheet-based yard sign sizes without changing existing products'
-          git push origin HEAD:refs/heads/feat/yard-sign-sheet-sizes
+          git add tests/browser/yard-sign-sizes.playwright.spec.ts
+          if ! git diff --cached --quiet; then
+            git commit -m 'Load shared size catalog in browser regression tests on Node 20'
+            git push origin HEAD:refs/heads/feat/yard-sign-sheet-sizes
+          fi
       - uses: actions/setup-node@v4
-        if: hashFiles('shared/yard-sign-sizes.json') != ''
         with:
           node-version: '20'
           cache: npm
       - name: Install exact dependencies
-        if: hashFiles('shared/yard-sign-sizes.json') != ''
         run: npm ci
       - name: Verify pricing, quantities, promotions, supplier costs and legacy products
-        if: hashFiles('shared/yard-sign-sizes.json') != ''
         run: |
           node --test netlify/functions/_shared/__tests__/yard-sign-sizes.test.cjs netlify/functions/__tests__/stripe-server-pricing.test.cjs
           npx vitest run src/lib/__tests__/yard-sign-sizes.test.ts src/lib/__tests__/yard-sign-pricing.test.ts src/lib/yard-sign-first-order.test.ts src/lib/__tests__/admin-profit-estimate.test.ts src/lib/seo/__tests__/localPages.test.ts
       - name: Verify desktop and mobile designer flows
-        if: hashFiles('shared/yard-sign-sizes.json') != ''
         run: |
           npx playwright install --with-deps chromium
           npx playwright test --config playwright.yard-sign-sizes.config.ts
       - name: Build full site
-        if: hashFiles('shared/yard-sign-sizes.json') != ''
         run: npm run build
       - name: Remove temporary implementation workflow
-        if: success() && hashFiles('shared/yard-sign-sizes.json') != ''
+        if: success()
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -87,9 +68,6 @@ jobs:
         if: always()
         with:
           name: yard-sign-browser-results
-          path: |
-            test-results/
-            scripts/yard-sign-sizes.part*
-            scripts/yard-sign-sizes.patch
+          path: test-results/
           if-no-files-found: ignore
           retention-days: 3
