@@ -11,6 +11,7 @@ import { reviewFollowup } from './followup-review.mjs';
 import { generateReviewedFollowup } from './reviewed-followup.mjs';
 import { generateDraft } from './ai.mjs';
 import { discover } from './discovery.mjs';
+import { runWorker } from './worker.mjs';
 import { DRAFT_CONTRACT,contentHash,followupHash,currentFollowupReview,recoveryEligibility } from './recovery-policy.mjs';
 import { routinePolicyText } from './policy.mjs';
 
@@ -116,11 +117,12 @@ async function databaseFixture(){
 }
 const preview={DANIEL_AGENT_MODE:'preview'};
 
-test('database recovery: legacy pending and queued records remain unchanged while a fresh reviewed weekend reply is processed',async()=>{
+test('database recovery: unrelated legacy records stay unchanged while a fresh reviewed weekend reply is processed',async()=>{
  const f=await databaseFixture();try{
+  const old=await f.prospect();
+  const legacy=await f.queue({contact_id:old.contact_id,kind:'intro',subject:'Legacy',body:'Do not release this old draft.'});
+  const pending=await saveDraft(f.sql,{contact_id:old.contact_id,kind:'intro',subject:'Old pending',body:'Unreviewed legacy content'},'test');await requestApproval(f.sql,pending.id,'test');
   const p=await f.prospect(),[c]=await f.sql`SELECT * FROM daniel_sales.contacts WHERE id=${p.contact_id}`;
-  const legacy=await f.queue({contact_id:c.id,kind:'intro',subject:'Legacy',body:'Do not release this old draft.'});
-  const pending=await saveDraft(f.sql,{contact_id:c.id,kind:'intro',subject:'Old pending',body:'Unreviewed legacy content'},'test');await requestApproval(f.sql,pending.id,'test');
   const incoming={id:'test-inbound',threadId:'test-thread',payload:{mimeType:'text/plain',headers:[{name:'From',value:c.email},{name:'Message-ID',value:'<test-inbound@example.test>'}],body:{data:Buffer.from('Which products do you sell?').toString('base64url')}}};await ingest(f.sql,incoming);
   const fresh={contact_id:c.id,kind:'reply',subject:'Re: Products',body:'We offer vinyl banners.',thread_key:incoming.threadId,reply_to_id:'<test-inbound@example.test>',ai_metadata:{generation_contract:DRAFT_CONTRACT,knowledge_version:f.kb.version,requires_approval:false,model_requires_approval:false,model_classification:'routine_product',classification:'needs_review',fact_ids:['products'],reply_recipient:c.email}};
   fresh.ai_metadata.conversation_review={approved:true,response_id:'test-review',inbound_rfc:fresh.reply_to_id,content_hash:replyHash(fresh),knowledge_version:f.kb.version};
@@ -169,5 +171,26 @@ test('database recovery: generator marks fresh drafts and never adds an unsolici
   assert.ok(intro.body.includes('25% off sitewide'));assert.ok(intro.ai_metadata.team_offer.code);
   const held=await generateDraft(f.sql,p.contact_id,'intro',env,model('needs_review'));
   assert.equal(held.requires_approval,true);assert.equal(held.ai_metadata.model_requires_approval,false);assert.equal(held.ai_metadata.model_classification,'needs_review');
+ }finally{await f.db.close();}
+});
+
+for(const accepted of [true,false]) test('worker recovery: fresh follow-up '+(accepted?'passes reviewed preparation and simulated dispatch once':'stops after three rejected revisions without pretending it completed'),async()=>{
+ const f=await databaseFixture();try{
+  await f.sql`UPDATE daniel_sales.settings SET auto_prospect=false WHERE id=1`;
+  const p=await f.prospect(),prior=await saveDraft(f.sql,{contact_id:p.contact_id,kind:'intro',subject:'Event banners',body:'Original invitation'},'test');
+  await f.sql`UPDATE daniel_sales.messages SET status='sent',thread_key='worker-thread',rfc_message_id='<worker-parent@test>',sent_at='2026-10-01',updated_at='2026-10-01' WHERE id=${prior.id}`;
+  const [task]=await f.sql`INSERT INTO daniel_sales.tasks(contact_id,opportunity_id,kind,due_at,dedupe_key) VALUES(${p.contact_id},${p.opportunity_id},'followup',now(),'worker-recovery-fixture') RETURNING id`;
+  let generations=0,reviews=0;
+  const generator=async()=>{generations++;return {...message(),contact_id:p.contact_id,thread_key:'worker-thread',reply_to_id:'<worker-parent@test>',ai_metadata:{...message().ai_metadata,followup_review:null,knowledge_version:f.kb.version}};};
+  const reviewer=async(_sql,m)=>{reviews++;return {approved:accepted,response_id:'worker-review-'+reviews,reason:accepted?'Useful next step':'Repeats prior pitch',content_hash:followupHash(m),knowledge_version:f.kb.version};};
+  const options={sql:f.sql,now:new Date('2026-11-02T15:00:00Z'),generateDraft:generator,reviewFollowup:reviewer};
+  const result=await runWorker(preview,options);
+  assert.equal(result.status,'completed');assert.equal(result.simulated,accepted?1:0);
+  assert.equal(generations,accepted?1:3);assert.equal(reviews,accepted?1:3);
+  assert.equal((await f.sql`SELECT status FROM daniel_sales.tasks WHERE id=${task.id}`)[0].status,accepted?'completed':'needs_review');
+  const [draft]=await f.sql`SELECT * FROM daniel_sales.messages WHERE idempotency_key=${'task:'+task.id}`;
+  assert.equal(draft.status,accepted?'simulated':'pending_approval');
+  const before=generations;await runWorker(preview,options);assert.equal(generations,before);
+  assert.equal((await f.sql`SELECT count(*)::int AS n FROM daniel_sales.test_deliveries WHERE message_id=${draft.id}`)[0].n,accepted?1:0);
  }finally{await f.db.close();}
 });
