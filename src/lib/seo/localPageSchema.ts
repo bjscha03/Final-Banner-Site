@@ -1,3 +1,4 @@
+import { YARD_SIGN_SIZES } from '@/lib/yardSignSizes';
 import { getAbsoluteConfiguratorUrl, getConfiguratorUrl } from '@/lib/configurator';
 import type { CityEntry, CityProductPageContent, CityProductSlug } from '@/lib/seo/cityData';
 import { SITE_URL, type ProductLandingDefinition } from '@/lib/seo/productLandingData';
@@ -149,9 +150,7 @@ export function buildProductHubSchema(product: ProductLandingDefinition, canonic
   const image = imageNode(product);
   const productId = `${canonicalUrl}#product`;
   const offerId = `${canonicalUrl}#offer`;
-  const pageName = product.slug === 'yard-signs'
-    ? `${product.plural} | 24×18 Size, Options & Pricing`
-    : `${product.plural} | Sizes, Options & Pricing`;
+  const pageName = `${product.plural} | Sizes, Options & Pricing`;
   return {
     '@context': 'https://schema.org',
     '@graph': [
@@ -172,6 +171,7 @@ export function buildProductHubSchema(product: ProductLandingDefinition, canonic
       },
       {
         '@type': 'Product',
+        ...(product.slug === 'yard-signs' ? { size: YARD_SIGN_SIZES.map(size => size.label) } : {}),
         '@id': productId,
         name: product.plural,
         description: product.overview,

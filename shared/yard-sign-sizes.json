@@ -1,0 +1,7 @@
+[
+  { "id": "24x18", "label": "24\" × 18\"", "widthIn": 24, "heightIn": 18, "perSheet": 10, "maxQuantity": 90, "singleCents": 1200, "doubleCents": 1400 },
+  { "id": "12x18", "label": "12\" × 18\"", "widthIn": 18, "heightIn": 12, "perSheet": 20, "maxQuantity": 180, "singleCents": 800, "doubleCents": 1000 },
+  { "id": "18x24", "label": "18\" × 24\"", "widthIn": 18, "heightIn": 24, "perSheet": 8, "maxQuantity": 72, "singleCents": 1300, "doubleCents": 1600 },
+  { "id": "24x24", "label": "24\" × 24\"", "widthIn": 24, "heightIn": 24, "perSheet": 8, "maxQuantity": 72, "singleCents": 1400, "doubleCents": 1700 },
+  { "id": "24x36", "label": "24\" × 36\"", "widthIn": 36, "heightIn": 24, "perSheet": 4, "maxQuantity": 36, "singleCents": 2000, "doubleCents": 2400 }
+]

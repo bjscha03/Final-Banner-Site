@@ -1,11 +1,13 @@
+import { DEFAULT_YARD_SIGN_SIZE, type YardSignSize } from '@/lib/yardSignSizes';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { Check, Minus, Plus } from 'lucide-react';
 import { usd } from '@/lib/pricing';
-import { YARD_SIGN_MAX_QUANTITY, YARD_SIGN_MIN_QUANTITY, YARD_SIGN_STEP_STAKE_CENTS } from '@/lib/yard-sign-pricing';
+import { YARD_SIGN_STEP_STAKE_CENTS } from '@/lib/yard-sign-pricing';
 import YardSignMockup from './YardSignMockup';
 import StepHeader from './layout/StepHeader';
 
 interface Props {
+  size?: YardSignSize;
   totalQuantity: number;
   enabled: boolean;
   quantity: number;
@@ -14,10 +16,10 @@ interface Props {
   restorationKey?: string | null;
 }
 
-const matchedQuantity = (total: number) => Math.max(1, Math.min(YARD_SIGN_MAX_QUANTITY, Math.trunc(total) || YARD_SIGN_MIN_QUANTITY));
-const clampQuantity = (quantity: number) => Math.max(1, Math.min(YARD_SIGN_MAX_QUANTITY, Math.trunc(quantity) || 1));
-
-export default function YardSignStakeOptions({ totalQuantity, enabled, quantity, onEnabledChange, onQuantityChange, restorationKey }: Props) {
+export default function YardSignStakeOptions({ size = DEFAULT_YARD_SIGN_SIZE, totalQuantity, enabled, quantity, onEnabledChange, onQuantityChange, restorationKey }: Props) {
+  const maxStakes = size.id === DEFAULT_YARD_SIGN_SIZE.id ? size.maxQuantity : totalQuantity || size.perSheet;
+  const clampQuantity = (count: number) => Math.max(1, Math.min(maxStakes, Math.trunc(count) || 1));
+  const matchedQuantity = (total: number) => Math.max(1, Math.min(size.maxQuantity, Math.trunc(total) || size.perSheet));
   const groupName = useId();
   const [adjusting, setAdjusting] = useState(false);
   const previous = useRef({ totalQuantity, enabled, quantity, restorationKey });
@@ -35,8 +37,10 @@ export default function YardSignStakeOptions({ totalQuantity, enabled, quantity,
     if (enabled && old.enabled && totalQuantity !== old.totalQuantity && quantity === old.quantity && old.quantity === matchedQuantity(old.totalQuantity)) {
       const next = matchedQuantity(totalQuantity);
       if (next !== quantity) onQuantityChange(next);
+    } else if (enabled && quantity > maxStakes) {
+      onQuantityChange(maxStakes);
     }
-  }, [totalQuantity, enabled, quantity, restorationKey, onQuantityChange]);
+  }, [size, maxStakes, totalQuantity, enabled, quantity, restorationKey, onQuantityChange]);
 
   function select(withStakes: boolean) {
     if (withStakes && !enabled) onQuantityChange(matchedQuantity(totalQuantity));
@@ -81,7 +85,7 @@ export default function YardSignStakeOptions({ totalQuantity, enabled, quantity,
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-orange-50 px-3 py-3">
             <div aria-live="polite" className="min-w-0">
               <p className="text-sm font-semibold text-orange-900">{matched ? `${totalQuantity} signs = ${quantity} stakes` : `${quantity} wire H-${quantity === 1 ? 'stake' : 'stakes'}`}</p>
-              <p className="mt-0.5 text-xs text-slate-600">{totalQuantity === 0 ? quantity === YARD_SIGN_MIN_QUANTITY ? 'Matches your sign quantity after upload' : 'Custom stake quantity' : matched ? 'Matched to your sign quantity' : `Custom quantity for ${totalQuantity} signs`}</p>
+              <p className="mt-0.5 text-xs text-slate-600">{totalQuantity === 0 ? quantity === size.perSheet ? 'Matches your sign quantity after upload' : 'Custom stake quantity' : matched ? 'Matched to your sign quantity' : `Custom quantity for ${totalQuantity} signs`}</p>
             </div>
             <button type="button" aria-expanded={adjusting} aria-controls={`${groupName}-quantity`} onClick={() => setAdjusting(!adjusting)} className="min-h-11 text-xs font-semibold text-[#0B1F3A] underline underline-offset-2">{adjusting ? 'Done adjusting' : 'Adjust quantity'}</button>
           </div>
@@ -89,8 +93,8 @@ export default function YardSignStakeOptions({ totalQuantity, enabled, quantity,
             <div id={`${groupName}-quantity`} className="flex flex-wrap items-center gap-2">
               <label htmlFor={`${groupName}-input`} className="mr-1 text-sm text-slate-600">Stakes</label>
               <button type="button" aria-label="Decrease stakes" disabled={quantity <= 1} onClick={() => onQuantityChange(clampQuantity(quantity - 1))} className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-300 disabled:opacity-40"><Minus className="h-4 w-4" /></button>
-              <input id={`${groupName}-input`} type="number" inputMode="numeric" min={1} max={YARD_SIGN_MAX_QUANTITY} step={1} value={quantity} onChange={event => onQuantityChange(clampQuantity(Number(event.target.value)))} className="h-11 w-16 rounded-lg border border-slate-300 px-2 text-center text-base" />
-              <button type="button" aria-label="Increase stakes" disabled={quantity >= YARD_SIGN_MAX_QUANTITY} onClick={() => onQuantityChange(clampQuantity(quantity + 1))} className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-300 disabled:opacity-40"><Plus className="h-4 w-4" /></button>
+              <input id={`${groupName}-input`} type="number" inputMode="numeric" min={1} max={maxStakes} step={1} value={quantity} onChange={event => onQuantityChange(clampQuantity(Number(event.target.value)))} className="h-11 w-16 rounded-lg border border-slate-300 px-2 text-center text-base" />
+              <button type="button" aria-label="Increase stakes" disabled={quantity >= maxStakes} onClick={() => onQuantityChange(clampQuantity(quantity + 1))} className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-300 disabled:opacity-40"><Plus className="h-4 w-4" /></button>
               {!matched && totalQuantity > 0 && <button type="button" onClick={() => onQuantityChange(matchedQuantity(totalQuantity))} className="min-h-11 text-xs font-semibold text-orange-700 underline">Match sign quantity</button>}
             </div>
           )}

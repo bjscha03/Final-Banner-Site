@@ -117,7 +117,7 @@ it('keeps print-side selection and multiple-design previews independent from har
   const button = [...host.querySelectorAll('button')].find(item => item.textContent?.startsWith('Double-Sided'))!;
   await act(async () => button.click());
   expect(state).toMatchObject({ quantity: 10, total: 15500 });
-  const select = host.querySelector('select')!;
+  const select = host.querySelector<HTMLSelectElement>('[aria-label="Yard sign product preview"] select')!;
   await act(async () => { select.value = 'second'; select.dispatchEvent(new Event('change', { bubbles: true })); });
   expect(host.querySelector('[aria-label="Yard sign product preview"] img')?.getAttribute('src')).toBe(second.previewThumbnailUrl);
   expect(state.designs).toEqual([first, second]);

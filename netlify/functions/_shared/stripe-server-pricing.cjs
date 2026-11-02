@@ -1,4 +1,5 @@
 'use strict';
+const yardSignSizes = require('../../../shared/yard-sign-sizes.json');
 const { normalizeSpecialtyItem, requireSpecialtyFulfillment } = require('./specialty-products.cjs');
 
 const PRODUCT_LIMIT = 50;
@@ -161,7 +162,7 @@ function normalizeBanner(item, index) {
   };
 }
 
-function validateYardSignDesigns(item, quantity, index) {
+function validateYardSignDesigns(item, quantity, index, size) {
   const designs = item.yard_sign_designs;
   if (designs == null) {
     if (item.design_service_enabled === true) return { count: 0, designs: null };
@@ -170,13 +171,15 @@ function validateYardSignDesigns(item, quantity, index) {
   if (!Array.isArray(designs) || designs.length < 1 || designs.length > 10) {
     fail('YARD_SIGN_DESIGNS_INVALID', 'Yard signs require between 1 and 10 designs.', { index });
   }
-  const designTotal = designs.reduce((sum, design, designIndex) => (
-    sum + number(design?.quantity, `items[${index}].yard_sign_designs[${designIndex}].quantity`, {
-      min: 1,
-      max: 90,
-      integer: true,
-    })
-  ), 0);
+  const designTotal = designs.reduce((sum, design, designIndex) => {
+    const copies = number(design?.quantity, `items[${index}].yard_sign_designs[${designIndex}].quantity`, {
+      min: 1, max: size.maxQuantity, integer: true,
+    });
+    if (size.id !== '24x18' && copies % size.perSheet !== 0) {
+      fail('YARD_SIGN_QUANTITY_INVALID', `Each artwork for ${size.label} needs a multiple of ${size.perSheet} signs.`, { index, designIndex });
+    }
+    return sum + copies;
+  }, 0);
   if (designTotal !== quantity) {
     fail('YARD_SIGN_DESIGN_QUANTITY_MISMATCH', 'Yard-sign design quantities must equal the ordered quantity.', {
       index,
@@ -192,11 +195,15 @@ function validateYardSignDesigns(item, quantity, index) {
 }
 
 function normalizeYardSign(item, index) {
-  const width = number(item.width_in, `items[${index}].width_in`, { min: 24, max: 24 });
-  const height = number(item.height_in, `items[${index}].height_in`, { min: 18, max: 18 });
-  const quantity = number(item.quantity, `items[${index}].quantity`, { min: 10, max: 90, integer: true });
-  if (quantity % 10 !== 0) {
-    fail('YARD_SIGN_QUANTITY_INVALID', 'Yard signs must be ordered in increments of 10.', { index, quantity });
+  const width = Number(item.width_in);
+  const height = Number(item.height_in);
+  const size = yardSignSizes.find(option => option.widthIn === width && option.heightIn === height);
+  if (!size || (item.yard_sign_size_id != null && item.yard_sign_size_id !== size.id)) {
+    fail('YARD_SIGN_SIZE_INVALID', 'Choose a supported yard-sign size.', { index, width, height });
+  }
+  const quantity = number(item.quantity, `items[${index}].quantity`, { min: size.perSheet, max: size.maxQuantity, integer: true });
+  if (quantity % size.perSheet !== 0) {
+    fail('YARD_SIGN_QUANTITY_INVALID', `Yard signs must be ordered in increments of ${size.perSheet}.`, { index, quantity });
   }
   if (clean(item.material || 'corrugated').toLowerCase() !== 'corrugated') {
     fail('YARD_SIGN_MATERIAL_INVALID', 'Yard signs are available only in corrugated plastic.', { index });
@@ -205,7 +212,7 @@ function normalizeYardSign(item, index) {
   if (!['single', 'double'].includes(sidedness)) {
     fail('YARD_SIGN_SIDEDNESS_INVALID', 'Choose single- or double-sided yard signs.', { index });
   }
-  const designInfo = validateYardSignDesigns(item, quantity, index);
+  const designInfo = validateYardSignDesigns(item, quantity, index, size);
   const stakesEnabled = item.yard_sign_step_stakes_enabled === true
     || hasTruthyOption(item.yard_sign_step_stakes_enabled);
   const stakesQty = stakesEnabled
@@ -215,13 +222,14 @@ function normalizeYardSign(item, index) {
       integer: true,
     })
     : 0;
-  const unitPriceCents = sidedness === 'double' ? 1400 : 1200;
+  const unitPriceCents = sidedness === 'double' ? size.doubleCents : size.singleCents;
   const signsSubtotalCents = unitPriceCents * quantity;
   const stakesSubtotalCents = stakesQty * 150;
 
   return {
     ...item,
     product_type: 'yard_sign',
+    yard_sign_size_id: size.id,
     width_in: width,
     height_in: height,
     quantity,
@@ -315,5 +323,6 @@ module.exports = {
   bannerUnitPriceCents,
   MAGNET_PRICES,
   StripePricingError,
+  normalizeYardSign,
   repriceStripeCart,
 };

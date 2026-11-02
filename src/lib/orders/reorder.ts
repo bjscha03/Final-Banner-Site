@@ -1,3 +1,4 @@
+import { findYardSignSize } from '@/lib/yardSignSizes';
 import type { OrderItem } from './types';
 import type { QuoteState } from '@/store/quote';
 import { isReadyPlacementPreview } from '@/lib/previewLifecycle';
@@ -78,6 +79,7 @@ export function orderItemToReorderQuote(item: OrderItem & Record<string, any>): 
     finalRenderHeightPx: item.final_render_height_px,
     finalRenderDpi: item.final_render_dpi,
     yard_sign_metadata: item.product_type === 'yard_sign' ? {
+      sizeId: findYardSignSize(item)?.id,
       sidedness: item.yard_sign_sidedness,
       addStepStakes: item.yard_sign_step_stakes_enabled,
       stepStakeQty: item.yard_sign_step_stakes_qty,

@@ -7,9 +7,12 @@ vi.hoisted(() => {
 vi.mock('@/lib/cartSync', () => ({ cartSync: { getUserId: () => null, getSessionId: () => 'test-session', saveCart: vi.fn(async () => true) } }));
 vi.mock('@/lib/analytics', () => ({ trackAddToCart: vi.fn(), trackFBAddToCart: vi.fn() }));
 import { useCartStore } from '@/store/cart';
+import { normalizeOrderItemDisplay } from '../product-display';
 import { orderItemToReorderQuote } from './reorder';
 const require = createRequire(import.meta.url);
 const { _test: { prepareOrderItems } } = require('../../../netlify/functions/_shared/legacy/create-order-core.cjs');
+const { repriceStripeCart } = require('../../../netlify/functions/_shared/stripe-server-pricing.cjs');
+const serverDisplay = require('../../../netlify/functions/_shared/legacy/product-display-helpers.cjs');
 const { getFinalizedThumbnailUrl } = require('../../../netlify/functions/_shared/legacy/email-template.cjs');
 const { buildCompositionSignatureFromPreview } = require('../../../netlify/functions/_shared/preview-artifact.cjs');
 const original = 'https://example.com/customer-artwork.png';
@@ -23,6 +26,28 @@ const item = { width_in: 72, height_in: 36, quantity: 1, material: '13oz', area_
 
 describe('reorder artwork survives cart and server persistence', () => {
   beforeEach(() => useCartStore.setState({ items: [], discountCode: null }));
+  it.each([[18, 12, '12x18', '12" × 18"', 20, 1000], [36, 24, '24x36', '24" × 36"', 4, 2400]] as const)(
+    'preserves the supplier label for a %i × %i canvas through cart edits and order preparation',
+    (width_in, height_in, sizeId, label, step, price) => {
+      const orderItem = { ...item, product_type: 'yard_sign', width_in, height_in, material: 'corrugated', quantity: step,
+        yard_sign_sidedness: 'double', yard_sign_step_stakes_enabled: true, yard_sign_step_stakes_qty: step,
+        yard_sign_designs: [{ id: 'art', fileKey: 'uploads/yard', fileUrl: original, quantity: step }],
+      };
+      const store = useCartStore.getState();
+      const id = store.addFromQuote(orderItemToReorderQuote(orderItem));
+      store.updateQuantity(id, step + 1);
+      expect(useCartStore.getState().items[0].quantity).toBe(step);
+      store.updateQuantity(id, step * 2);
+      const [cart] = useCartStore.getState().items;
+      expect(cart).toMatchObject({ yard_sign_size_id: sizeId, quantity: step * 2, unit_price_cents: price,
+        line_total_cents: step * 2 * (price + 150), yard_sign_step_stakes_qty: step * 2 });
+      const [prepared] = prepareOrderItems(repriceStripeCart([cart]));
+      expect(prepared).toMatchObject({ width_in, height_in, quantity: step * 2, yard_sign_designs: [{ quantity: step * 2 }] });
+      expect(normalizeOrderItemDisplay(prepared).sizeDisplay).toBe(label);
+      expect(serverDisplay.getItemDisplayName(prepared)).toBe(`Custom Yard Sign ${label}`);
+    },
+  );
+
   it('preserves the original, preview, composition, text and finishing in the actual cart and prepared order', () => {
     useCartStore.getState().addFromQuote(orderItemToReorderQuote(item));
     const cart = useCartStore.getState().items[0];

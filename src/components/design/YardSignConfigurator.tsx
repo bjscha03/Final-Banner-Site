@@ -2,11 +2,11 @@
  * Yard Sign Configurator (v2)
  * 
  * Clean, simplified yard sign ordering flow:
- * - Fixed size: 24" × 18" corrugated plastic
+ * - Predefined corrugated-plastic sizes and whole-sheet quantities
  * - Sidedness: Single ($12) or Double ($14)
  * - Multi-design upload (up to 10 designs, per-design quantities)
  * - Optional step stakes ($1.50 each)
- * - Max 90 signs per order
+ * - Size-dependent order limits
  * - Live price summary
  *
  * Rendering pipeline:
@@ -18,22 +18,18 @@
  * - Re-opening the preview restores imgScale / imgPos but always renders from the
  *   original high-res source, never from the generated thumbnail.
  */
-import React, { forwardRef, useState, useRef, useCallback, useEffect, useImperativeHandle } from 'react';
+import React, { forwardRef, useState, useRef, useCallback, useEffect, useLayoutEffect, useImperativeHandle } from 'react';
 import { X, Plus, Minus, Loader2, AlertTriangle, CheckCircle, Move, Eye, Sparkles } from 'lucide-react';
 import {
   type YardSignSidedness,
   type YardSignDesign,
-  YARD_SIGN_MAX_QUANTITY,
   YARD_SIGN_MAX_DESIGNS,
-  YARD_SIGN_MIN_QUANTITY,
-  YARD_SIGN_INCREMENT,
-  YARD_SIGN_SINGLE_SIDED_CENTS,
-  YARD_SIGN_DOUBLE_SIDED_CENTS,
-  YARD_SIGN_WIDTH_IN,
-  YARD_SIGN_HEIGHT_IN,
+  distributeYardSignCopies,
+  yardSignQuantityRule,
   assignYardSignCopies,
   validateYardSignQuantity,
 } from '@/lib/yard-sign-pricing';
+import { DEFAULT_YARD_SIGN_SIZE, YARD_SIGN_SIZES, yardSignArtworkStep, yardSignOrientation, type YardSignSize } from '@/lib/yardSignSizes';
 import { usd } from '@/lib/pricing';
 import {
   buildCloudinaryPdfPreviewUrl,
@@ -128,6 +124,8 @@ function getRowThumbnailSources(design: YardSignDesign): string[] {
 }
 
 interface YardSignConfiguratorProps {
+  size?: YardSignSize;
+  onSizeChange?: (size: YardSignSize) => void;
   designs: YardSignDesign[];
   onDesignsChange: (designs: YardSignDesign[]) => void;
   sidedness: YardSignSidedness;
@@ -167,6 +165,8 @@ export interface YardSignConfiguratorHandle {
 }
 
 const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConfiguratorProps>(({
+  size = DEFAULT_YARD_SIGN_SIZE,
+  onSizeChange,
   designs,
   onDesignsChange,
   sidedness,
@@ -189,6 +189,12 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
   previewOpenTrigger,
   showCreateWithAI = false,
 }, ref) => {
+  // Each size owns its editor session. Discard work returned after that session closes.
+  const activeSession = useRef(false);
+  useLayoutEffect(() => {
+    activeSession.current = true;
+    return () => { activeSession.current = false; };
+  }, []);
   const [isUploading, setIsUploading] = useState(false);
   const [isSavingPreview, setIsSavingPreview] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -222,8 +228,10 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
     });
   }, [showCreateWithAI]);
 
-  const quantityValidation = validateYardSignQuantity(orderQuantity);
-  const canAddMoreDesigns = designs.length < YARD_SIGN_MAX_DESIGNS;
+  const artworkStep = yardSignArtworkStep(size);
+  const minForDesigns = Math.max(size.perSheet, designs.length * artworkStep);
+  const quantityValidation = validateYardSignQuantity(orderQuantity, size);
+  const canAddMoreDesigns = designs.length < YARD_SIGN_MAX_DESIGNS && (designs.length + 1) * artworkStep <= orderQuantity;
 
   // Preview modal state
   const [previewDesignId, setPreviewDesignId] = useState<string | null>(null);
@@ -276,7 +284,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
 
   const applyFittedArtwork = (artwork: UploadedArtworkFile, expectedIdentity: string) => {
     const current = designsRef.current.find(design => design.id === fitDesignId);
-    if (!current || expectedIdentity !== artworkFitIdentity(yardSignFitArtwork(current), YARD_SIGN_WIDTH_IN, YARD_SIGN_HEIGHT_IN, 'yard_sign')) {
+    if (!activeSession.current || !current || expectedIdentity !== artworkFitIdentity(yardSignFitArtwork(current), size.widthIn, size.heightIn, 'yard_sign')) {
       throw new Error('This design changed or was removed. Reopen AI fit for your current design.');
     }
     const previous = fitUndo[current.id];
@@ -334,13 +342,14 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
           sourceUrl: getPreviewModalSrc(currentDesign),
           sourceIdentity: `${currentDesign.fileKey}@page-1`,
           productType: 'yard_sign',
-          widthIn: YARD_SIGN_WIDTH_IN,
-          heightIn: YARD_SIGN_HEIGHT_IN,
+          widthIn: size.widthIn,
+          heightIn: size.heightIn,
           fitMode: 'fit',
           transform: snapshot.transform,
           revision: snapshot.revision,
         };
         const artifact = await createPermanentPlacementPreview(spec);
+        if (!activeSession.current) return false;
         const latestSnapshot = previewEditorRef.current?.getCompositionSnapshot();
         if (!latestSnapshot) {
           throw new PreviewLifecycleError('COMPOSITION_CHANGED', 'The Yard Sign editor closed during preview preparation.');
@@ -387,7 +396,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
     } finally {
       setIsSavingPreview(false);
     }
-  }, [previewDesignId, previewConstrain, designs, onDesignsChange]);
+  }, [previewDesignId, previewConstrain, designs, onDesignsChange, size]);
 
   const closePreview = useCallback(() => {
     setPreviewDesignId(null);
@@ -409,11 +418,12 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
       const result = await uploadArtworkFile(file, {
         correlationId: `yard-sign-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       });
+      if (!activeSession.current) return;
       const isPdf = isPdfArtwork(file);
       const thumbnailUrl = result.previewUrl || result.secureUrl;
       // The customer can change quantity or artwork while the file is uploading.
       const current = designsRef.current;
-      if (current.length >= YARD_SIGN_MAX_DESIGNS) {
+      if (current.length >= YARD_SIGN_MAX_DESIGNS || (current.length + 1) * artworkStep > orderQuantityRef.current) {
         setUploadError(`Maximum ${YARD_SIGN_MAX_DESIGNS} designs per order.`);
         return;
       }
@@ -429,7 +439,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
         imgPos: { x: 0, y: 0 },
       };
       const next = current.length
-        ? assignYardSignCopies([...current, newDesign], newDesign.id, 1)
+        ? assignYardSignCopies([...current, newDesign], newDesign.id, artworkStep, artworkStep)
         : [newDesign];
       designsRef.current = next;
       onDesignsChange(next);
@@ -449,7 +459,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
     } finally {
       setIsUploading(false);
     }
-  }, [canAddMoreDesigns, onDesignsChange]);
+  }, [canAddMoreDesigns, onDesignsChange, artworkStep]);
 
   const removeDesign = useCallback((id: string) => {
     const remaining = designs.filter(design => design.id !== id);
@@ -461,31 +471,41 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
   }, [designs, onDesignsChange]);
 
   function changeOrderQuantity(next: number) {
-    if (next === orderQuantity || !validateYardSignQuantity(next).valid) return;
+    if (next === orderQuantity || next < minForDesigns || !validateYardSignQuantity(next, size).valid) return;
     onOrderQuantityChange(next);
-    if (!designs.length) return;
-    const perDesign = Math.floor(next / designs.length);
-    const remainder = next % designs.length;
-    onDesignsChange(designs.map((design, index) => ({
-      ...design, quantity: perDesign + (index < remainder ? 1 : 0),
-    })));
+    if (designs.length) onDesignsChange(distributeYardSignCopies(designs, next, artworkStep));
+  }
+
+  function changeSize(next: YardSignSize) {
+    if (!onSizeChange || next.id === size.id) return;
+    const step = yardSignArtworkStep(next);
+    const requested = orderQuantity === size.perSheet ? next.perSheet : orderQuantity;
+    const nextQuantity = Math.min(next.maxQuantity, Math.max(next.perSheet, designs.length * step, Math.ceil(requested / next.perSheet) * next.perSheet));
+    const originals = designs.map(design => {
+      const undo = fitUndo[design.id];
+      const original = undo?.appliedFileKey === design.fileKey ? undo.original : design;
+      return { ...original, imgPos: { x: 0, y: 0 }, imgScale: 1, imgScaleY: 1, imgConstrain: true,
+        previewThumbnailUrl: undefined, placementPreview: undefined };
+    });
+    onDesignsChange(distributeYardSignCopies(originals, nextQuantity, step));
+    if (addStepStakes) onStepStakeQuantityChange(stepStakeQuantity === orderQuantity ? nextQuantity : Math.min(stepStakeQuantity, nextQuantity));
+    onOrderQuantityChange(nextQuantity);
+    onSizeChange(next);
   }
 
   return (
     <div className="space-y-6 max-w-full overflow-hidden">
-      {/* Step 1 — Sign Size (fixed/locked) */}
       <ConfigCard step={1} title="Yard Sign Size" id="yard-size-section">
-        <p className="text-xs text-gray-500 mb-2">Standard 24&quot; × 18&quot; corrugated plastic.</p>
-        <div className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
-          <div className="w-12 h-9 bg-white rounded border border-gray-300 flex items-center justify-center flex-shrink-0">
-            <span className="text-[10px] font-bold text-gray-500">24×18</span>
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-800">24&quot; × 18&quot;</p>
-            <p className="text-xs text-gray-500">Corrugated Plastic</p>
-          </div>
-          <CheckCircle className="ml-auto h-5 w-5 text-green-500 flex-shrink-0" />
-        </div>
+        <label htmlFor="yard-sign-size" className="mb-2 block text-sm font-semibold text-slate-700">Finished sign size</label>
+        <select id="yard-sign-size" value={size.id} disabled={isUploading || isSavingPreview}
+          onChange={event => { const next = YARD_SIGN_SIZES.find(option => option.id === event.target.value); if (next) changeSize(next); }}
+          className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-base font-semibold text-slate-800 focus:border-orange-500">
+          {YARD_SIGN_SIZES.map(option => <option key={option.id} value={option.id} disabled={designs.length * yardSignArtworkStep(option) > option.maxQuantity}>
+            {option.label} · {yardSignOrientation(option)}
+          </option>)}
+        </select>
+        <p className="mt-2 text-xs text-slate-600">Corrugated plastic · {size.widthIn}″ wide × {size.heightIn}″ high</p>
+        {designs.length > 9 && <p className="mt-1 text-xs text-slate-600">The other sizes fit up to nine different designs per order.</p>}
       </ConfigCard>
 
       {/* Step 2 — Print Side (sidedness selector). Renamed from
@@ -507,7 +527,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
               </p>
               {sidedness === 'single' && <CheckCircle className="h-4 w-4 text-orange-600" aria-hidden="true" />}
             </div>
-            <p className="text-xs text-gray-500 mt-0.5">{usd(YARD_SIGN_SINGLE_SIDED_CENTS / 100)}/sign</p>
+            <p className="text-xs text-gray-500 mt-0.5">{usd(size.singleCents / 100)}/sign</p>
           </button>
           <button
             onClick={() => onSidednessChange('double')}
@@ -523,7 +543,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
               </p>
               {sidedness === 'double' && <CheckCircle className="h-4 w-4 text-orange-600" aria-hidden="true" />}
             </div>
-            <p className="text-xs text-gray-500 mt-0.5">{usd(YARD_SIGN_DOUBLE_SIDED_CENTS / 100)}/sign</p>
+            <p className="text-xs text-gray-500 mt-0.5">{usd(size.doubleCents / 100)}/sign</p>
           </button>
         </div>
         <p className="mt-2 flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
@@ -537,8 +557,8 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
 
       <ConfigCard step={3} title="Quantity" id="yard-quantity-section">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <QuantityStepper min={YARD_SIGN_MIN_QUANTITY} max={YARD_SIGN_MAX_QUANTITY}
-            step={YARD_SIGN_INCREMENT} value={orderQuantity} onChange={changeOrderQuantity} />
+          <QuantityStepper min={minForDesigns} max={size.maxQuantity}
+            step={size.perSheet} value={orderQuantity} onChange={changeOrderQuantity} />
           <div aria-live="polite" className="min-w-0">
             <p className="text-xs font-semibold text-slate-600">Order total before tax</p>
             <strong data-yard-order-total className="text-2xl font-bold text-slate-900">{usd(orderTotalCents / 100)}</strong>
@@ -546,13 +566,13 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
           </div>
         </div>
         <p className="mt-3 text-sm text-slate-600">
-          Choose {YARD_SIGN_MIN_QUANTITY}–{YARD_SIGN_MAX_QUANTITY} signs in increments of {YARD_SIGN_INCREMENT}.
+          Choose {size.perSheet}–{size.maxQuantity} signs in increments of {size.perSheet}.
         </p>
         <div role="group" aria-label="Quick sign quantities" className="mt-2 flex flex-wrap gap-2">
-          {Array.from({ length: (YARD_SIGN_MAX_QUANTITY - YARD_SIGN_MIN_QUANTITY) / YARD_SIGN_INCREMENT + 1 },
-            (_, index) => YARD_SIGN_MIN_QUANTITY + index * YARD_SIGN_INCREMENT).map(qty => (
-            <button key={qty} type="button" aria-pressed={orderQuantity === qty} onClick={() => changeOrderQuantity(qty)}
-              className={`min-h-10 min-w-11 rounded-lg border px-3 text-sm font-semibold transition-colors ${orderQuantity === qty
+          {Array.from({ length: (size.maxQuantity - size.perSheet) / size.perSheet + 1 },
+            (_, index) => size.perSheet + index * size.perSheet).map(qty => (
+            <button key={qty} type="button" aria-pressed={orderQuantity === qty} disabled={qty < minForDesigns} onClick={() => changeOrderQuantity(qty)}
+              className={`min-h-10 min-w-11 rounded-lg border px-3 text-sm font-semibold transition-colors disabled:opacity-40 ${orderQuantity === qty
                 ? 'border-orange-500 bg-orange-500 text-white'
                 : 'border-slate-200 bg-white text-slate-700 hover:border-orange-400'}`}>
               {qty}
@@ -564,7 +584,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
 
       <ConfigCard step={4} title="Upload your artwork" id="yard-upload-section" headerRight={<span className="text-xs font-normal text-gray-500">Up to {YARD_SIGN_MAX_DESIGNS} designs</span>}>
         <p className="mb-3 text-sm text-slate-600">
-          Your {orderQuantity} signs can share one design or be split across multiple designs.
+          {artworkStep === 1 ? `Your ${orderQuantity} signs can share one design or be split across multiple designs.` : `Each artwork takes a full sheet of ${artworkStep} signs. Choose another sheet to add another design.`}
           {designs.length > 1 && ' Adjust copies below. Changing the order quantity splits it evenly across your designs.'}
         </p>
 
@@ -576,7 +596,8 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
                 {/* Thumbnail — fixed size, click to preview */}
                 <button
                   onClick={() => openPreview(design.id)}
-                  className="w-14 aspect-[24/18] min-w-[3.5rem] max-w-[3.5rem] rounded-lg overflow-hidden bg-gray-50 flex-shrink-0 border border-gray-200 relative group cursor-pointer"
+                  style={{ aspectRatio: size.widthIn / size.heightIn }}
+                  className="w-14 min-w-[3.5rem] max-w-[3.5rem] rounded-lg overflow-hidden bg-gray-50 flex-shrink-0 border border-gray-200 relative group cursor-pointer"
                   aria-label={`Preview ${design.fileName}`}
                 >
                   <StablePreviewImage
@@ -600,8 +621,8 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
                 ) : (
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     <button
-                      disabled={design.quantity <= 1}
-                      onClick={() => onDesignsChange(assignYardSignCopies(designs, design.id, design.quantity - 1))}
+                      disabled={design.quantity <= artworkStep}
+                      onClick={() => onDesignsChange(assignYardSignCopies(designs, design.id, design.quantity - artworkStep, artworkStep))}
                       className="w-7 h-7 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors"
                       aria-label={`Decrease copies of ${design.fileName}`}
                     >
@@ -609,16 +630,16 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
                     </button>
                     <input
                       type="number"
-                      min={1}
-                      max={orderQuantity - designs.length + 1}
+                      min={artworkStep} step={artworkStep}
+                      max={orderQuantity - (designs.length - 1) * artworkStep}
                       aria-label={`Copies of ${design.fileName}`}
                       value={design.quantity}
-                      onChange={e => onDesignsChange(assignYardSignCopies(designs, design.id, Number(e.target.value)))}
+                      onChange={e => onDesignsChange(assignYardSignCopies(designs, design.id, Number(e.target.value), artworkStep))}
                       className="w-14 border rounded-lg px-2 py-1 text-sm text-center"
                     />
                     <button
-                      disabled={design.quantity >= orderQuantity - designs.length + 1}
-                      onClick={() => onDesignsChange(assignYardSignCopies(designs, design.id, design.quantity + 1))}
+                      disabled={design.quantity >= orderQuantity - (designs.length - 1) * artworkStep}
+                      onClick={() => onDesignsChange(assignYardSignCopies(designs, design.id, design.quantity + artworkStep, artworkStep))}
                       className="w-7 h-7 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors"
                       aria-label={`Increase copies of ${design.fileName}`}
                     >
@@ -676,6 +697,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
       </ConfigCard>
 
       <YardSignStakeOptions
+        size={size}
         totalQuantity={orderQuantity}
         enabled={addStepStakes}
         quantity={stepStakeQuantity}
@@ -688,12 +710,12 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-1.5">
         <p className="text-xs text-blue-700 font-medium">📋 Order Guidelines</p>
         <ul className="text-xs text-blue-600 space-y-1 list-disc list-inside">
-          <li>Standard yard sign size: 24&quot; × 18&quot;</li>
+          <li>Selected yard sign size: {size.label}</li>
           <li>Upload up to {YARD_SIGN_MAX_DESIGNS} different designs per order</li>
           <li>Assign a quantity to each uploaded design</li>
-          <li className="font-semibold">Yard signs must be ordered in increments of {YARD_SIGN_INCREMENT} (10, 20, 30, etc.)</li>
-          <li>Maximum {YARD_SIGN_MAX_QUANTITY} signs per order for 24-hour production</li>
-          <li>Need more than {YARD_SIGN_MAX_QUANTITY}? Place a second order.</li>
+          <li className="font-semibold">{yardSignQuantityRule(size)}</li>
+          <li>Maximum {size.maxQuantity} signs per order for 24-hour production</li>
+          <li>Need more than {size.maxQuantity}? Place a second order.</li>
         </ul>
       </div>
 
@@ -704,7 +726,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
             <div className="flex items-center justify-between p-4 border-b">
               <div>
                 <h3 className="text-lg font-bold text-gray-900">Yard Sign Preview</h3>
-                <p className="text-xs text-gray-400">24&quot; × 18&quot; Corrugated Plastic — What you see is what you get</p>
+                <p className="text-xs text-gray-400">{size.label} Corrugated Plastic — What you see is what you get</p>
               </div>
               <button onClick={closePreview} className="p-2 hover:bg-gray-100 rounded-full">
                 <X className="w-5 h-5" />
@@ -716,23 +738,23 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
               </p>
               <div className="rounded-lg p-4 pt-24" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
                 {/* Width wrapper — constrains max-width so padding-bottom produces correct height (cross-browser safe, fixes Safari aspect-ratio bug) */}
-                <div className="mx-auto" style={{ width: '100%', maxWidth: `${Math.round(400 * (24 / 18))}px` }}>
+                <div className="mx-auto" style={{ width: '100%', maxWidth: `${Math.round(400 * (size.widthIn / size.heightIn))}px` }}>
                   <ArtworkPreviewEditor
                     enableCropping={false}
                     key={`${previewDesign.id}|${previewDesign.fileKey}`}
                     ref={previewEditorRef}
                     initialNormalizedTransform={restoredFitTransform}
-                    compositionKey={`yard-sign|${previewDesign.id}|${previewDesign.fileKey}|${YARD_SIGN_WIDTH_IN}x${YARD_SIGN_HEIGHT_IN}`}
+                    compositionKey={`yard-sign|${previewDesign.id}|${previewDesign.fileKey}|${size.widthIn}x${size.heightIn}`}
                     src={getPreviewModalSrc(previewDesign)}
                     alt="Yard Sign preview"
-                    paddingPct={`${(18 / 24) * 100}%`}
+                    paddingPct={`${(size.heightIn / size.widthIn) * 100}%`}
                     containerRef={previewCanvasRef}
                     mobileToolbarContainer={mobileToolbarEl}
                     fitAssistance={{
                       enabled: ENABLE_AI && !isUploading && !isSavingPreview && !aiModalOpen && Boolean(previewDesign.fileKey),
                       fitDialogOpen: Boolean(fitDesign),
                       onFit: () => setFitDesignId(previewDesign.id),
-                      widthIn: YARD_SIGN_WIDTH_IN, heightIn: YARD_SIGN_HEIGHT_IN, productLabel: 'yard sign',
+                      widthIn: size.widthIn, heightIn: size.heightIn, productLabel: 'yard sign',
                     }}
                     fitControls={ENABLE_AI ? <ArtworkFitButton
                       onClick={() => setFitDesignId(previewDesign.id)}
@@ -771,7 +793,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
                 data-mobile-artwork-toolbar="yard-sign"
               />
               <p className="text-xs text-gray-400 text-center mt-2 truncate max-w-full px-4">
-                Size: 24&quot; × 18&quot; · Corrugated Plastic · {previewDesign.fileName}
+                Size: {size.label} · Corrugated Plastic · {previewDesign.fileName}
               </p>
               <p className="text-xs text-gray-500 text-center mt-2 font-medium">Your design will be printed based on this preview</p>
               {previewSaveError ? (
@@ -799,7 +821,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
 
       <AIArtworkFitDialog
         open={ENABLE_AI && Boolean(fitDesign)} onOpenChange={open => { if (!open) setFitDesignId(null); }}
-        artwork={fitArtwork} productType="yard_sign" widthIn={YARD_SIGN_WIDTH_IN} heightIn={YARD_SIGN_HEIGHT_IN}
+        artwork={fitArtwork} productType="yard_sign" widthIn={size.widthIn} heightIn={size.heightIn}
         onApply={applyFittedArtwork}
       />
 
@@ -808,8 +830,8 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
           open={aiModalOpen}
           onOpenChange={setAiModalOpen}
           productType="yard_sign"
-          widthIn={YARD_SIGN_WIDTH_IN}
-          heightIn={YARD_SIGN_HEIGHT_IN}
+          widthIn={size.widthIn}
+          heightIn={size.heightIn}
           material="corrugated_plastic"
           materialLabel="Corrugated Plastic"
           onGenerated={async (result: CreateWithAIResult) => {

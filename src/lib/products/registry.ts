@@ -13,6 +13,8 @@
 // TYPES
 // ============================================================================
 
+import { YARD_SIGN_SIZES } from '../yardSignSizes';
+
 export type ProductTypeSlug = 'banner' | 'yard_sign' | 'car_magnet';
 
 export interface MaterialConfig {
@@ -247,17 +249,17 @@ const bannerProduct: ProductTypeConfig = {
 const yardSignProduct: ProductTypeConfig = {
   slug: 'yard_sign',
   name: 'Custom Yard Sign',
-  description: 'Standard 24" × 18" corrugated plastic yard signs, printed fast and shipped next business day.',
+  description: 'Corrugated plastic yard signs in five sizes, printed fast and shipped next business day.',
 
   dimensions: {
     defaultWidthIn: 24,
     defaultHeightIn: 18,
     resetWidthIn: 24,
     resetHeightIn: 18,
-    minIn: 18,
-    maxIn: 24,
-    maxSqFt: 3,   // 24" x 18" = 3 sq ft
-    sizeLimitMessage: 'Standard yard sign size: 24" × 18"',
+    minIn: 12,
+    maxIn: 36,
+    maxSqFt: 6,
+    sizeLimitMessage: 'Choose one of the available yard sign sizes.',
   },
 
   // Single material: Corrugated Plastic
@@ -269,8 +271,8 @@ const yardSignProduct: ProductTypeConfig = {
     'corrugated': 0,
   },
 
-  minimumUnitPriceDollars: 12,
-  minimumUnitPriceCents: 1200,
+  minimumUnitPriceDollars: Math.min(...YARD_SIGN_SIZES.map(size => size.singleCents)) / 100,
+  minimumUnitPriceCents: Math.min(...YARD_SIGN_SIZES.map(size => size.singleCents)),
 
   // Yard signs don't have grommets
   grommets: [],
@@ -323,19 +325,15 @@ const yardSignProduct: ProductTypeConfig = {
   allowCustomDimensions: false,
   freeShippingMessage: 'FREE Next-Day Air Included',
 
-  // Single standard size
-  predefinedSizes: [
-    { label: '24" × 18"', widthIn: 24, heightIn: 18, basePriceCents: 1200 },
-  ],
+  predefinedSizes: YARD_SIGN_SIZES.map(({ label, widthIn, heightIn, singleCents }) => ({
+    label, widthIn, heightIn, basePriceCents: singleCents,
+  })),
 
   materialMultipliers: [
     { key: 'corrugated', label: 'Corrugated Plastic', multiplier: 1.0 },
   ],
 
-  // --- Yard sign specific config ---
-  // Single-Sided: $12/sign, Double-Sided: $14/sign
-  // Step Stakes: $1.50 each
-  // Max 90 signs per order for 24-hour production
+
 };
 
 const carMagnetProduct: ProductTypeConfig = {

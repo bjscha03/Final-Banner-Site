@@ -1,3 +1,4 @@
+import { findYardSignSize, yardSignArtworkStep } from '@/lib/yardSignSizes';
 import SpecialtyCartDelivery from '@/components/delivery/SpecialtyCartDelivery';
 import SavedSpecialtyPreview from '@/components/specialty/SavedSpecialtyPreview';
 import {specialtyItemHasIncludedShipping, specialtyItemHasVerifiedPrice} from '@/lib/specialtyProducts';
@@ -375,6 +376,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 {items.map((item) => {
+                  const signSize = item.product_type === 'yard_sign' ? findYardSignSize(item) : undefined;
+                  const quantityStep = signSize?.perSheet ?? 1;
+                  const minQuantity = signSize ? Math.max(quantityStep, (item.yard_sign_designs?.length || 0) * yardSignArtworkStep(signSize)) : 1;
                   const displayPrice = displayPrices.get(item.id)!;
                   const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
                   const grommetLabel = getGrommetLabelForDisplay(item, normalized.grommetsDisplay);
@@ -499,17 +503,17 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                           <span className="text-xs font-medium text-gray-700">Qty:</span>
                           <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1">
                             <button
-                              onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                              onClick={() => updateQuantity(item.id, Math.max(minQuantity, item.quantity - quantityStep))}
                               className="flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
-                              disabled={item.quantity <= 1}
+                              disabled={item.quantity <= minQuantity}
                               aria-label="Decrease quantity"
                             >
                               <Minus className="h-3.5 w-3.5 text-gray-700" />
                             </button>
                             <span className="w-8 text-center text-sm font-semibold text-gray-900">{item.quantity}</span>
                             <button
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              disabled={item.product_type === 'specialty' && item.quantity >= 100}
+                              onClick={() => updateQuantity(item.id, item.quantity + quantityStep)}
+                              disabled={signSize ? item.quantity >= signSize.maxQuantity : item.product_type === 'specialty' && item.quantity >= 100}
                               className="flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:bg-white"
                               aria-label="Increase quantity"
                             >

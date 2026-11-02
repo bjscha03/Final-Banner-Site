@@ -8,7 +8,7 @@
 /**
  * Get the display name for a line item based on product_type.
  */
-const YARD_SIGN_SIZE = '24" × 18"';
+const yardSignSizes = require('../../../../shared/yard-sign-sizes.json');
 
 function getCarMagnetRoundedCornersLabel(value) {
   if (!value || value === 'none') return 'None';
@@ -40,7 +40,11 @@ function getDisplayMaterial(item) {
 
 function getDisplaySize(item) {
   if(item.product_type==='specialty')return item.specialty_config?.variantLabel||'';
-  if (item.product_type === 'yard_sign') return YARD_SIGN_SIZE;
+  if (item.product_type === 'yard_sign') {
+    if (item.width_in == null && item.height_in == null) return yardSignSizes[0].label;
+    const size = yardSignSizes.find(option => option.widthIn === Number(item.width_in) && option.heightIn === Number(item.height_in));
+    if (size) return size.label;
+  }
   if (item.width_in == null || item.height_in == null) return '';
   return `${item.width_in}" × ${item.height_in}"`;
 }
@@ -97,7 +101,7 @@ function getDisplayPlacement(value) {
 function getItemDisplayName(item) {
   if(item.product_type==='specialty')return item.specialty_config?.productName||'Custom display';
   if (item.product_type === 'yard_sign') {
-    return `Custom Yard Sign ${YARD_SIGN_SIZE}`;
+    return `Custom Yard Sign ${getDisplaySize(item)}`;
   }
   if (item.product_type === 'car_magnet') {
     return `Car Magnets ${getDisplaySize(item)}`;
@@ -294,7 +298,7 @@ function buildBannerPayPalLine(item) {
 }
 
 function buildYardSignPayPalLine(item, compact = false) {
-  const size = getDisplaySize(item) || YARD_SIGN_SIZE;
+  const size = getDisplaySize(item);
   const sides = item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided';
   const qty = Number(item.quantity || 1) || 1;
   const stakes = Number(item.yard_sign_step_stakes_qty || 0);

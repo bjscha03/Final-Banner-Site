@@ -45,6 +45,7 @@ import { useAuth } from '@/lib/auth';
 import type { ProductTypeSlug } from '@/lib/products';
 import { getProductConfig, validateProductConfiguration } from '@/lib/products';
 import YardSignConfigurator, { type YardSignConfiguratorHandle } from '@/components/design/YardSignConfigurator';
+import { DEFAULT_YARD_SIGN_SIZE, findYardSignSize, yardSignOrientation } from '@/lib/yardSignSizes';
 import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
 import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
@@ -71,9 +72,6 @@ import {
   type YardSignSidedness,
   type YardSignDesign,
   YARD_SIGN_MIN_QUANTITY,
-  YARD_SIGN_WIDTH_IN,
-  YARD_SIGN_HEIGHT_IN,
-  YARD_SIGN_MAX_QUANTITY,
 } from '@/lib/yard-sign-pricing';
 import {
   CAR_MAGNET_SIZES,
@@ -261,7 +259,8 @@ const GoogleAdsBanner: React.FC = () => {
     });
   }, [productType]);
 
-  // Yard sign specific state (v2: simplified single-size, multi-design)
+  // Yard sign specific state (size, print side and artwork)
+  const [yardSignSize, setYardSignSize] = useState(DEFAULT_YARD_SIGN_SIZE);
   const [yardSignDesigns, setYardSignDesigns] = useState<YardSignDesign[]>([]);
   const [yardSignSidedness, setYardSignSidedness] = useState<YardSignSidedness>('single');
   const [yardSignAddStepStakes, setYardSignAddStepStakes] = useState(false);
@@ -457,15 +456,15 @@ const GoogleAdsBanner: React.FC = () => {
   const cartItemCount = useCartStore(s => s.getItemCount());
   const { toast } = useToast();
 
-  // Dimensions: for banners, use ft+in inputs; for yard signs, fixed 24" × 18"
+  // Dimensions: for banners, use ft+in inputs; for yard signs, use the selected print dimensions
   const selectedCarMagnetSize = CAR_MAGNET_SIZES.find((size) => size.label === carMagnetSizeLabel) || CAR_MAGNET_SIZES[0];
   const widthIn = isYardSign
-    ? YARD_SIGN_WIDTH_IN
+    ? yardSignSize.widthIn
     : isCarMagnet
       ? selectedCarMagnetSize.widthIn
       : (widthFt * 12 + widthInR);
   const heightIn = isYardSign
-    ? YARD_SIGN_HEIGHT_IN
+    ? yardSignSize.heightIn
     : isCarMagnet
       ? selectedCarMagnetSize.heightIn
       : (heightFt * 12 + heightInR);
@@ -559,11 +558,12 @@ const GoogleAdsBanner: React.FC = () => {
       yardSignAddStepStakes,
       yardSignStepStakeQty,
       yardSignPromo,
+      yardSignSize,
     );
-  }, [isYardSign, yardSignSidedness, yardSignTotalQty, yardSignAddStepStakes, yardSignStepStakeQty, yardSignPromo]);
+  }, [isYardSign, yardSignSidedness, yardSignTotalQty, yardSignAddStepStakes, yardSignStepStakeQty, yardSignPromo, yardSignSize]);
 
   // Yard sign quantity validation
-  const yardSignQuantityValid = validateYardSignQuantity(yardSignTotalQty);
+  const yardSignQuantityValid = validateYardSignQuantity(yardSignTotalQty, yardSignSize);
   const carMagnetPricing = useMemo(() => {
     if (!isCarMagnet) return null;
     return calcCarMagnetPricing(widthIn, heightIn, quantity);
@@ -908,6 +908,7 @@ const GoogleAdsBanner: React.FC = () => {
         previewThumbnailUrl: d.previewThumbnailUrl,
         placementPreview: d.placementPreview,
       }));
+      setYardSignSize(findYardSignSize(item) ?? DEFAULT_YARD_SIGN_SIZE);
       setYardSignDesigns(restoredDesigns);
       setQuantity(getTotalDesignQuantity(restoredDesigns) || item.quantity || YARD_SIGN_MIN_QUANTITY);
       setYardSignSidedness(item.yard_sign_sidedness || 'single');
@@ -1084,6 +1085,7 @@ const GoogleAdsBanner: React.FC = () => {
     // Reset yard sign state when switching
     if (newType === 'yard_sign') {
       setYardSignDesigns([]);
+      setYardSignSize(DEFAULT_YARD_SIGN_SIZE);
       setYardSignSidedness('single');
       setYardSignAddStepStakes(false);
       setYardSignStepStakeQty(1);
@@ -1765,9 +1767,9 @@ const GoogleAdsBanner: React.FC = () => {
     setHasReviewedOptions(false);
     if (isYardSign) {
       setYardSignDesigns([]);
-      setQuantity(YARD_SIGN_MIN_QUANTITY);
+      setQuantity(yardSignSize.perSheet);
     }
-  }, [isYardSign, productType, removeArtwork]);
+  }, [isYardSign, yardSignSize, productType, removeArtwork]);
   const resetAfterSuccessfulAdd = useCallback(() => {
     resetPreview();
     setMobileFinishingOpen(false);
@@ -1933,6 +1935,8 @@ const GoogleAdsBanner: React.FC = () => {
 
       // Build yard sign metadata for order
       const yardSignMetadata = {
+        sizeId: yardSignSize.id,
+        sizeLabel: yardSignSize.label,
         sidedness: yardSignSidedness,
         addStepStakes: yardSignAddStepStakes,
         stepStakeQty: yardSignAddStepStakes ? yardSignStepStakeQty : 0,
@@ -1946,7 +1950,7 @@ const GoogleAdsBanner: React.FC = () => {
           fileName: d.fileName,
           fileUrl: d.fileUrl,
           fileKey: d.fileKey,
-          thumbnailUrl: d.previewThumbnailUrl || d.thumbnailUrl,
+          thumbnailUrl: d.thumbnailUrl,
           isPdf: d.isPdf,
           quantity: d.quantity,
           imgScale: d.imgScale,
@@ -1965,9 +1969,9 @@ const GoogleAdsBanner: React.FC = () => {
         originalImageUrl: primaryDesign.fileUrl,
         originalImageFileKey: primaryDesign.fileKey,
         isPdf: primaryDesign.isPdf,
-        widthIn: YARD_SIGN_WIDTH_IN,
-        heightIn: YARD_SIGN_HEIGHT_IN,
-        orientation: YARD_SIGN_WIDTH_IN === YARD_SIGN_HEIGHT_IN ? 'square' : YARD_SIGN_WIDTH_IN > YARD_SIGN_HEIGHT_IN ? 'landscape' : 'portrait',
+        widthIn: yardSignSize.widthIn,
+        heightIn: yardSignSize.heightIn,
+        orientation: yardSignOrientation(yardSignSize),
         imgPos: primaryDesign.imgPos || { x: 0, y: 0 },
         imgScale: primaryDesign.imgScale || 1,
         imgScaleY: primaryDesign.imgScaleY ?? primaryDesign.imgScale ?? 1,
@@ -1988,8 +1992,8 @@ const GoogleAdsBanner: React.FC = () => {
       });
 
       quoteStore.set({
-        widthIn: YARD_SIGN_WIDTH_IN,
-        heightIn: YARD_SIGN_HEIGHT_IN,
+        widthIn: yardSignSize.widthIn,
+        heightIn: yardSignSize.heightIn,
         quantity: yardSignTotalQty,
         material: 'corrugated' as MaterialKey,
         grommets: 'none' as any,
@@ -2637,6 +2641,7 @@ const GoogleAdsBanner: React.FC = () => {
         designCount: yardSignDesigns.length,
         unconfirmedDesignId: yardSignUnconfirmedDesignId,
         totalQuantity: yardSignTotalQty,
+        quantityIncrement: yardSignSize.perSheet,
         quantityValid: yardSignQuantityValid.valid,
         quantityValidationMessage: yardSignQuantityValid.message ?? null,
         isUploading: yardSignUploadStatus.isUploading,
@@ -3315,7 +3320,7 @@ const GoogleAdsBanner: React.FC = () => {
                 </ConfigCard>);
   const heroContent = isYardSign
     ? {
-        eyebrow: '24″ × 18″ YARD SIGNS · NATIONWIDE SHIPPING',
+        eyebrow: 'FIVE YARD SIGN SIZES · NATIONWIDE SHIPPING',
         headline: 'Custom yard signs, produced fast.',
         intro: 'Upload up to 10 designs, review every on-screen print preview, and see the exact order subtotal before checkout.',
         priceLabel: '10 single-sided signs',
@@ -3347,7 +3352,7 @@ const GoogleAdsBanner: React.FC = () => {
     <>
       <Helmet>
         <title>{isHalloweenLanding ? 'Custom Halloween Banners' : isLargeBannerLanding ? 'Large Banners Fast — Free Next-Day Air Shipping' : isFallFestivalLanding ? 'Custom Fall Festival Banners' : isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Car Magnets' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
-        <meta name="description" content={isHalloweenLanding ? "Create a custom Halloween banner for parties, haunted houses and trunk-or-treats. Choose your size, upload artwork and preview online. 24-hour production and free next-day air shipping on orders $20+." : isLargeBannerLanding ? "Order large custom vinyl banners with 24-hour production and free next-day air shipping after production. Choose 8 × 4 ft, 10 × 4 ft or custom sizes. Get instant pricing and design online." : isFallFestivalLanding ? 'Custom fall festival banners for churches, schools, harvest festivals and trunk-or-treats. Upload artwork or create with AI. 24-hour production.' : isYardSign ? "Upload yard-sign artwork, review the supported size and current price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
+        <meta name="description" content={isHalloweenLanding ? "Create a custom Halloween banner for parties, haunted houses and trunk-or-treats. Choose your size, upload artwork and preview online. 24-hour production and free next-day air shipping on orders $20+." : isLargeBannerLanding ? "Order large custom vinyl banners with 24-hour production and free next-day air shipping after production. Choose 8 × 4 ft, 10 × 4 ft or custom sizes. Get instant pricing and design online." : isFallFestivalLanding ? 'Custom fall festival banners for churches, schools, harvest festivals and trunk-or-treats. Upload artwork or create with AI. 24-hour production.' : isYardSign ? "Upload yard-sign artwork, choose a size and review its price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
         <meta name="robots" content={isLargeBannerLanding ? "noindex, follow" : isFallFestivalLanding ? "index, follow" : "noindex, nofollow"} />
         {isHalloweenLanding && <link rel="canonical" href="https://bannersonthefly.com/halloween-banner" />}
         {isLargeBannerLanding && <link rel="canonical" href="https://bannersonthefly.com/large-banners-fast" />}
@@ -3406,7 +3411,7 @@ const GoogleAdsBanner: React.FC = () => {
         <section ref={orderRef} id="order-builder" className={paidBannerLanding ? "bg-white px-4 py-3 lg:bg-gray-50 lg:py-12" : compactMobileLanding ? "bg-gray-50 px-4 py-3 lg:py-12" : "py-12 px-4 bg-gray-50"}>
           <div className={mobilePaidLayout ? 'mx-auto max-w-xl' : 'max-w-4xl lg:max-w-7xl mx-auto'}>
             <p className={`mb-3 text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF6A00] ${compactMobileLanding ? "hidden lg:block" : ""}`}>
-              {bannerType.retractable ? 'Retractable banners' : isDoubleSidedBanner ? 'Double-sided · 18 oz vinyl' : isYardSign ? '24″ × 18″ yard signs' : isCarMagnet ? 'Custom car magnets' : 'Custom banners'}
+              {bannerType.retractable ? 'Retractable banners' : isDoubleSidedBanner ? 'Double-sided · 18 oz vinyl' : isYardSign ? 'Five yard sign sizes' : isCarMagnet ? 'Custom car magnets' : 'Custom banners'}
             </p>
             {compactMobileLanding && !paidBannerLanding && <p className="mb-2 flex items-center justify-between gap-2 text-xs font-medium text-slate-500 lg:hidden" aria-label="Ordering steps"><span className="font-bold text-orange-700" aria-current="step">1 Design</span><span aria-hidden="true">→</span><span>2 Finishing</span><span aria-hidden="true">→</span><span>3 Checkout</span></p>}
             {mobilePaidLayout && isHalloweenLanding && <>
@@ -3451,6 +3456,9 @@ const GoogleAdsBanner: React.FC = () => {
               <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 max-w-full">
                 <div className="space-y-8 min-w-0 max-w-full">
                   <YardSignConfigurator
+                    key={yardSignSize.id}
+                    size={yardSignSize}
+                    onSizeChange={setYardSignSize}
                     ref={yardSignConfiguratorRef}
                     designs={yardSignDesigns}
                     onDesignsChange={setYardSignDesigns}

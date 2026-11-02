@@ -15,7 +15,7 @@ const { addPostTaxServiceFees } = require('../order-total-reconciliation.cjs');
 const { validateDiscountForCheckout } = require('../discount-validation.cjs');
 const { computeTotals, getFeatureFlags } = require('../checkoutTotals.cjs');
 const { runAtomicBatch, isUniqueViolation } = require('../atomic-batch.cjs');
-const { repriceStripeCart: repriceCheckoutCart } = require('../stripe-server-pricing.cjs');
+const { repriceStripeCart: repriceCheckoutCart, normalizeYardSign } = require('../stripe-server-pricing.cjs');
 const { markAbandonedCartRecovered } = require('../abandoned-cart-order-recovery.cjs');
 const { verifyAbandonedCartRecoveryToken } = require('../abandoned-cart-recovery-token.cjs');
 
@@ -844,6 +844,8 @@ exports.handler = async (event, context) => {
         // Both provider paths use the same registry-backed calculator before
         // any order row or provider amount can be created.
         orderData.items = repriceCheckoutCart(orderData.items);
+      } else {
+        orderData.items = orderData.items.map((item, index) => item.product_type === 'yard_sign' ? normalizeYardSign(item, index) : item);
       }
     } catch (error) {
       if (error instanceof PreviewArtifactValidationError) {
@@ -1253,29 +1255,6 @@ exports.handler = async (event, context) => {
           code: 'RETIRED_CAMPAIGN_ITEM',
         }),
       };
-    }
-
-    // SERVER-SIDE: Validate yard sign quantities (must be multiples of 10, min 10, max 90)
-    const YARD_SIGN_INCREMENT = 10;
-    const YARD_SIGN_MIN_QTY = 10;
-    const YARD_SIGN_MAX_QTY = 90;
-    if (orderData.items && Array.isArray(orderData.items)) {
-      for (const item of orderData.items) {
-        if (item.product_type === 'yard_sign') {
-          const qty = item.quantity || 0;
-          if (qty < YARD_SIGN_MIN_QTY || qty > YARD_SIGN_MAX_QTY || qty % YARD_SIGN_INCREMENT !== 0) {
-            console.error(`❌ Yard sign quantity validation failed: quantity=${qty}`);
-            return {
-              statusCode: 400,
-              headers: { 'Content-Type': 'application/json', ...corsHeaders },
-              body: JSON.stringify({
-                error: `Yard signs must be ordered in increments of ${YARD_SIGN_INCREMENT} (${YARD_SIGN_MIN_QTY}, 20, 30, etc.), with a minimum of ${YARD_SIGN_MIN_QTY} and maximum of ${YARD_SIGN_MAX_QTY}.`,
-                code: 'YARD_SIGN_QUANTITY_INVALID',
-              }),
-            };
-          }
-        }
-      }
     }
 
     // ALWAYS recalculate totals server-side from line_total_cents
