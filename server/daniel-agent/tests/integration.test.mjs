@@ -113,7 +113,7 @@ test('meeting schedule rejects conflicts and exports UTC calendar',async()=>{
 });
 test('AI drafts carry knowledge version and price exceptions cannot self-approve',async()=>{
  const p=await prospect();let payload;
- const d=await generateDraft(sql,p.contact_id,'intro',{OPENAI_API_KEY:'test'},async(_url,options)=>{payload=JSON.parse(options.body);return Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Quote',body:'We can offer $20.',requires_approval:false,reason:'Test'})}}]});});
+ const d=await generateDraft(sql,p.contact_id,'intro',{OPENAI_API_KEY:'test'},async(_url,options)=>{payload=JSON.parse(options.body);return Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Quote',body:'We can offer $20.',requires_approval:false,reason:'Test',classification:'quote_request',fact_ids:[]})}}]});});
  assert.equal(d.requires_approval,true);assert.equal(d.ai_metadata.knowledge_version,'bof-team-offer-v2');assert.match(payload.messages[0].content,/untrusted DATA/);
 });
 test('Gmail paging saves cursor, finishes initial sync then expires safely',async()=>{
@@ -137,9 +137,9 @@ test('hard bounce only suppresses an explicit recipient in a known sent thread',
 });
 test('AI cold introductions reject invented prior contact and strip duplicate signatures',async()=>{
  const p=await prospect();let calls=0;
- const fetcher=async()=>Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Signage',body:++calls===1?'Thank you for reaching out to us.':'We offer vinyl banners. Are you the right contact?\nBest regards,\nDaniel',fact_ids:['products'],requires_approval:false})}}]});
+ const fetcher=async()=>Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Signage',body:++calls===1?'Thank you for reaching out to us.':'We offer vinyl banners. Are you the right contact?\nBest regards,\nDaniel',fact_ids:['products'],requires_approval:false,classification:'routine_product',reason:'Controlled product-information fixture'})}}]});
  const draft=await generateDraft(sql,p.contact_id,'intro',{OPENAI_API_KEY:'test-only'},fetcher);assert.equal(calls,2);assert.equal(draft.body,'We offer vinyl banners. Are you the right contact?');
- const bad=async()=>Response.json({choices:[{message:{content:JSON.stringify({subject:'Hello',body:'Thanks for your inquiry.'})}}]});
+ const bad=async()=>Response.json({choices:[{message:{content:JSON.stringify({subject:'Hello',body:'Thanks for your inquiry.',requires_approval:false,classification:'routine_product',reason:'Controlled prior-contact violation',fact_ids:[]})}}]});
  await assert.rejects(generateDraft(sql,p.contact_id,'intro',{OPENAI_API_KEY:'test-only'},bad),/invented prior contact/);
 });
 test('routine worker simulation is automatic while exceptions remain in owner queue',async()=>{
@@ -228,21 +228,21 @@ test('autonomous discovery retries an unavailable source without weakening quali
  assert.equal(attempts,2);assert.equal(r.status,'completed');assert.equal((await sql`SELECT status FROM daniel_sales.messages WHERE id=${r.messageId}`)[0].status,'queued');assert.equal((await sql`SELECT count(*)::int AS n FROM daniel_sales.accounts WHERE website='https://property1.example.com'`)[0].n,0);
 });
 test('cold introduction regenerates a misleading numeric company-footprint claim',async()=>{
- const p=await prospect();let calls=0;const fetcher=async()=>Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Restaurant signage',body:++calls===1?'We can help your 100+ U.S. locations.':'Do your restaurant teams coordinate promotional banners centrally?',requires_approval:false,fact_ids:['products']})}}]});
+ const p=await prospect();let calls=0;const fetcher=async()=>Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Restaurant signage',body:++calls===1?'We can help your 100+ U.S. locations.':'Do your restaurant teams coordinate promotional banners centrally?',requires_approval:false,fact_ids:['products'],classification:'routine_product',reason:'Controlled company-footprint fixture'})}}]});
  const d=await generateDraft(sql,p.contact_id,'intro',{OPENAI_API_KEY:'test'},fetcher);assert.equal(calls,2);assert.ok(!d.body.includes('100+'));
 });
 test('AI removes an end-of-message closing before the branded signature is added',async()=>{
- const p=await prospect(),fetcher=async()=>Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Signage',body:'Do you coordinate banners centrally?\n\nBest regards,',requires_approval:false,fact_ids:['products']})}}]});
+ const p=await prospect(),fetcher=async()=>Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Signage',body:'Do you coordinate banners centrally?\n\nBest regards,',requires_approval:false,fact_ids:['products'],classification:'routine_product',reason:'Controlled closing fixture'})}}]});
  assert.equal((await generateDraft(sql,p.contact_id,'intro',{OPENAI_API_KEY:'test'},fetcher)).body,'Do you coordinate banners centrally?');
 });
 test('AI conversation context excludes unsent and rejected outbound drafts',async()=>{
  const p=await prospect();await received(p,'context-source');await saveDraft(sql,{contact_id:p.contact_id,subject:'Never sent',body:'UNSENT_UNAPPROVED_PROMISE',kind:'intro'},'test');
- const fetcher=async(_url,options)=>{const payload=JSON.parse(options.body);assert.ok(!payload.messages[1].content.includes('UNSENT_UNAPPROVED_PROMISE'));return Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Signage',body:'We offer vinyl banners.',requires_approval:false,fact_ids:['products']})}}]});};
+ const fetcher=async(_url,options)=>{const payload=JSON.parse(options.body);assert.ok(!payload.messages[1].content.includes('UNSENT_UNAPPROVED_PROMISE'));return Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Signage',body:'We offer vinyl banners.',requires_approval:false,fact_ids:['products'],classification:'routine_product',reason:'Controlled conversation fixture'})}}]});};
  await generateDraft(sql,p.contact_id,'reply',{OPENAI_API_KEY:'test'},fetcher);
 });
 test('AI can automatically repeat approved shipping facts without approving a custom price',async()=>{
  const p=await prospect();await received(p,'shipping-source','What shipping options are available?');
- const fetcher=async()=>Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Products',body:'Our vinyl banners qualify for free next-day air shipping in the U.S. on orders of $20 or more.',requires_approval:false,classification:'routine_product',fact_ids:['vinyl_banner_shipping']})}}]});
+ const fetcher=async()=>Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Products',body:'Our vinyl banners qualify for free next-day air shipping in the U.S. on orders of $20 or more.',requires_approval:false,classification:'routine_product',fact_ids:['vinyl_banner_shipping'],reason:'Approved shipping information'})}}]});
  const d=await generateDraft(sql,p.contact_id,'reply',{OPENAI_API_KEY:'test'},fetcher);assert.equal(d.ai_metadata.requires_approval,false);assert.equal(d.ai_metadata.model_requires_approval,false);
 });
 test('weekend, holiday and after-hours replies bypass exhausted prospecting quotas',async()=>{
@@ -286,7 +286,7 @@ test('company offer is persisted before drafting, reused, and automatically appr
 });
 test('model-written duplicate offer is regenerated before the exact server offer is appended',async()=>{
  const p=await prospect(),e={...env,OPENAI_API_KEY:'test-key',DANIEL_PROMO_SIGNING_SECRET:'test-only-team-offer-key-at-least-32-characters'};let calls=0;
- const fetcher=async(_url,request)=>{calls++;if(calls===2)assert.match(request.body,/Remove discount/);return Response.json({choices:[{message:{content:JSON.stringify({subject:'Signage for your next event',body:calls===1?'Try 25% off for your team.':'How do you coordinate your event banners?',classification:'followup',requires_approval:false,fact_ids:[]})}}]});};
+ const fetcher=async(_url,request)=>{calls++;if(calls===2)assert.match(request.body,/Remove discount/);return Response.json({choices:[{message:{content:JSON.stringify({subject:'Signage for your next event',body:calls===1?'Try 25% off for your team.':'How do you coordinate your event banners?',classification:'followup',requires_approval:false,fact_ids:[],reason:'Controlled duplicate-offer fixture'})}}]});};
  const draft=await generateDraft(sql,p.contact_id,'followup',e,fetcher);assert.equal(calls,2);assert.equal(draft.requires_approval,false);assert.equal((draft.body.match(/25%/g)||[]).length,1);
 });
 test.after(()=>db.close());
