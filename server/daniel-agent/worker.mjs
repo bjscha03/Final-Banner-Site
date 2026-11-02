@@ -6,6 +6,7 @@ import { accessToken } from './gmail.mjs';
 import { syncMailbox,syncControlledInbox } from './mail-sync.mjs';
 import { dispatch,reconcile } from './dispatch.mjs';
 import { generateDraft } from './ai.mjs';
+import { generateReviewedFollowup } from './reviewed-followup.mjs';
 import { saveDraft,audit } from './store.mjs';
 import { report } from './reporting.mjs';
 import { mode,gmailTestRecipients } from './config.mjs';
@@ -88,7 +89,9 @@ export async function runWorker(env=process.env,options={}) {
      if(!prepared){summary.draftHolds=(summary.draftHolds || 0)+1;summary.health='needs_attention';}
      continue;
     }
-    const draft=await (options.generateDraft || generateDraft)(sql,c.id,t.kind,env);
+    const draft=t.kind==='followup' && effectiveSettings.required_draft_contract
+      ? await generateReviewedFollowup(sql,c.id,env,{generator:options.generateDraft || generateDraft,reviewer:options.reviewFollowup})
+      : await (options.generateDraft || generateDraft)(sql,c.id,t.kind,env);
     const m=await saveDraft(sql,{...draft,idempotency_key:'task:'+t.id},'daniel-worker');
     const review=await routeApproval(sql,m,effectiveSettings,env);
     const prepared=review?.status==='approved';
