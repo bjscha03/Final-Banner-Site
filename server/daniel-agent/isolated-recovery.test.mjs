@@ -76,13 +76,15 @@ test('follow-up review: human reply or missing sent parent prevents an AI call',
 test('follow-up review: validates response schema and binds approval to the real parent',async()=>{
  const m=message(),prior={direction:'outbound',rfc_message_id:m.reply_to_id,body:'Previous actual email'};
  const sql=async strings=>{const q=strings.join('?');assert.match(q,/status IN \('sent','simulated'\)/);return [prior];};
+ const response=value=>Response.json({id:'test',model:'configured-review-model',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(value)}]}]});
  for(const result of [null,[],{approved:'true',reason:'Invalid boolean'}]){
-  const fetcher=async()=>Response.json({id:'test',choices:[{message:{content:JSON.stringify(result)}}]});
+  const fetcher=async()=>response(result);
   assert.equal((await reviewFollowup(sql,m,knowledge,{OPENAI_API_KEY:'test'},fetcher)).approved,false);
  }
- const fetcher=async(_url,init)=>{const p=JSON.parse(init.body);assert.equal(JSON.parse(p.messages[1].content).conversation[0].body,prior.body);return Response.json({id:'test-accepted',choices:[{message:{content:JSON.stringify({approved:true,reason:'Specific useful next step'})}}]});};
+ const fetcher=async(url,init)=>{const p=JSON.parse(init.body);assert.equal(url,'https://api.openai.com/v1/responses');assert.equal(JSON.parse(p.input).conversation[0].body,prior.body);assert.equal(p.text.format.strict,true);return response({approved:true,reason:'Specific useful next step'});};
  const review=await reviewFollowup(sql,m,knowledge,{OPENAI_API_KEY:'test'},fetcher);
  assert.equal(currentFollowupReview({...m,ai_metadata:{...m.ai_metadata,followup_review:review}}),true);
+ assert.equal(review.review_model,'configured-review-model');
 });
 test('follow-up revisions: rejection feedback is used but three rejections never become approval',async()=>{
  const sql=async()=>[knowledge];let generations=0,reviews=0;const feedbacks=[];
