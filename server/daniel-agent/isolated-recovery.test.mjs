@@ -1,23 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PGlite } from '@electric-sql/pglite';
-import { migrate } from './migrate.mjs';
-import { createProspect,saveDraft,requestApproval,decide } from './store.mjs';
-import { dispatch } from './dispatch.mjs';
-import { ingest } from './mail-sync.mjs';
-import { routeApproval } from './automation.mjs';
-import { replyHash } from './reply-review.mjs';
-import { reviewFollowup } from './followup-review.mjs';
-import { generateReviewedFollowup } from './reviewed-followup.mjs';
-import { generateDraft } from './ai.mjs';
-import { discover } from './discovery.mjs';
-import { runWorker } from './worker.mjs';
-import { DRAFT_CONTRACT,contentHash,followupHash,currentFollowupReview,recoveryEligibility } from './recovery-policy.mjs';
-import { routinePolicyText } from './policy.mjs';
-
+import {createTestDatabase,TEST_NOW} from './tests/test-database.mjs';
+import {createProspect,saveDraft,requestApproval,decide} from './store.mjs';
+import {dispatch} from './dispatch.mjs';
+import {ingest} from './mail-sync.mjs';
+import {routeApproval} from './automation.mjs';
+import {replyHash} from './reply-review.mjs';
+import {reviewFollowup} from './followup-review.mjs';
+import {generateReviewedFollowup} from './reviewed-followup.mjs';
+import {generateDraft} from './ai.mjs';
+import {discover} from './discovery.mjs';
+import {runWorker} from './worker.mjs';
+import {DRAFT_CONTRACT,contentHash,followupHash,currentFollowupReview,recoveryEligibility} from './recovery-policy.mjs';
+import {routinePolicyText} from './policy.mjs';
 const knowledge={version:'test-kb',facts:{products:['vinyl banners'],vinyl_banner_shipping:'Free Next-Day Air shipping in the U.S. for qualifying orders of $20 or more'}};
 const controls={paused:false,cold_outreach_paused:false,required_draft_contract:DRAFT_CONTRACT};
-function message(kind='followup') {
+test.beforeEach(t=>t.mock.timers.enable({apis:['Date'],now:new Date(TEST_NOW)}));
+function message(kind='followup'){
  const m={kind,subject:'Event banners',body:'A reusable entrance banner can identify your event check-in. Would a reusable layout help?',contact_id:'fixture-contact',thread_key:'fixture-thread',reply_to_id:'<fixture-parent@test>',ai_metadata:{generation_contract:DRAFT_CONTRACT,knowledge_version:knowledge.version,requires_approval:false,model_requires_approval:false,classification:'needs_review',model_classification:kind==='followup'?'followup':'routine_product',fact_ids:['products']}};
  if(kind==='followup')m.ai_metadata.followup_review={approved:true,response_id:'test-review',content_hash:followupHash(m),knowledge_version:knowledge.version};
  if(kind==='intro')m.ai_metadata.research_review={approved:true,response_id:'test-review',content_hash:contentHash(m)};
@@ -27,15 +26,17 @@ function message(kind='followup') {
  }
  return m;
 }
-
-test('recovery: emergency pause overrides every message type and cold pause allows only reviewed replies',()=>{
+test('recovery eligibility remains a content gate, never authority to bypass a pause or send a reply',()=>{
  for(const kind of ['intro','followup','reply'])assert.equal(recoveryEligibility(message(kind),{...controls,paused:true},knowledge).ok,false);
  for(const kind of ['intro','followup'])assert.equal(recoveryEligibility(message(kind),{...controls,cold_outreach_paused:true},knowledge).reason,'cold_outreach_paused');
+ // Historical reply content may validate, but routeApproval and dispatch
+ // independently prohibit sending it under the new manual-only model.
  assert.equal(recoveryEligibility(message('reply'),{...controls,cold_outreach_paused:true},knowledge).ok,true);
 });
 test('recovery: old drafts, unknown contracts, stale facts and explicit review flags fail closed',()=>{
- const cases=[{generation_contract:null},{generation_contract:'future-unknown'},{requires_approval:true},{model_requires_approval:true},{model_requires_approval:undefined},{knowledge_version:'stale'},{fact_ids:['invented']}];
- for(const patch of cases){const m=message();m.ai_metadata={...m.ai_metadata,...patch};assert.equal(recoveryEligibility(m,controls,knowledge).ok,false);}
+ for(const patch of [{generation_contract:null},{generation_contract:'future-unknown'},{requires_approval:true},{model_requires_approval:true},{model_requires_approval:undefined},{knowledge_version:'stale'},{fact_ids:['invented']}]){
+  const m=message();m.ai_metadata={...m.ai_metadata,...patch};assert.equal(recoveryEligibility(m,controls,knowledge).ok,false);
+ }
  assert.equal(recoveryEligibility(message(),{...controls,required_draft_contract:'unknown'},knowledge).ok,false);
 });
 test('recovery: follow-up review is bound to body, subject, contact, thread and parent',()=>{
@@ -43,7 +44,7 @@ test('recovery: follow-up review is bound to body, subject, contact, thread and 
  for(const field of ['body','subject','contact_id','thread_key','reply_to_id'])assert.equal(currentFollowupReview({...m,[field]:m[field]+'changed'}),false);
  for(const approved of [false,'true',null])assert.equal(currentFollowupReview({...m,ai_metadata:{...m.ai_metadata,followup_review:{...m.ai_metadata.followup_review,approved}}}),false);
 });
-test('recovery: fresh introduction and reply still need exact independent approval',()=>{
+test('recovery: introduction and historical reply content require exact independent approval',()=>{
  for(const kind of ['intro','reply']){
   const m=message(kind);assert.equal(recoveryEligibility(m,controls,knowledge).ok,true);
   assert.equal(recoveryEligibility({...m,body:m.body+' changed'},controls,knowledge).ok,false);
@@ -53,7 +54,7 @@ test('recovery: fresh introduction and reply still need exact independent approv
 test('recovery: approval routing never opens or mutates a legacy draft',async()=>{
  const m={...message(),status:'pending_approval',ai_metadata:{}};
  const sql=()=>{throw Error('Legacy draft must not be queried or mutated');};
- assert.equal((await routeApproval(sql,m,{...controls,auto_reply:true})).status,'legacy_hold');
+ assert.equal((await routeApproval(sql,m,{...controls,auto_reply:false,auto_followup:true})).status,'legacy_hold');
 });
 test('recovery: cold-paused discovery does not research or touch pending introductions',async()=>{
  const sql=()=>{throw Error('No database work during prospecting hold');};
@@ -70,21 +71,16 @@ test('follow-up review: human reply or missing sent parent prevents an AI call',
  let calls=0;const fetcher=async()=>{calls++;throw Error('Should not call AI');};
  const m=message();
  assert.equal((await reviewFollowup(async()=>[{direction:'inbound',classification:'needs_review',body:'Forwarded to Marketing'}],m,knowledge,{OPENAI_API_KEY:'test'},fetcher)).approved,false);
- assert.equal((await reviewFollowup(async()=>[],m,knowledge,{OPENAI_API_KEY:'test'},fetcher)).approved,false);
- assert.equal(calls,0);
+ assert.equal((await reviewFollowup(async()=>[],m,knowledge,{OPENAI_API_KEY:'test'},fetcher)).approved,false);assert.equal(calls,0);
 });
 test('follow-up review: validates response schema and binds approval to the real parent',async()=>{
  const m=message(),prior={direction:'outbound',rfc_message_id:m.reply_to_id,body:'Previous actual email'};
  const sql=async strings=>{const q=strings.join('?');assert.match(q,/status IN \('sent','simulated'\)/);return [prior];};
  const response=value=>Response.json({id:'test',model:'configured-review-model',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(value)}]}]});
- for(const result of [null,[],{approved:'true',reason:'Invalid boolean'}]){
-  const fetcher=async()=>response(result);
-  assert.equal((await reviewFollowup(sql,m,knowledge,{OPENAI_API_KEY:'test'},fetcher)).approved,false);
- }
+ for(const result of [null,[],{approved:'true',reason:'Invalid boolean'}])assert.equal((await reviewFollowup(sql,m,knowledge,{OPENAI_API_KEY:'test'},async()=>response(result))).approved,false);
  const fetcher=async(url,init)=>{const p=JSON.parse(init.body);assert.equal(url,'https://api.openai.com/v1/responses');assert.equal(JSON.parse(p.input).conversation[0].body,prior.body);assert.equal(p.text.format.strict,true);return response({approved:true,reason:'Specific useful next step'});};
  const review=await reviewFollowup(sql,m,knowledge,{OPENAI_API_KEY:'test'},fetcher);
- assert.equal(currentFollowupReview({...m,ai_metadata:{...m.ai_metadata,followup_review:review}}),true);
- assert.equal(review.review_model,'configured-review-model');
+ assert.equal(currentFollowupReview({...m,ai_metadata:{...m.ai_metadata,followup_review:review}}),true);assert.equal(review.review_model,'configured-review-model');
 });
 test('follow-up revisions: rejection feedback is used but three rejections never become approval',async()=>{
  const sql=async()=>[knowledge];let generations=0,reviews=0;const feedbacks=[];
@@ -99,27 +95,18 @@ test('follow-up revisions: rejection feedback is used but three rejections never
 });
 test('follow-up revisions: unavailable independent review fails closed without repeated model calls',async()=>{
  let calls=0;const generator=async()=>{calls++;return message();};
- await assert.rejects(generateReviewedFollowup(async()=>[knowledge],'fixture-contact',{}, {generator,reviewer:async()=>({approved:false,reason:'Unavailable'})}),/unavailable/);
- assert.equal(calls,1);
+ await assert.rejects(generateReviewedFollowup(async()=>[knowledge],'fixture-contact',{}, {generator,reviewer:async()=>({approved:false,reason:'Unavailable'})}),/unavailable/);assert.equal(calls,1);
 });
-
-function adapter(db){
- function sql(strings,...values){const text=typeof strings==='string'?strings:strings.reduce((a,s,i)=>a+(i?'$'+i:'')+s,'');if(typeof strings==='string')values=values[0]||[];return {q:{text,values},then(resolve,reject){return db.query(text,values).then(r=>r.rows).then(resolve,reject);}};}
- sql.transaction=queries=>db.transaction(async tx=>{const out=[];for(const p of queries)out.push((await tx.query(p.q.text,p.q.values)).rows);return out;});return sql;
-}
 async function databaseFixture(){
- const db=new PGlite(),sql=adapter(db);await migrate(sql);
- await db.exec('CREATE OR REPLACE FUNCTION pg_advisory_xact_lock(integer,integer) RETURNS void LANGUAGE sql AS $$ SELECT NULL::void $$');
- await sql`UPDATE daniel_sales.settings SET paused=false,cold_outreach_paused=false,required_draft_contract=${DRAFT_CONTRACT},auto_reply=true,auto_prospect=true WHERE id=1`;
+ const f=await createTestDatabase({strictContract:DRAFT_CONTRACT}),{db,sql}=f;
  const [kb]=await sql`SELECT * FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1`;
  let serial=0;
  const prospect=()=>{serial++;return createProspect(sql,{name:'Test Event Group '+serial,segment:'event venue',website:'https://example.test',source_url:'https://example.test/contact',contact_name:'Verified business team',email:'buyer'+serial+'@example.test'},'test');};
  const queue=async input=>{const m=await saveDraft(sql,input,'test');await requestApproval(sql,m.id,'test');const [a]=await sql`SELECT id FROM daniel_sales.approvals WHERE message_id=${m.id}`;await decide(sql,a.id,'approved','Controlled test fixture','test');return m;};
- return {db,sql,kb,prospect,queue};
+ return {...f,kb,prospect,queue};
 }
 const preview={DANIEL_AGENT_MODE:'preview'};
-
-test('database recovery: unrelated legacy records stay unchanged while a fresh reviewed weekend reply is processed',async()=>{
+test('database recovery: legacy records stay unchanged and even a reviewed weekend reply remains unsent',async()=>{
  const f=await databaseFixture();try{
   const old=await f.prospect();
   const legacy=await f.queue({contact_id:old.contact_id,kind:'intro',subject:'Legacy',body:'Do not release this old draft.'});
@@ -131,7 +118,7 @@ test('database recovery: unrelated legacy records stay unchanged while a fresh r
   const m=await f.queue(fresh);
   await f.sql`UPDATE daniel_sales.settings SET cold_outreach_paused=true WHERE id=1`;
   const result=await dispatch(f.sql,preview,null,{now:new Date('2026-11-01T16:00:00Z')});
-  assert.equal(result.simulated,1);assert.equal((await f.sql`SELECT status FROM daniel_sales.messages WHERE id=${m.id}`)[0].status,'simulated');
+  assert.equal(result.simulated,0);assert.equal(result.sent,0);assert.equal((await f.sql`SELECT status FROM daniel_sales.messages WHERE id=${m.id}`)[0].status,'queued');
   assert.equal((await f.sql`SELECT status FROM daniel_sales.messages WHERE id=${legacy.id}`)[0].status,'queued');
   assert.equal((await f.sql`SELECT status FROM daniel_sales.messages WHERE id=${pending.id}`)[0].status,'pending_approval');
   assert.equal((await f.sql`SELECT count(*)::int AS n FROM daniel_sales.approvals WHERE message_id=${pending.id} AND decision='pending'`)[0].n,1);
@@ -143,23 +130,23 @@ test('database recovery: a fresh follow-up cannot dispatch until its independent
   await f.sql`UPDATE daniel_sales.messages SET status='sent',thread_key='follow-thread',rfc_message_id='<prior@test>',sent_at='2026-10-01',updated_at='2026-10-01' WHERE id=${prior.id}`;
   const input={...message(),contact_id:p.contact_id,thread_key:'follow-thread',reply_to_id:'<prior@test>',ai_metadata:{...message().ai_metadata,knowledge_version:f.kb.version,followup_review:null}};
   const m=await f.queue(input);
-  assert.equal((await dispatch(f.sql,preview,null,{now:new Date('2026-11-02T15:00:00Z')})).simulated,0);
+  assert.equal((await dispatch(f.sql,preview,null,{now:new Date(TEST_NOW)})).simulated,0);
   const review={approved:true,response_id:'test-reviewed',content_hash:followupHash(input),knowledge_version:f.kb.version};
   await f.sql`UPDATE daniel_sales.messages SET ai_metadata=ai_metadata || ${JSON.stringify({followup_review:review})}::jsonb WHERE id=${m.id}`;
-  assert.equal((await dispatch(f.sql,preview,null,{now:new Date('2026-11-02T15:00:00Z')})).simulated,1);
+  assert.equal((await dispatch(f.sql,preview,null,{now:new Date(TEST_NOW)})).simulated,1);
  }finally{await f.db.close();}
 });
-test('database recovery: a cold hold set during the fresh conversation check blocks the provider call and releases quota',async()=>{
+test('database recovery: a cold hold during the fresh conversation check prevents any claim or provider call',async()=>{
  const f=await databaseFixture();try{
   const p=await f.prospect(),[c]=await f.sql`SELECT * FROM daniel_sales.contacts WHERE id=${p.contact_id}`;
   const prior=await saveDraft(f.sql,{contact_id:c.id,kind:'intro',subject:'Event banners',body:'Original invitation'},'test');
   await f.sql`UPDATE daniel_sales.messages SET status='sent',thread_key='race-thread',rfc_message_id='<race-parent@test>',sent_at='2026-10-01',updated_at='2026-10-01' WHERE id=${prior.id}`;
   const input={...message(),contact_id:c.id,thread_key:'race-thread',reply_to_id:'<race-parent@test>',ai_metadata:{...message().ai_metadata,knowledge_version:f.kb.version}};
   input.ai_metadata.followup_review={approved:true,response_id:'race-review',content_hash:followupHash(input),knowledge_version:f.kb.version};
-  const m=await f.queue(input);let sends=0;
-  const request=async()=>{await f.sql`UPDATE daniel_sales.settings SET cold_outreach_paused=true WHERE id=1`;return {id:'race-thread',messages:[{id:'race-sent',threadId:'race-thread',labelIds:['SENT'],payload:{headers:[{name:'From',value:'info@bannersonthefly.com'},{name:'To',value:c.email},{name:'Message-ID',value:'<race-parent@test>'}]}}]};};
-  await dispatch(f.sql,{DANIEL_AGENT_MODE:'live',DANIEL_CUTOVER_APPROVED:'true',CONTEXT:'production',DANIEL_SENDER_EMAIL:'info@bannersonthefly.com'},'test-token',{now:new Date('2026-11-02T15:00:00Z'),verifyIdentity:async()=>{},request,send:async()=>{sends++;throw Error('Must never send');}});
-  assert.equal(sends,0);assert.equal((await f.sql`SELECT status FROM daniel_sales.messages WHERE id=${m.id}`)[0].status,'blocked');
+  const m=await f.queue(input);let sends=0,checks=0;
+  const request=async()=>{checks++;await f.sql`UPDATE daniel_sales.settings SET cold_outreach_paused=true WHERE id=1`;return {id:'race-thread',messages:[{id:'race-sent',threadId:'race-thread',labelIds:['SENT'],payload:{headers:[{name:'From',value:'info@bannersonthefly.com'},{name:'To',value:c.email},{name:'Message-ID',value:'<race-parent@test>'}]}}]};};
+  await dispatch(f.sql,{DANIEL_AGENT_MODE:'live',DANIEL_CUTOVER_APPROVED:'true',CONTEXT:'production',DANIEL_SENDER_EMAIL:'info@bannersonthefly.com'},'test-token',{now:new Date(TEST_NOW),verifyIdentity:async()=>{},request,send:async()=>{sends++;throw Error('Must never send');}});
+  assert.equal(checks,1);assert.equal(sends,0);assert.equal((await f.sql`SELECT status FROM daniel_sales.messages WHERE id=${m.id}`)[0].status,'queued');
   assert.equal(Number((await f.sql`SELECT coalesce(sum(reserved_count),0) AS n FROM daniel_sales.daily_limits`)[0].n),0);
  }finally{await f.db.close();}
 });
@@ -175,23 +162,27 @@ test('database recovery: generator marks fresh drafts and never adds an unsolici
   assert.equal(held.requires_approval,true);assert.equal(held.ai_metadata.model_requires_approval,false);assert.equal(held.ai_metadata.model_classification,'needs_review');
  }finally{await f.db.close();}
 });
-
-for(const accepted of [true,false]) test('worker recovery: fresh follow-up '+(accepted?'passes reviewed preparation and simulated dispatch once':'stops after three rejected revisions without pretending it completed'),async()=>{
+for(const accepted of [true,false])test('worker recovery: fresh follow-up '+(accepted?'passes reviewed preparation with replies OFF and simulated dispatch once':'stops after three rejected revisions without adding a pending approval'),async()=>{
  const f=await databaseFixture();try{
   await f.sql`UPDATE daniel_sales.settings SET auto_prospect=false WHERE id=1`;
   const p=await f.prospect(),prior=await saveDraft(f.sql,{contact_id:p.contact_id,kind:'intro',subject:'Event banners',body:'Original invitation'},'test');
   await f.sql`UPDATE daniel_sales.messages SET status='sent',thread_key='worker-thread',rfc_message_id='<worker-parent@test>',sent_at='2026-10-01',updated_at='2026-10-01' WHERE id=${prior.id}`;
   const [task]=await f.sql`INSERT INTO daniel_sales.tasks(contact_id,opportunity_id,kind,due_at,dedupe_key) VALUES(${p.contact_id},${p.opportunity_id},'followup',now(),'worker-recovery-fixture') RETURNING id`;
+  const responder=await f.prospect();
+  const [manual]=await f.sql`INSERT INTO daniel_sales.tasks(contact_id,opportunity_id,kind,due_at,dedupe_key) VALUES(${responder.contact_id},${responder.opportunity_id},'reply',now()-interval '1 hour','manual-reply-fixture') RETURNING id`;
   let generations=0,reviews=0;
-  const generator=async()=>{generations++;return {...message(),contact_id:p.contact_id,thread_key:'worker-thread',reply_to_id:'<worker-parent@test>',ai_metadata:{...message().ai_metadata,followup_review:null,knowledge_version:f.kb.version}};};
+  const generator=async(_sql,id,kind)=>{assert.equal(kind,'followup');assert.equal(id,p.contact_id);generations++;return {...message(),contact_id:p.contact_id,thread_key:'worker-thread',reply_to_id:'<worker-parent@test>',ai_metadata:{...message().ai_metadata,followup_review:null,knowledge_version:f.kb.version}};};
   const reviewer=async(_sql,m)=>{reviews++;return {approved:accepted,response_id:'worker-review-'+reviews,reason:accepted?'Useful next step':'Repeats prior pitch',content_hash:followupHash(m),knowledge_version:f.kb.version};};
-  const options={sql:f.sql,now:new Date('2026-11-02T15:00:00Z'),generateDraft:generator,reviewFollowup:reviewer};
+  const options={sql:f.sql,now:new Date(TEST_NOW),generateDraft:generator,reviewFollowup:reviewer};
   const result=await runWorker(preview,options);
-  assert.equal(result.status,'completed');assert.equal(result.simulated,accepted?1:0);
+  assert.equal(result.status,'completed');assert.equal(result.simulated,accepted?1:0);assert.equal(result.sent,0);
   assert.equal(generations,accepted?1:3);assert.equal(reviews,accepted?1:3);
   assert.equal((await f.sql`SELECT status FROM daniel_sales.tasks WHERE id=${task.id}`)[0].status,accepted?'completed':'needs_review');
+  assert.equal((await f.sql`SELECT status FROM daniel_sales.tasks WHERE id=${manual.id}`)[0].status,'pending');
+  assert.equal((await f.sql`SELECT count(*)::int AS n FROM daniel_sales.messages WHERE direction='outbound' AND kind='reply'`)[0].n,0);
   const [draft]=await f.sql`SELECT * FROM daniel_sales.messages WHERE idempotency_key=${'task:'+task.id}`;
-  assert.equal(draft.status,accepted?'simulated':'pending_approval');
+  assert.equal(draft.status,accepted?'simulated':'draft');
+  assert.equal((await f.sql`SELECT count(*)::int AS n FROM daniel_sales.approvals WHERE decision='pending'`)[0].n,0);
   const before=generations;await runWorker(preview,options);assert.equal(generations,before);
   assert.equal((await f.sql`SELECT count(*)::int AS n FROM daniel_sales.test_deliveries WHERE message_id=${draft.id}`)[0].n,accepted?1:0);
  }finally{await f.db.close();}
