@@ -50,8 +50,10 @@ test('acceptance: database-owned caps cannot be overridden by caller limits or s
   await sql`UPDATE daniel_sales.daily_limits SET sent_count=${cap-1} WHERE kind=${kind}`;
   assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${m.id},2000)`).length,1);
  }
- await assert.rejects(sql`UPDATE daniel_sales.settings SET intro_daily_limit=2000 WHERE id=1`);
- await assert.rejects(sql`UPDATE daniel_sales.settings SET followup_daily_limit=2000 WHERE id=1`);
+ // The SQL adapter is a lazy thenable, not a native Promise. Execute it inside
+ // an async function and require PostgreSQL's CHECK-constraint error specifically.
+ await assert.rejects(async()=>{await sql`UPDATE daniel_sales.settings SET intro_daily_limit=2000 WHERE id=1`;},{code:'23514'});
+ await assert.rejects(async()=>{await sql`UPDATE daniel_sales.settings SET followup_daily_limit=2000 WHERE id=1`;},{code:'23514'});
  assert.equal(dailyLimit({intro_daily_limit:2000},'intro'),25);assert.equal(dailyLimit({followup_daily_limit:2000},'followup'),15);
 });
 test('acceptance: all 25 introductions and 15 follow-ups fit a paced twelve-hour synthetic day without bursts',async t=>{
