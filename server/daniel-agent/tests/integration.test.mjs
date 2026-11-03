@@ -1,48 +1,37 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PGlite } from '@electric-sql/pglite';
-import { migrate } from '../migrate.mjs';
-import { createProspect,saveDraft,requestApproval,decide,suppress } from '../store.mjs';
-import { dispatch,reconcile } from '../dispatch.mjs';
-import { ingest,syncMailbox } from '../mail-sync.mjs';
-import { handler } from '../api.mjs';
-import { seal,unseal } from '../auth.mjs';
-import { scheduleMeeting,ics } from '../scheduling.mjs';
-import { generateDraft } from '../ai.mjs';
-import { mode } from '../config.mjs';
-import { enqueueRun } from '../jobs.mjs';
-import { runWorker } from '../worker.mjs';
-function adapter(db) {
- function sql(strings,...values) {
-  const text=typeof strings==='string'?strings:strings.reduce((a,s,i)=>a+(i?'$'+i:'')+s,'');
-  if(typeof strings==='string')values=values[0]||[];
-  return {q:{text,values},then(resolve,reject){return db.query(text,values).then(r=>r.rows).then(resolve,reject);}};
- }
- sql.transaction=queries=>db.transaction(async tx=>{const out=[];for(const p of queries)out.push((await tx.query(p.q.text,p.q.values)).rows);return out;});
- return sql;
-}
-const db=new PGlite(),sql=adapter(db);await migrate(sql);
-// Single-session PGlite tests do not assert real PostgreSQL concurrency.
-await db.exec('CREATE OR REPLACE FUNCTION pg_advisory_xact_lock(integer,integer) RETURNS void LANGUAGE sql AS $$ SELECT NULL::void $$');
+import {createTestDatabase,TEST_NOW} from './test-database.mjs';
+import {createProspect,saveDraft,requestApproval,decide,suppress} from '../store.mjs';
+import {dispatch,reconcile} from '../dispatch.mjs';
+import {ingest,syncMailbox} from '../mail-sync.mjs';
+import {handler} from '../api.mjs';
+import {seal,unseal} from '../auth.mjs';
+import {scheduleMeeting,ics} from '../scheduling.mjs';
+import {generateDraft} from '../ai.mjs';
+import {mode} from '../config.mjs';
+import {enqueueRun} from '../jobs.mjs';
+import {runWorker} from '../worker.mjs';
+let db,sql,fixture,n=0;
+const now=new Date(TEST_NOW);
 const env={DANIEL_ALLOWED_HOST:'preview.test',DANIEL_AGENT_MODE:'preview',DANIEL_ADMIN_PASSWORD:'test-password-only',DANIEL_SESSION_SECRET:'test-encryption-key-longer-than-32-characters'};
-let n=0;
+test.beforeEach(async t=>{t.mock.timers.enable({apis:['Date'],now:new Date(TEST_NOW)});fixture=await createTestDatabase();db=fixture.db;sql=fixture.sql;});
+test.afterEach(async()=>{if(db)await db.close();});
 async function prospect(){n++;return createProspect(sql,{name:'Test Franchise '+n,segment:'restaurant franchisee',website:'https://example.com',source_url:'https://example.com/contact',contact_name:'Test Buyer',email:'buyer'+n+'@example.test'},'test');}
-async function queued(p,kind='intro') {
+async function queued(p,kind='intro'){
  const m=await saveDraft(sql,{contact_id:p.contact_id,kind,subject:'Signage',body:'Can we help with upcoming signage?'},'test');
  await requestApproval(sql,m.id,'test');const [a]=await sql`SELECT id FROM daniel_sales.approvals WHERE message_id=${m.id}`;
  await decide(sql,a.id,'approved','Reviewed','test');return m;
 }
-async function received(p,tag,text='What banner materials do you offer?',automatic=false) {
+async function received(p,tag,text='What banner materials do you offer?',automatic=false){
  const [c]=await sql`SELECT * FROM daniel_sales.contacts WHERE id=${p.contact_id}`;
  const inbound={id:'reply-safety-'+tag,threadId:'thread-'+tag,internalDate:String(Date.now()),payload:{mimeType:'text/plain',headers:[{name:'From',value:c.email},{name:'Message-ID',value:'<inbound-'+tag+'@test>'},...(automatic?[{name:'Auto-Submitted',value:'auto-replied'}]:[])],body:{data:Buffer.from(text).toString('base64url')}}};
  await ingest(sql,inbound);return {c,inbound};
 }
-async function replyFixture(tag,automatic=false) {
+async function replyFixture(tag,automatic=false){
  const p=await prospect(),{c,inbound}=await received(p,tag,'What banner materials do you offer?',automatic),m=await queued(p,'reply');
  await sql`UPDATE daniel_sales.messages SET thread_key=${inbound.threadId},reply_to_id=${'<inbound-'+tag+'@test>'} WHERE id=${m.id}`;
  return {...p,m,c,inbound};
 }
-const now=new Date('2026-10-21T16:00:00Z');
 test('server-side auth, CSRF, host guard, logout and failed login',async()=>{
  const req=(path,method='GET',data={},cookie='')=>new Request('https://preview.test'+path,{method,headers:{origin:'https://preview.test',cookie,'content-type':'application/json'},...(method==='POST'?{body:JSON.stringify(data)}:{})});
  let r=await handler(req('/api/daniel/data'),{},{sql,env});assert.equal(r.status,401);
@@ -64,7 +53,7 @@ test('prospect creation is atomic and rejects duplicate email and suppliers',asy
 });
 test('approval -> test outbox -> one follow-up; repeated execution cannot duplicate',async()=>{
  const p=await prospect(),m=await queued(p),r=await dispatch(sql,env,null,{now});assert.equal(r.simulated,1);
- await dispatch(sql,env,null,{now});const d=await sql`SELECT * FROM daniel_sales.test_deliveries WHERE message_id=${m.id}`;assert.equal(d.length,1);
+ await dispatch(sql,env,null,{now});assert.equal((await sql`SELECT * FROM daniel_sales.test_deliveries WHERE message_id=${m.id}`).length,1);
  const [message]=await sql`SELECT * FROM daniel_sales.messages WHERE id=${m.id}`;assert.equal(message.status,'simulated');assert.equal(message.sent_at,null);
  const tasks=await sql`SELECT * FROM daniel_sales.tasks WHERE contact_id=${p.contact_id}`;assert.equal(tasks.length,1);assert.ok(new Date(tasks[0].due_at)>new Date());
 });
@@ -85,11 +74,11 @@ test('unknown inbox mail is not stored; outgoing messages do not become replies'
  assert.equal((await ingest(sql,{id:'unknown',payload:{headers:[{name:'From',value:'unknown@example.test'}]}})).ignored,true);
  assert.equal((await ingest(sql,{id:'outgoing',labelIds:['SENT']})).ignored,true);
 });
-test('daily quota remains atomic and blocks reservation above cap',async()=>{
+test('daily quota remains atomic and blocks reservation above the 25-introduction cap',async()=>{
  const p=await prospect(),m=await queued(p),[d]=await sql`SELECT (now() AT TIME ZONE 'America/New_York')::date AS day`;
- await sql`INSERT INTO daniel_sales.daily_limits(local_date,kind,sent_count) VALUES(${d.day},'intro',10) ON CONFLICT(local_date,kind) DO UPDATE SET sent_count=10`;
- assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${m.id}::uuid,10)`).length,0);
- await sql`UPDATE daniel_sales.daily_limits SET sent_count=0 WHERE kind='intro'`;
+ await sql`INSERT INTO daniel_sales.daily_limits(local_date,kind,sent_count) VALUES(${d.day},'intro',25) ON CONFLICT(local_date,kind) DO UPDATE SET sent_count=25`;
+ assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${m.id}::uuid,2000)`).length,0);
+ const [counter]=await sql`SELECT sent_count,reserved_count FROM daniel_sales.daily_limits WHERE kind='intro'`;assert.equal(counter.sent_count,25);assert.equal(counter.reserved_count,0);
 });
 test('ambiguous provider failure is held and not retried',async()=>{
  const p=await prospect(),m=await queued(p);let calls=0;
@@ -118,6 +107,8 @@ test('AI drafts carry knowledge version and price exceptions cannot self-approve
 });
 test('Gmail paging saves cursor, finishes initial sync then expires safely',async()=>{
  await sql`INSERT INTO daniel_sales.mailbox(id,email) VALUES(1,'owner@example.test') ON CONFLICT(id) DO UPDATE SET history_id=NULL,sync_start_history=NULL,page_token=NULL`;
+ // Ensure the original known-contact paging path is exercised in isolation.
+ await prospect();
  let calls=0;const queries=[];
  const providers={request:async()=>({historyId:'101'}),listMessages:async(_t,q,_n,page)=>{calls++;queries.push(q);assert.match(q,/(?:from:|to:"info@bannersonthefly\.com")/);return page?{messages:[]}:{messages:[],nextPageToken:'page-2'};},getMessage:async()=>{throw Error('No messages expected');}};
  assert.equal((await syncMailbox(sql,'test',providers)).complete,false);
@@ -142,31 +133,30 @@ test('AI cold introductions reject invented prior contact and strip duplicate si
  const bad=async()=>Response.json({choices:[{message:{content:JSON.stringify({subject:'Hello',body:'Thanks for your inquiry.',requires_approval:false,classification:'routine_product',reason:'Controlled prior-contact violation',fact_ids:[]})}}]});
  await assert.rejects(generateDraft(sql,p.contact_id,'intro',{OPENAI_API_KEY:'test-only'},bad),/invented prior contact/);
 });
-test('routine worker simulation is automatic while exceptions remain in owner queue',async()=>{
- await sql`UPDATE daniel_sales.settings SET paused=false,auto_reply=true WHERE id=1`;
+test('routine follow-up worker simulation runs with replies OFF while genuine exceptions remain in owner queue',async()=>{
+ await sql`UPDATE daniel_sales.settings SET paused=false,auto_reply=false,auto_followup=true,auto_prospect=false WHERE id=1`;
  const normal=await prospect(),exception=await prospect();
- for(const p of [normal,exception]) {
-  const prior=await saveDraft(sql,{contact_id:p.contact_id,kind:'intro',subject:'Signage',body:'Original invitation'},'test');
+ for(const p of [normal,exception]){
+  const prior=await saveDraft(sql,{contact_id:p.contact_id,kind:'intro',subject:'Event entrance banners',body:'Original invitation'},'test');
   const priorSent=new Date(now.getTime()-10*86400000).toISOString();
   await sql`UPDATE daniel_sales.messages SET status='simulated',thread_key=${'auto-thread:'+p.contact_id},rfc_message_id=${'<auto-parent:'+p.contact_id+'@test>'},updated_at=${priorSent}::timestamptz WHERE id=${prior.id}`;
   await sql`INSERT INTO daniel_sales.tasks(contact_id,opportunity_id,kind,due_at,dedupe_key) VALUES(${p.contact_id},${p.opportunity_id},'followup',now(),${'auto-test:'+p.contact_id})`;
  }
- const generate=async(_,contactId,kind)=>({contact_id:contactId,kind,subject:'Following up on signage',body:contactId===normal.contact_id?'Would you like help choosing vinyl banners for your locations?':'We can discuss custom pricing.',thread_key:'auto-thread:'+contactId,reply_to_id:'<auto-parent:'+contactId+'@test>',ai_metadata:{knowledge_version:'bof-team-offer-v2',requires_approval:contactId===exception.contact_id,model_classification:'followup',fact_ids:['products']}});
+ const generate=async(_,contactId,kind)=>({contact_id:contactId,kind,subject:'Event entrance banners',body:contactId===normal.contact_id?'A reusable entrance banner can identify your event check-in. Would a reusable layout help?':'Our custom price is $40 for the event banner.',thread_key:'auto-thread:'+contactId,reply_to_id:'<auto-parent:'+contactId+'@test>',ai_metadata:{knowledge_version:'bof-team-offer-v2',requires_approval:contactId===exception.contact_id,model_requires_approval:contactId===exception.contact_id,model_classification:'followup',fact_ids:['products']}});
  await runWorker(env,{sql,now,generateDraft:generate});
  const [routine]=await sql`SELECT * FROM daniel_sales.messages WHERE contact_id=${normal.contact_id} AND kind='followup'`;
  const [held]=await sql`SELECT * FROM daniel_sales.messages WHERE contact_id=${exception.contact_id} AND kind='followup'`;
  assert.equal(routine.status,'simulated');assert.equal(routine.approved_by,'daniel-policy');assert.equal(routine.sent_at,null);assert.equal(held.status,'pending_approval');
  await runWorker(env,{sql,now,generateDraft:generate});assert.equal((await sql`SELECT * FROM daniel_sales.test_deliveries WHERE message_id=${routine.id}`).length,1);
- await sql`UPDATE daniel_sales.settings SET auto_reply=false WHERE id=1`;
+ assert.equal((await sql`SELECT auto_reply FROM daniel_sales.settings WHERE id=1`)[0].auto_reply,false);
 });
 test('background jobs authenticate, persist completion and reject replay',async t=>{
- const calls=[];const mock=t.mock.method(globalThis,'fetch',async(url,init)=>{calls.push({url,init});return new Response(null,{status:202});});
+ const calls=[];t.mock.method(globalThis,'fetch',async(url,init)=>{calls.push({url,init});return new Response(null,{status:202});});
  const job=await enqueueRun(sql,{...env,DANIEL_CRON_SECRET:'test-cron-secret'});assert.equal(job.status,'queued');
  assert.equal(calls[0].url,'https://preview.test/api/internal/daniel-agent/job');assert.equal(calls[0].init.headers.authorization,'Bearer test-cron-secret');assert.equal(JSON.parse(calls[0].init.body).runId,job.runId);
  await sql`UPDATE daniel_sales.settings SET paused=true WHERE id=1`;
  const result=await runWorker(env,{sql,runId:job.runId});assert.equal(result.status,'paused');assert.equal((await runWorker(env,{sql,runId:job.runId})).status,'already_processed');
  const [saved]=await sql`SELECT * FROM daniel_sales.runs WHERE id=${job.runId}`;assert.equal(saved.status,'paused');assert.ok(saved.completed_at);
- mock.mock.restore();await sql`UPDATE daniel_sales.settings SET paused=false WHERE id=1`;
 });
 test('failed background scheduling is recorded and never appears completed',async t=>{
  t.mock.method(globalThis,'fetch',async()=>new Response(null,{status:503}));await assert.rejects(enqueueRun(sql,env),/Unable to queue/);
@@ -174,11 +164,11 @@ test('failed background scheduling is recorded and never appears completed',asyn
 });
 test('controlled Gmail dispatch cannot reach other recipients and normal preview never sends',async()=>{
  const controlled=await prospect(),other=await prospect(),[contact]=await sql`SELECT email FROM daniel_sales.contacts WHERE id=${controlled.contact_id}`;
- const a=await queued(controlled),b=await queued(other);await sql`DELETE FROM daniel_sales.daily_limits`;
+ const a=await queued(controlled),b=await queued(other);
  const cfg={...env,CONTEXT:'deploy-preview',DANIEL_GMAIL_TEST_RECIPIENTS:contact.email,DANIEL_GMAIL_TEST_UNTIL:new Date(Date.now()+3600000).toISOString(),DANIEL_SENDER_EMAIL:'info@bannersonthefly.com',OUTBOUND_PHYSICAL_ADDRESS:'PO Box 368'};
  const sends=[],send=async(_,m)=>{sends.push(m);return{id:'real-test-id',threadId:'real-test-thread'};},getMessage=async()=>({payload:{headers:[{name:'Message-ID',value:'<canonical@gmail.test>'}]}});
  await dispatch(sql,cfg,'token',{gmailTest:true,send,getMessage,now,verifyIdentity:async()=>{}});
- assert.equal(sends.length,1);assert.equal(sends[0].to,contact.email);assert.ok(sends[0].html.includes('PO Box 368, Crestwood, KY 40014'));assert.equal(sends[0].replyTo,'info@bannersonthefly.com');
+ assert.equal(sends.length,1);assert.equal(sends[0].to,contact.email);assert.ok(sends[0].html.includes('PO Box 368, Crestwood, KY 40014'));assert.equal(sends[0].replyTo,'info@bannersonthefly.com');assert.equal(sends[0].from,'Daniel | Banners On The Fly <info@bannersonthefly.com>');
  const [saved]=await sql`SELECT * FROM daniel_sales.messages WHERE id=${a.id}`;assert.equal(saved.ai_metadata.gmail_test,true);assert.equal(saved.status,'sent');assert.equal(saved.rfc_message_id,'<canonical@gmail.test>');
  assert.equal((await sql`SELECT status FROM daniel_sales.messages WHERE id=${b.id}`)[0].status,'queued');
  await dispatch(sql,cfg,'token',{gmailTest:true,send,getMessage,now,verifyIdentity:async()=>{}});assert.equal(sends.length,1);
@@ -210,21 +200,21 @@ test('daily report is delivered once, signed Brad, with truthful metrics and a d
  assert.equal((await emailDailyReport(sql,cfg,'token',{...opts,list:async()=>({messages:[]})})).status,'uncertain_held');assert.equal(sent.length,1);
  assert.equal((await emailDailyReport(sql,cfg,'token',{...opts,list:async()=>({messages:[{id:'report-recovered'}]})})).status,'reconciled');assert.equal(sent.length,1);
 });
-test('autonomous research creates an evidence-backed prospect and auto-approved unique introduction while agent stays paused',async()=>{
+test('standalone reviewed research never overrides the persisted global sending pause',async()=>{
  const {discover}=await import('../discovery.mjs');
  const c={company:'Independent Regional Accounts',website:'https://regional.example.com',email:'marketing@regional.example.com',segment:'regional restaurant group',recurring_buyer:true,opportunity:'Consistent seasonal banners across locations',contact_url:'https://regional.example.com/contact',facts:[{url:'https://regional.example.com/about',quote:'Our group operates twelve restaurants across the United States.'},{url:'https://regional.example.com/contact',quote:'Our marketing team welcomes general business inquiries.'}]};
  const researcher=async(_env,instructions)=>(instructions.startsWith('Independently search')||instructions.startsWith('Extract a verified'))?{value:c,responseId:'research-search'}:{value:{approved:true,reason:'Evidence and original content verified'},responseId:'review'};
  const [kb]=await sql`SELECT * FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1`;await sql`UPDATE daniel_sales.settings SET paused=true WHERE id=1`;
- const r=await discover(sql,env,{auto_prospect:true},{now:new Date('2026-10-21T16:00:00Z'),research:researcher,readPage:async url=>({url,text:(c.facts.find(x=>x.url===url)?.quote||c.facts.map(x=>x.quote).join(' '))+' marketing@regional.example.com'}),draft:async(_,id)=>({contact_id:id,kind:'intro',subject:'Seasonal banners for your twelve restaurants',body:'Would consistent vinyl banners help your restaurant teams?',ai_metadata:{requires_approval:false,knowledge_version:kb.version,fact_ids:['products']}})});
+ const r=await discover(sql,env,{auto_prospect:true},{now,research:researcher,readPage:async url=>({url,text:(c.facts.find(x=>x.url===url)?.quote||c.facts.map(x=>x.quote).join(' '))+' marketing@regional.example.com'}),draft:async(_,id)=>({contact_id:id,kind:'intro',subject:'Seasonal restaurant entrance banners',body:'Would reusable entrance banners help identify your restaurant events?',ai_metadata:{requires_approval:false,knowledge_version:kb.version,fact_ids:['products']}})});
  assert.equal(r.status,'completed');const [m]=await sql`SELECT * FROM daniel_sales.messages WHERE id=${r.messageId}`;assert.equal(m.status,'queued');assert.equal(m.approved_by,'daniel-policy');
- assert.equal((await sql`SELECT paused FROM daniel_sales.settings WHERE id=1`)[0].paused,true);assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${m.id},10)`).length,0);
- assert.equal((await discover(sql,env,{auto_prospect:true},{now:new Date('2026-10-21T16:00:00Z'),research:()=>{throw Error('Should not research same slot twice');}})).status,'already_researched_this_hour');
+ assert.equal((await sql`SELECT paused FROM daniel_sales.settings WHERE id=1`)[0].paused,true);assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${m.id},25)`).length,0);
+ assert.equal((await discover(sql,env,{auto_prospect:true},{now,research:()=>{throw Error('Should not research same slot twice');}})).status,'already_researched_this_slot');
 });
 test('autonomous discovery retries an unavailable source without weakening qualification',async()=>{
  const {discover}=await import('../discovery.mjs');let attempts=0;const [kb]=await sql`SELECT * FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1`;
  const candidate=()=>({company:'Recurring Property Group '+attempts,website:'https://property'+attempts+'.example.com',email:'info@property'+attempts+'.example.com',segment:'regional property manager',recurring_buyer:true,opportunity:'Repeat property event banners',contact_url:'https://property'+attempts+'.example.com/contact',facts:[{url:'https://property'+attempts+'.example.com/about',quote:'We manage forty commercial properties throughout the United States.'},{url:'https://property'+attempts+'.example.com/contact',quote:'Our general office welcomes business inquiries from companies.'}]});
  const research=async(_env,instructions)=>{if(instructions.startsWith('Independently search')){attempts++;return{value:candidate(),responseId:'source-'+attempts};}if(instructions.startsWith('Extract a verified'))return{value:candidate(),responseId:'extraction'};return{value:{approved:true,reason:'Verified'},responseId:'independent-review'};};
- const r=await discover(sql,env,{auto_prospect:true},{now:new Date('2026-10-21T17:00:00Z'),research,readPage:async url=>{if(attempts===1)throw Error('Evidence page unavailable');return{url,text:(candidate().facts.find(x=>x.url===url)?.quote||candidate().facts.map(x=>x.quote).join(' '))+' '+candidate().email};},draft:async(_,id)=>({contact_id:id,kind:'intro',subject:'Banners across your forty properties',body:'Would vinyl banners help your property teams communicate events?',ai_metadata:{requires_approval:false,knowledge_version:kb.version,fact_ids:['products']}})});
+ const r=await discover(sql,env,{auto_prospect:true},{now,research,readPage:async url=>{if(attempts===1)throw Error('Evidence page unavailable');return{url,text:(candidate().facts.find(x=>x.url===url)?.quote||candidate().facts.map(x=>x.quote).join(' '))+' '+candidate().email};},draft:async(_,id)=>({contact_id:id,kind:'intro',subject:'Reusable property event banners',body:'Would vinyl banners help identify entrances for your property events?',ai_metadata:{requires_approval:false,knowledge_version:kb.version,fact_ids:['products']}})});
  assert.equal(attempts,2);assert.equal(r.status,'completed');assert.equal((await sql`SELECT status FROM daniel_sales.messages WHERE id=${r.messageId}`)[0].status,'queued');assert.equal((await sql`SELECT count(*)::int AS n FROM daniel_sales.accounts WHERE website='https://property1.example.com'`)[0].n,0);
 });
 test('cold introduction regenerates a misleading numeric company-footprint claim',async()=>{
@@ -240,41 +230,44 @@ test('AI conversation context excludes unsent and rejected outbound drafts',asyn
  const fetcher=async(_url,options)=>{const payload=JSON.parse(options.body);assert.ok(!payload.messages[1].content.includes('UNSENT_UNAPPROVED_PROMISE'));return Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Signage',body:'We offer vinyl banners.',requires_approval:false,fact_ids:['products'],classification:'routine_product',reason:'Controlled conversation fixture'})}}]});};
  await generateDraft(sql,p.contact_id,'reply',{OPENAI_API_KEY:'test'},fetcher);
 });
-test('AI can automatically repeat approved shipping facts without approving a custom price',async()=>{
+test('pure AI draft validation recognizes approved shipping facts without authorizing a reply send',async()=>{
  const p=await prospect();await received(p,'shipping-source','What shipping options are available?');
  const fetcher=async()=>Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Products',body:'Our vinyl banners qualify for free next-day air shipping in the U.S. on orders of $20 or more.',requires_approval:false,classification:'routine_product',fact_ids:['vinyl_banner_shipping'],reason:'Approved shipping information'})}}]});
  const d=await generateDraft(sql,p.contact_id,'reply',{OPENAI_API_KEY:'test'},fetcher);assert.equal(d.ai_metadata.requires_approval,false);assert.equal(d.ai_metadata.model_requires_approval,false);
 });
-test('weekend, holiday and after-hours replies bypass exhausted prospecting quotas',async()=>{
- await sql`UPDATE daniel_sales.settings SET paused=false WHERE id=1`;
- await sql`INSERT INTO daniel_sales.daily_limits(local_date,kind,sent_count) VALUES((now() AT TIME ZONE 'America/New_York')::date,'intro',10),((now() AT TIME ZONE 'America/New_York')::date,'followup',5) ON CONFLICT(local_date,kind) DO UPDATE SET sent_count=excluded.sent_count,reserved_count=0`;
- for(const [tag,date] of [['sat','2026-10-24T16:00:00Z'],['sun','2026-10-25T16:00:00Z'],['holiday','2026-12-25T16:00:00Z'],['night','2026-10-22T05:00:00Z']]) {
-  const f=await replyFixture(tag);await dispatch(sql,env,null,{now:new Date(date)});const [m]=await sql`SELECT status,quota_kind FROM daniel_sales.messages WHERE id=${f.m.id}`;assert.equal(m.status,'simulated');assert.equal(m.quota_kind,'reply');
+test('approved prospect replies never send on weekdays, weekends, holidays or after hours',async()=>{
+ await sql`INSERT INTO daniel_sales.daily_limits(local_date,kind,sent_count) VALUES((now() AT TIME ZONE 'America/New_York')::date,'intro',25),((now() AT TIME ZONE 'America/New_York')::date,'followup',15)`;
+ for(const [tag,date] of [['weekday',TEST_NOW],['sat','2026-10-24T16:00:00Z'],['sun','2026-10-25T16:00:00Z'],['holiday','2026-12-25T16:00:00Z'],['night','2026-10-22T05:00:00Z']]){
+  const f=await replyFixture(tag),r=await dispatch(sql,env,null,{now:new Date(date)});
+  assert.equal(r.simulated,0);assert.equal(r.sent,0);
+  const [m]=await sql`SELECT status,quota_kind FROM daniel_sales.messages WHERE id=${f.m.id}`;assert.equal(m.status,'queued');assert.equal(m.quota_kind,null);
  }
- const limits=await sql`SELECT kind,sent_count FROM daniel_sales.daily_limits WHERE local_date=(now() AT TIME ZONE 'America/New_York')::date AND kind IN ('intro','followup') ORDER BY kind`;assert.deepEqual(limits.map(x=>x.sent_count),[5,10]);
+ const limits=await sql`SELECT kind,sent_count FROM daniel_sales.daily_limits WHERE local_date=(now() AT TIME ZONE 'America/New_York')::date AND kind IN ('intro','followup') ORDER BY kind`;assert.deepEqual(limits.map(x=>x.sent_count),[15,25]);
 });
-test('duplicate drafts and competing claims cannot respond twice to one inbound',async()=>{
+test('duplicate approved replies and competing claims both remain unsendable',async()=>{
  const f=await replyFixture('race'),other=await queued(f,'reply');await sql`UPDATE daniel_sales.messages SET thread_key=${f.inbound.threadId},reply_to_id='<inbound-race@test>' WHERE id=${other.id}`;
- const results=await Promise.all([sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},5)`,sql`SELECT * FROM daniel_sales.claim_message(${other.id},5)`]);assert.equal(results.flat().length,1);
+ const results=await Promise.all([sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},15)`,sql`SELECT * FROM daniel_sales.claim_message(${other.id},15)`]);assert.equal(results.flat().length,0);
 });
 test('automated mail does not create a reply task and cannot be dispatched',async()=>{
- const f=await replyFixture('automatic',true);assert.equal((await sql`SELECT * FROM daniel_sales.tasks WHERE contact_id=${f.contact_id} AND kind='reply'`).length,0);assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},5)`).length,0);
+ const f=await replyFixture('automatic',true);assert.equal((await sql`SELECT * FROM daniel_sales.tasks WHERE contact_id=${f.contact_id} AND kind='reply'`).length,0);assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},15)`).length,0);
 });
-test('unsubscribe blocks queued customer replies regardless of available reply capacity',async()=>{
- const f=await replyFixture('optout');await suppress(sql,f.c.email,'unsubscribe','test');assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},5)`).length,0);
+test('unsubscribe blocks queued customer replies regardless of available capacity',async()=>{
+ const f=await replyFixture('optout');await suppress(sql,f.c.email,'unsubscribe','test');assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},15)`).length,0);
 });
-test('reply send with lost provider confirmation is held and recovered without sending again',async()=>{
- const f=await replyFixture('recovery');let calls=0;
+test('historically accepted reply with lost confirmation is reconciled without sending any new reply',async()=>{
+ const f=await replyFixture('recovery');
  const live={...env,DANIEL_AGENT_MODE:'live',DANIEL_CUTOVER_APPROVED:'true',CONTEXT:'production',DANIEL_SENDER_EMAIL:'info@bannersonthefly.com'};
- const request=async(_token,path)=>{assert.equal(path,'/threads/'+f.inbound.threadId+'?format=full');return{id:f.inbound.threadId,messages:[f.inbound]};};
- await dispatch(sql,live,'test',{now:new Date('2026-10-24T16:00:00Z'),verifyIdentity:async()=>{},request,send:async()=>{calls++;return{id:'reply-recovery-provider',threadId:f.inbound.threadId};},getMessage:async()=>{throw Error('Lost header response');}});
- assert.equal((await sql`SELECT status FROM daniel_sales.messages WHERE id=${f.m.id}`)[0].status,'uncertain');
- await reconcile(sql,live,'test',{getMessage:async()=>({payload:{headers:[{name:'Message-ID',value:'<canonical-recovery@test>'}]}}),listMessages:async()=>({messages:[]})});
- assert.equal((await sql`SELECT status FROM daniel_sales.messages WHERE id=${f.m.id}`)[0].status,'sent');assert.equal(calls,1);
+ await sql`UPDATE daniel_sales.messages SET status='uncertain',provider_message_id='historical-reply-provider',ai_metadata='{}'::jsonb WHERE id=${f.m.id}`;
+ let sends=0;
+ await dispatch(sql,live,'test',{now,verifyIdentity:async()=>{},send:async()=>{sends++;throw Error('Never send a reply');}});
+ await reconcile(sql,live,'test',{getMessage:async(_token,id)=>{assert.equal(id,'historical-reply-provider');return {payload:{headers:[{name:'Message-ID',value:'<canonical-recovery@test>'}]}};},listMessages:async()=>{throw Error('Must use retained provider ID');}});
+ assert.equal((await sql`SELECT status FROM daniel_sales.messages WHERE id=${f.m.id}`)[0].status,'sent');assert.equal(sends,0);
 });
-test('per-recipient rolling reply throttle holds excessive exchanges without using outreach quota',async()=>{
+test('reply prohibition remains after historical rolling-throttle windows expire',async()=>{
  const f=await replyFixture('rate-limit');await sql`INSERT INTO daniel_sales.messages(contact_id,direction,status,idempotency_key,kind,body,sent_at) SELECT ${f.contact_id},'outbound','sent','rate-fixture-'||g,'reply','Prior response',now() FROM generate_series(1,6) g`;
- assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},5)`).length,0);await sql`UPDATE daniel_sales.messages SET sent_at=now()-interval '2 hours' WHERE contact_id=${f.contact_id} AND status='sent'`;assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},5)`).length,1);
+ assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},15)`).length,0);
+ await sql`UPDATE daniel_sales.messages SET sent_at=now()-interval '2 hours' WHERE contact_id=${f.contact_id} AND status='sent'`;
+ assert.equal((await sql`SELECT * FROM daniel_sales.claim_message(${f.m.id},15)`).length,0);
 });
 test('company offer is persisted for introductions, reused, and remains independently reviewed without approving other discounts',async()=>{
  const {introductionEligible}=await import('../automation.mjs'),{contentHash}=await import('../recovery-policy.mjs'),p=await prospect(),e={...env,OPENAI_API_KEY:'test-key',DANIEL_PROMO_SIGNING_SECRET:'test-only-team-offer-key-at-least-32-characters'};
@@ -296,4 +289,3 @@ test('model-written duplicate offer is regenerated before the exact server offer
  const fetcher=async(_url,request)=>{calls++;if(calls===2)assert.match(request.body,/Remove discount/);return Response.json({choices:[{message:{content:JSON.stringify({subject:'Signage for your next event',body:calls===1?'Try 25% off for your team.':'Would a reusable entrance banner help at your events?',classification:'routine_product',requires_approval:false,fact_ids:[],reason:'Controlled duplicate-offer fixture'})}}]});};
  const draft=await generateDraft(sql,p.contact_id,'intro',e,fetcher);assert.equal(calls,2);assert.equal(draft.requires_approval,false);assert.equal((draft.body.match(/25%/g)||[]).length,1);
 });
-test.after(()=>db.close());
