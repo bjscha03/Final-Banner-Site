@@ -5,15 +5,17 @@ import { approvalNeeded } from './operations.mjs';
 import { requestApproval,decide,audit } from './store.mjs';
 import { currentReplyReview } from './reply-review.mjs';
 import { reviewFollowup } from './followup-review.mjs';
+import { followupQualityIssues } from './followup-quality.mjs';
 import { DRAFT_CONTRACT,currentFollowupReview,followupHash,recoveryEligibility } from './recovery-policy.mjs';
 import { automationEnabled } from './outreach-controls.mjs';
 
 export function businessException(message,knowledge,env=process.env) {
  const meta=message.ai_metadata || {};
  const text=routinePolicyText(approvedOfferText(message.subject+'\n'+message.body,meta.team_offer,env),knowledge.facts);
- // Asking whether someone wants a quote is not itself a price commitment.
- // Actual amounts, special terms, financial actions and commitments stay held.
- return approvalNeeded(text) || /\$|\d\s*%|\b(refund|complaint|payment|invoice|contract|guarantee|discount|meeting|appointment|schedule a call|net\s*\d|credit|password|credentials|supplier)\b/i.test(text)
+ // An invitation to request a quote is not an actual quote or commitment.
+ // Declarative quote/pricing claims remain exceptions even without a number.
+ const quoteClaim=/\b(?:our|your|the)\s+(?:quote|price|pricing)\s+(?:is|are|will|has|have)\b|\b(?:here is|here's|attached is|approved|confirmed)\s+(?:your |our |the )?(?:quote|price|pricing)\b/i.test(text);
+ return quoteClaim || approvalNeeded(text) || /\$|\d\s*%|\b(refund|complaint|payment|invoice|contract|guarantee|discount|meeting|appointment|schedule a call|net\s*\d|credit|password|credentials|supplier)\b/i.test(text)
    || ['quote_request','meeting_request','escalate'].includes(meta.model_classification);
 }
 export function routineEligible(message,knowledge,env=process.env) {
@@ -42,17 +44,19 @@ export async function routeApproval(sql,message,settings,env=process.env,{follow
  // Existing legacy records are not opened, rewritten, approved or deleted.
  if(settings.required_draft_contract && (settings.required_draft_contract!==DRAFT_CONTRACT || message.ai_metadata?.generation_contract!==DRAFT_CONTRACT))return {status:'legacy_hold'};
  if(settings.cold_outreach_paused)return {status:'cold_outreach_hold'};
- // Review during a global pause is permitted, but never permits dispatch.
  if(!automationEnabled({...settings,paused:false},message.kind))return {status:'automation_disabled'};
  const [knowledge]=await sql`SELECT * FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1`;
  const meta=message.ai_metadata || {};
  if(!knowledge?.facts || meta.knowledge_version!==knowledge.version || !Array.isArray(meta.fact_ids)
    || !meta.fact_ids.length || !meta.fact_ids.every(k=>typeof k==='string' && Object.hasOwn(knowledge.facts,k)))
    return {status:'policy_hold',reason:'invalid_or_missing_business_fact_references'};
- const [contact]=await sql`SELECT research,suppressed_at FROM daniel_sales.contacts WHERE id=${message.contact_id}`;
+ const [contact]=await sql`SELECT c.research,c.suppressed_at,c.replied_at,EXISTS(SELECT 1 FROM daniel_sales.contacts peer WHERE peer.account_id=c.account_id AND peer.replied_at IS NOT NULL) AS account_replied FROM daniel_sales.contacts c WHERE c.id=${message.contact_id}`;
  if(!contact || contact.suppressed_at)return {status:'policy_hold',reason:'suppressed_or_missing_contact'};
+ if(contact.replied_at || contact.account_replied)return {status:'policy_hold',reason:'human_reply_received'};
  if(message.kind==='intro' && !introductionEvidenceEligible(message,contact.research))
    return {status:'independent_review_hold',reason:'current_verified_research_and_content_review_required'};
+ if(message.kind==='followup' && followupQualityIssues(message.body).length)
+   return {status:'independent_review_hold',reason:'followup_editorial_veto'};
  if(message.kind==='followup' && meta.generation_contract===DRAFT_CONTRACT && !currentFollowupReview(message)) {
   const prior=meta.followup_review;
   if(prior?.approved===false && prior?.response_id && prior.content_hash===followupHash(message))
@@ -63,8 +67,8 @@ export async function routeApproval(sql,message,settings,env=process.env,{follow
   message={...message,ai_metadata:{...message.ai_metadata,followup_review:review}};
   if(!currentFollowupReview(message))return {status:'independent_review_hold',reason:'followup_content_review_failed'};
  }
- // Only an independently checked draft with an actual business exception
- // enters the human approval queue. Quality/format failures remain drafts.
+ // Only a validated draft containing an actual business exception enters the
+ // human queue. A quality/schema failure is not a business exception.
  if(businessException(message,knowledge,env)) {
   if(message.ai_metadata.requires_approval!==true)return {status:'policy_hold',reason:'exception_metadata_inconsistent'};
   await requestApproval(sql,message.id,'daniel-worker');
@@ -78,8 +82,8 @@ export async function routeApproval(sql,message,settings,env=process.env,{follow
    ? introductionEligible(message,knowledge,contact.research,new Date(),env)
    : routineEligible(message,knowledge,env);
  if(!eligible)return {status:'policy_hold',reason:'routine_eligibility_failed'};
- // Create the durable decision record only AFTER every required check passes.
- // Routine decisions are immediately approved by policy, not left for Brandon.
+ // Durable decision record is created only after checks; policy approves it
+ // immediately instead of leaving routine outreach for Brandon to approve.
  await requestApproval(sql,message.id,'daniel-worker');
  const [approval]=await sql`SELECT id FROM daniel_sales.approvals WHERE message_id=${message.id} AND decision='pending'`;
  if(approval)await decide(sql,approval.id,'approved','Grounded routine outreach passed all eligibility and independent content checks; fresh-thread dispatch and pacing remain mandatory.','daniel-policy');
