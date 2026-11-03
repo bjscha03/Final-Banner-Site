@@ -1,5 +1,6 @@
--- Owner work order, November 3, 2026. Additive configuration only;
--- existing messages, approvals, tasks, suppressions and counters are preserved.
+-- Migration 007_prospecting_only_ramp, owner work order November 3, 2026.
+-- Additive configuration only. Existing messages, approvals, tasks,
+-- suppressions and quota counters are retained without mass updates.
 ALTER TABLE daniel_sales.settings ADD COLUMN IF NOT EXISTS auto_followup boolean NOT NULL DEFAULT false;
 ALTER TABLE daniel_sales.settings ADD COLUMN IF NOT EXISTS reply_mode text NOT NULL DEFAULT 'manual_only' CHECK (reply_mode='manual_only');
 ALTER TABLE daniel_sales.settings ADD COLUMN IF NOT EXISTS intro_daily_limit integer NOT NULL DEFAULT 25 CHECK (intro_daily_limit BETWEEN 0 AND 25);
@@ -9,9 +10,8 @@ ALTER TABLE daniel_sales.settings ADD COLUMN IF NOT EXISTS discovery_interval_mi
 ALTER TABLE daniel_sales.settings ADD COLUMN IF NOT EXISTS discovery_daily_limit integer NOT NULL DEFAULT 48 CHECK (discovery_daily_limit BETWEEN 0 AND 48);
 UPDATE daniel_sales.settings SET auto_reply=false,updated_at=now() WHERE id=1 AND auto_reply=true;
 
--- No caller-supplied clock or test-recipient permission can enable replies.
--- The supplied quota_limit remains for API compatibility; the database-owned
--- settings and first-ramp ceilings are authoritative.
+-- Caller-supplied limits, clocks and controlled-test permissions cannot enable
+-- prospect replies or override database-owned outbound limits.
 CREATE OR REPLACE FUNCTION daniel_sales.claim_dispatch_message(mid uuid, quota_limit integer, test_recipient text DEFAULT NULL) RETURNS SETOF daniel_sales.messages LANGUAGE plpgsql AS $$
 DECLARE
  m daniel_sales.messages;
@@ -29,10 +29,9 @@ BEGIN
  PERFORM pg_advisory_xact_lock(655,1);
  SELECT * INTO m FROM daniel_sales.messages WHERE id=mid FOR UPDATE;
  IF m.id IS NULL OR m.status<>'queued' OR m.due_at>now() OR m.approved_at IS NULL THEN RETURN; END IF;
- -- Permanent manual-only boundary, including already approved replies.
  IF m.kind='reply' OR m.kind NOT IN ('intro','followup') THEN RETURN; END IF;
  SELECT * INTO s FROM daniel_sales.settings WHERE id=1;
- IF s.id IS NULL OR s.paused OR s.cold_outreach_paused THEN RETURN; END IF;
+ IF s.id IS NULL OR s.paused OR s.cold_outreach_paused OR s.auto_reply OR s.reply_mode<>'manual_only' THEN RETURN; END IF;
  IF (m.kind='intro' AND NOT s.auto_prospect) OR (m.kind='followup' AND NOT s.auto_followup) THEN RETURN; END IF;
  SELECT * INTO c FROM daniel_sales.contacts WHERE id=m.contact_id FOR UPDATE;
  IF c.id IS NULL OR c.suppressed_at IS NOT NULL
@@ -43,28 +42,26 @@ BEGIN
   RETURN;
  END IF;
  IF EXISTS(SELECT 1 FROM daniel_sales.opportunities WHERE id=m.opportunity_id AND stage IN ('won','lost','do_not_contact')) THEN RETURN; END IF;
- -- Reinforce recovery isolation at the atomic claim boundary. Do not release
- -- or modify the old pending-approval backlog.
  IF s.required_draft_contract IS NOT NULL AND m.ai_metadata->>'generation_contract' IS DISTINCT FROM s.required_draft_contract THEN RETURN; END IF;
  local_now=now() AT TIME ZONE 'America/New_York';
  IF extract(isodow FROM local_now)>5 OR local_now::time<time '08:00' OR local_now::time>=time '20:00' THEN RETURN; END IF;
- k=m.kind;
- d=local_now::date;
+ k=m.kind;d=local_now::date;
  cap=CASE WHEN k='intro' THEN least(s.intro_daily_limit,25) ELSE least(s.followup_daily_limit,15) END;
  IF cap<=0 THEN RETURN; END IF;
  elapsed_minutes=extract(hour FROM local_now)::integer*60+extract(minute FROM local_now)::integer-480;
  allowance=cap;
  IF s.outreach_pacing_enabled THEN
-  -- Release each kind's allowance gradually over the twelve-hour window.
   allowance=least(cap,1+floor(elapsed_minutes*cap/720.0)::integer);
-  -- Across BOTH cold-message kinds, reserve at most one provider send in
-  -- each fifteen-minute slot, including unresolved provider outcomes.
   slot_start=to_timestamp(floor(extract(epoch FROM now())/900)*900);
+  -- One combined introduction/follow-up claim per slot. Also maintain a
+  -- ten-minute minimum gap across slot boundaries; missed slots never turn
+  -- into a catch-up burst. Uncertain deliveries conservatively occupy space.
   IF EXISTS(SELECT 1 FROM daniel_sales.messages prior
     WHERE prior.direction='outbound' AND prior.kind IN ('intro','followup')
       AND prior.status IN ('sending','uncertain','sent','simulated')
-      AND coalesce(prior.sent_at,prior.updated_at)>=slot_start
-      AND coalesce(prior.sent_at,prior.updated_at)<slot_start+interval '15 minutes') THEN RETURN; END IF;
+      AND ((coalesce(prior.sent_at,prior.updated_at)>=slot_start
+        AND coalesce(prior.sent_at,prior.updated_at)<slot_start+interval '15 minutes')
+        OR coalesce(prior.sent_at,prior.updated_at)>now()-interval '10 minutes')) THEN RETURN; END IF;
  END IF;
  INSERT INTO daniel_sales.daily_limits(local_date,kind) VALUES(d,k) ON CONFLICT DO NOTHING;
  SELECT sent_count+reserved_count INTO used FROM daniel_sales.daily_limits WHERE local_date=d AND kind=k FOR UPDATE;
