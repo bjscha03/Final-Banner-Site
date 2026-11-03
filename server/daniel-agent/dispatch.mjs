@@ -2,11 +2,11 @@ import { checkDispatchConversation } from './dispatch-safety.mjs';
 import { renderSalesEmail } from './email-design.mjs';
 import { validTeamOffer } from './team-offer.mjs';
 import { recoveryEligibility } from './recovery-policy.mjs';
-import { BUSINESS_ADDRESS, BOF_SENDER, verifySender } from "./identity.mjs";
-import { canDispatch, isEndBuyer } from "./operations.mjs";
+import { dailyLimit, sendKindAllowed } from './outreach-controls.mjs';
+import { BOF_SENDER, verifySender } from "./identity.mjs";
+import { canDispatch } from "./operations.mjs";
 import { mode, gmailTestRecipients } from "./config.mjs";
 import { sendGmail, listGmail, getGmail, header, gmailRequest } from "./gmail.mjs";
-import { escapeHtml } from "./validation.mjs";
 import { nextBusinessFollowup } from "./scheduling.mjs";
 import { audit } from "./store.mjs";
 export async function finish(sql, m, result, preview) {
@@ -34,60 +34,43 @@ export async function dispatch(
   if (gmailTest && !gmailTestRecipients(env).length) throw Error("Controlled Gmail testing is disabled or expired");
   const [storedSettings]=await sql`SELECT * FROM daniel_sales.settings WHERE id=1`;
   const settings=storedSettings || {paused:true};
-  if(settings.paused && !gmailTest) return {sent:0,gmailTestSent:0,simulated:0,blocked:0,held:0,paused:true};
-  const effectiveSettings=gmailTest?{...settings,paused:false}:settings;
+  if(settings.paused) return {sent:0,gmailTestSent:0,simulated:0,blocked:0,held:0,paused:true};
   const [knowledge]=settings.required_draft_contract ? await sql`SELECT * FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1` : [];
   if (!preview) await verifyIdentity(token, gmailRequest);
   let simulated = 0,
     sent = 0,
     blocked = 0,
     held = 0;
-  // Do not read old draft bodies during isolated recovery. Their status and
-  // approval records remain untouched and unresolved.
+  // Prospect replies are manual-only, including previously approved replies.
+  // Preserve their records; never select them for autonomous delivery.
+  // Legacy draft bodies remain excluded during isolated recovery.
   const queued =
-    await sql`SELECT * FROM daniel_sales.messages WHERE status='queued' AND due_at<=now() AND (NOT ${settings.cold_outreach_paused===true} OR kind='reply') AND (${settings.required_draft_contract || null}::text IS NULL OR ai_metadata->>'generation_contract'=${settings.required_draft_contract || null}) ORDER BY (kind='reply') DESC,due_at LIMIT 25`;
+    await sql`SELECT * FROM daniel_sales.messages WHERE status='queued' AND due_at<=now() AND kind IN ('intro','followup') AND NOT ${settings.cold_outreach_paused===true} AND (${settings.required_draft_contract || null}::text IS NULL OR ai_metadata->>'generation_contract'=${settings.required_draft_contract || null}) ORDER BY due_at,id LIMIT 25`;
   for (const item of queued) {
-    const recovery=recoveryEligibility(item,effectiveSettings,knowledge);
+    if(!sendKindAllowed(settings,item.kind)) {held++;continue;}
+    const recovery=recoveryEligibility(item,settings,knowledge);
     if(!recovery.ok) {held++;continue;}
     const [c] =
       await sql`SELECT c.*,a.segment,a.team_offer FROM daniel_sales.contacts c JOIN daniel_sales.accounts a ON a.id=c.account_id WHERE c.id=${item.contact_id}`;
     if (!c) continue;
     if (item.ai_metadata?.team_offer && (!validTeamOffer(item.ai_metadata.team_offer, env) || item.ai_metadata.team_offer.code !== c.team_offer?.code)) { held++; continue; }
-
     if (gmailTest && !gmailTestRecipients(env).includes(c.email.toLowerCase())) {
       held++;
       continue;
     }
     const [stats] =
       await sql`SELECT count(*) FILTER(WHERE kind='followup')::int AS followups,max(updated_at) AS last FROM daniel_sales.messages WHERE contact_id=${c.id} AND direction='outbound' AND status IN ('sent','simulated')`;
-    const guard =
-      item.kind === "reply"
-        ? {
-            ok:
-              !c.suppressed_at &&
-              isEndBuyer(c) &&
-              !!c.verified_source_url &&
-              !!item.thread_key && !!item.reply_to_id,
-          }
-        : canDispatch({
-            contact: { ...c, replied: !!c.replied_at },
-            account: c,
-            kind: item.kind,
-            now,
-            followups: stats.followups,
-            lastFollowupAt: stats.last,
-          });
+    const guard = canDispatch({
+      contact: { ...c, replied: !!c.replied_at },
+      account: c,
+      kind: item.kind,
+      now,
+      followups: stats.followups,
+      lastFollowupAt: stats.last,
+      limits:settings,
+    });
     if (!guard.ok) {
-      if (
-        [
-          "suppressed",
-          "reply_received",
-          "followup_limit",
-          "supplier_excluded",
-          "invalid_email",
-          "unverified_contact",
-        ].includes(guard.reason)
-      ) {
+      if (["suppressed","reply_received","followup_limit","supplier_excluded","invalid_email","unverified_contact"].includes(guard.reason)) {
         await sql`UPDATE daniel_sales.messages SET status='blocked',error=${guard.reason},updated_at=now() WHERE id=${item.id} AND status='queued'`;
         blocked++;
       } else held++;
@@ -107,21 +90,28 @@ export async function dispatch(
     }
     const recipient = conversation.recipient;
     if (gmailTest && !gmailTestRecipients(env).includes(recipient.toLowerCase())) { held++; continue; }
-    const [m] =
-      gmailTest ? await sql`SELECT * FROM daniel_sales.claim_test_message(${item.id}::uuid,${item.kind === "intro" ? 10 : 5},${c.email})` : await sql`SELECT * FROM daniel_sales.claim_message(${item.id}::uuid,${item.kind === "intro" ? 10 : 5})`;
+    // The database owns the atomic limits and pacing. This argument agrees
+    // with the same capped controls; it cannot override database enforcement.
+    const cap=dailyLimit(settings,item.kind);
+    const [m] = gmailTest
+      ? await sql`SELECT * FROM daniel_sales.claim_test_message(${item.id}::uuid,${cap},${c.email})`
+      : await sql`SELECT * FROM daniel_sales.claim_message(${item.id}::uuid,${cap})`;
     if (!m) {
       held++;
       continue;
     }
     try {
-      // Revalidate the actual claimed bytes, then check fresh controls and
-      // suppression immediately before the provider call.
-      const claimedRecovery=recoveryEligibility(m,effectiveSettings,knowledge);
+      // Re-read controls and validate the actual claimed bytes immediately
+      // before delivery. Neither manual approval nor controlled testing can
+      // authorize a prospect reply from Daniel.
+      const [freshSettings]=await sql`SELECT * FROM daniel_sales.settings WHERE id=1`;
+      const currentSettings=freshSettings || {paused:true};
+      const claimedRecovery=recoveryEligibility(m,currentSettings,knowledge);
       const [valid] =
-        await sql`SELECT c.id FROM daniel_sales.contacts c WHERE c.id=${c.id} AND c.suppressed_at IS NULL AND NOT EXISTS(SELECT 1 FROM daniel_sales.suppressions s WHERE s.email IN (lower(c.email),lower(${recipient}))) AND EXISTS(SELECT 1 FROM daniel_sales.settings s WHERE s.id=1 AND (${gmailTest} OR s.paused=false) AND (s.cold_outreach_paused=false OR ${m.kind}='reply') AND (s.required_draft_contract IS NULL OR (s.required_draft_contract=${m.ai_metadata?.generation_contract || null} AND ${m.ai_metadata?.knowledge_version || null}=(SELECT version FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1)))) AND NOT (${m.kind} IN ('intro','followup') AND EXISTS(SELECT 1 FROM daniel_sales.contacts p WHERE p.account_id=c.account_id AND p.replied_at IS NOT NULL))`;
-      if (!valid || !claimedRecovery.ok) {
+        await sql`SELECT c.id FROM daniel_sales.contacts c WHERE c.id=${c.id} AND c.suppressed_at IS NULL AND NOT EXISTS(SELECT 1 FROM daniel_sales.suppressions x WHERE x.email IN (lower(c.email),lower(${recipient}))) AND ${m.kind} IN ('intro','followup') AND EXISTS(SELECT 1 FROM daniel_sales.settings s WHERE s.id=1 AND s.paused=false AND s.cold_outreach_paused=false AND s.auto_reply=false AND s.reply_mode='manual_only' AND ((${m.kind}='intro' AND s.auto_prospect=true) OR (${m.kind}='followup' AND s.auto_followup=true)) AND (s.required_draft_contract IS NULL OR (s.required_draft_contract=${m.ai_metadata?.generation_contract || null} AND ${m.ai_metadata?.knowledge_version || null}=(SELECT version FROM daniel_sales.knowledge ORDER BY created_at DESC LIMIT 1)))) AND NOT EXISTS(SELECT 1 FROM daniel_sales.contacts p WHERE p.account_id=c.account_id AND p.replied_at IS NOT NULL) AND extract(isodow FROM clock_timestamp() AT TIME ZONE 'America/New_York')<=5 AND (clock_timestamp() AT TIME ZONE 'America/New_York')::time>=time '08:00' AND (clock_timestamp() AT TIME ZONE 'America/New_York')::time<time '20:00'`;
+      if (m.kind==='reply' || m.kind!==item.kind || !sendKindAllowed(currentSettings,m.kind) || currentSettings.auto_reply!==false || !valid || !claimedRecovery.ok) {
         await sql.transaction([
-          sql`UPDATE daniel_sales.messages SET status='blocked',error='Paused, suppressed, replied or recovery review changed before dispatch',updated_at=now() WHERE id=${m.id}`,
+          sql`UPDATE daniel_sales.messages SET status='blocked',error='Manual-only reply policy, outbound controls, window, suppression or conversation changed before dispatch',lease_until=NULL,updated_at=now() WHERE id=${m.id} AND status='sending'`,
           sql`UPDATE daniel_sales.daily_limits SET reserved_count=greatest(0,reserved_count-1) WHERE local_date=${m.quota_date} AND kind=${m.quota_kind}`,
         ]);
         blocked++;
@@ -129,19 +119,10 @@ export async function dispatch(
       }
       if (preview) {
         await sql`INSERT INTO daniel_sales.test_deliveries(message_id,recipient,subject,body,thread_key) VALUES(${m.id},${recipient},${m.subject},${m.body},${m.thread_key || "test:" + m.id}) ON CONFLICT DO NOTHING`;
-        await finish(
-          sql,
-          m,
-          { threadId: m.thread_key || "test:" + m.id },
-          true,
-        );
+        await finish(sql,m,{threadId:m.thread_key || "test:" + m.id},true);
         simulated++;
       } else {
-        if (
-          !token ||
-          env.DANIEL_SENDER_EMAIL !== BOF_SENDER
-        )
-          throw Error("Live sender configuration incomplete");
+        if (!token || env.DANIEL_SENDER_EMAIL !== BOF_SENDER) throw Error("Live sender configuration incomplete");
         if (gmailTest) {
           if (!gmailTestRecipients(env).includes(recipient.toLowerCase())) throw Error("Test recipient permission expired");
           await sql`UPDATE daniel_sales.messages SET ai_metadata=ai_metadata || '{"gmail_test":true}'::jsonb WHERE id=${m.id}`;
@@ -158,9 +139,8 @@ export async function dispatch(
           references: m.reply_to_id,
           rfcMessageId: m.rfc_message_id,
         });
-        // Gmail may replace the submitted RFC Message-ID. Retain its immutable
-        // provider ID before reading canonical headers, so a read failure can
-        // be reconciled without resending the already accepted message.
+        // Record Gmail acceptance before canonical-header reconciliation so
+        // uncertain outcomes cannot cause an automatic duplicate resend.
         await sql`UPDATE daniel_sales.messages SET provider_message_id=${result.id},thread_key=${result.threadId || m.thread_key} WHERE id=${m.id} AND status='sending'`;
         const delivered = await getMessage(token, result.id);
         result.rfcMessageId = header(delivered, "Message-ID");
@@ -170,12 +150,10 @@ export async function dispatch(
       }
     } catch (e) {
       await sql`UPDATE daniel_sales.messages SET status='uncertain',error='Delivery outcome requires reconciliation; not retried automatically',updated_at=now() WHERE id=${m.id} AND status='sending'`;
-      await audit(sql, "daniel-worker", "delivery_uncertain", "message", m.id, {
-        code: e.status || "network_or_commit",
-      });
+      await audit(sql, "daniel-worker", "delivery_uncertain", "message", m.id, {code:e.status || "network_or_commit"});
     }
   }
-  return { sent: gmailTest ? 0 : sent, gmailTestSent: gmailTest ? sent : 0, simulated, blocked, held, coldOutreachPaused:settings.cold_outreach_paused===true };
+  return {sent:gmailTest?0:sent,gmailTestSent:gmailTest?sent:0,simulated,blocked,held,coldOutreachPaused:settings.cold_outreach_paused===true};
 }
 export async function reconcile(sql, env, token, options = {}) {
   const getMessage = options.getMessage || getGmail;
@@ -186,18 +164,13 @@ export async function reconcile(sql, env, token, options = {}) {
   for (const m of pending) {
     const preview = mode(env) !== "live" && !m.ai_metadata?.gmail_test;
     if (preview) {
-      const [d] =
-        await sql`SELECT * FROM daniel_sales.test_deliveries WHERE message_id=${m.id}`;
+      const [d] = await sql`SELECT * FROM daniel_sales.test_deliveries WHERE message_id=${m.id}`;
       if (d) {
-        await finish(sql, m, { threadId: d.thread_key }, true);
+        await finish(sql, m, {threadId:d.thread_key}, true);
         recovered++;
-      } else
-        await sql`UPDATE daniel_sales.messages SET status='uncertain',error='Interrupted before test delivery; owner review required' WHERE id=${m.id}`;
+      } else await sql`UPDATE daniel_sales.messages SET status='uncertain',error='Interrupted before test delivery; owner review required' WHERE id=${m.id}`;
     } else if (token) {
-      const result = m.provider_message_id ? {messages:[{id:m.provider_message_id,threadId:m.thread_key}]} : await listMessages(
-        token,
-        "in:sent rfc822msgid:" + m.rfc_message_id.replace(/[<>]/g, ""),
-      );
+      const result = m.provider_message_id ? {messages:[{id:m.provider_message_id,threadId:m.thread_key}]} : await listMessages(token,"in:sent rfc822msgid:" + m.rfc_message_id.replace(/[<>]/g, ""));
       if (result.messages?.length) {
         const delivered = await getMessage(token, result.messages[0].id);
         const canonical = header(delivered,"Message-ID");
@@ -207,15 +180,9 @@ export async function reconcile(sql, env, token, options = {}) {
           recovered++;
           continue;
         }
-        await finish(
-          sql,
-          m,
-          { id: result.messages[0].id, threadId: result.messages[0].threadId, rfcMessageId:canonical },
-          false,
-        );
+        await finish(sql,m,{id:result.messages[0].id,threadId:result.messages[0].threadId,rfcMessageId:canonical},false);
         recovered++;
-      } else
-        await sql`UPDATE daniel_sales.messages SET status='uncertain',error='No Gmail confirmation yet. Held to prevent duplicate sending.' WHERE id=${m.id}`;
+      } else await sql`UPDATE daniel_sales.messages SET status='uncertain',error='No Gmail confirmation yet. Held to prevent duplicate sending.' WHERE id=${m.id}`;
     }
   }
   return { recovered };
