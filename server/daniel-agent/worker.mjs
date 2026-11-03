@@ -30,7 +30,6 @@ export async function runWorker(env=process.env,options={}) {
    options={...options,now:new Date(options.testNow)};summary.testClock=options.now.toISOString();
   }
   summary.gmailTest=options.gmailTest===true;
-  const [settings]=await sql`SELECT * FROM daniel_sales.settings WHERE id=1`;
   const [box]=await sql`SELECT email,encrypted_refresh_token FROM daniel_sales.mailbox WHERE id=1`;
   if(box?.encrypted_refresh_token) {
    try {
@@ -48,21 +47,25 @@ export async function runWorker(env=process.env,options={}) {
    }
   }
   const [freshSettings]=await sql`SELECT * FROM daniel_sales.settings WHERE id=1`;
-  summary.controls={paused:freshSettings.paused===true,coldOutreachPaused:freshSettings.cold_outreach_paused===true,requiredDraftContract:freshSettings.required_draft_contract || null};
+  summary.controls={paused:freshSettings.paused===true,coldOutreachPaused:freshSettings.cold_outreach_paused===true,autoReply:freshSettings.auto_reply===true,replyMode:'manual_only',autoFollowup:freshSettings.auto_followup===true,autoProspect:freshSettings.auto_prospect===true,requiredDraftContract:freshSettings.required_draft_contract || null};
   if(freshSettings.paused && !options.gmailTest) {
    summary.status='paused';summary.report=await report(sql);return summary;
   }
   if((mode(env)==='live' || options.gmailTest) && !token)throw Error('Live worker requires a connected mailbox');
   if((mode(env)==='live' || options.gmailTest) && !summary.inbox?.complete){summary.status='syncing';return summary;}
-  const effectiveSettings=options.gmailTest?{...freshSettings,auto_reply:true,auto_prospect:options.discover===true}:freshSettings;
+  // November 3 operating model: people handle every prospect response.
+  // Neither production runs nor controlled tests may enable reply automation.
+  // The independent follow-up control is enabled only by the reviewed migration.
+  const effectiveSettings={...freshSettings,auto_reply:false,auto_prospect:options.gmailTest?options.discover===true:freshSettings.auto_prospect};
   summary.reconciliation=await reconcile(sql,env,token);
+  // Filter before LIMIT so manual reply tasks cannot starve non-responder bumps.
   const tasks=options.gmailTest
-   ? await sql`SELECT t.* FROM daniel_sales.tasks t JOIN daniel_sales.contacts c ON c.id=t.contact_id WHERE t.status='pending' AND t.due_at<=now() AND t.kind IN ('followup','reply') AND lower(c.email)=ANY(${testRecipients}::text[]) AND (NOT ${effectiveSettings.cold_outreach_paused===true} OR t.kind='reply') ORDER BY (t.kind='reply') DESC,t.due_at LIMIT 3`
-   : await sql`SELECT * FROM daniel_sales.tasks WHERE status='pending' AND due_at<=now() AND kind IN ('followup','reply') AND (NOT ${effectiveSettings.cold_outreach_paused===true} OR kind='reply') ORDER BY (kind='reply') DESC,due_at LIMIT 3`;
+   ? await sql`SELECT t.* FROM daniel_sales.tasks t JOIN daniel_sales.contacts c ON c.id=t.contact_id WHERE t.status='pending' AND t.due_at<=now() AND t.kind='followup' AND lower(c.email)=ANY(${testRecipients}::text[]) AND ${effectiveSettings.auto_followup===true} AND NOT ${effectiveSettings.cold_outreach_paused===true} ORDER BY t.due_at LIMIT 3`
+   : await sql`SELECT * FROM daniel_sales.tasks WHERE status='pending' AND due_at<=now() AND kind='followup' AND ${effectiveSettings.auto_followup===true} AND NOT ${effectiveSettings.cold_outreach_paused===true} ORDER BY due_at LIMIT 3`;
   for(const t of tasks) {
-   if(!effectiveSettings.auto_reply)continue;
+   if(t.kind!=='followup' || effectiveSettings.auto_followup!==true || effectiveSettings.cold_outreach_paused)continue;
    const [c]=await sql`SELECT * FROM daniel_sales.contacts WHERE id=${t.contact_id}`;
-   if(!c || c.suppressed_at || (t.kind==='followup' && c.replied_at)){await sql`UPDATE daniel_sales.tasks SET status='cancelled' WHERE id=${t.id}`;continue;}
+   if(!c || c.suppressed_at || c.replied_at){await sql`UPDATE daniel_sales.tasks SET status='cancelled' WHERE id=${t.id}`;continue;}
    if(Number(t.attempt_count)>=MAX_DRAFT_ATTEMPTS) {
     await sql`UPDATE daniel_sales.tasks SET status='needs_review',note='Retry ceiling reached. Held for review; original attempts and history retained.' WHERE id=${t.id} AND status='pending'`;
     await audit(sql,'daniel-worker','draft_retry_exhausted','task',t.id,{attempts:t.attempt_count,kind:t.kind,max_attempts:MAX_DRAFT_ATTEMPTS});
@@ -89,9 +92,9 @@ export async function runWorker(env=process.env,options={}) {
      if(!prepared){summary.draftHolds=(summary.draftHolds || 0)+1;summary.health='needs_attention';}
      continue;
     }
-    const draft=t.kind==='followup' && effectiveSettings.required_draft_contract
+    const draft=effectiveSettings.required_draft_contract
       ? await generateReviewedFollowup(sql,c.id,env,{generator:options.generateDraft || generateDraft,reviewer:options.reviewFollowup})
-      : await (options.generateDraft || generateDraft)(sql,c.id,t.kind,env);
+      : await (options.generateDraft || generateDraft)(sql,c.id,'followup',env);
     const m=await saveDraft(sql,{...draft,idempotency_key:'task:'+t.id},'daniel-worker');
     const review=await routeApproval(sql,m,effectiveSettings,env);
     const prepared=review?.status==='approved';
