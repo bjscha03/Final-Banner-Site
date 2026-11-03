@@ -1,5 +1,10 @@
 import fs from "node:fs/promises";
 import { database } from "./db.mjs";
+export const MIGRATION_FILES = Object.freeze([
+  "001_sales_agent.sql", "002_complete_agent.sql", "003_autonomous.sql",
+  "004_reply_safety.sql", "005_team_offer.sql", "006_isolated_recovery.sql",
+  "007_prospecting_only_ramp.sql",
+]);
 export function statements(source) {
   const out = [];
   let current = "",
@@ -42,11 +47,8 @@ export function statements(source) {
   return out;
 }
 export async function migrate(sql) {
-  for (const f of ["001_sales_agent.sql", "002_complete_agent.sql", "003_autonomous.sql", "004_reply_safety.sql", "005_team_offer.sql", "006_isolated_recovery.sql"]) {
-    const source = await fs.readFile(
-      new URL("./migrations/" + f, import.meta.url),
-      "utf8",
-    );
+  for (const f of MIGRATION_FILES) {
+    const source = await fs.readFile(new URL("./migrations/" + f, import.meta.url), "utf8");
     await sql.transaction(statements(source).map((s) => sql(s)));
   }
 }

@@ -1,125 +1,125 @@
-import { discover } from './discovery.mjs';
-import { emailDailyReport } from './report-email.mjs';
-import { randomUUID } from 'node:crypto';
-import { database } from './db.mjs';
-import { accessToken } from './gmail.mjs';
-import { syncMailbox,syncControlledInbox } from './mail-sync.mjs';
-import { dispatch,reconcile } from './dispatch.mjs';
-import { generateDraft } from './ai.mjs';
-import { generateReviewedFollowup } from './reviewed-followup.mjs';
-import { saveDraft,audit } from './store.mjs';
-import { report } from './reporting.mjs';
-import { mode,gmailTestRecipients } from './config.mjs';
-import { routeApproval } from './automation.mjs';
-import { MAX_DRAFT_ATTEMPTS,retryDecision } from './draft-quality.mjs';
-export async function runWorker(env=process.env,options={}) {
+import {discover} from './discovery.mjs';
+import {emailDailyReport} from './report-email.mjs';
+import {randomUUID} from 'node:crypto';
+import {database} from './db.mjs';
+import {accessToken} from './gmail.mjs';
+import {syncMailbox,syncControlledInbox} from './mail-sync.mjs';
+import {dispatch,reconcile} from './dispatch.mjs';
+import {generateDraft} from './ai.mjs';
+import {generateReviewedFollowup} from './reviewed-followup.mjs';
+import {saveDraft,audit} from './store.mjs';
+import {report} from './reporting.mjs';
+import {mode,gmailTestRecipients} from './config.mjs';
+import {routeApproval} from './automation.mjs';
+import {MAX_DRAFT_ATTEMPTS,retryDecision} from './draft-quality.mjs';
+import {configurationReady,controlsSnapshot} from './outreach-controls.mjs';
+export async function runWorker(env=process.env,options={}){
  const sql=options.sql || database(env),owner=randomUUID();
  const [lock]=await sql`INSERT INTO daniel_sales.worker_locks(name,owner,expires_at) VALUES('worker',${owner},now()+interval '14 minutes') ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,expires_at=excluded.expires_at WHERE daniel_sales.worker_locks.expires_at<now() RETURNING owner`;
- if(!lock) {
+ if(!lock){
   if(options.runId)await sql`UPDATE daniel_sales.runs SET status='busy',completed_at=now(),summary='{"reason":"Another worker owns the lease"}'::jsonb WHERE id=${options.runId} AND status='queued'`;
   return {status:'busy',outboundSends:0};
  }
  const [run]=options.runId?await sql`UPDATE daniel_sales.runs SET status='running' WHERE id=${options.runId} AND status='queued' RETURNING id`:await sql`INSERT INTO daniel_sales.runs(status) VALUES('running') RETURNING id`;
- if(!run){await sql`DELETE FROM daniel_sales.worker_locks WHERE name='worker' AND owner=${owner}`;return{status:'already_processed'};}
+ if(!run){await sql`DELETE FROM daniel_sales.worker_locks WHERE name='worker' AND owner=${owner}`;return {status:'already_processed'};}
  let token,summary={mode:mode(env),sent:0,simulated:0};
- try {
+ try{
   const testRecipients=options.gmailTest?gmailTestRecipients(env):[];
   if(options.gmailTest && !testRecipients.length)throw Error('Controlled Gmail testing is disabled or expired');
-  if(options.testNow!==undefined) {
+  if(options.testNow!==undefined){
    if(!options.gmailTest || !Number.isFinite(Date.parse(options.testNow)))throw Error('Test clock requires controlled acceptance permission');
    options={...options,now:new Date(options.testNow)};summary.testClock=options.now.toISOString();
   }
   summary.gmailTest=options.gmailTest===true;
-  const [settings]=await sql`SELECT * FROM daniel_sales.settings WHERE id=1`;
   const [box]=await sql`SELECT email,encrypted_refresh_token FROM daniel_sales.mailbox WHERE id=1`;
-  if(box?.encrypted_refresh_token) {
-   try {
+  if(box?.encrypted_refresh_token){
+   try{
     token=await (options.accessToken || accessToken)(env,sql);
-    for(let page=0;page<5;page++) {
+    for(let page=0;page<5;page++){
      const current=options.gmailTest?await syncControlledInbox(sql,token,env):await (options.syncMailbox || syncMailbox)(sql,token);
      const previous=summary.inbox || {count:0,created:0,duplicates:0};
      summary.inbox={...current,count:previous.count+(current.count||0),created:previous.created+(current.created||0),duplicates:previous.duplicates+(current.duplicates||0)};
      if(current.complete || current.reset || options.gmailTest)break;
     }
-   } catch(e) {
+   }catch(e){
     await sql`UPDATE daniel_sales.mailbox SET last_error='Mailbox sync failed; check Gmail connection',last_sync_at=now() WHERE id=1`;
     summary.gmailError='Mailbox sync failed';
     if(mode(env)==='live' || options.gmailTest)throw e;
    }
   }
   const [freshSettings]=await sql`SELECT * FROM daniel_sales.settings WHERE id=1`;
-  summary.controls={paused:freshSettings.paused===true,coldOutreachPaused:freshSettings.cold_outreach_paused===true,requiredDraftContract:freshSettings.required_draft_contract || null};
-  if(freshSettings.paused && !options.gmailTest) {
-   summary.status='paused';summary.report=await report(sql);return summary;
+  summary.controls=controlsSnapshot(freshSettings || {});
+  if(freshSettings?.paused){summary.status='paused';summary.report=await report(sql);return summary;}
+  // A code deployment cannot start outreach against the old schema, and an
+  // inconsistent reply flag must not be masked as a successful activation.
+  if(!configurationReady(freshSettings || {})){
+   summary.status='configuration_hold';summary.health='needs_attention';
+   summary.reason='Install the matching prospecting-only migration and retain auto_reply=false before activating outbound work.';
+   summary.report=await report(sql);return summary;
   }
   if((mode(env)==='live' || options.gmailTest) && !token)throw Error('Live worker requires a connected mailbox');
   if((mode(env)==='live' || options.gmailTest) && !summary.inbox?.complete){summary.status='syncing';return summary;}
-  const effectiveSettings=options.gmailTest?{...freshSettings,auto_reply:true,auto_prospect:options.discover===true}:freshSettings;
+  // No production or controlled-test option authorizes prospect replies.
+  const effectiveSettings={...freshSettings,auto_reply:false,auto_prospect:options.gmailTest?options.discover===true:freshSettings.auto_prospect};
   summary.reconciliation=await reconcile(sql,env,token);
+  // Filter before LIMIT so manual reply tasks cannot starve autonomous bumps.
   const tasks=options.gmailTest
-   ? await sql`SELECT t.* FROM daniel_sales.tasks t JOIN daniel_sales.contacts c ON c.id=t.contact_id WHERE t.status='pending' AND t.due_at<=now() AND t.kind IN ('followup','reply') AND lower(c.email)=ANY(${testRecipients}::text[]) AND (NOT ${effectiveSettings.cold_outreach_paused===true} OR t.kind='reply') ORDER BY (t.kind='reply') DESC,t.due_at LIMIT 3`
-   : await sql`SELECT * FROM daniel_sales.tasks WHERE status='pending' AND due_at<=now() AND kind IN ('followup','reply') AND (NOT ${effectiveSettings.cold_outreach_paused===true} OR kind='reply') ORDER BY (kind='reply') DESC,due_at LIMIT 3`;
-  for(const t of tasks) {
-   if(!effectiveSettings.auto_reply)continue;
+   ? await sql`SELECT t.* FROM daniel_sales.tasks t JOIN daniel_sales.contacts c ON c.id=t.contact_id WHERE t.status='pending' AND t.due_at<=now() AND t.kind='followup' AND lower(c.email)=ANY(${testRecipients}::text[]) AND ${effectiveSettings.auto_followup===true} AND NOT ${effectiveSettings.cold_outreach_paused===true} ORDER BY t.due_at LIMIT 3`
+   : await sql`SELECT * FROM daniel_sales.tasks WHERE status='pending' AND due_at<=now() AND kind='followup' AND ${effectiveSettings.auto_followup===true} AND NOT ${effectiveSettings.cold_outreach_paused===true} ORDER BY due_at LIMIT 3`;
+  for(const t of tasks){
+   if(t.kind!=='followup' || effectiveSettings.auto_followup!==true || effectiveSettings.cold_outreach_paused)continue;
    const [c]=await sql`SELECT * FROM daniel_sales.contacts WHERE id=${t.contact_id}`;
-   if(!c || c.suppressed_at || (t.kind==='followup' && c.replied_at)){await sql`UPDATE daniel_sales.tasks SET status='cancelled' WHERE id=${t.id}`;continue;}
-   if(Number(t.attempt_count)>=MAX_DRAFT_ATTEMPTS) {
+   if(!c || c.suppressed_at || c.replied_at){await sql`UPDATE daniel_sales.tasks SET status='cancelled' WHERE id=${t.id}`;continue;}
+   if(Number(t.attempt_count)>=MAX_DRAFT_ATTEMPTS){
     await sql`UPDATE daniel_sales.tasks SET status='needs_review',note='Retry ceiling reached. Held for review; original attempts and history retained.' WHERE id=${t.id} AND status='pending'`;
     await audit(sql,'daniel-worker','draft_retry_exhausted','task',t.id,{attempts:t.attempt_count,kind:t.kind,max_attempts:MAX_DRAFT_ATTEMPTS});
-    summary.draftHolds=(summary.draftHolds || 0)+1;
-    summary.health='needs_attention';
-    continue;
+    summary.draftHolds=(summary.draftHolds || 0)+1;summary.health='needs_attention';continue;
    }
-   try {
-    if(effectiveSettings.required_draft_contract) {
-     // Inspect only the contract marker, not legacy draft content. Do not
-     // regenerate over an existing idempotency key or release its hold.
+   try{
+    if(effectiveSettings.required_draft_contract){
      const [legacy]=await sql`SELECT id,ai_metadata->>'generation_contract' AS generation_contract FROM daniel_sales.messages WHERE idempotency_key=${'task:'+t.id}`;
-     if(legacy && legacy.generation_contract!==effectiveSettings.required_draft_contract) {
+     if(legacy && legacy.generation_contract!==effectiveSettings.required_draft_contract){
       await sql`UPDATE daniel_sales.tasks SET status='needs_review',note='Existing legacy draft remains quarantined; individual review is unresolved.' WHERE id=${t.id} AND status='pending'`;
       await audit(sql,'daniel-worker','legacy_draft_retained','task',t.id,{message_id:legacy.id});
       summary.draftHolds=(summary.draftHolds || 0)+1;summary.health='needs_attention';continue;
      }
     }
     const [existing]=await sql`SELECT * FROM daniel_sales.messages WHERE idempotency_key=${'task:'+t.id}`;
-    if(existing) {
+    if(existing){
      const review=await routeApproval(sql,existing,effectiveSettings,env);
      const prepared=['queued','sent','simulated'].includes(existing.status) || review?.status==='approved';
      await sql`UPDATE daniel_sales.tasks SET status=${prepared?'completed':'needs_review'},note=${prepared?'Draft preparation completed; delivery status is tracked separately.':'Prepared draft remains held: '+(review?.status || 'review_required')} WHERE id=${t.id}`;
-     if(!prepared){summary.draftHolds=(summary.draftHolds || 0)+1;summary.health='needs_attention';}
-     continue;
+     if(!prepared){summary.draftHolds=(summary.draftHolds || 0)+1;summary.health='needs_attention';}continue;
     }
-    const draft=t.kind==='followup' && effectiveSettings.required_draft_contract
-      ? await generateReviewedFollowup(sql,c.id,env,{generator:options.generateDraft || generateDraft,reviewer:options.reviewFollowup})
-      : await (options.generateDraft || generateDraft)(sql,c.id,t.kind,env);
+    const draft=effectiveSettings.required_draft_contract
+     ? await generateReviewedFollowup(sql,c.id,env,{generator:options.generateDraft || generateDraft,reviewer:options.reviewFollowup})
+     : await (options.generateDraft || generateDraft)(sql,c.id,'followup',env);
     const m=await saveDraft(sql,{...draft,idempotency_key:'task:'+t.id},'daniel-worker');
-    const review=await routeApproval(sql,m,effectiveSettings,env);
-    const prepared=review?.status==='approved';
+    const review=await routeApproval(sql,m,effectiveSettings,env),prepared=review?.status==='approved';
     await sql`UPDATE daniel_sales.tasks SET status=${prepared?'completed':'needs_review'},attempt_count=attempt_count+1,note=${prepared?'Draft preparation completed; delivery status is tracked separately.':'Prepared draft remains held: '+(review?.status || 'review_required')} WHERE id=${t.id}`;
     if(!prepared){summary.draftHolds=(summary.draftHolds || 0)+1;summary.health='needs_attention';}
-   } catch(e) {
+   }catch(e){
     const failure=retryDecision(t.attempt_count,e);
     const note=failure.code+': '+failure.note+(failure.status==='needs_review'?' Review required; automatic retries stopped.':' A bounded retry is scheduled.');
     await sql`UPDATE daniel_sales.tasks SET attempt_count=attempt_count+1,status=${failure.status},due_at=now()+(${failure.delayHours}::int * interval '1 hour'),note=${note} WHERE id=${t.id} AND status='pending'`;
     await audit(sql,'daniel-worker','draft_attempt_failed','task',t.id,{kind:t.kind,attempts:failure.attempts,code:failure.code,status:failure.status});
-    summary.draftErrors=(summary.draftErrors || 0)+1;
-    summary.health='needs_attention';
+    summary.draftErrors=(summary.draftErrors || 0)+1;summary.health='needs_attention';
     if(failure.status==='needs_review')summary.draftHolds=(summary.draftHolds || 0)+1;
    }
   }
-  if(!effectiveSettings.cold_outreach_paused && ((!options.gmailTest && freshSettings.auto_prospect) || (options.gmailTest && options.discover))) {
+  if(!effectiveSettings.cold_outreach_paused && ((!options.gmailTest && freshSettings.auto_prospect) || (options.gmailTest && options.discover))){
    try{summary.discovery=await discover(sql,env,effectiveSettings,options);}catch(e){summary.discoveryError=String(e.message).slice(0,500);summary.health='needs_attention';}
   }
   Object.assign(summary,await dispatch(sql,env,token,options));summary.report=await report(sql);
   if(summary.report.pendingApprovals>0 || summary.report.uncertain>0)summary.health='needs_attention';
-  if(!options.gmailTest || options.sendReport) {
+  if(!options.gmailTest || options.sendReport){
    try{summary.reportEmail=await emailDailyReport(sql,env,token,options);}catch{summary.reportError='Daily email failed or uncertain; inspect report outbox';summary.health='needs_attention';}
   }
   summary.status='completed';return summary;
- } catch(e) {
+ }catch(e){
   summary.status='failed';summary.error='Worker stopped safely; inspect connections and audit log';
   await audit(sql,'daniel-worker','worker_failed','run',run.id,{error_type:e.status || 'runtime'});throw e;
- } finally {
+ }finally{
   await sql`UPDATE daniel_sales.runs SET status=${summary.status || 'completed'},completed_at=now(),summary=${JSON.stringify(summary)}::jsonb WHERE id=${run.id}`;
   await sql`DELETE FROM daniel_sales.worker_locks WHERE name='worker' AND owner=${owner}`;
  }

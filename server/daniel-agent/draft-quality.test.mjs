@@ -35,15 +35,15 @@ test('team offers belong in introductions or explicit requested replies, never a
  assert.equal(shouldAppendTeamOffer('reply','conversation','Thank you for the information.'),false);
  assert.equal(shouldAppendTeamOffer('reply','conversation','How do we use the discount code?'),true);
 });
-function workerFixture(attemptCount){
+function workerFixture(attemptCount,kind='followup'){
  const writes=[];
- const task={id:'task-test',kind:'followup',contact_id:'contact-test',status:'pending',attempt_count:attemptCount};
+ const task={id:'task-test',kind,contact_id:'contact-test',status:'pending',attempt_count:attemptCount};
  const sql=async(strings,...values)=>{
   const q=strings.join('?').replace(/\s+/g,' ').trim();
   if(/^(INSERT|UPDATE|DELETE|WITH)/.test(q))writes.push({q,values});
   if(q.startsWith('INSERT INTO daniel_sales.worker_locks'))return[{owner:'test'}];
   if(q.startsWith('INSERT INTO daniel_sales.runs'))return[{id:'run-test'}];
-  if(q.startsWith('SELECT * FROM daniel_sales.settings'))return[{paused:false,auto_reply:true,auto_prospect:false}];
+  if(q.startsWith('SELECT * FROM daniel_sales.settings'))return[{paused:false,cold_outreach_paused:false,auto_reply:false,reply_mode:'manual_only',auto_followup:true,auto_prospect:false,intro_daily_limit:25,followup_daily_limit:15,discovery_interval_minutes:15,discovery_daily_limit:48,outreach_pacing_enabled:true}];
   if(q.startsWith('SELECT email,encrypted_refresh_token'))return[];
   if(q.startsWith("SELECT * FROM daniel_sales.tasks WHERE status='pending'"))return[task];
   if(q.startsWith('SELECT * FROM daniel_sales.contacts WHERE'))return[{id:'contact-test',email:'test@example.invalid',suppressed_at:null,replied_at:null}];
@@ -76,4 +76,10 @@ test('worker stops on the third failure and never marks unsuccessful preparation
  assert.equal(result.draftHolds,1);assert.equal(result.sent,0);
  assert.ok(f.writes.some(x=>x.q.includes('attempt_count=attempt_count+1,status=')&&x.values[0]==='needs_review'));
  assert.ok(!f.writes.some(x=>x.q.includes("SET status='completed'")));
+});
+test('worker never drafts a reply even if a malformed task query returns one',async()=>{
+ const f=workerFixture(0,'reply');let generated=0;
+ const result=await runWorker({DANIEL_AGENT_MODE:'preview'},{sql:f.sql,generateDraft:async()=>{generated++;throw Error('Reply generation is forbidden');}});
+ assert.equal(generated,0);assert.equal(result.sent,0);assert.equal(result.simulated,0);
+ assert.ok(!f.writes.some(x=>x.q.startsWith('UPDATE daniel_sales.tasks')));
 });
