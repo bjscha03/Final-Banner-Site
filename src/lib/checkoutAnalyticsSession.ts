@@ -50,14 +50,15 @@ export function markCheckoutInitiated(fingerprint: string): boolean {
 }
 
 /** Deduplicate the readiness signal by payment provider/method per checkout. */
-export function markPaymentFieldsReady(provider: string, method: string = ''): boolean {
-  const active = read(ACTIVE);
-  if (!active || read(PREFIX + 'begun') !== '1') return false;
+export function markPaymentFieldsReady(provider: string, method: string = '', fingerprint: string): boolean {
+  if (!fingerprint || fingerprint === '[]') return false;
   const key = provider + ':' + method;
-  const seen = new Set(JSON.parse(read(PREFIX + 'payment-ready') || '[]') as string[]);
+  const stored = read(PREFIX + 'payment-ready');
+  const state = stored ? JSON.parse(stored) as { fingerprint: string; methods: string[] } : null;
+  const seen = new Set(state?.fingerprint === fingerprint ? state.methods : []);
   if (seen.has(key)) return false;
   seen.add(key);
-  write(PREFIX + 'payment-ready', JSON.stringify([...seen]));
+  write(PREFIX + 'payment-ready', JSON.stringify({ fingerprint, methods: [...seen] }));
   return true;
 }
 
