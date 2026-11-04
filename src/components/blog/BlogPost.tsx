@@ -24,7 +24,7 @@ export function BlogPost({ post, relatedPosts }: BlogPostProps) {
   const { frontmatter, html, readingTime } = post;
   const responsiveHtml = useMemo(() => {
     const content = withResponsiveTables(html);
-    const headings = [...content.matchAll(/<h2\\b[^>]*>/gi)];
+    const headings = [...content.matchAll(/<h2\b[^>]*>/gi)];
     if (headings.length < 2) return content;
     const next = headings[2]?.index ?? content.length;
     const lastParagraph = content.slice(0, next).lastIndexOf('</p>');
