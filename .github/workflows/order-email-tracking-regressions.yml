@@ -520,6 +520,31 @@ jobs:
             "$PREVIEW_URL/.netlify/functions/ai-designer-worker-background")
           test "$code" = "202"
 
+  organic-popup-real-preview-acceptance:
+    needs: deploy-preview-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Exercise real protected Netlify preview in browser
+        env:
+          PREVIEW_URL: https://deploy-preview-699--bannersonthefly.netlify.app
+          PREVIEW_ACCESS_PASSWORD: ${{ secrets.VITE_PREVIEW_ACCESS_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PREVIEW_ACCESS_PASSWORD:-}" ]; then
+            echo "Required GitHub Actions secret VITE_PREVIEW_ACCESS_PASSWORD is unavailable; acceptance blocked"
+            exit 1
+          fi
+          echo "::add-mask::$PREVIEW_ACCESS_PASSWORD"
+          node scripts/verify-organic-popup-real-preview.mjs
+
   cross-browser-preview-matrix:
     needs: regression-checks
     runs-on: ubuntu-latest
