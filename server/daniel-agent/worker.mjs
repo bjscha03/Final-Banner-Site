@@ -100,9 +100,11 @@ export async function runWorker(env=process.env,options={}){
     if(!prepared){summary.draftHolds=(summary.draftHolds || 0)+1;summary.health='needs_attention';}
    }catch(e){
     const failure=retryDecision(t.attempt_count,e);
-    const note=failure.code+': '+failure.note+(failure.status==='needs_review'?' Review required; automatic retries stopped.':' A bounded retry is scheduled.');
+    // Preserve a bounded, redacted diagnostic for future root-cause analysis.
+    const diagnostic=String(e?.message || e?.code || 'unknown_drafting_failure').replace(/sk-[A-Za-z0-9_-]+/g,'[redacted]').slice(0,300);
+    const note=failure.code+': '+diagnostic+'; '+failure.note+(failure.status==='needs_review'?' Review required; automatic retries stopped.':' A bounded retry is scheduled.');
     await sql`UPDATE daniel_sales.tasks SET attempt_count=attempt_count+1,status=${failure.status},due_at=now()+(${failure.delayHours}::int * interval '1 hour'),note=${note} WHERE id=${t.id} AND status='pending'`;
-    await audit(sql,'daniel-worker','draft_attempt_failed','task',t.id,{kind:t.kind,attempts:failure.attempts,code:failure.code,status:failure.status});
+    await audit(sql,'daniel-worker','draft_attempt_failed','task',t.id,{kind:t.kind,attempts:failure.attempts,code:failure.code,status:failure.status,diagnostic});
     summary.draftErrors=(summary.draftErrors || 0)+1;summary.health='needs_attention';
     if(failure.status==='needs_review')summary.draftHolds=(summary.draftHolds || 0)+1;
    }
