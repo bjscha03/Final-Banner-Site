@@ -1,118 +1,26 @@
-import { useState, useEffect, useRef } from 'react';
-
-interface UsePromoPopupOptions {
-  delaySeconds?: number; // Delay before showing popup (default: immediate)
-  enableExitIntent?: boolean; // Show on exit intent (desktop only)
-}
-
-type PopupSource = 'first_visit' | 'exit_intent';
-
-export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
-  const { delaySeconds = 0, enableExitIntent = true } = options;
+import { useEffect, useState } from 'react';
+const KEY = 'bof_email_popup_last_shown';
+export function usePromoPopup() {
   const [showPopup, setShowPopup] = useState(false);
-  const [popupSource, setPopupSource] = useState<PopupSource>('first_visit');
-  const [hasShownInitialPopup, setHasShownInitialPopup] = useState(false);
-  const isPermanentlySuppressed = useRef(false);
-
   useEffect(() => {
-    // Check if user already received their code (permanent dismissal)
-    // If user already got their code, NEVER show popup again
-    if (localStorage.getItem('promo_code_received') === 'true') {
-      console.log('[usePromoPopup] User already received code - popup permanently suppressed');
-      isPermanentlySuppressed.current = true;
-      setShowPopup(false);
-      return;
-    }
-
-    // Check if user submitted email (permanent dismissal - even if they didn't complete the flow)
-    if (localStorage.getItem('promo_email_submitted') === 'true') {
-      console.log('[usePromoPopup] User already submitted email - popup permanently suppressed');
-      isPermanentlySuppressed.current = true;
-      setShowPopup(false);
-      return;
-    }
-
-    // Check for temporary dismissal (72-hour cooldown for X button clicks)
-    const dismissedAt = localStorage.getItem('promo_popup_dismissed');
-    
-    if (dismissedAt) {
-      const expiryDate = new Date(dismissedAt);
-      if (expiryDate > new Date()) {
-        console.log('[usePromoPopup] Popup suppressed until:', expiryDate);
-        return;
-      } else {
-        // Expired, clear it
-        localStorage.removeItem('promo_popup_dismissed');
-      }
-    }
-
-    // Timer-based display (first visit ONLY)
-    const timer = setTimeout(() => {
-      if (!hasShownInitialPopup && !isPermanentlySuppressed.current) {
-        console.log('[usePromoPopup] Showing popup after delay');
-        setPopupSource('first_visit');
-        setShowPopup(true);
-        setHasShownInitialPopup(true);
-      }
-    }, delaySeconds * 1000);
-
-    // Exit intent handler (desktop only) - can re-trigger
-    const handleMouseLeave = (e: MouseEvent) => {
-      if (!enableExitIntent || isPermanentlySuppressed.current) return;
-      
-      // Only trigger if mouse is leaving from the top of the page (going to close tab)
-      if (e.clientY <= 0) {
-        console.log('[usePromoPopup] Exit intent detected - cursor to close tab');
-        setPopupSource('exit_intent');
-        setShowPopup(true);
-      }
+    if (location.pathname.startsWith('/admin') || location.pathname === '/checkout') return;
+    try { if (Date.now() - Number(localStorage.getItem(KEY) || 0) < 30 * 86400000) return; } catch { /* storage unavailable */ }
+    let fired = false;
+    const show = () => {
+      if (fired) return;
+      fired = true;
+      try { localStorage.setItem(KEY, String(Date.now())); } catch { /* storage unavailable */ }
+      setShowPopup(true);
+      if (typeof window.gtag === 'function') window.gtag('event', 'popup_view', { popup_name: 'first_order_email' });
     };
-
-    // Listen for storage changes (when email is submitted in the popup)
-    const handleStorageChange = () => {
-      if (localStorage.getItem('promo_email_submitted') === 'true' || 
-          localStorage.getItem('promo_code_received') === 'true') {
-        console.log('[usePromoPopup] Email submitted - permanently suppressing popup');
-        isPermanentlySuppressed.current = true;
-        setShowPopup(false);
-      }
+    const scroll = () => {
+      const max = document.documentElement.scrollHeight - innerHeight;
+      if (max > 0 && scrollY / max >= 0.5) show();
     };
-
-    // Check storage every 500ms while popup is open
-    const storageCheckInterval = setInterval(handleStorageChange, 500);
-
-    // Only add exit intent on desktop (screen width > 768px)
-    if (enableExitIntent && window.innerWidth > 768) {
-      document.addEventListener('mouseleave', handleMouseLeave);
-    }
-
-    return () => {
-      clearTimeout(timer);
-      clearInterval(storageCheckInterval);
-      document.removeEventListener('mouseleave', handleMouseLeave);
-    };
-  }, [delaySeconds, enableExitIntent, hasShownInitialPopup, showPopup]);
-
-  const closePopup = () => {
-    // Check if email was submitted before closing
-    if (localStorage.getItem('promo_email_submitted') === 'true' || 
-        localStorage.getItem('promo_code_received') === 'true') {
-      console.log('[usePromoPopup] Email submitted - closing permanently');
-      isPermanentlySuppressed.current = true;
-      setShowPopup(false);
-      return;
-    }
-
-    // Set 72-hour cooldown for X button clicks
-    const expiryDate = new Date();
-    expiryDate.setHours(expiryDate.getHours() + 72);
-    localStorage.setItem('promo_popup_dismissed', expiryDate.toISOString());
-    setShowPopup(false);
-  };
-
-  return {
-    showPopup,
-    popupSource,
-    closePopup,
-  };
-};
+    const timer = setTimeout(show, 35000);
+    addEventListener('scroll', scroll, { passive: true });
+    scroll();
+    return () => { clearTimeout(timer); removeEventListener('scroll', scroll); };
+  }, []);
+  return { showPopup, closePopup: () => setShowPopup(false) };
+}
