@@ -1,263 +1,48 @@
-import { useState, useRef } from 'react';
-import { X, Mail, Copy, Check, Package, Tag } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-
-interface PromoPopupProps {
-  onClose: () => void;
-  source: 'first_visit' | 'exit_intent';
-}
-
-export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
+import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
+import { gtag } from '@/lib/analytics';
+export function PromoPopup({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState('');
-  const [consent, setConsent] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [generatedCode, setGeneratedCode] = useState('');
-  const [copied, setCopied] = useState(false);
-  const { toast } = useToast();
-  const isSubmittingRef = useRef(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const [pending, setPending] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    addEventListener('keydown', key);
+    return () => removeEventListener('keydown', key);
+  }, [onClose]);
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    
-    // Prevent double-submission
-    if (isSubmittingRef.current) {
-      console.log('[PromoPopup] Submission already in progress, ignoring');
-      return;
-    }
-    
-    if (!email || !consent) {
-      toast({
-        title: 'Missing information',
-        description: 'Please enter your email and accept the privacy policy',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    isSubmittingRef.current = true;
-    setIsSubmitting(true);
-
+    if (pending) return;
+    setPending(true); setError('');
     try {
-      const response = await fetch('/.netlify/functions/send-discount-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          consent,
-          source,
-        }),
+      const response = await fetch('/.netlify/functions/newsletter-signup', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), source: 'site_popup' })
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate code');
-      }
-
-      setGeneratedCode(data.code);
-      
-      // Mark email as submitted - NEVER show popup again
-      localStorage.setItem('promo_email_submitted', 'true');
-      localStorage.setItem('promo_code_received', 'true');
-      
-      toast({
-        title: '🎉 Success!',
-        description: `Your code ${data.code} has been sent to ${email}`,
-      });
-    } catch (error) {
-      console.error('Error generating code:', error);
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to generate discount code',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSubmitting(false);
-      isSubmittingRef.current = false;
-    }
-  };
-
-  const handleCopyCode = async () => {
-    if (!generatedCode) return;
-
-    try {
-      await navigator.clipboard.writeText(generatedCode);
-      setCopied(true);
-      
-      toast({
-        title: 'Code copied!',
-        description: 'Paste it at checkout to save 20%',
-      });
-
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error('Failed to copy code:', error);
-      toast({
-        title: 'Copy failed',
-        description: 'Please manually copy the code: ' + generatedCode,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  return (
-    <>
-      {/* Backdrop - Darkened overlay */}
-      <div 
-        className="fixed inset-0 bg-black/70 z-50 animate-in fade-in duration-200 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      
-      {/* Popup */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-        <div 
-          className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden relative pointer-events-auto animate-in zoom-in-95 duration-200"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors z-10"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
-
-          {/* Content */}
-          <div className="p-8">
-            {!generatedCode ? (
-              <>
-                {/* Header with Product Visual */}
-                <div className="text-center mb-6">
-                  {/* Product Visual - Tag Icon */}
-                  <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full mb-4">
-                    <Tag className="w-10 h-10 text-orange-600" />
-                  </div>
-                  
-                  <h2 className="text-3xl font-bold text-[#18448D] mb-3">
-                    Get 20% OFF your First Order!
-                  </h2>
-                  
-                  {/* Free Shipping Badge */}
-                  <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-4 py-2 rounded-full mb-3">
-                    <Package className="w-4 h-4" />
-                    <span className="text-sm font-semibold">Free Next-Day Air Shipping Included</span>
-                  </div>
-                  
-                  <p className="text-gray-600">
-                    Enter your email to receive your exclusive discount code
-                  </p>
-                </div>
-
-                {/* Form */}
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Email Input */}
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                      Email Address
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        type="email"
-                        id="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="you@example.com"
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ff6b35] focus:border-transparent outline-none transition-all"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Privacy Consent */}
-                  <div className="flex items-start gap-2">
-                    <input
-                      type="checkbox"
-                      id="consent"
-                      checked={consent}
-                      onChange={(e) => setConsent(e.target.checked)}
-                      className="mt-1 w-4 h-4 text-[#ff6b35] border-gray-300 rounded focus:ring-[#ff6b35]"
-                      required
-                    />
-                    <label htmlFor="consent" className="text-sm text-gray-600">
-                      I agree to the{' '}
-                      <a href="/privacy" className="text-[#18448D] hover:underline" target="_blank">
-                        privacy policy
-                      </a>
-                    </label>
-                  </div>
-
-                  {/* Submit Button */}
-                  <button
-                    type="submit"
-                    disabled={isSubmitting || !email || !consent}
-                    className="w-full bg-[#ff6b35] hover:bg-[#f7931e] text-white font-semibold py-3 px-6 rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isSubmitting ? 'Generating Code...' : 'Get My 20% Off Code'}
-                  </button>
-                </form>
-
-                {/* Trust Signals */}
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <p className="text-xs text-gray-500 text-center">
-                    🔒 Your email is safe with us. We'll only send you exclusive offers.
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Success State */}
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-                    <Check className="w-8 h-8 text-green-600" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-[#18448D] mb-2">
-                    Your Code is Ready!
-                  </h2>
-                  <p className="text-gray-600 mb-6">
-                    We've also sent it to <strong>{email}</strong>
-                  </p>
-
-                  {/* Code Display */}
-                  <div className="bg-gradient-to-br from-[#18448D]/10 to-[#18448D]/5 border-2 border-[#18448D] rounded-xl p-6 mb-6">
-                    <p className="text-sm text-gray-600 mb-2">Your Discount Code</p>
-                    <p className="text-3xl font-bold text-[#18448D] tracking-wider mb-4">
-                      {generatedCode}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      20% off • Valid for 14 days • One-time use
-                    </p>
-                  </div>
-
-                  {/* Copy Button */}
-                  <button
-                    onClick={handleCopyCode}
-                    className="w-full bg-[#ff6b35] hover:bg-[#f7931e] text-white font-semibold py-3 px-6 rounded-lg hover:shadow-lg transition-all flex items-center justify-center gap-2"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="w-5 h-5" />
-                        Copied!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-5 h-5" />
-                        Copy Code
-                      </>
-                    )}
-                  </button>
-
-                  {/* Fine Print */}
-                  <p className="text-xs text-gray-500 mt-6">
-                    Code expires in 14 days. Check your email for details.
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </>
-  );
-};
+      if (!response.ok || !data.success) throw new Error('Could not send your code. Please try again.');
+      setSuccess(true);
+      // GA4 key event candidate: email_signup (enable in GA4 admin only after verification).
+      gtag('event', 'email_signup', { method: 'popup', offer: 'SAVE20' });
+    } catch { setError('Could not send your code. Please try again.'); }
+    finally { setPending(false); }
+  }
+  return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" onMouseDown={onClose}>
+    <section role="dialog" aria-modal="true" aria-labelledby="email-popup-title" className="relative max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onMouseDown={e => e.stopPropagation()}>
+      <button type="button" onClick={onClose} aria-label="Close" className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-full text-slate-700"><X /></button>
+      <p className="text-sm font-bold uppercase text-[#E85D26]">First-order savings</p>
+      <h2 id="email-popup-title" className="mt-3 pr-8 text-2xl font-extrabold text-slate-900">Get your 20% off code by email</h2>
+      {success ? <p role="status" className="mt-5 text-slate-700">Check your inbox for SAVE20. You can also use SAVE20 at checkout.</p> : <>
+        <p className="mt-3 text-slate-600">Enter your email and we'll send you SAVE20 for 20% off your first order.</p>
+        <form onSubmit={submit} className="mt-5 space-y-4">
+          <label htmlFor="popup-email" className="block text-sm font-semibold">Email address</label>
+          <input id="popup-email" type="email" required maxLength={254} value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-lg border border-slate-300 px-4 py-3" placeholder="you@example.com" />
+          {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+          <button type="submit" disabled={pending} className="min-h-12 w-full rounded-lg bg-[#E85D26] px-5 py-3 font-bold text-white disabled:opacity-60">{pending ? 'Sending…' : 'Email My 20% Off Code'}</button>
+        </form>
+        <p className="mt-4 text-xs text-slate-500">Subscribe for occasional offers. See our <a href="/privacy" className="underline">privacy policy</a>.</p>
+      </>}
+    </section>
+  </div>;
+}
