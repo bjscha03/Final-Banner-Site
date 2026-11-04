@@ -22,6 +22,7 @@ export async function revalidateBacklog(sql,env,runId,{research,readPage,validat
    WHERE id=${row.contact_id} AND research->>'requires_revalidation'='true'`;
   return {status:'backlog_rejected',category,opportunityId:row.opportunity_id};
  };
+ if(!row.website || !/^https:\/\//i.test(row.website))return await fail('Missing usable official HTTPS website','missing_contact_or_website');
  try{
   const domain=s=>new URL(s).hostname.toLowerCase().replace(/^www\./,'');
   const original=domain(row.website);
