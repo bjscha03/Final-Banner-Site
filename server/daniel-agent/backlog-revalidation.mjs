@@ -11,7 +11,7 @@ export async function revalidateBacklog(sql,env,runId,{research,readPage,validat
  WHERE o.stage='researched' AND c.research->>'requires_revalidation'='true'
  AND NOT EXISTS (SELECT 1 FROM daniel_sales.audit_events e
   WHERE e.entity_type='opportunity' AND e.entity_id=o.id::text
-  AND e.event_type IN ('backlog_revalidation_promoted','backlog_revalidation_rejected'))
+  AND (e.event_type IN ('backlog_revalidation_promoted','backlog_revalidation_rejected') OR (e.event_type='backlog_revalidation_retry' AND e.created_at>now()-interval '24 hours')))
  ORDER BY o.created_at,o.id LIMIT 1`;
  if(!row)return null;
  const fail=async(reason,category)=>{
