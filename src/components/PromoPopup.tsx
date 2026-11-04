@@ -35,8 +35,8 @@ export function PromoPopup({ onClose }: { onClose: () => void }) {
     } catch { setError('Could not send your code. Please try again.'); }
     finally { setPending(false); }
   }
-  return <div className="pointer-events-none fixed inset-0 z-[100] flex items-end justify-end p-3 sm:p-6">
-    <section role="dialog" aria-modal="true" aria-labelledby="email-popup-title" className="pointer-events-auto relative max-h-[80dvh] w-full max-w-[340px] overflow-y-auto rounded-2xl border border-orange-200 bg-white p-5 shadow-2xl">
+  return <div className="relative z-40 mx-auto w-full max-w-7xl px-4 py-3 sm:px-6">
+    <section role="region" aria-labelledby="email-popup-title" className="relative w-full max-w-md rounded-2xl border border-orange-200 bg-white p-5 shadow-xl">
       <button type="button" onClick={onClose} aria-label="Close" className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-full text-slate-700"><X /></button>
       <p className="text-sm font-bold uppercase text-[#E85D26]">First-order savings</p>
       <h2 id="email-popup-title" className="mt-3 pr-8 text-2xl font-extrabold text-slate-900">Get your 25% off code by email</h2>
