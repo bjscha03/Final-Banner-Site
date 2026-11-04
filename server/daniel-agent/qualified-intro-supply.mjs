@@ -17,7 +17,7 @@ export async function replenishQualifiedIntroductions(sql,env,settings,{now=new 
   AND NOT EXISTS(SELECT 1 FROM daniel_sales.contacts peer WHERE peer.account_id=c.account_id AND peer.replied_at IS NOT NULL)
   AND EXISTS(SELECT 1 FROM daniel_sales.messages old WHERE old.contact_id=c.id AND old.kind='intro' AND old.status='draft')
   AND NOT EXISTS(SELECT 1 FROM daniel_sales.messages m WHERE m.contact_id=c.id AND m.kind='intro' AND m.status IN ('queued','sending','sent','uncertain','pending_approval'))
-  AND NOT EXISTS(SELECT 1 FROM daniel_sales.messages m WHERE m.contact_id=c.id AND m.kind='intro' AND m.idempotency_key=${'qualified-rebuild:'+''} || c.id::text)
+  AND NOT EXISTS(SELECT 1 FROM daniel_sales.messages m WHERE m.contact_id=c.id AND m.kind='intro' AND m.idempotency_key=('qualified-rebuild:' || c.id::text))
   ORDER BY o.next_action_at,o.id LIMIT 1`;
  if(!candidate)return {status:'no_eligible_qualified_drafts'};
  try{
