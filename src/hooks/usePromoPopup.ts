@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { gtag } from '@/lib/analytics';
 const KEY = 'bof_email_popup_last_shown';
 export function usePromoPopup() {
   const [showPopup, setShowPopup] = useState(false);
@@ -11,7 +12,7 @@ export function usePromoPopup() {
       fired = true;
       try { localStorage.setItem(KEY, String(Date.now())); } catch { /* storage unavailable */ }
       setShowPopup(true);
-      if (typeof window.gtag === 'function') window.gtag('event', 'popup_view', { popup_name: 'first_order_email' });
+      gtag('event', 'popup_view', { popup_name: 'first_order_email' });
     };
     const scroll = () => {
       const max = document.documentElement.scrollHeight - innerHeight;
