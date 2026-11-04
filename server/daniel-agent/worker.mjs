@@ -1,3 +1,4 @@
+import {replenishQualifiedIntroductions} from './qualified-intro-supply.mjs';
 import {discover} from './discovery.mjs';
 import {emailDailyReport} from './report-email.mjs';
 import {randomUUID} from 'node:crypto';
@@ -111,6 +112,10 @@ export async function runWorker(env=process.env,options={}){
   }
   if(!effectiveSettings.cold_outreach_paused && ((!options.gmailTest && freshSettings.auto_prospect) || (options.gmailTest && options.discover))){
    try{summary.discovery=await discover(sql,env,effectiveSettings,options);}catch(e){summary.discoveryError=String(e.message).slice(0,500);summary.health='needs_attention';}
+  }
+  if(!options.gmailTest && effectiveSettings.auto_prospect && !effectiveSettings.cold_outreach_paused){
+   try{summary.qualifiedSupply=await replenishQualifiedIntroductions(sql,env,effectiveSettings,{now:options.now||new Date()});}
+   catch(e){summary.qualifiedSupplyError=String(e.message).slice(0,250);summary.health='needs_attention';}
   }
   Object.assign(summary,await dispatch(sql,env,token,options));summary.report=await report(sql);
   if(summary.report.pendingApprovals>0 || summary.report.uncertain>0)summary.health='needs_attention';
