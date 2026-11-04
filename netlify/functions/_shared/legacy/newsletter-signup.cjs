@@ -51,18 +51,7 @@ exports.handler = async (event, context) => {
 
     console.log('Newsletter signup request for:', email);
 
-    const sendPopupOffer = async () => {
-      if (source !== 'site_popup') return;
-      if (!process.env.RESEND_API_KEY) throw new Error('Email delivery unavailable');
-      const { Resend } = require('resend');
-      const raw = process.env.EMAIL_FROM || 'orders@bannersonthefly.com';
-      const from = raw.includes('<') ? raw : `Banners on the Fly <${raw}>`;
-      const result = await new Resend(process.env.RESEND_API_KEY).emails.send({
-        from, to: email, subject: 'Your 20% first-order discount code',
-        text: 'Your code is SAVE20 for 20% off your first order. Start designing: https://bannersonthefly.com/design?product=banner'
-      });
-      if (result.error || !result.data?.id) throw new Error('Email delivery failed');
-    };
+    // Newsletter captures only; READ25 email is sent by the existing blog-reader-offer service.
     // Create newsletter table if it doesn't exist
     await sql`
       CREATE TABLE IF NOT EXISTS newsletter (
@@ -86,7 +75,6 @@ exports.handler = async (event, context) => {
       const subscription = existingSubscription[0];
       
       if (subscription.subscribed) {
-        await sendPopupOffer();
         return {
           statusCode: 200,
           headers,
@@ -97,7 +85,6 @@ exports.handler = async (event, context) => {
           }),
         };
       } else {
-        await sendPopupOffer();
         // Resubscribe
         await sql`
           UPDATE newsletter 
@@ -123,7 +110,6 @@ exports.handler = async (event, context) => {
       VALUES (${email}, true, now(), now())
     `;
 
-    await sendPopupOffer();
     console.log(`Newsletter subscription successful for: ${email}`);
     
     return {
