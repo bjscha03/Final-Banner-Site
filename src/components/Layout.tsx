@@ -8,6 +8,8 @@ import Footer from './Footer';
 import CartModal from './CartModal';
 import ScrollToTop from './ScrollToTop';
 import PromoBanner from './PromoBanner';
+import { PromoPopup } from './PromoPopup';
+import { usePromoPopup } from '@/hooks/usePromoPopup';
 import ScrollToTopLink from './ScrollToTopLink';
 const SiteIssueAlert = React.lazy(() => import('./admin/SiteIssueAlert'));
 
@@ -20,6 +22,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false, compactMobileHeader = false }) => {
   const location = useLocation();
+  const { showPopup, closePopup } = usePromoPopup();
   const isHomepage = location.pathname === '/';
   const isCheckout = checkoutMode || location.pathname === '/checkout';
   const { getItemCount } = useCartStore();
@@ -52,6 +55,7 @@ const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false, compact
       ) : (
         <Footer />
       )}
+      {!isCheckout && !location.pathname.startsWith('/admin') && showPopup && <PromoPopup onClose={closePopup} />}
       <CartModal
         isOpen={isCartOpen}
         onClose={closeCart}
