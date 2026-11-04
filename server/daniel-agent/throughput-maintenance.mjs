@@ -97,5 +97,5 @@ if(process.argv[1] && import.meta.url===new URL('file://'+process.argv[1]).href)
  const sql=database(process.env);
  const result=await throughputMaintenance(sql,{apply});
  console.log(JSON.stringify(result,null,2));
- if(result.failedFollowups.held)process.exitCode=2;
+ if(result.failedFollowups.held || result.approvals.retained)process.exitCode=2;
 }
