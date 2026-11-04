@@ -1,3 +1,4 @@
+import {revalidateBacklog} from './backlog-revalidation.mjs';
 import { lookup } from 'node:dns/promises';
 import https from 'node:https';
 import { createHash } from 'node:crypto';
@@ -104,6 +105,16 @@ export async function discover(sql,env,settings,{gmailTest=false,now=new Date(),
   const [run]=await sql`INSERT INTO daniel_sales.discovery_runs(slot) VALUES(${slot}) ON CONFLICT DO NOTHING RETURNING id`;
   if(!run)return {status:'already_researched_this_slot'};
   try {
+    // Existing accounts consume the same capped discovery slot as new prospects.
+    // No new sending quota, and rejected evidence never becomes qualified.
+    if(!gmailTest){
+      const backlog=await revalidateBacklog(sql,env,run.id,{research,readPage,validate:validateEvidence,now});
+      if(backlog){
+        await sql`UPDATE daniel_sales.discovery_runs SET status=${backlog.status==='backlog_retry'?'failed':'completed'},
+          completed_at=now(),evidence=${JSON.stringify(backlog)}::jsonb WHERE id=${run.id}`;
+        return backlog;
+      }
+    }
     // Forward-looking discovery only. Never reopen, approve, delete or
     // supersede the existing pending backlog to make throughput look better.
     const rejected=[];
