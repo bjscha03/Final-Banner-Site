@@ -30,7 +30,7 @@ export function BlogPost({ post, relatedPosts }: BlogPostProps) {
     const lastParagraph = content.slice(0, next).lastIndexOf('</p>');
     const position = lastParagraph > (headings[1].index ?? 0) ? lastParagraph + 4 : next;
     const topic = frontmatter.title.replace(/[<>&"']/g, '');
-    const cta = `<aside aria-label="Design your banner" class="not-prose my-10 rounded-xl border border-orange-200 bg-orange-50 p-6"><h3 class="text-xl font-bold text-slate-900">Ready to bring these ideas to life?</h3><p class="mt-2 text-slate-700">Put what you learned about ${topic} into practice. Save 20% on your first order with SAVE20.</p><a href="/design?product=banner" class="mt-4 inline-flex min-h-11 items-center rounded-lg bg-[#E85D26] px-5 py-3 font-bold text-white">Design Your Banner</a></aside>`;
+    const cta = `<aside aria-label="Design your banner" class="not-prose my-10 rounded-xl border border-orange-200 bg-orange-50 p-6"><h3 class="text-xl font-bold text-slate-900">Ready to bring these ideas to life?</h3><p class="mt-2 text-slate-700">Put what you learned about ${topic} into practice. Organic readers can claim a 25% first-order offer through our email popup; then design your banner.</p><a href="/design?product=banner" class="mt-4 inline-flex min-h-11 items-center rounded-lg bg-[#E85D26] px-5 py-3 font-bold text-white">Design Your Banner</a></aside>`;
     return content.slice(0, position) + cta + content.slice(position);
   }, [html, frontmatter.title]);
   
