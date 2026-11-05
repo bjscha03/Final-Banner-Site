@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import YardSignConfigurator from './YardSignConfigurator';
 import { artworkFitIdentity } from './ai/artworkFit';
 import { yardSignFitArtwork } from './ai/yardSignArtworkFit';
+import { DEFAULT_YARD_SIGN_SIZE, YARD_SIGN_SIZES } from '@/lib/yardSignSizes';
 import type { YardSignDesign } from '@/lib/yard-sign-pricing';
 import type { UploadedArtworkFile } from '@/lib/cartArtworkForEditor';
 
@@ -21,7 +22,7 @@ vi.mock('./AIArtworkFitDialog', async original => ({
 vi.mock('@/components/design/ArtworkPreviewEditor', () => ({
   default: React.forwardRef((props: any, ref) => {
     React.useImperativeHandle(ref, () => ({ getCompositionSnapshot: () => ({ transform: { x: .1, y: .2, scaleX: 1.2, scaleY: 1.2 } }) }));
-    return <div data-editor-src={props.src}>{props.fitControls}</div>;
+    return <div data-editor-src={props.src} data-canvas-padding={props.paddingPct}>{props.fitControls}</div>;
   }),
 }));
 
@@ -30,8 +31,9 @@ const second: YardSignDesign = { ...original, id: 'second', fileKey: 'second', q
 const fitted: UploadedArtworkFile = { name: 'fitted.jpg', url: 'https://cdn.test/fitted.jpg', fileKey: 'fitted', isPdf: false, size: 100, permanentPreviewUrl: 'https://cdn.test/fitted-preview.jpg' };
 let designs: YardSignDesign[], root: ReturnType<typeof createRoot>, host: HTMLDivElement;
 const changed = vi.fn();
+let size = DEFAULT_YARD_SIGN_SIZE;
 const render = async () => {
-  await act(async () => root.render(<YardSignConfigurator designs={designs} onDesignsChange={next => { designs = next; changed(next); }}
+  await act(async () => root.render(<YardSignConfigurator key={size.id} size={size} onSizeChange={next => { size = next; }} designs={designs} onDesignsChange={next => { designs = next; changed(next); }}
     orderQuantity={designs.reduce((sum, design) => sum + design.quantity, 0)} onOrderQuantityChange={vi.fn()} orderTotalCents={15500}
     sidedness="double" onSidednessChange={vi.fn()} addStepStakes stepStakeQuantity={10} onStepStakesChange={vi.fn()} onStepStakeQuantityChange={vi.fn()}
     promoCode="" promoApplied={false} onPromoCodeChange={vi.fn()} onPromoApply={vi.fn()} onPromoRemove={vi.fn()} />));
@@ -46,6 +48,7 @@ async function openFit() {
 }
 beforeEach(async () => {
   vi.clearAllMocks(); vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  size = DEFAULT_YARD_SIGN_SIZE;
   designs = [{ ...original }, { ...second }];
   host = document.createElement('div'); document.body.append(host); root = createRoot(host); await render();
 });
@@ -79,4 +82,21 @@ it('cannot replace a deleted or changed design with a late fitted result', async
 it('keeps the original when the fit comparison is dismissed', async () => {
   await openFit(); await act(async () => mocks.dialog.onOpenChange(false));
   expect(designs).toEqual([original, second]); expect(changed).not.toHaveBeenCalled();
+});
+
+it.each(YARD_SIGN_SIZES.slice(1))('refits existing uploads at $id and rejects old AI results', async next => {
+  await openFit();
+  const lateApply = mocks.dialog.onApply;
+  const oldIdentity = artworkFitIdentity(mocks.dialog.artwork, 24, 18, 'yard_sign');
+  await act(async () => mocks.dialog.onOpenChange(false));
+  await click('Cancel');
+  const selector = host.querySelector<HTMLSelectElement>('#yard-sign-size')!;
+  await act(async () => { selector.value = next.id; selector.dispatchEvent(new Event('change', { bubbles: true })); });
+  await render();
+  expect(designs.map(d => d.quantity)).toEqual([next.perSheet, next.perSheet]);
+  expect(designs[0]).toMatchObject({ fileKey: original.fileKey, previewThumbnailUrl: undefined, placementPreview: undefined });
+  expect(() => lateApply(fitted, oldIdentity)).toThrow('changed or was removed');
+  await openFit();
+  expect(mocks.dialog).toMatchObject({ widthIn: next.widthIn, heightIn: next.heightIn, productType: 'yard_sign' });
+  expect(host.querySelector('[data-canvas-padding]')?.getAttribute('data-canvas-padding')).toBe(`${next.heightIn / next.widthIn * 100}%`);
 });

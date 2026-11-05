@@ -10,7 +10,7 @@ import type { SpecialtyConfiguration } from './specialtyArtwork';
 import { getCarMagnetRoundedCornersLabel } from './car-magnet-pricing';
 import { getExpandedPreviewSelection, getSmallPreviewUrl } from './previewSelection';
 
-const YARD_SIGN_SIZE = '24" × 18"';
+import { yardSignSizeLabel } from './yardSignSizes';
 
 export type NormalizableOrderItem = {
   id?: string;
@@ -108,7 +108,7 @@ export function getDisplaySize(item: {
   height_in?: number;
 }): string {
   if (item.product_type === 'specialty') return item.specialty_config?.variantLabel || '';
-  if (item.product_type === 'yard_sign') return YARD_SIGN_SIZE;
+  if (item.product_type === 'yard_sign') return yardSignSizeLabel(item);
   if (item.width_in == null || item.height_in == null) return '';
   return `${item.width_in}" × ${item.height_in}"`;
 }
@@ -186,7 +186,7 @@ export function getItemDisplayName(item: {
 }): string {
   if (item.product_type === 'specialty') return item.specialty_config?.productName || 'Custom display';
   if (item.product_type === 'yard_sign') {
-    return `Custom Yard Sign ${YARD_SIGN_SIZE}`;
+    return `Custom Yard Sign ${yardSignSizeLabel(item)}`;
   }
   if (item.product_type === 'car_magnet') {
     return `Car Magnets ${getDisplaySize(item)}`;
@@ -256,7 +256,7 @@ export function getEmailItemName(item: {
   height_in?: number;
 }): string {
   if (item.product_type === 'yard_sign') {
-    return `Custom Yard Sign ${YARD_SIGN_SIZE}`;
+    return `Custom Yard Sign ${yardSignSizeLabel(item)}`;
   }
   if (item.product_type === 'car_magnet') {
     return `Car Magnets ${getDisplaySize(item)}`;

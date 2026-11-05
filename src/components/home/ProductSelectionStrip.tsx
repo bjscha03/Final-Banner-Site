@@ -10,7 +10,7 @@ import { getProductLandingDefinition } from '@/lib/seo/productLandingData';
 
 const products: Array<{ slug: CityProductSlug; title: string; price: string; details: string }> = [
   { slug: 'vinyl-banners', title: 'Vinyl banners', price: 'From $20', details: 'Custom sizes · Four materials' },
-  { slug: 'yard-signs', title: 'Yard signs', price: '10 signs from $120', details: '24 × 18 inches · Optional stakes' },
+  { slug: 'yard-signs', title: 'Yard signs', price: 'Orders from $80', details: 'Five sizes · Optional stakes' },
   { slug: 'car-magnets', title: 'Car magnets', price: 'From $29', details: 'Four sizes · Two corner styles' },
 ];
 const LIST_ID = 'homepage_product_lines';

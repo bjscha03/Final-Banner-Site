@@ -13,7 +13,7 @@ interface ProductTypeSwitcherProps {
 
 const options: Array<{ type: ProductTypeSlug; slug: CityProductSlug; label: string; subtext: string }> = [
   { type: 'banner', slug: 'vinyl-banners', label: 'Vinyl banners', subtext: 'Single- or double-sided' },
-  { type: 'yard_sign', slug: 'yard-signs', label: 'Yard signs', subtext: '24 × 18 inches · Optional stakes' },
+  { type: 'yard_sign', slug: 'yard-signs', label: 'Yard signs', subtext: 'Five sizes · Optional stakes' },
   { type: 'car_magnet', slug: 'car-magnets', label: 'Car magnets', subtext: 'Four sizes · Two corner styles' },
 ];
 

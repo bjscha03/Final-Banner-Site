@@ -1,3 +1,4 @@
+import { YARD_SIGN_SIZES } from './yardSignSizes';
 import { afterEach, expect, it } from 'vitest';
 import { createRequire } from 'node:module';
 import { calcYardSignPricing, yardSignCartPricing } from './yard-sign-pricing';
@@ -20,4 +21,18 @@ it('keeps sign and stake prices raw, with exactly one welcome reduction in cart 
   cart.removeDiscountCode();
   expect(cart.getSubtotalCents()).toBe(preview.subtotalCents);
   expect(cart.getResolvedDiscount().appliedDiscountAmountCents).toBe(0);
+});
+
+it.each(YARD_SIGN_SIZES)('keeps the welcome discount and shipping calculation on $id sign orders', size => {
+  const quantity = size.perSheet;
+  const pricing = calcYardSignPricing('double', quantity, true, quantity, FIRST_ORDER_DISCOUNT, size);
+  const line = { id: size.id, product_type: 'yard_sign', quantity, width_in: size.widthIn, height_in: size.heightIn,
+    yard_sign_sidedness: 'double', yard_sign_step_stakes_enabled: true, yard_sign_step_stakes_qty: quantity,
+    ...yardSignCartPricing(pricing) } as CartItem;
+  useCartStore.setState({ items: [line], discountCode: { ...FIRST_ORDER_DISCOUNT }, sameDayHitService: false, saturdayDelivery: false });
+  expect(pricing.subtotalCents).toBe((size.doubleCents + 150) * quantity);
+  expect(pricing.promoDiscountCents).toBe(Math.round(pricing.subtotalCents * .2));
+  const totals = computeTotals([line], .06, { freeShipping: true }, FIRST_ORDER_DISCOUNT);
+  expect(totals.applied_discount_cents).toBe(pricing.promoDiscountCents);
+  expect(useCartStore.getState().getTotalCents()).toBe(totals.total_cents);
 });

@@ -1,3 +1,5 @@
+import { newYardSignCartSize, yardSignArtworkStep } from '@/lib/yardSignSizes';
+import { calcYardSignPricing, distributeYardSignCopies, validateYardSignQuantity, yardSignCartPricing } from '@/lib/yard-sign-pricing';
 import type { SpecialtyConfiguration } from '@/lib/specialtyArtwork';
 import { getSpecialtyProduct, specialtyUnitPrice, specialtyTemplate, specialtyPanels, specialtyOptions, specialtyOptionSummary, specialtyConfigurationPrice, specialtyItemPrice } from '@/lib/specialtyProducts';
 import { LARGE_BANNER_PROMOTION_ENABLED, isLargeBannerPromotionIdentifier } from '@/lib/largeBannerPromotion';
@@ -150,6 +152,7 @@ export interface CartItem {
   composition_revision?: number;
 
   // Yard Sign metadata (only for product_type === 'yard_sign')
+  yard_sign_size_id?: string;
   yard_sign_sidedness?: 'single' | 'double';     // Print sidedness
   yard_sign_step_stakes_enabled?: boolean;        // Step stakes add-on
   yard_sign_step_stakes_qty?: number;             // Number of step stakes
@@ -544,6 +547,14 @@ export const useCartStore = create<CartState>()(
           );
         }
         const exactPreviewUrl = requestedPlacement?.previewUrl;
+        // Reorders can enter without a fresh designer quote.
+        if (!pricing && requestedProductType === 'yard_sign') {
+          const size = newYardSignCartSize({ product_type: requestedProductType, width_in: quote.widthIn, height_in: quote.heightIn });
+          const metadata = (quote as any).yard_sign_metadata;
+          if (size && metadata) pricing = yardSignCartPricing(calcYardSignPricing(
+            metadata.sidedness, quote.quantity, metadata.addStepStakes, metadata.stepStakeQty || 0, 0, size,
+          ));
+        }
         // Capture design-page authoritative pricing when provided
         const usingAuthoritative = !!pricing;
 
@@ -729,6 +740,7 @@ export const useCartStore = create<CartState>()(
           composition_revision: requestedPlacement?.compositionRevision,
           // Yard Sign metadata (populated when product_type is 'yard_sign')
           ...((quote as any).product_type === 'yard_sign' && (quote as any).yard_sign_metadata ? {
+            yard_sign_size_id: (quote as any).yard_sign_metadata.sizeId,
             yard_sign_sidedness: (quote as any).yard_sign_metadata.sidedness,
             yard_sign_step_stakes_enabled: (quote as any).yard_sign_metadata.addStepStakes,
             yard_sign_step_stakes_qty: (quote as any).yard_sign_metadata.stepStakeQty,
@@ -813,6 +825,22 @@ export const useCartStore = create<CartState>()(
           items: state.items.map(item => {
             if (item.id !== id) return item;
 
+            const size = newYardSignCartSize(item);
+            if (size) {
+              if (!validateYardSignQuantity(quantity, size).valid) return item;
+              const designs = item.yard_sign_designs || [];
+              const step = yardSignArtworkStep(size);
+              if (quantity < designs.length * step) return item;
+              const oldStakes = item.yard_sign_step_stakes_qty || 0;
+              const stakes = oldStakes === item.quantity ? quantity : Math.min(oldStakes, quantity);
+              const pricing = calcYardSignPricing(item.yard_sign_sidedness || 'single', quantity, !!item.yard_sign_step_stakes_enabled, stakes, 0, size);
+              return {
+                ...item, quantity, unit_price_cents: pricing.unitPriceCents, line_total_cents: pricing.subtotalCents,
+                yard_sign_step_stakes_qty: stakes, yard_sign_signs_subtotal_cents: pricing.signSubtotalCents,
+                yard_sign_stakes_subtotal_cents: pricing.stepStakeTotalCents,
+                yard_sign_designs: distributeYardSignCopies(designs, quantity, step),
+              };
+            }
             if (item.product_type === 'specialty') {
               if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) return item;
               return migrateCartItem({...item, quantity});
@@ -1050,6 +1078,7 @@ export const useCartStore = create<CartState>()(
           placement_preview: nextPlacement,
           composition_signature: nextPlacement?.compositionSignature,
           composition_revision: nextPlacement?.compositionRevision,
+          yard_sign_size_id: yardMetadata?.sizeId,
           yard_sign_sidedness: yardMetadata?.sidedness,
           yard_sign_step_stakes_enabled: yardMetadata?.addStepStakes,
           yard_sign_step_stakes_qty: yardMetadata?.stepStakeQty,

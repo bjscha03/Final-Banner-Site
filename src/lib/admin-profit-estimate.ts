@@ -1,3 +1,4 @@
+import { findYardSignSize, yardSignSizeLabel } from './yardSignSizes.ts';
 import type { Order, OrderItem } from './orders/types';
 import { normalizeSizeKey, resolveFixedProductCost } from './admin-product-costs.ts';
 
@@ -47,6 +48,7 @@ const getRawSize = (item: OrderItem): string | null => {
 
 
 const formatSizeLabel = (item: OrderItem): string | null => {
+  if (item.product_type === 'yard_sign') return yardSignSizeLabel(item);
   if (Number.isFinite(item.width_in) && Number.isFinite(item.height_in)) return `${item.width_in}" × ${item.height_in}"`;
   return getRawSize(item);
 };
@@ -166,7 +168,9 @@ const estimateFixedProductCost = (item: OrderItem): LineEstimate => {
 const estimateYardSignCost = (item: OrderItem): LineEstimate => {
   if (!Number.isInteger(item.quantity) || item.quantity <= 0) return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: 'Missing or invalid yard sign quantity' };
   const qty = item.quantity || 0;
-  if (qty % 10 !== 0) return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: `Yard sign qty not divisible by 10: ${qty}` };
+  const size = findYardSignSize(item);
+  if (!size) return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: 'Unsupported yard sign size' };
+  if (qty % size.perSheet !== 0) return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: `Yard sign qty not divisible by ${size.perSheet}: ${qty}` };
 
   const sidedness = String(item.yard_sign_sidedness || '').trim().toLowerCase();
   if (sidedness && !['single', 'double'].includes(sidedness)) {
@@ -186,8 +190,9 @@ const estimateYardSignCost = (item: OrderItem): LineEstimate => {
   }
   // The dedicated saved selection is authoritative; old orders used finishing fields.
   const doubleSided = sidedness ? sidedness === 'double' : legacyDoubleSided;
-  const unit = doubleSided ? 5.5 : 4.4;
-  return { ...baseLineDetails(item), reviewRequired: false, productionCostCents: Math.round(unit * qty * 100), lineCostCents: Math.round(unit * qty * 100), unitCostCents: Math.round(unit * 100) };
+  const sheetCostCents = doubleSided ? 5500 : 4400;
+  const productionCostCents = (qty / size.perSheet) * sheetCostCents;
+  return { ...baseLineDetails(item), reviewRequired: false, productionCostCents, lineCostCents: productionCostCents, unitCostCents: Math.round(sheetCostCents / size.perSheet) };
 };
 
 const estimateLineItemCost = (item: OrderItem): LineEstimate => {

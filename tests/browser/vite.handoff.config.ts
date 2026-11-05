@@ -31,7 +31,7 @@ export default defineConfig({
             // Playwright's WebKit interception, which can strip multipart Blobs.
             res.setHeader('Content-Security-Policy', "connect-src 'self'; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-src 'none'");
           }
-          if (browserScenario?.startsWith('selector-') && url.pathname.startsWith('/.netlify/functions/ai-designer-')) {
+          if (browserScenario && /^(selector|yard-size)-/.test(browserScenario) && url.pathname.startsWith('/.netlify/functions/ai-designer-')) {
             res.setHeader('Content-Type', 'application/json');
             if (url.pathname.endsWith('/ai-designer-status')) { req.resume(); res.end(JSON.stringify({ready:true})); return; }
             if (url.pathname.endsWith('/ai-designer-fit')) {
@@ -41,9 +41,9 @@ export default defineConfig({
               try {
                 const result = await runFitRequest(body,{sub:'fixture'},browserScenario,undefined,{
                   inspect: async () => ({lines:[],elements:[],allTextLegible:true,contentPreserved:true,confidence:1,issues:[],blockingIssues:[]}),
-                  edit: async ({referenceImage,currentImage}:{referenceImage:{buffer:Buffer},currentImage:Buffer}) => {
-                    const size = await sharp(referenceImage.buffer).metadata();
-                    return {buffer:await sharp(currentImage).resize(size.width,size.height).png().toBuffer(),model:'fixture'};
+                  edit: async ({ size, currentImage }: { size: string; currentImage: Buffer }) => {
+                    const [width, height] = size.split('x').map(Number);
+                    return { buffer: await sharp(currentImage).resize(width, height).png().toBuffer(), model: 'fixture' };
                   },
                 });
                 fitResults.set(browserScenario,result);
@@ -88,7 +88,7 @@ export default defineConfig({
           }
           if (url.pathname === '/__compact-test-asset') {
             const kind = url.searchParams.get('kind') || 'original';
-            const bytes = assets.get(`${scenario}:${kind}`);
+            const bytes = assets.get(`${scenario}:${url.searchParams.get('file') || kind}`);
             res.statusCode = bytes ? 200 : 404;
             res.setHeader('Content-Type', kind === 'placement' ? 'image/jpeg' : 'image/png');
             res.end(bytes || 'not uploaded');
@@ -112,10 +112,17 @@ export default defineConfig({
             const metadata = await sharp(bytes).metadata();
             const kind = filename.startsWith('placement-v3-') ? 'placement' : filename.startsWith('ai-fit-') ? 'fitted' : 'original';
             assets.set(`${scenario}:${kind}`, bytes);
+            // A permanent placement has its own URL so browsers can cache each composition separately.
+            const placementFile = kind === 'placement' ? filename : '';
+            if (placementFile) assets.set(`${scenario}:${placementFile}`, bytes);
+            const assetUrl = new URL('/__compact-test-asset', `http://${req.headers.host}`);
+            assetUrl.searchParams.set('scenario', scenario);
+            assetUrl.searchParams.set('kind', kind);
+            if (placementFile) assetUrl.searchParams.set('file', placementFile);
             await uploadGates.get(scenario)?.promise;
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({
-              secure_url: `http://${req.headers.host}/__compact-test-asset?scenario=${encodeURIComponent(scenario)}&kind=${kind}`,
+              secure_url: assetUrl.href,
               public_id: `${scenario}-${kind}`, asset_id: `${scenario}-${kind}-asset`, version: 7,
               resource_type: 'image', format: kind === 'placement' ? 'jpg' : 'png',
               bytes: bytes.length, width: metadata.width, height: metadata.height,

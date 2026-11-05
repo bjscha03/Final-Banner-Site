@@ -17,12 +17,6 @@ import {
 import { EXPANDED_CITY_VINYL_EDITORIAL } from '@/lib/seo/expandedCityEditorialData';
 import { buildLocalPageSchema, buildProductHubSchema } from '@/lib/seo/localPageSchema';
 import { PRODUCT_LANDING_DATA, SITE_URL } from '@/lib/seo/productLandingData';
-import {
-  YARD_SIGN_HEIGHT_IN,
-  YARD_SIGN_MIN_QUANTITY,
-  YARD_SIGN_SINGLE_SIDED_CENTS,
-  YARD_SIGN_WIDTH_IN,
-} from '@/lib/yard-sign-pricing';
 
 const productSlugs = Object.keys(PRODUCT_LANDING_DATA) as CityProductSlug[];
 
@@ -199,7 +193,7 @@ describe('product-aware configurator routing', () => {
 describe('commerce parity', () => {
   it('derives landing-page starting prices from active commerce data', () => {
     expect(PRODUCT_LANDING_DATA['vinyl-banners'].startingPriceCents).toBe(getProductConfig('banner').minimumUnitPriceCents);
-    expect(PRODUCT_LANDING_DATA['yard-signs'].startingPriceCents).toBe(YARD_SIGN_SINGLE_SIDED_CENTS * YARD_SIGN_MIN_QUANTITY);
+    expect(PRODUCT_LANDING_DATA['yard-signs'].startingPriceCents).toBe(8000);
     expect(PRODUCT_LANDING_DATA['car-magnets'].startingPriceCents).toBe(CAR_MAGNET_SIZES[0].basePriceCents);
     expect(CAR_MAGNET_SIZES[0].basePriceCents).toBe(2900);
   });
@@ -208,12 +202,9 @@ describe('commerce parity', () => {
     const yard = getProductConfig('yard_sign');
     const car = getProductConfig('car_magnet');
     expect(yard.allowCustomDimensions).toBe(false);
-    expect(yard.predefinedSizes).toEqual([
-      expect.objectContaining({ widthIn: YARD_SIGN_WIDTH_IN, heightIn: YARD_SIGN_HEIGHT_IN }),
-    ]);
-    expect(PRODUCT_LANDING_DATA['yard-signs'].sizes).toHaveLength(1);
-    expect(PRODUCT_LANDING_DATA['yard-signs'].sizes[0]).toMatch(/24.*18.*only/i);
-    expect(PRODUCT_LANDING_DATA['yard-signs'].priceExamples.slice(0, 2).every((example) => /24.*18/.test(example.configuration))).toBe(true);
+    expect(yard.predefinedSizes?.map(size => size.label)).toEqual(['24" × 18"', '12" × 18"', '18" × 24"', '24" × 24"', '24" × 36"']);
+    expect(PRODUCT_LANDING_DATA['yard-signs'].sizes).toHaveLength(5);
+    expect(PRODUCT_LANDING_DATA['yard-signs'].priceExamples.map(example => example.totalCents)).toEqual([12000, 16000, 10400, 11200, 8000]);
     expect(PRODUCT_LANDING_DATA['yard-signs'].sizes.join(' ')).not.toMatch(/custom/i);
     expect(car.allowCustomDimensions).toBe(false);
     expect(CAR_MAGNET_SIZES).toHaveLength(car.predefinedSizes?.length || 0);
@@ -252,8 +243,8 @@ describe('structured data', () => {
     expect(graph.find((node) => node['@type'] === 'FAQPage')?.mainEntity).toHaveLength(product.faqs.length);
     const pageName = String(graph.find((node) => node['@type'] === 'WebPage')?.name);
     if (slug === 'yard-signs') {
-      expect(pageName).toContain('24×18 Size');
-      expect(pageName).not.toContain('Sizes,');
+      expect(pageName).toContain('Sizes, Options & Pricing');
+      expect(graph.find(node => node['@type'] === 'Product')?.size).toEqual(getProductConfig('yard_sign').predefinedSizes?.map(size => size.label));
     }
   });
 });

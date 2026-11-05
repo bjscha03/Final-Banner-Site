@@ -12,6 +12,7 @@
  * UPDATED: Now uses Netlify Functions for database access instead of direct Supabase client
  */
 
+import { newYardSignCartSize } from './yardSignSizes';
 import type { CartItem } from '@/store/cart';
 import { readCheckoutCustomerDraft } from '@/components/checkout/checkoutCustomerDraft';
 import { authorizedHeaders } from '@/lib/serverAuth';
@@ -284,6 +285,14 @@ class CartSyncService {
           if (processedServerIndices.has(i)) continue;
 
           const serverItem = serverItems[i];
+          // Each new-size line keeps its own artwork allocations, stake count and order limit.
+          if (newYardSignCartSize(localItem) || newYardSignCartSize(serverItem)) {
+            if (!localItem.id || localItem.id !== serverItem.id || localItem.product_type !== serverItem.product_type) continue;
+            merged.push(localItem);
+            processedServerIndices.add(i);
+            foundMatch = true;
+            break;
+          }
           if (this.itemsMatch(localItem, serverItem)) {
             // Found a match - merge quantities
             const mergedQuantity = localItem.quantity + serverItem.quantity;

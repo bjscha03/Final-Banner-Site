@@ -110,7 +110,7 @@ for (const entry of manifest) {
     }[productSlug];
     const expectedPrice = {
       'vinyl-banners': '20.00',
-      'yard-signs': '120.00',
+      'yard-signs': '80.00',
       'car-magnets': '29.00',
     }[productSlug];
     const offer = nodes.find((node) => node?.['@type'] === 'Offer');

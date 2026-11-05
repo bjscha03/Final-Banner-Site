@@ -36,6 +36,7 @@ import { validateProductConfiguration, type ProductTypeSlug } from '@/lib/produc
 import { getConfiguratorProductQuery, parseConfiguratorProductQuery } from '@/lib/configurator';
 import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
 import YardSignConfigurator, { type YardSignConfiguratorHandle } from '@/components/design/YardSignConfigurator';
+import { DEFAULT_YARD_SIGN_SIZE, findYardSignSize, yardSignOrientation } from '@/lib/yardSignSizes';
 import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
 import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
@@ -54,9 +55,6 @@ import {
   type YardSignSidedness,
   type YardSignDesign,
   YARD_SIGN_MIN_QUANTITY,
-  YARD_SIGN_WIDTH_IN,
-  YARD_SIGN_HEIGHT_IN,
-  YARD_SIGN_MAX_QUANTITY,
 } from '@/lib/yard-sign-pricing';
 import {
   CAR_MAGNET_SIZES,
@@ -156,7 +154,7 @@ const PRODUCT_MODE_CONTENT = {
     heroTitle: 'Custom Yard Signs',
     heroDescription: (
       <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
-        Standard 24&quot; × 18&quot; corrugated plastic yard signs with production and carrier transit shown separately.
+        Five sizes of corrugated plastic yard signs with production and carrier transit shown separately.
       </p>
     ),
     topFeatures: [
@@ -252,6 +250,7 @@ const Design: React.FC = () => {
   const isCarMagnet = productType === 'car_magnet';
 
   // Yard sign specific state (multi-design)
+  const [yardSignSize, setYardSignSize] = useState(DEFAULT_YARD_SIGN_SIZE);
   const [yardSignDesigns, setYardSignDesigns] = useState<YardSignDesign[]>([]);
   const [yardSignSidedness, setYardSignSidedness] = useState<YardSignSidedness>('single');
   const [yardSignAddStepStakes, setYardSignAddStepStakes] = useState(false);
@@ -327,6 +326,7 @@ const Design: React.FC = () => {
     useCartStore.getState().setSaturdayDelivery(false);
     if (newType === 'yard_sign') {
       setYardSignDesigns([]);
+      setYardSignSize(DEFAULT_YARD_SIGN_SIZE);
       setYardSignSidedness('single');
       setYardSignAddStepStakes(false);
       setYardSignStepStakeQty(1);
@@ -407,6 +407,7 @@ const Design: React.FC = () => {
         previewThumbnailUrl: d.previewThumbnailUrl,
         placementPreview: d.placementPreview,
       }));
+      setYardSignSize(findYardSignSize(item) ?? DEFAULT_YARD_SIGN_SIZE);
       setYardSignDesigns(restoredDesigns);
       setQuantity(getTotalDesignQuantity(restoredDesigns) || item.quantity || YARD_SIGN_MIN_QUANTITY);
       setYardSignSidedness(item.yard_sign_sidedness || 'single');
@@ -700,15 +701,15 @@ const Design: React.FC = () => {
   }, [cartStore.discountCode]);
   const { setIsCartOpen } = useUIStore();
 
-  // Dimensions: for banners, use ft+in inputs; for yard signs, fixed 24" × 18"
+  // Dimensions: for banners, use ft+in inputs; for yard signs, use the selected print dimensions
   const selectedCarMagnetSize = CAR_MAGNET_SIZES.find((size) => size.label === carMagnetSizeLabel) || CAR_MAGNET_SIZES[0];
   const widthIn = isYardSign
-    ? YARD_SIGN_WIDTH_IN
+    ? yardSignSize.widthIn
     : isCarMagnet
       ? selectedCarMagnetSize.widthIn
       : (widthFt * 12 + widthInR);
   const heightIn = isYardSign
-    ? YARD_SIGN_HEIGHT_IN
+    ? yardSignSize.heightIn
     : isCarMagnet
       ? selectedCarMagnetSize.heightIn
       : (heightFt * 12 + heightInR);
@@ -807,11 +808,12 @@ const Design: React.FC = () => {
       yardSignAddStepStakes,
       yardSignStepStakeQty,
       yardSignPromo,
+      yardSignSize,
     );
-  }, [isYardSign, yardSignSidedness, yardSignTotalQty, yardSignAddStepStakes, yardSignStepStakeQty, yardSignPromo]);
+  }, [isYardSign, yardSignSidedness, yardSignTotalQty, yardSignAddStepStakes, yardSignStepStakeQty, yardSignPromo, yardSignSize]);
 
   // Yard sign quantity validation
-  const yardSignQuantityValid = validateYardSignQuantity(yardSignTotalQty);
+  const yardSignQuantityValid = validateYardSignQuantity(yardSignTotalQty, yardSignSize);
   const carMagnetPricing = useMemo(() => {
     if (!isCarMagnet) return null;
     return calcCarMagnetPricing(widthIn, heightIn, quantity);
@@ -1801,9 +1803,9 @@ const Design: React.FC = () => {
     setHasReviewedOptions(false);
     if (isYardSign) {
       setYardSignDesigns([]);
-      setQuantity(YARD_SIGN_MIN_QUANTITY);
+      setQuantity(yardSignSize.perSheet);
     }
-  }, [isYardSign, removeArtwork]);
+  }, [isYardSign, yardSignSize, removeArtwork]);
 
   const resetAfterSuccessfulAdd = useCallback(() => {
     resetPreview();
@@ -1971,6 +1973,8 @@ const Design: React.FC = () => {
       const primaryDesign = yardSignDesigns[0];
       const primaryPlacement = primaryDesign.placementPreview!;
       const yardSignMetadata = {
+        sizeId: yardSignSize.id,
+        sizeLabel: yardSignSize.label,
         sidedness: yardSignSidedness,
         addStepStakes: yardSignAddStepStakes,
         stepStakeQty: yardSignAddStepStakes ? yardSignStepStakeQty : 0,
@@ -1984,7 +1988,7 @@ const Design: React.FC = () => {
           fileName: d.fileName,
           fileUrl: d.fileUrl,
           fileKey: d.fileKey,
-          thumbnailUrl: d.previewThumbnailUrl || d.thumbnailUrl,
+          thumbnailUrl: d.thumbnailUrl,
           isPdf: d.isPdf,
           quantity: d.quantity,
           imgScale: d.imgScale,
@@ -2003,9 +2007,9 @@ const Design: React.FC = () => {
         originalImageUrl: primaryDesign.fileUrl,
         originalImageFileKey: primaryDesign.fileKey,
         isPdf: primaryDesign.isPdf,
-        widthIn: YARD_SIGN_WIDTH_IN,
-        heightIn: YARD_SIGN_HEIGHT_IN,
-        orientation: YARD_SIGN_WIDTH_IN === YARD_SIGN_HEIGHT_IN ? 'square' : YARD_SIGN_WIDTH_IN > YARD_SIGN_HEIGHT_IN ? 'landscape' : 'portrait',
+        widthIn: yardSignSize.widthIn,
+        heightIn: yardSignSize.heightIn,
+        orientation: yardSignOrientation(yardSignSize),
         imgPos: primaryDesign.imgPos || { x: 0, y: 0 },
         imgScale: primaryDesign.imgScale || 1,
         imgScaleY: primaryDesign.imgScaleY ?? primaryDesign.imgScale ?? 1,
@@ -2026,8 +2030,8 @@ const Design: React.FC = () => {
       });
 
       quoteStore.set({
-        widthIn: YARD_SIGN_WIDTH_IN,
-        heightIn: YARD_SIGN_HEIGHT_IN,
+        widthIn: yardSignSize.widthIn,
+        heightIn: yardSignSize.heightIn,
         quantity: yardSignTotalQty,
         material: 'corrugated' as MaterialKey,
         grommets: 'none' as any,
@@ -2819,6 +2823,7 @@ const Design: React.FC = () => {
         designCount: yardSignDesigns.length,
         unconfirmedDesignId: yardSignUnconfirmedDesignId,
         totalQuantity: yardSignTotalQty,
+        quantityIncrement: yardSignSize.perSheet,
         quantityValid: yardSignQuantityValid.valid,
         quantityValidationMessage: yardSignQuantityValid.message ?? null,
         isUploading: yardSignUploadStatus.isUploading,
@@ -3057,6 +3062,9 @@ const Design: React.FC = () => {
             <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 max-w-full">
               <div className="space-y-8 min-w-0 max-w-full">
                 <YardSignConfigurator
+                  key={yardSignSize.id}
+                  size={yardSignSize}
+                  onSizeChange={setYardSignSize}
                   ref={yardSignConfiguratorRef}
                   designs={yardSignDesigns}
                   onDesignsChange={setYardSignDesigns}
@@ -3721,7 +3729,7 @@ const Design: React.FC = () => {
       {!bannerType.retractable && <TrustStrip />}
 
       {!bannerType.retractable && <MobileSubtotalBar compact
-        selectionLabel={`${widthDisplay} × ${heightDisplay} · Qty ${isYardSign ? yardSignTotalQty : quantity}`}
+        selectionLabel={`${isYardSign ? yardSignSize.label : `${widthDisplay} × ${heightDisplay}`} · Qty ${isYardSign ? yardSignTotalQty : quantity}`}
         compactDiscountLabel={isYardSign || isCarMagnet ? nonBannerOffer.label : bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? '20% off applied' : null}
         primaryAction={{label:mobileCta.label, disabled:mobileCta.disabled || firstOrderOffer.checking, onClick:mobileCta.onClick || scrollToOrder}}
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}

@@ -1,3 +1,4 @@
+import { yardSignSizeLabel } from '@/lib/yardSignSizes';
 import { Resend } from 'resend';
 import {getItemDisplayName,getEmailItemOptions} from './product-display';
 import React from 'react';
@@ -331,11 +332,11 @@ export async function sendOrderConfirmation(order: any, customerEmail: string): 
           if(item.product_type==='specialty')return {name:getItemDisplayName(item),quantity:item.quantity,price:item.line_total_cents/100,options:getEmailItemOptions(item)};
           const isYardSign = item.product_type === 'yard_sign';
             const itemName = isYardSign
-              ? 'Custom Yard Sign 24" × 18"'
+              ? `Custom Yard Sign ${yardSignSizeLabel(item)}`
               : `Custom Banner ${item.width_in}" × ${item.height_in}"`;
             const options = isYardSign
               ? [
-                'Size: 24" × 18"',
+                `Size: ${yardSignSizeLabel(item)}`,
                 'Material: Corrugated Plastic',
                 `Print: ${item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}`,
                 item.quantity ? `Qty: ${item.quantity}` : null,

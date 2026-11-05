@@ -1,9 +1,10 @@
+import { DEFAULT_YARD_SIGN_SIZE, type YardSignSize } from '@/lib/yardSignSizes';
 import React, { useState } from 'react';
 import { Check } from 'lucide-react';
 import type { YardSignDesign } from '@/lib/yard-sign-pricing';
 import YardSignMockup from './YardSignMockup';
 
-export default function YardSignOrderPreview({ designs, withStakes }: { designs: YardSignDesign[]; withStakes: boolean }) {
+export default function YardSignOrderPreview({ designs, withStakes, size = DEFAULT_YARD_SIGN_SIZE }: { size?: YardSignSize; designs: YardSignDesign[]; withStakes: boolean }) {
   const [selectedId, setSelectedId] = useState('');
   const design = designs.find(item => item.id === selectedId) || designs[0];
   return (
@@ -16,10 +17,10 @@ export default function YardSignOrderPreview({ designs, withStakes }: { designs:
           </select>
         </label>
       )}
-      <div className="mx-auto max-w-[320px]"><YardSignMockup withStakes={withStakes} design={design} /></div>
+      <div className="mx-auto max-w-[320px]"><YardSignMockup withStakes={withStakes} size={size} design={design} /></div>
       <p className="mt-3 flex items-center justify-center gap-1.5 text-xs font-semibold text-orange-700" aria-live="polite"><Check className="h-4 w-4" />{withStakes ? 'With stakes selected' : 'Without stakes · Printed signs only'}</p>
-      {!design && <p className="mt-2 text-center text-xs text-slate-500">Example artwork · Your upload appears here</p>}
-      {design && <p className="mt-2 truncate text-center text-xs text-slate-500">{design.fileName} · 24&quot; × 18&quot;</p>}
+      {!design && <p className="mt-2 text-center text-xs text-slate-500">{size.id === DEFAULT_YARD_SIGN_SIZE.id ? 'Example artwork' : size.label} · Your upload appears here</p>}
+      {design && <p className="mt-2 truncate text-center text-xs text-slate-500">{design.fileName} · {size.label}</p>}
     </section>
   );
 }

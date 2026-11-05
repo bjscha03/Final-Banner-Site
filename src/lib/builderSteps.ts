@@ -332,10 +332,10 @@ export const STEP_ANCHOR_FOR = (key: BuilderStepKey): string => STEP_ANCHORS[key
 //
 // Yard signs don't follow the size/material/quantity/options/upload pattern
 // because:
-//   - Size is locked (24" × 18")
+//   - The size is chosen from the yard-sign catalog
 //   - "Material" is really print side (single vs. double-sided)
 //   - Multiple designs upload, each with its own quantity
-//   - Total quantity must be a multiple of 10
+//   - Total quantity must be a whole number of sheets
 //   - Stakes finishing should be reviewed before Add to Cart
 //
 // `getYardSignCtaState` returns a single contextual CTA descriptor that
@@ -352,9 +352,10 @@ export interface YardSignCtaState {
   designCount: number;
   /** ID of the first design that has NOT yet been preview-confirmed (no previewThumbnailUrl), if any. */
   unconfirmedDesignId: string | null;
+  quantityIncrement?: number;
   /** Total signs across all designs. */
   totalQuantity: number;
-  /** Whether totalQuantity is a valid multiple of 10 within bounds. */
+  /** Whether totalQuantity is a valid sheet quantity within the size limits. */
   quantityValid: boolean;
   /** Validation message when quantityValid is false. */
   quantityValidationMessage: string | null;
@@ -402,6 +403,8 @@ export const YARD_SIGN_ANCHORS = {
 } as const;
 
 export function getYardSignCtaState(state: YardSignCtaState): YardSignCtaDescriptor {
+  const increment = state.quantityIncrement ?? 10;
+  const quantityRule = `Yard signs must be ordered in increments of ${increment} (${increment}, ${increment * 2}, ${increment * 3}, etc.).`;
   // Post-add-to-cart: always show "View Cart" until the user starts another build.
   if (state.hasJustAddedToCart) {
     const n = state.cartItemCount;
@@ -497,7 +500,7 @@ export function getYardSignCtaState(state: YardSignCtaState): YardSignCtaDescrip
       scrollTargetId: YARD_SIGN_ANCHORS.quantity,
       disabled: false,
       loading: false,
-      helper: 'Yard signs must be ordered in increments of 10 (10, 20, 30, etc.).',
+      helper: quantityRule,
     };
   }
 
@@ -510,7 +513,7 @@ export function getYardSignCtaState(state: YardSignCtaState): YardSignCtaDescrip
       loading: false,
       helper:
         state.quantityValidationMessage ??
-        'Yard signs must be ordered in increments of 10 (10, 20, 30, etc.).',
+        quantityRule,
     };
   }
 

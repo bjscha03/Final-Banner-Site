@@ -44,6 +44,15 @@ describe('admin supplier cost regressions', () => {
     quantity: 3, line_total_cents: 18000, ...extra,
   });
 
+  it.each([[18, 12, 20], [18, 24, 8], [24, 24, 8], [36, 24, 4]])(
+    'costs %i × %i at the supplier sheet rate', (width_in, height_in, perSheet) => {
+      for (const [sidedness, cents] of [['single', 4400], ['double', 5500]] as const) {
+        const item = sign({ width_in, height_in, quantity: 3 * perSheet, yard_sign_sidedness: sidedness });
+        expect(estimateOrderProfit(baseOrder([item])).productionCostCents).toBe(3 * cents);
+      }
+    },
+  );
+
   it('corrects the double-sided $140 yard-sign order with a $28 discount', () => {
     const profit = estimateOrderProfit({ ...baseOrder([sign()]), applied_discount_cents: 2800 });
     expect(profit).toMatchObject({ needsReview: false, productionCostCents: 5500,

@@ -8,7 +8,7 @@ const brandLogo = (await readFile(path.join(outputDir, 'bof-logo-20261101.png'))
 
 const products = [
   { file: 'og-vinyl-banners.png', eyebrow: 'CUSTOM PRINTING', title: 'Vinyl Banners', subtitle: 'Custom sizes, materials & online pricing' },
-  { file: 'og-yard-signs.png', eyebrow: 'CUSTOM PRINTING', title: 'Yard Signs', subtitle: 'One 24 × 18 size · Print-side options' },
+  { file: 'og-yard-signs.png', eyebrow: 'CUSTOM PRINTING', title: 'Yard Signs', subtitle: 'Five sizes · Single- or double-sided' },
   { file: 'og-car-magnets.png', eyebrow: 'CUSTOM PRINTING', title: 'Car Magnets', subtitle: 'Supported sizes, options & online pricing' },
   { file: 'og-ai-banner-designer.png', eyebrow: 'FROM IDEA TO PRINT', title: 'AI Banner Designer', subtitle: 'Your idea. Your logo. Your banner.', footer: '24-hour production • Free next-day air' },
 ];

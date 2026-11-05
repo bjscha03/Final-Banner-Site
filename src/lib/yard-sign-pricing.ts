@@ -1,16 +1,4 @@
-/**
- * Yard Sign Pricing Module (v2)
- * 
- * Simplified flat-rate pricing for 24" × 18" corrugated plastic yard signs.
- * 
- * Business rules:
- * - Single size: 24" × 18"
- * - Single-Sided: $12/sign, Double-Sided: $14/sign
- * - Step Stakes: $1.50 each (optional add-on)
- * - Max 90 signs per order for 24-hour production
- * - FREE Next-Day Air shipping
- */
-
+import { DEFAULT_YARD_SIGN_SIZE, findYardSignSize, type YardSignSize } from './yardSignSizes';
 import { getProductConfig, type PredefinedSize, type MaterialMultiplier } from './products';
 import { productDisplayPrice } from './specialtyDisplayPrice';
 import type { PromoDiscountInput } from './discount-resolver';
@@ -19,13 +7,13 @@ import type { PlacementPreviewManifest } from '@/types/artwork';
 const YARD_SIGN_SLUG = 'yard_sign';
 
 // ----- Constants -----
-export const YARD_SIGN_WIDTH_IN = 24;
-export const YARD_SIGN_HEIGHT_IN = 18;
-export const YARD_SIGN_MAX_QUANTITY = 90;
+export const YARD_SIGN_WIDTH_IN = DEFAULT_YARD_SIGN_SIZE.widthIn;
+export const YARD_SIGN_HEIGHT_IN = DEFAULT_YARD_SIGN_SIZE.heightIn;
+export const YARD_SIGN_MAX_QUANTITY = DEFAULT_YARD_SIGN_SIZE.maxQuantity;
 export const YARD_SIGN_MAX_DESIGNS = 10;
 
-export const YARD_SIGN_SINGLE_SIDED_CENTS = 1200;  // $12.00
-export const YARD_SIGN_DOUBLE_SIDED_CENTS = 1400;   // $14.00
+export const YARD_SIGN_SINGLE_SIDED_CENTS = DEFAULT_YARD_SIGN_SIZE.singleCents;  // $12.00
+export const YARD_SIGN_DOUBLE_SIDED_CENTS = DEFAULT_YARD_SIGN_SIZE.doubleCents;   // $14.00
 export const YARD_SIGN_STEP_STAKE_CENTS = 150;      // $1.50
 
 export type YardSignSidedness = 'single' | 'double';
@@ -51,6 +39,7 @@ export interface YardSignDesign {
 
 // ----- Pricing result -----
 export interface YardSignPricing {
+  size: YardSignSize;
   sidedness: YardSignSidedness;
   unitPriceCents: number;       // Price per sign based on sidedness
   totalSignQuantity: number;
@@ -70,8 +59,8 @@ export interface YardSignPricing {
 /**
  * Get unit price in cents based on sidedness.
  */
-export function getYardSignUnitPrice(sidedness: YardSignSidedness): number {
-  return sidedness === 'double' ? YARD_SIGN_DOUBLE_SIDED_CENTS : YARD_SIGN_SINGLE_SIDED_CENTS;
+export function getYardSignUnitPrice(sidedness: YardSignSidedness, size = DEFAULT_YARD_SIGN_SIZE): number {
+  return sidedness === 'double' ? size.doubleCents : size.singleCents;
 }
 
 /**
@@ -83,10 +72,11 @@ export function calcYardSignPricing(
   addStepStakes: boolean,
   stepStakeQuantity: number,
   promotion: number | PromoDiscountInput | null = 0,
+  size = DEFAULT_YARD_SIGN_SIZE,
 ): YardSignPricing {
   const config = getProductConfig(YARD_SIGN_SLUG);
 
-  const unitPriceCents = getYardSignUnitPrice(sidedness);
+  const unitPriceCents = getYardSignUnitPrice(sidedness, size);
   const signSubtotalCents = unitPriceCents * totalSignQuantity;
 
   const stepStakeTotalCents = addStepStakes
@@ -104,6 +94,7 @@ export function calcYardSignPricing(
   const totalWithTaxCents = totalCents + taxCents;
 
   return {
+    size,
     sidedness,
     unitPriceCents,
     totalSignQuantity,
@@ -129,47 +120,49 @@ export function getTotalDesignQuantity(designs: YardSignDesign[]): number {
 }
 
 /** Move copies between artworks without changing the customer's order quantity. */
-export function assignYardSignCopies(designs: YardSignDesign[], id: string, requested: number): YardSignDesign[] {
+export function assignYardSignCopies(designs: YardSignDesign[], id: string, requested: number, step = 1): YardSignDesign[] {
   const target = designs.find(design => design.id === id);
   if (!target || designs.length < 2 || !Number.isFinite(requested)) return designs;
 
-  const max = getTotalDesignQuantity(designs) - (designs.length - 1);
-  const quantity = Math.max(1, Math.min(max, Math.trunc(requested)));
+  const max = getTotalDesignQuantity(designs) - (designs.length - 1) * step;
+  const quantity = Math.max(step, Math.min(max, Math.trunc(requested / step) * step));
   let needed = quantity - target.quantity;
   if (needed === 0) return designs;
   return designs.map(design => {
     if (design.id === id) return { ...design, quantity };
     // A negative transfer gives freed copies to the first other artwork.
-    const transfer = Math.min(needed, design.quantity - 1);
+    const transfer = Math.min(needed, design.quantity - step);
     needed -= transfer;
     return transfer ? { ...design, quantity: design.quantity - transfer } : design;
   });
 }
 
 /** Yard signs must be ordered in increments of this value */
-export const YARD_SIGN_INCREMENT = 10;
+export const YARD_SIGN_INCREMENT = DEFAULT_YARD_SIGN_SIZE.perSheet;
 
 /** Minimum yard sign order quantity */
-export const YARD_SIGN_MIN_QUANTITY = 10;
+export const YARD_SIGN_MIN_QUANTITY = DEFAULT_YARD_SIGN_SIZE.perSheet;
 
-/**
- * Validate that total yard sign quantity meets business rules:
- * - Must be >= 10
- * - Must be <= 90
- * - Must be a multiple of 10
- */
-export function validateYardSignQuantity(totalQuantity: number): { valid: boolean; message?: string } {
-  if (totalQuantity === 0) {
-    return { valid: false };
+export function distributeYardSignCopies<T extends { quantity: number }>(designs: T[], total: number, step: number): T[] {
+  const units = total / step;
+  return designs.map((design, index) => ({
+    ...design, quantity: (Math.floor(units / designs.length) + (index < units % designs.length ? 1 : 0)) * step,
+  }));
+}
+
+export function yardSignQuantityRule(size: YardSignSize) {
+  const n = size.perSheet;
+  return `Yard signs must be ordered in increments of ${n} (${n}, ${n * 2}, ${n * 3}, etc.).`;
+}
+
+export function validateYardSignQuantity(totalQuantity: number, size = DEFAULT_YARD_SIGN_SIZE): { valid: boolean; message?: string } {
+  if (totalQuantity === 0) return { valid: false };
+  if (totalQuantity < size.perSheet) return { valid: false, message: `Minimum order is ${size.perSheet} yard signs.` };
+  if (totalQuantity > size.maxQuantity) {
+    return { valid: false, message: `Maximum ${size.maxQuantity} signs per order for 24-hour production. Please place multiple orders.` };
   }
-  if (totalQuantity < YARD_SIGN_MIN_QUANTITY) {
-    return { valid: false, message: 'Minimum order is 10 yard signs.' };
-  }
-  if (totalQuantity > YARD_SIGN_MAX_QUANTITY) {
-    return { valid: false, message: `Maximum ${YARD_SIGN_MAX_QUANTITY} signs per order for 24-hour production. Please place multiple orders.` };
-  }
-  if (totalQuantity % YARD_SIGN_INCREMENT !== 0) {
-    return { valid: false, message: 'Yard signs must be ordered in increments of 10 (10, 20, 30, etc.).' };
+  if (!Number.isInteger(totalQuantity) || totalQuantity % size.perSheet !== 0) {
+    return { valid: false, message: yardSignQuantityRule(size) };
   }
   return { valid: true };
 }
@@ -181,7 +174,7 @@ export function validateYardSignQuantity(totalQuantity: number): { valid: boolea
  * @deprecated Use calcYardSignPricing v2 instead
  */
 export function getYardSignBasePrice(widthIn: number, heightIn: number): number {
-  return YARD_SIGN_SINGLE_SIDED_CENTS;
+  return findYardSignSize({ width_in: widthIn, height_in: heightIn })?.singleCents ?? YARD_SIGN_SINGLE_SIDED_CENTS;
 }
 
 /**

@@ -24,11 +24,10 @@ test('server checkout guard remains aligned with the product registry source', (
     `widthIn: 42, heightIn: 12, basePriceCents: 6000`,
     `widthIn: 72, heightIn: 24, basePriceCents: 16000`,
   ]) assert.ok(registry.includes(expected), `registry value changed: ${expected}`);
-  for (const expected of [
-    'YARD_SIGN_SINGLE_SIDED_CENTS = 1200',
-    'YARD_SIGN_DOUBLE_SIDED_CENTS = 1400',
-    'YARD_SIGN_STEP_STAKE_CENTS = 150',
-  ]) assert.ok(yardPricing.includes(expected), `yard-sign price changed: ${expected}`);
+  const [standard] = require('../../../shared/yard-sign-sizes.json');
+  assert.equal(standard.singleCents, 1200);
+  assert.equal(standard.doubleCents, 1400);
+  assert.ok(yardPricing.includes('YARD_SIGN_STEP_STAKE_CENTS = 150'));
 });
 
 test('banner price is rebuilt from registry rules and ignores browser totals', () => {
@@ -130,3 +129,33 @@ test('large banner tiers and aggregate online area limits are enforced', () => {
   assert.throws(() => repriceStripeCart([{ ...banner, height_in: 193 }]));
   assert.equal(repriceStripeCart([{ ...banner, height_in: 192 }])[0].unit_price_cents, 226000);
 });
+
+for (const [id, width, height, step, max, single, double] of [
+  ['24x18', 24, 18, 10, 90, 1200, 1400],
+  ['12x18', 18, 12, 20, 180, 800, 1000],
+  ['18x24', 18, 24, 8, 72, 1300, 1600],
+  ['24x24', 24, 24, 8, 72, 1400, 1700],
+  ['24x36', 36, 24, 4, 36, 2000, 2400],
+]) {
+  test(`${id} prices full sheets at both limits and enforces the printed dimensions`, () => {
+    const line = {
+      product_type: 'yard_sign', width_in: width, height_in: height, yard_sign_size_id: id,
+      quantity: step, yard_sign_designs: [{ quantity: step }], line_total_cents: 1,
+    };
+    for (let quantity = step; quantity <= max; quantity += step) {
+      for (const [side, price] of [['single', single], ['double', double]]) {
+        const [priced] = repriceStripeCart([{ ...line, quantity, yard_sign_designs: [{ quantity }],
+          yard_sign_sidedness: side, yard_sign_step_stakes_enabled: true, yard_sign_step_stakes_qty: quantity }]);
+        assert.equal(priced.unit_price_cents, price);
+        assert.equal(priced.line_total_cents, (price + 150) * quantity);
+      }
+    }
+    for (const quantity of [step - 1, step + 1, max + step]) {
+      assert.throws(() => repriceStripeCart([{ ...line, quantity, yard_sign_designs: [{ quantity }] }]));
+    }
+    assert.throws(() => repriceStripeCart([{ ...line, yard_sign_size_id: 'unknown' }]), { code: 'YARD_SIGN_SIZE_INVALID' });
+    if (id !== '24x18') {
+      assert.throws(() => repriceStripeCart([{ ...line, yard_sign_designs: [{ quantity: 1 }, { quantity: step - 1 }] }]), { code: 'YARD_SIGN_QUANTITY_INVALID' });
+    }
+  });
+}

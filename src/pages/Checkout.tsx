@@ -1,3 +1,5 @@
+import { findYardSignSize, yardSignArtworkStep } from '@/lib/yardSignSizes';
+import { validateYardSignQuantity } from '@/lib/yard-sign-pricing';
 import SavedSpecialtyPreview from '@/components/specialty/SavedSpecialtyPreview';
 import {specialtyItemHasIncludedShipping, specialtyItemHasVerifiedPrice, specialtyItemPrice} from '@/lib/specialtyProducts';
 import BOFCashCheckout from '@/components/checkout/BOFCashCheckout';
@@ -402,17 +404,18 @@ const Checkout: React.FC = () => {
 
   // Yard sign quantity validation at checkout
   const yardSignItems = items.filter(item => isYardSignItem(item));
-  const yardSignOverLimit = yardSignItems.some(item => item.quantity > 90);
-  const yardSignNoArtwork = yardSignItems.some(item => !item.yard_sign_design_count || item.yard_sign_design_count === 0);
-  const yardSignNotMultipleOf10 = yardSignItems.some(item => item.quantity < 10 || item.quantity % 10 !== 0);
-  const yardSignInvalid = yardSignOverLimit || yardSignNoArtwork || yardSignNotMultipleOf10;
-  const yardSignValidationMessage = yardSignOverLimit
-    ? 'Maximum 90 signs per order for 24-hour production. Please place multiple orders.'
-    : yardSignNotMultipleOf10
-    ? 'Yard signs must be ordered in increments of 10 (10, 20, 30, etc.).'
-    : yardSignNoArtwork
-    ? 'Please upload at least one design for your yard sign order.'
-    : '';
+  const yardSignValidationMessage = yardSignItems.map(item => {
+    const size = findYardSignSize(item);
+    if (!size) return 'Please select a supported yard-sign size.';
+    const rule = validateYardSignQuantity(item.quantity, size);
+    if (!rule.valid) return rule.message || `Minimum order is ${size.perSheet} yard signs.`;
+    if (!item.yard_sign_design_count) return 'Please upload at least one design for your yard sign order.';
+    if (item.yard_sign_designs?.some(design => design.quantity % yardSignArtworkStep(size) !== 0)) {
+      return `Each artwork for ${size.label} needs a multiple of ${size.perSheet} signs.`;
+    }
+    return '';
+  }).find(Boolean);
+  const yardSignInvalid = Boolean(yardSignValidationMessage);
 
   const specialtyInCart = items.some(item => item.product_type === 'specialty');
   const pricingPending = items.some(item => !specialtyItemHasVerifiedPrice(item));
