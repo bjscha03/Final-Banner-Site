@@ -1,3 +1,4 @@
+import { DEFAULT_YARD_SIGN_SIZE, findYardSignSize, getYardSignSize, normalizeYardSignQuantity, yardSignQuantityRule, type YardSignSizeId } from '@/lib/yard-sign-sizes';
 import QuantityStepper from '@/components/design/QuantityStepper';
 import { BannerTypeSelector, RetractableBuilder, RetractableHero, useBannerType } from '@/components/design/BannerTypeSelector';
 import { productDisplayPrice } from '@/lib/specialtyDisplayPrice';
@@ -71,8 +72,6 @@ import {
   type YardSignSidedness,
   type YardSignDesign,
   YARD_SIGN_MIN_QUANTITY,
-  YARD_SIGN_WIDTH_IN,
-  YARD_SIGN_HEIGHT_IN,
   YARD_SIGN_MAX_QUANTITY,
 } from '@/lib/yard-sign-pricing';
 import {
@@ -263,6 +262,8 @@ const GoogleAdsBanner: React.FC = () => {
 
   // Yard sign specific state (v2: simplified single-size, multi-design)
   const [yardSignDesigns, setYardSignDesigns] = useState<YardSignDesign[]>([]);
+  const [yardSignSizeId, setYardSignSizeId] = useState<YardSignSizeId>(DEFAULT_YARD_SIGN_SIZE.id);
+  const selectedYardSignSize = getYardSignSize(yardSignSizeId);
   const [yardSignSidedness, setYardSignSidedness] = useState<YardSignSidedness>('single');
   const [yardSignAddStepStakes, setYardSignAddStepStakes] = useState(false);
   const [yardSignStepStakeQty, setYardSignStepStakeQty] = useState(1);
@@ -457,15 +458,15 @@ const GoogleAdsBanner: React.FC = () => {
   const cartItemCount = useCartStore(s => s.getItemCount());
   const { toast } = useToast();
 
-  // Dimensions: for banners, use ft+in inputs; for yard signs, fixed 24" × 18"
+  // Dimensions: for banners, use ft+in inputs; for yard signs, use the selected supplier size and orientation
   const selectedCarMagnetSize = CAR_MAGNET_SIZES.find((size) => size.label === carMagnetSizeLabel) || CAR_MAGNET_SIZES[0];
   const widthIn = isYardSign
-    ? YARD_SIGN_WIDTH_IN
+    ? selectedYardSignSize.widthIn
     : isCarMagnet
       ? selectedCarMagnetSize.widthIn
       : (widthFt * 12 + widthInR);
   const heightIn = isYardSign
-    ? YARD_SIGN_HEIGHT_IN
+    ? selectedYardSignSize.heightIn
     : isCarMagnet
       ? selectedCarMagnetSize.heightIn
       : (heightFt * 12 + heightInR);
@@ -559,11 +560,30 @@ const GoogleAdsBanner: React.FC = () => {
       yardSignAddStepStakes,
       yardSignStepStakeQty,
       yardSignPromo,
+      selectedYardSignSize,
     );
-  }, [isYardSign, yardSignSidedness, yardSignTotalQty, yardSignAddStepStakes, yardSignStepStakeQty, yardSignPromo]);
+  }, [isYardSign, yardSignSidedness, yardSignTotalQty, yardSignAddStepStakes, yardSignStepStakeQty, yardSignPromo, selectedYardSignSize]);
+
+  const handleYardSignSizeChange = (sizeId: YardSignSizeId) => {
+    if (sizeId === yardSignSizeId) return;
+    const nextSize = getYardSignSize(sizeId);
+    const nextQuantity = normalizeYardSignQuantity(yardSignTotalQty, nextSize, yardSignDesigns.length);
+    setYardSignSizeId(sizeId);
+    setQuantity(nextQuantity);
+    setYardSignStepStakeQty(current => current === yardSignTotalQty ? nextQuantity : Math.min(current, nextQuantity));
+    setYardSignDesigns(current => current.map((design, index) => ({
+      ...design,
+      quantity: Math.floor(nextQuantity / current.length) + (index < nextQuantity % current.length ? 1 : 0),
+      imgPos: { x: 0, y: 0 }, imgScale: 1, imgScaleY: 1, imgConstrain: true,
+      previewThumbnailUrl: undefined, placementPreview: undefined,
+    })));
+    setHasJustAddedToCart(false);
+    setAutoOpenDesignId(null);
+    setYardSignPreviewTrigger(null);
+  };
 
   // Yard sign quantity validation
-  const yardSignQuantityValid = validateYardSignQuantity(yardSignTotalQty);
+  const yardSignQuantityValid = validateYardSignQuantity(yardSignTotalQty, selectedYardSignSize);
   const carMagnetPricing = useMemo(() => {
     if (!isCarMagnet) return null;
     return calcCarMagnetPricing(widthIn, heightIn, quantity);
@@ -908,6 +928,7 @@ const GoogleAdsBanner: React.FC = () => {
         previewThumbnailUrl: d.previewThumbnailUrl,
         placementPreview: d.placementPreview,
       }));
+      setYardSignSizeId((findYardSignSize(item.width_in, item.height_in) || DEFAULT_YARD_SIGN_SIZE).id);
       setYardSignDesigns(restoredDesigns);
       setQuantity(getTotalDesignQuantity(restoredDesigns) || item.quantity || YARD_SIGN_MIN_QUANTITY);
       setYardSignSidedness(item.yard_sign_sidedness || 'single');
@@ -1084,6 +1105,7 @@ const GoogleAdsBanner: React.FC = () => {
     // Reset yard sign state when switching
     if (newType === 'yard_sign') {
       setYardSignDesigns([]);
+      setYardSignSizeId(DEFAULT_YARD_SIGN_SIZE.id);
       setYardSignSidedness('single');
       setYardSignAddStepStakes(false);
       setYardSignStepStakeQty(1);
@@ -1765,6 +1787,7 @@ const GoogleAdsBanner: React.FC = () => {
     setHasReviewedOptions(false);
     if (isYardSign) {
       setYardSignDesigns([]);
+      setYardSignSizeId(DEFAULT_YARD_SIGN_SIZE.id);
       setQuantity(YARD_SIGN_MIN_QUANTITY);
     }
   }, [isYardSign, productType, removeArtwork]);
@@ -1917,7 +1940,7 @@ const GoogleAdsBanner: React.FC = () => {
     if (isYardSign && yardSignPricing) {
       if (yardSignDesigns.length === 0 || yardSignTotalQty === 0) return;
       if (!yardSignQuantityValid.valid) return;
-      const missingExactDesign = yardSignDesigns.find((design) => !isReadyPlacementPreview(design.placementPreview));
+      const missingExactDesign = yardSignDesigns.find((design) => !isReadyPlacementPreview(design.placementPreview) || design.placementPreview.widthIn !== selectedYardSignSize.widthIn || design.placementPreview.heightIn !== selectedYardSignSize.heightIn);
       if (missingExactDesign) {
         toast({
           title: 'YARD_SIGN_PREVIEW_NOT_READY',
@@ -1933,6 +1956,11 @@ const GoogleAdsBanner: React.FC = () => {
 
       // Build yard sign metadata for order
       const yardSignMetadata = {
+        sizeId: selectedYardSignSize.id,
+        sizeLabel: selectedYardSignSize.label,
+        widthIn: selectedYardSignSize.widthIn,
+        heightIn: selectedYardSignSize.heightIn,
+        signsPerSheet: selectedYardSignSize.perSheet,
         sidedness: yardSignSidedness,
         addStepStakes: yardSignAddStepStakes,
         stepStakeQty: yardSignAddStepStakes ? yardSignStepStakeQty : 0,
@@ -1965,9 +1993,9 @@ const GoogleAdsBanner: React.FC = () => {
         originalImageUrl: primaryDesign.fileUrl,
         originalImageFileKey: primaryDesign.fileKey,
         isPdf: primaryDesign.isPdf,
-        widthIn: YARD_SIGN_WIDTH_IN,
-        heightIn: YARD_SIGN_HEIGHT_IN,
-        orientation: YARD_SIGN_WIDTH_IN === YARD_SIGN_HEIGHT_IN ? 'square' : YARD_SIGN_WIDTH_IN > YARD_SIGN_HEIGHT_IN ? 'landscape' : 'portrait',
+        widthIn: selectedYardSignSize.widthIn,
+        heightIn: selectedYardSignSize.heightIn,
+        orientation: selectedYardSignSize.widthIn === selectedYardSignSize.heightIn ? 'square' : selectedYardSignSize.widthIn > selectedYardSignSize.heightIn ? 'landscape' : 'portrait',
         imgPos: primaryDesign.imgPos || { x: 0, y: 0 },
         imgScale: primaryDesign.imgScale || 1,
         imgScaleY: primaryDesign.imgScaleY ?? primaryDesign.imgScale ?? 1,
@@ -1988,8 +2016,8 @@ const GoogleAdsBanner: React.FC = () => {
       });
 
       quoteStore.set({
-        widthIn: YARD_SIGN_WIDTH_IN,
-        heightIn: YARD_SIGN_HEIGHT_IN,
+        widthIn: selectedYardSignSize.widthIn,
+        heightIn: selectedYardSignSize.heightIn,
         quantity: yardSignTotalQty,
         material: 'corrugated' as MaterialKey,
         grommets: 'none' as any,
@@ -2277,7 +2305,7 @@ const GoogleAdsBanner: React.FC = () => {
 
     console.log('[FINAL_RENDER_HTML] ✅ Cart item created with verified permanent placement preview');
     finishAddToCart(actionType, `${designerPath}?product=banner`);
-  }, [ensurePermanentArtworkUploaded, pendingCheckoutData, grommets, addRope, polePockets, polePocketSize, widthIn, heightIn, quantity, material, quoteStore, cartStore, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignMaterial, yardSignPricing, productType, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty, finishAddToCart, toast, editItemId, aiPrompt, aiEditPrompt, ropePlacement, constrainProps, designerPath, isDoubleSidedBanner]);
+  }, [ensurePermanentArtworkUploaded, pendingCheckoutData, grommets, addRope, polePockets, polePocketSize, widthIn, heightIn, quantity, material, quoteStore, cartStore, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignMaterial, yardSignPricing, productType, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty, selectedYardSignSize, finishAddToCart, toast, editItemId, aiPrompt, aiEditPrompt, ropePlacement, constrainProps, designerPath, isDoubleSidedBanner]);
 
   const prepareAndRoutePlacement = useCallback((
     actionType: 'checkout' | 'cart',
@@ -2639,6 +2667,7 @@ const GoogleAdsBanner: React.FC = () => {
         totalQuantity: yardSignTotalQty,
         quantityValid: yardSignQuantityValid.valid,
         quantityValidationMessage: yardSignQuantityValid.message ?? null,
+        quantityRule: yardSignQuantityRule(selectedYardSignSize),
         isUploading: yardSignUploadStatus.isUploading,
         uploadError: yardSignUploadStatus.uploadError,
         hasJustAddedToCart: false,
@@ -3315,7 +3344,7 @@ const GoogleAdsBanner: React.FC = () => {
                 </ConfigCard>);
   const heroContent = isYardSign
     ? {
-        eyebrow: '24″ × 18″ YARD SIGNS · NATIONWIDE SHIPPING',
+        eyebrow: 'CUSTOM YARD SIGN SIZES · NATIONWIDE SHIPPING',
         headline: 'Custom yard signs, produced fast.',
         intro: 'Upload up to 10 designs, review every on-screen print preview, and see the exact order subtotal before checkout.',
         priceLabel: '10 single-sided signs',
@@ -3406,7 +3435,7 @@ const GoogleAdsBanner: React.FC = () => {
         <section ref={orderRef} id="order-builder" className={paidBannerLanding ? "bg-white px-4 py-3 lg:bg-gray-50 lg:py-12" : compactMobileLanding ? "bg-gray-50 px-4 py-3 lg:py-12" : "py-12 px-4 bg-gray-50"}>
           <div className={mobilePaidLayout ? 'mx-auto max-w-xl' : 'max-w-4xl lg:max-w-7xl mx-auto'}>
             <p className={`mb-3 text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF6A00] ${compactMobileLanding ? "hidden lg:block" : ""}`}>
-              {bannerType.retractable ? 'Retractable banners' : isDoubleSidedBanner ? 'Double-sided · 18 oz vinyl' : isYardSign ? '24″ × 18″ yard signs' : isCarMagnet ? 'Custom car magnets' : 'Custom banners'}
+              {bannerType.retractable ? 'Retractable banners' : isDoubleSidedBanner ? 'Double-sided · 18 oz vinyl' : isYardSign ? 'Custom yard signs' : isCarMagnet ? 'Custom car magnets' : 'Custom banners'}
             </p>
             {compactMobileLanding && !paidBannerLanding && <p className="mb-2 flex items-center justify-between gap-2 text-xs font-medium text-slate-500 lg:hidden" aria-label="Ordering steps"><span className="font-bold text-orange-700" aria-current="step">1 Design</span><span aria-hidden="true">→</span><span>2 Finishing</span><span aria-hidden="true">→</span><span>3 Checkout</span></p>}
             {mobilePaidLayout && isHalloweenLanding && <>
@@ -3452,6 +3481,9 @@ const GoogleAdsBanner: React.FC = () => {
                 <div className="space-y-8 min-w-0 max-w-full">
                   <YardSignConfigurator
                     ref={yardSignConfiguratorRef}
+                  key={yardSignSizeId}
+                  size={selectedYardSignSize}
+                  onSizeChange={handleYardSignSizeChange}
                     designs={yardSignDesigns}
                     onDesignsChange={setYardSignDesigns}
                     orderQuantity={yardSignTotalQty}

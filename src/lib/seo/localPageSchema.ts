@@ -149,9 +149,7 @@ export function buildProductHubSchema(product: ProductLandingDefinition, canonic
   const image = imageNode(product);
   const productId = `${canonicalUrl}#product`;
   const offerId = `${canonicalUrl}#offer`;
-  const pageName = product.slug === 'yard-signs'
-    ? `${product.plural} | 24×18 Size, Options & Pricing`
-    : `${product.plural} | Sizes, Options & Pricing`;
+  const pageName = `${product.plural} | Sizes, Options & Pricing`;
   return {
     '@context': 'https://schema.org',
     '@graph': [
@@ -174,6 +172,7 @@ export function buildProductHubSchema(product: ProductLandingDefinition, canonic
         '@type': 'Product',
         '@id': productId,
         name: product.plural,
+        ...(product.slug === 'yard-signs' ? { size: product.sizes } : {}),
         description: product.overview,
         image: { '@id': image['@id'] },
         brand: { '@type': 'Brand', name: 'Banners On The Fly' },

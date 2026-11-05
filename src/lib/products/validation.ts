@@ -1,3 +1,4 @@
+import { findYardSignSize } from '../yard-sign-sizes';
 import { getProductConfig, type ProductTypeSlug } from './registry';
 
 export type ProductConfigurationValidation = {
@@ -29,6 +30,10 @@ export const validateProductConfiguration = ({
       code: 'DIMENSIONS_OUT_OF_RANGE',
       message: `${config.name} dimensions must be between ${config.dimensions.minIn} and ${config.dimensions.maxIn} inches.`,
     };
+  }
+
+  if (productType === 'yard_sign' && !findYardSignSize(widthIn, heightIn)) {
+    return { valid: false, code: 'INVALID_DIMENSIONS', message: 'Choose a supported yard sign size.' };
   }
 
   if (productType === 'banner' && (Math.max(widthIn, heightIn) > 600 || Math.min(widthIn, heightIn) > 192)) {

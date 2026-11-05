@@ -1,0 +1,71 @@
+{
+  "sheetSingleCents": 4400,
+  "sheetDoubleCents": 5500,
+  "sizes": [
+    {
+      "id": "24x18",
+      "label": "24\" × 18\"",
+      "widthIn": 24,
+      "heightIn": 18,
+      "orientation": "landscape",
+      "perSheet": 10,
+      "minQuantity": 10,
+      "increment": 10,
+      "maxQuantity": 90,
+      "singleCents": 1200,
+      "doubleCents": 1400
+    },
+    {
+      "id": "12x18",
+      "label": "12\" × 18\"",
+      "widthIn": 18,
+      "heightIn": 12,
+      "orientation": "landscape",
+      "perSheet": 20,
+      "minQuantity": 20,
+      "increment": 20,
+      "maxQuantity": 180,
+      "singleCents": 800,
+      "doubleCents": 1000
+    },
+    {
+      "id": "18x24",
+      "label": "18\" × 24\"",
+      "widthIn": 18,
+      "heightIn": 24,
+      "orientation": "portrait",
+      "perSheet": 8,
+      "minQuantity": 8,
+      "increment": 8,
+      "maxQuantity": 72,
+      "singleCents": 1300,
+      "doubleCents": 1600
+    },
+    {
+      "id": "24x24",
+      "label": "24\" × 24\"",
+      "widthIn": 24,
+      "heightIn": 24,
+      "orientation": "square",
+      "perSheet": 8,
+      "minQuantity": 8,
+      "increment": 8,
+      "maxQuantity": 72,
+      "singleCents": 1400,
+      "doubleCents": 1700
+    },
+    {
+      "id": "24x36",
+      "label": "24\" × 36\"",
+      "widthIn": 36,
+      "heightIn": 24,
+      "orientation": "landscape",
+      "perSheet": 4,
+      "minQuantity": 4,
+      "increment": 4,
+      "maxQuantity": 36,
+      "singleCents": 2000,
+      "doubleCents": 2400
+    }
+  ]
+}

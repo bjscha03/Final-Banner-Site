@@ -41,8 +41,9 @@ export default defineConfig({
               try {
                 const result = await runFitRequest(body,{sub:'fixture'},browserScenario,undefined,{
                   inspect: async () => ({lines:[],elements:[],allTextLegible:true,contentPreserved:true,confidence:1,issues:[],blockingIssues:[]}),
-                  edit: async ({referenceImage,currentImage}:{referenceImage:{buffer:Buffer},currentImage:Buffer}) => {
-                    const size = await sharp(referenceImage.buffer).metadata();
+                  edit: async ({referenceImage,currentImage,size:providerSize}:{referenceImage?:{buffer:Buffer},currentImage:Buffer,size:string}) => {
+                    const [width,height] = providerSize.split('x').map(Number);
+                    const size = referenceImage ? await sharp(referenceImage.buffer).metadata() : {width,height};
                     return {buffer:await sharp(currentImage).resize(size.width,size.height).png().toBuffer(),model:'fixture'};
                   },
                 });

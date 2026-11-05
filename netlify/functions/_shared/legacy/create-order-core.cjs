@@ -1,3 +1,4 @@
+const { findYardSignSize, validYardSignQuantity } = require('../yard-sign-sizes.cjs');
 const { neon } = require('@neondatabase/serverless');
 const { createHash, randomUUID } = require('crypto');
 const { normalizeArtworkManifest } = require('../artwork-manifest.cjs');
@@ -1255,21 +1256,19 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // SERVER-SIDE: Validate yard sign quantities (must be multiples of 10, min 10, max 90)
-    const YARD_SIGN_INCREMENT = 10;
-    const YARD_SIGN_MIN_QTY = 10;
-    const YARD_SIGN_MAX_QTY = 90;
+    // Every yard-sign line is a whole number of sheets of its selected size.
     if (orderData.items && Array.isArray(orderData.items)) {
       for (const item of orderData.items) {
         if (item.product_type === 'yard_sign') {
           const qty = item.quantity || 0;
-          if (qty < YARD_SIGN_MIN_QTY || qty > YARD_SIGN_MAX_QTY || qty % YARD_SIGN_INCREMENT !== 0) {
+          const size = findYardSignSize(item.width_in, item.height_in);
+          if (!validYardSignQuantity(qty, size)) {
             console.error(`❌ Yard sign quantity validation failed: quantity=${qty}`);
             return {
               statusCode: 400,
               headers: { 'Content-Type': 'application/json', ...corsHeaders },
               body: JSON.stringify({
-                error: `Yard signs must be ordered in increments of ${YARD_SIGN_INCREMENT} (${YARD_SIGN_MIN_QTY}, 20, 30, etc.), with a minimum of ${YARD_SIGN_MIN_QTY} and maximum of ${YARD_SIGN_MAX_QTY}.`,
+                error: size ? `${size.label} yard signs must be ordered in increments of ${size.increment}, with a minimum of ${size.minQuantity} and maximum of ${size.maxQuantity}.` : 'Choose a supported yard sign size.',
                 code: 'YARD_SIGN_QUANTITY_INVALID',
               }),
             };
