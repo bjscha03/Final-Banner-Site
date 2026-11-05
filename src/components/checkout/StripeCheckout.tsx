@@ -1104,13 +1104,28 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           await pollPaymentStatus();
           return;
         }
-        const message = humanizeStripeError(error);
+        const rejectedWelcomeOffer = error?.code === 'DISCOUNT_CODE_INVALID'
+          && discountCode?.code?.toUpperCase() === 'NEW20'
+          && !hasProviderBinding;
+        const message = rejectedWelcomeOffer
+          ? 'The first-order offer is not available for this email. Review the updated total, then choose your payment method again. No payment was taken.'
+          : humanizeStripeError(error);
         trackCheckoutDiagnostic('provider_error', { provider: 'stripe', method, code: error?.code || error?.details?.providerCode }, {
           expectedTotalCents: error?.expectedTotalCents, serverTotalCents: error?.serverTotalCents,
           canonicalQuoteApplied: error?.canonicalQuoteApplied, requestId: error?.requestId,
           stage: error?.code === 'STALE_CART_TOTAL' ? 'price_review_before_charge' : 'payment_submission',
         });
         resetForRetry(message);
+        if (rejectedWelcomeOffer) {
+          // A wallet can reveal a returning customer's email for the first
+          // time at confirmation. After the server rejects BEFORE charging,
+          // let the existing eligibility hook reprice that identity. Persist
+          // before the price change remounts Elements; never submit again
+          // automatically or change a payment whose status is unknown.
+          const draft = { ...readCheckoutCustomerDraft(), email: submittedCustomer.email };
+          writeCheckoutCustomerDraft(draft);
+          setCustomer(draft);
+        }
         onError(Object.assign(new Error(message), {
           userMessage: message,
           code: error?.code || null,
@@ -1125,7 +1140,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       });
     paymentFlightRef.current = flight;
     return flight;
-  }, [completePayment, onError, pollPaymentStatus, resetForRetry]);
+  }, [completePayment, discountCode?.code, onError, pollPaymentStatus, resetForRetry]);
 
   const submitCard = async () => {
     trackCheckoutDiagnostic('pay_clicked', { provider: 'stripe', method: 'card' });

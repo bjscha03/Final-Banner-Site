@@ -184,6 +184,7 @@ export const RoutedApplication = () => (
             
             {/* Checkout flow */}
             <Route path="/checkout" element={<Checkout />} />
+            <Route path="/cart" element={<Navigate to="/checkout" replace />} />
             <Route path="/bof-cash" element={<BOFCash />} />
             <Route path="/bof-cash-test" element={<Layout><BOFCashTest /></Layout>} />
             <Route path="/refer/:code" element={<BOFCash />} />
