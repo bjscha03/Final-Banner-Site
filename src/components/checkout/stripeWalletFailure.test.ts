@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createWalletFailureHandler } from './stripeWalletFailure';
+import { runInNewContext } from 'node:vm';
 
 describe('wallet failure lifecycle', () => {
   const failure = { reason: 'fail' as const, message: 'Payment could not be started.' };
@@ -18,5 +19,16 @@ describe('wallet failure lifecycle', () => {
   it('does not hide unrelated integration errors', () => {
     const fail = createWalletFailureHandler({ paymentFailed() { throw new Error('Other integration error'); } });
     expect(() => fail(failure)).toThrow('Other integration error');
+  });
+  it('handles the known lifecycle error from the Stripe frame', () => {
+    const error = runInNewContext("new Error('Unexpected call to paymentFailed(). Native sheet already closed.')");
+    expect(error instanceof Error).toBe(false);
+    const fail = createWalletFailureHandler({ paymentFailed() { throw error; } });
+    expect(() => fail(failure)).not.toThrow();
+  });
+  it('does not hide unrelated errors from another frame', () => {
+    const error = runInNewContext("new Error('Provider integration failed')");
+    const fail = createWalletFailureHandler({ paymentFailed() { throw error; } });
+    expect(() => fail(failure)).toThrow('Provider integration failed');
   });
 });

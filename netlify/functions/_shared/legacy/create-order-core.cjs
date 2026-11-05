@@ -1247,7 +1247,7 @@ exports.handler = async (event, context) => {
     if ((orderData.items || []).some((item) => retiredCampaignTypes.has(item.product_type))) {
       return {
         statusCode: 410,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           error: 'This retired campaign can no longer accept payments.',
           code: 'RETIRED_CAMPAIGN_ITEM',
@@ -1267,7 +1267,7 @@ exports.handler = async (event, context) => {
             console.error(`❌ Yard sign quantity validation failed: quantity=${qty}`);
             return {
               statusCode: 400,
-              headers: { 'Content-Type': 'application/json', ...corsHeaders },
+              headers: { ...headers, 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 error: `Yard signs must be ordered in increments of ${YARD_SIGN_INCREMENT} (${YARD_SIGN_MIN_QTY}, 20, 30, etc.), with a minimum of ${YARD_SIGN_MIN_QTY} and maximum of ${YARD_SIGN_MAX_QTY}.`,
                 code: 'YARD_SIGN_QUANTITY_INVALID',
@@ -1296,7 +1296,7 @@ exports.handler = async (event, context) => {
         if (!authoritativeDiscount.valid) {
           return {
             statusCode: 400,
-            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+            headers: { ...headers, 'Content-Type': 'application/json' },
             body: JSON.stringify({
               error: authoritativeDiscount.error || 'Invalid discount code',
               code: 'DISCOUNT_CODE_INVALID',
@@ -1465,7 +1465,7 @@ exports.handler = async (event, context) => {
     if (!canonicalRecoveryDiscount.valid) {
       return {
         statusCode: 400,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           error: canonicalRecoveryDiscount.error || 'Invalid discount code',
           code: 'DISCOUNT_CODE_INVALID',

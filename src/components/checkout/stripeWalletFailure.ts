@@ -12,7 +12,11 @@ export function createWalletFailureHandler(event: { paymentFailed?: (failure: Fa
     } catch (error) {
       // The checkout already displays/reports the underlying payment error.
       // A closed native sheet must not turn that handled error into a crash.
-      if (!(error instanceof Error) || !error.message.startsWith('Unexpected call to paymentFailed()')) throw error;
+      // Stripe can throw an Error from its own frame. Cross-realm errors do
+      // not pass instanceof Error, so inspect only this known lifecycle message.
+      const message = error && typeof error === 'object' && 'message' in error
+        ? error.message : null;
+      if (typeof message !== 'string' || !message.startsWith('Unexpected call to paymentFailed()')) throw error;
     }
   };
 }
