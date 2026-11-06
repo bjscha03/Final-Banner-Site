@@ -40,6 +40,15 @@ export async function generateDraft(
   const teamOffer = await ensureTeamOffer(sql, c, env);
   if (!env.OPENAI_API_KEY)
     throw Object.assign(Error("OpenAI is not configured"), { status: 503 });
+  const approvedFactKeys=Object.keys(kb.facts);
+  const metadataContract={
+    subject:'string: concise and company-specific',
+    body:'string: plain text, one exact-evidence detail and one specific question for intro',
+    classification:'routine_product | followup | quote_request | meeting_request | escalate | needs_review',
+    requires_approval:'JSON boolean, never a quoted string',
+    reason:'string explaining draft classification',
+    fact_ids:'array of strings, ONLY keys from approved_bof_fact_keys, [] if none'
+  };
   const response = await fetcher("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -58,7 +67,7 @@ export async function generateDraft(
 For kind=intro: use ONLY the explicitly provided verified_company_evidence exact quotes for company-specific facts. Company notes, memory, earlier drafts and general world knowledge are NOT evidence. If a detail is absent from the exact quotes, omit it. Do not invent event timing, site locations, quantities, company products or activities. Every specific company claim must be traceable to a supplied quote. This is UNSOLICITED cold outreach, not a response to a request. Use one verified company-specific operating fact and a concrete hypothetical signage application. Never claim actual buying intent or thank them for reaching out. Write a specific short subject, not a repeated 'Supporting COMPANY signage needs' construction. Avoid the repetitive 'Hello Operations team' and generic company-description introductions. Use a verified person's name when available; otherwise a natural neutral greeting, not an invented title. End with one easy relevant question. Do not request order specifications before interest. Mention eligible 24-hour vinyl-banner production and qualifying free next-day air AFTER production only as a relevant benefit, never an unconditional arrival promise.
 For kind=followup: only use recorded prior contact. Add one concrete useful next step relevant to that company's actual operating context; do not repeat the original company description, product/shipping pitch or purchasing-coordination question. Do not repeat a discount/code or invent that an event, opening or purchase is planned. Keep it brief and make a single low-friction question optional when a useful close is better. A human reply means this kind is no longer appropriate. An independent reviewer will compare this draft against the actually sent note and reject interchangeable copy.
 For kind=reply: answer the actual latest message FIRST. Use the real correspondent's name only when supported by their message/signature; never confuse Daniel with Danielle. Do not restart the introduction, say 'haven't heard back', repeat the procurement question, or insert an unrelated sales pitch. If they forwarded our information to Marketing or another team, thank them for that specific action, acknowledge the provided contact, and leave the information with that team for consideration. A referral is not buying interest and is not permission to launch another automatic introduction. A referral acknowledgment normally needs no question, no offer, and no production/shipping pitch. If they ask to reconnect later, acknowledge their timing without inventing a scheduled appointment. If they ask a product question, answer it from approved facts. Gather only missing specifications when they actually request an order or quote. No phone-support offer or meeting commitment without approved availability.
-Return JSON with subject, body (plain text, no signature), classification (routine_product, followup, quote_request, meeting_request, escalate, needs_review), requires_approval (boolean), reason, fact_ids (array of approved fact keys actually used). A simple factual acknowledgment may use an empty fact_ids array; independent conversation review is required before automatic approval. Financial/terms/complaint/meeting requests outside the standing team offer require approval. A routine grounded introduction may request no approval, but independent review decides; never approve yourself. Address independent review feedback without weakening these rules.`,
+Return exactly one JSON object matching the supplied draft_metadata_contract. requires_approval MUST be a native JSON boolean (true or false), classification MUST be one of the six allowed enum strings, reason MUST be a string, fact_ids MUST be an array containing ONLY keys in approved_bof_fact_keys. Company evidence URLs, company fact names and evidence quote identifiers are NEVER BOF fact_ids. Do not invent keys. When no BOF facts are used, use []. Return JSON with subject, body (plain text, no signature), classification (routine_product, followup, quote_request, meeting_request, escalate, needs_review), requires_approval (boolean), reason, fact_ids (array of approved fact keys actually used). A simple factual acknowledgment may use an empty fact_ids array; independent conversation review is required before automatic approval. Financial/terms/complaint/meeting requests outside the standing team offer require approval. A routine grounded introduction may request no approval, but independent review decides; never approve yourself. Address independent review feedback without weakening these rules.`,
         },
         {
           role: "user",
@@ -67,6 +76,8 @@ Return JSON with subject, body (plain text, no signature), classification (routi
             conversation_intent: kind === 'reply' ? intent : null,
             independent_review_feedback: reviewFeedback,
             verified_company_evidence: companyEvidence,
+            approved_bof_fact_keys: approvedFactKeys,
+            draft_metadata_contract: metadataContract,
             contact: {
               name: c.name,
               company: c.company,
@@ -109,7 +120,7 @@ Return JSON with subject, body (plain text, no signature), classification (routi
     draft.fact_ids.every(key => typeof key === 'string' && Object.hasOwn(kb.facts, key));
   if (!validMetadata) {
     if (attempt < 1) return generateDraft(sql, contactId, kind, env, fetcher, attempt + 1,
-      [reviewFeedback, 'Correct the structured metadata: requires_approval must be a JSON boolean; classification must use the allowed enum; reason must be a string; fact_ids must contain only approved business fact keys actually used. Do not remove claims or approval safeguards to force eligibility.'].filter(Boolean).join('\n'));
+      [reviewFeedback, 'Correct the structured metadata precisely: requires_approval must be a native JSON boolean; classification must use the allowed enum; reason must be a string; fact_ids must contain only keys listed in approved_bof_fact_keys, not company evidence identifiers. Use [] when no approved BOF fact is referenced. Do not remove claims or approval safeguards to force eligibility.'].filter(Boolean).join('\n'));
     throw Error('AI returned an invalid draft metadata schema or fact identifiers');
   }
   if (
