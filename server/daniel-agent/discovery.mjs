@@ -107,7 +107,12 @@ export async function discover(sql,env,settings,{gmailTest=false,now=new Date(),
   try {
     // Existing accounts consume the same capped discovery slot as new prospects.
     // No new sending quota, and rejected evidence never becomes qualified.
-    if(!gmailTest){
+    // Preserve 3 of every 4 capped slots for the existing backlog; reserve
+    // the fourth for independently researched NEW prospects. Both share the
+    // same discovery_runs slot and daily cap, never increasing outreach pace.
+    const slotNumber=Math.floor(+now/(discoverySlot(settings,now).startsWith('outreach:') ? (settings.discovery_interval_minutes*60000) : 900000));
+    const backlogSlot=slotNumber % 4 !== 3;
+    if(!gmailTest && backlogSlot){
       const backlog=await revalidateBacklog(sql,env,run.id,{research,readPage,validate:validateEvidence,now});
       if(backlog){
         await sql`UPDATE daniel_sales.discovery_runs SET status=${backlog.status==='backlog_retry'?'failed':'completed'},
