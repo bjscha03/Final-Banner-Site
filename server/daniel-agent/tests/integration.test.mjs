@@ -16,7 +16,18 @@ const now=new Date(TEST_NOW);
 const env={DANIEL_ALLOWED_HOST:'preview.test',DANIEL_AGENT_MODE:'preview',DANIEL_ADMIN_PASSWORD:'test-password-only',DANIEL_SESSION_SECRET:'test-encryption-key-longer-than-32-characters'};
 test.beforeEach(async t=>{t.mock.timers.enable({apis:['Date'],now:new Date(TEST_NOW)});fixture=await createTestDatabase();db=fixture.db;sql=fixture.sql;});
 test.afterEach(async()=>{if(db)await db.close();});
-async function prospect(){n++;return createProspect(sql,{name:'Test Franchise '+n,segment:'restaurant franchisee',website:'https://example.com',source_url:'https://example.com/contact',contact_name:'Test Buyer',email:'buyer'+n+'@example.test'},'test');}
+async function prospect(){
+ n++;
+ const p=await createProspect(sql,{name:'Test Franchise '+n,segment:'restaurant franchisee',website:'https://example.com',source_url:'https://example.com/contact',contact_name:'Test Buyer',email:'buyer'+n+'@example.test'},'test');
+ // Test-only official evidence fixture: production requires independently
+ // fetched quotes and a real reviewer response before intro generation.
+ const evidence={verified:true,company:'Test Franchise '+n,website:'https://example.com',
+  opportunity:'Hypothetical event entrance banners',reviewer:{response_id:'test-review-fixture'},
+  facts:[{url:'https://example.com/contact',quote:'Our restaurant group operates across multiple locations.'},
+   {url:'https://example.com/contact',quote:'We organize recurring community events for our guests.'}]};
+ await sql`UPDATE daniel_sales.contacts SET research=${JSON.stringify(evidence)}::jsonb WHERE id=${p.contact_id}`;
+ return p;
+}
 async function queued(p,kind='intro'){
  const m=await saveDraft(sql,{contact_id:p.contact_id,kind,subject:'Signage',body:'Can we help with upcoming signage?'},'test');
  await requestApproval(sql,m.id,'test');const [a]=await sql`SELECT id FROM daniel_sales.approvals WHERE message_id=${m.id}`;
