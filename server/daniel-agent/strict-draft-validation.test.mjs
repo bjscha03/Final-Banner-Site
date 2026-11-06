@@ -45,7 +45,7 @@ test('strict metadata: unknown business facts are regenerated, not silently remo
   const h=harness([{...valid(),fact_ids:['products','invented_fact']},valid()]);
   const d=await h.run();
   assert.equal(h.requests.length,2);
-  assert.match(JSON.parse(h.requests[1].messages[1].content).independent_review_feedback,/approved business fact keys/);
+  assert.match(JSON.parse(h.requests[1].messages[1].content).independent_review_feedback,/approved_bof_fact_keys/);
   assert.deepEqual(d.ai_metadata.fact_ids,['products']);
 });
 
