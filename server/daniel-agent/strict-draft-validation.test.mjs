@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { generateDraft } from './ai.mjs';
 
-const contact = {id:'qa-contact',account_id:'qa-account',name:null,company:'Example Event Center',segment:'event venue',notes:'Official evidence: hosts community events.',email:'marketing@example.test',suppressed_at:null};
+const contact = {id:'qa-contact',account_id:'qa-account',name:null,company:'Example Event Center',segment:'event venue',notes:'Official evidence: hosts community events.',email:'marketing@example.test',suppressed_at:null,research:{verified:true,company:'Example Event Center',website:'https://example.test',opportunity:'Event entrance banners',reviewer:{response_id:'qa-reviewed'},facts:[{url:'https://example.test/events',quote:'Our event center hosts community gatherings throughout the year.'},{url:'https://example.test/events',quote:'Visitors enter through the main entrance for public events.'}]}};
 const knowledge = {version:'qa-v1',facts:{company:'Banners On The Fly',products:['vinyl banners'],vinyl_banner_production:'24-hour vinyl-banner production'}};
 const valid = () => ({subject:'Event entrance banners',body:'Hello,\n\nFor your community events, a reusable vinyl entrance banner could help visitors find the check-in point. Would your events team be the right contact?',classification:'routine_product',requires_approval:false,reason:'Verified venue context and approved product fact.',fact_ids:['products']});
 function harness(outputs, {thread=[], suppressed=false}={}) {
