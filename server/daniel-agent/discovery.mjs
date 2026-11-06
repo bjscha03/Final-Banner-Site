@@ -110,7 +110,7 @@ export async function discover(sql,env,settings,{gmailTest=false,now=new Date(),
     // Preserve 3 of every 4 capped slots for the existing backlog; reserve
     // the fourth for independently researched NEW prospects. Both share the
     // same discovery_runs slot and daily cap, never increasing outreach pace.
-    const slotNumber=Math.floor(+now/(discoverySlot(settings,now).startsWith('outreach:') ? (settings.discovery_interval_minutes*60000) : 900000));
+    const slotNumber=Number(slot.split(':')[1]);
     const backlogSlot=slotNumber % 4 !== 3;
     if(!gmailTest && backlogSlot){
       const backlog=await revalidateBacklog(sql,env,run.id,{research,readPage,validate:validateEvidence,now});
