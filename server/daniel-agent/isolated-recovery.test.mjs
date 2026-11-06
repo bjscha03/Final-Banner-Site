@@ -153,6 +153,9 @@ test('database recovery: a cold hold during the fresh conversation check prevent
 test('database recovery: generator marks fresh drafts and never adds an unsolicited follow-up offer',async()=>{
  const f=await databaseFixture();try{
   const p=await f.prospect(),env={OPENAI_API_KEY:'unit-test-key',DANIEL_PROMO_SIGNING_SECRET:'unit-test-team-offer-key-at-least-32-characters'};
+  const evidence={verified:true,company:'Fixture Event Group',website:'https://example.test',opportunity:'Event entrance banners',
+    reviewer:{response_id:'qa-reviewed'},facts:[{url:'https://example.test/events',quote:'Our venues host recurring public community events.'},{url:'https://example.test/events',quote:'Guests enter through marked public event entrances.'}]};
+  await f.sql`UPDATE daniel_sales.contacts SET research=${JSON.stringify(evidence)}::jsonb WHERE id=${p.contact_id}`;
   const model=classification=>async()=>Response.json({model:'test',choices:[{message:{content:JSON.stringify({subject:'Reusable event banners',body:'Would a reusable vinyl entrance banner help your event team?',classification,requires_approval:false,reason:'Approved product information',fact_ids:['products']})}}]});
   const follow=await generateDraft(f.sql,p.contact_id,'followup',env,model('followup'));
   assert.equal(follow.ai_metadata.generation_contract,DRAFT_CONTRACT);assert.equal(follow.ai_metadata.team_offer,null);assert.ok(!follow.body.includes('25%'));
