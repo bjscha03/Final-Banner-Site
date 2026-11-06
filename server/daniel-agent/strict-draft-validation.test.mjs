@@ -104,3 +104,13 @@ test('strict metadata: suppression and a received human reply still stop inappro
   await assert.rejects(replied.run('followup'),/Human response already received/);
   assert.equal(replied.requests.length,0);
 });
+
+test('evidence-first intro exposes exact verified quotes and BOF-only metadata keys',async()=>{
+ const h=harness([valid()]);
+ await h.run();
+ const input=JSON.parse(h.requests[0].messages[1].content);
+ assert.equal(input.verified_company_evidence.facts.length,2);
+ assert.deepEqual(input.approved_bof_fact_keys,['company','products','vinyl_banner_production']);
+ assert.match(input.draft_metadata_contract.fact_ids,/ONLY keys/);
+ assert.match(h.requests[0].messages[0].content,/Company evidence URLs.*NEVER BOF fact_ids/);
+});
