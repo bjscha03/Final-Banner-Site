@@ -79,11 +79,11 @@ export function validateEvidence(candidate,pages) {
 // The independent reviewer still decides every candidate that passes this check.
 export function introTemplateVeto(subject,body){
  const text=String(body||''),title=String(subject||'');
- if(/\\b(?:supporting .{2,70} signage (?:needs|plans)|signage solutions for|quick (?:chat|call)|brief (?:chat|call))\\b/i.test(title+' '+text))
+ if(/\b(?:supporting .{2,70} signage (?:needs|plans)|signage solutions for|quick (?:chat|call)|brief (?:chat|call))\b/i.test(title+' '+text))
   return 'Generic supporting-signage or quick-chat template is disallowed';
- if(/\\b(?:would this be helpful|explore (?:your )?options|signage plans|must keep your signage|which must keep your)\\b/i.test(text))
+ if(/\b(?:would this be helpful|explore (?:your )?options|signage plans|must keep your signage|which must keep your)\b/i.test(text))
   return 'Vague, interchangeable or speculative sales pitch is disallowed';
- const questions=(text.match(/\\?/g)||[]).length;
+ const questions=(text.match(/\?/g)||[]).length;
  if(questions!==1)return 'Exactly one specific low-friction question is required';
  return null;
 }
