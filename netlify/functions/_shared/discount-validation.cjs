@@ -231,6 +231,26 @@ async function validateDiscountForCheckout({
 
   const discount = rows[0];
   if (!LARGE_BANNER_PROMOTION_ENABLED && discount.campaign === LARGE_BANNER_RECOVERY_CAMPAIGN) return invalidResult('This large-banner promotion has ended');
+  // READ25 codes are first-order-only, email-bound, and never stack with NEW20/SAVE20.
+  if (discount.campaign === 'blog-reader-25-2026') {
+    if (!normalizedEmail) return invalidResult('Enter the email address that received your 25% code');
+    const previous = await sql`
+      SELECT id FROM orders
+      WHERE (
+        (${customerUserId}::uuid IS NOT NULL AND user_id = ${customerUserId}::uuid)
+        OR LOWER(BTRIM(email)) = ${normalizedEmail}
+      )
+        AND COALESCE(is_test_order, FALSE) = FALSE
+        AND (
+          status IN ('paid', 'in_production', 'shipped', 'delivered', 'fulfilled', 'refunded')
+          OR NULLIF(to_jsonb(orders)->>'paypal_capture_id', '') IS NOT NULL
+          OR (status = 'pending' AND payment_reconciliation_status IN ('complete', 'completed'))
+        )
+        AND (${checkoutKey || null}::text IS NULL OR checkout_idempotency_key IS DISTINCT FROM ${checkoutKey || null})
+      LIMIT 1
+    `;
+    if (previous.length) return invalidResult('This 25% offer is for first orders only');
+  }
   const boundEmail = discount.email ? String(discount.email).trim().toLowerCase() : null;
   const recoveryOffer = Boolean(discount.cart_id);
   const discountRecoveryCartId = normalizedCartId(discount.cart_id);

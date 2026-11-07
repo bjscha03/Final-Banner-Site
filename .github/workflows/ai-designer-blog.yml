@@ -72,9 +72,12 @@ jobs:
               await page.screenshot({ path: `test-results/ai-blog/${name}-${width}.png`, fullPage: true });
               await cta.click();
               await page.waitForURL(url => url.pathname === '/design');
-              await page.goto(base + '/blog', { waitUntil: 'networkidle' });
-              await page.getByRole('link', { name: /How to Create a Custom Vinyl Banner with AI/ }).first().waitFor();
+              // Isolate blog discovery from designer lazy chunk/recovery navigation.
               await page.close();
+              const listing = await browser.newPage({ viewport: { width, height: 900 } });
+              await listing.goto(base + '/blog', { waitUntil: 'domcontentloaded' });
+              await listing.getByRole('link', { name: /How to Create a Custom Vinyl Banner with AI/ }).first().waitFor();
+              await listing.close();
             }
             await browser.close();
           }

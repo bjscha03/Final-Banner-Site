@@ -22,7 +22,17 @@ interface BlogPostProps {
 
 export function BlogPost({ post, relatedPosts }: BlogPostProps) {
   const { frontmatter, html, readingTime } = post;
-  const responsiveHtml = useMemo(() => withResponsiveTables(html), [html]);
+  const responsiveHtml = useMemo(() => {
+    const content = withResponsiveTables(html);
+    const headings = [...content.matchAll(/<h2\b[^>]*>/gi)];
+    if (headings.length < 2) return content;
+    const next = headings[2]?.index ?? content.length;
+    const lastParagraph = content.slice(0, next).lastIndexOf('</p>');
+    const position = lastParagraph > (headings[1].index ?? 0) ? lastParagraph + 4 : next;
+    const topic = frontmatter.title.replace(/[<>&"']/g, '');
+    const cta = `<aside aria-label="Design your banner" class="not-prose my-10 rounded-xl border border-orange-200 bg-orange-50 p-6"><h3 class="text-xl font-bold text-slate-900">Ready to bring these ideas to life?</h3><p class="mt-2 text-slate-700">Put what you learned about ${topic} into practice. Organic readers can claim a 25% first-order offer through our email popup; then design your banner.</p><a href="/design?product=banner" class="mt-4 inline-flex min-h-11 items-center rounded-lg bg-[#E85D26] px-5 py-3 font-bold text-white">Design Your Banner</a></aside>`;
+    return content.slice(0, position) + cta + content.slice(position);
+  }, [html, frontmatter.title]);
   
   // Handle both 'hero' and 'heroImage' field names
   const heroImageUrl = (frontmatter as any).heroImage || (frontmatter as any).hero || 'https://via.placeholder.com/1200x600/18448D/ffffff?text=Blog+Post+Image';

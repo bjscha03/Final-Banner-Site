@@ -29,7 +29,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { email } = JSON.parse(event.body);
+    const { email, source } = JSON.parse(event.body || '{}');
     
     if (!email) {
       return {
@@ -51,6 +51,7 @@ exports.handler = async (event, context) => {
 
     console.log('Newsletter signup request for:', email);
 
+    // Newsletter captures only; READ25 email is sent by the existing blog-reader-offer service.
     // Create newsletter table if it doesn't exist
     await sql`
       CREATE TABLE IF NOT EXISTS newsletter (
