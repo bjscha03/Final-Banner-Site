@@ -1,3 +1,4 @@
+import { DEFAULT_YARD_SIGN_SIZE, type YardSignSize } from '@/lib/yard-sign-sizes';
 import React from 'react';
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
 import { isReadyPlacementPreview } from '@/lib/previewLifecycle';
@@ -7,9 +8,11 @@ import type { YardSignDesign } from '@/lib/yard-sign-pricing';
 export default function YardSignMockup({
   withStakes,
   design,
+  size = DEFAULT_YARD_SIGN_SIZE,
 }: {
   withStakes: boolean;
   design?: YardSignDesign;
+  size?: YardSignSize;
 }) {
   const previewUrl = design && (
     isReadyPlacementPreview(design.placementPreview)
@@ -17,7 +20,7 @@ export default function YardSignMockup({
       : design.previewThumbnailUrl || design.thumbnailUrl
   );
 
-  if (!design) {
+  if (!design && size.id === DEFAULT_YARD_SIGN_SIZE.id) {
     return (
       <div
         className="relative isolate w-full overflow-hidden rounded-lg bg-[#e7e0d5]"
@@ -48,7 +51,7 @@ export default function YardSignMockup({
       style={{ aspectRatio: '1 / 1' }}
       data-yard-sign-mockup={withStakes ? 'with-stakes' : 'without-stakes'}
       role="img"
-      aria-label={`${design.fileName} ${withStakes ? 'with a wire H-stake' : 'without stakes'}`}
+      aria-label={`${design?.fileName || size.label} ${withStakes ? 'with a wire H-stake' : 'without stakes'}`}
     >
       <div className="absolute bottom-[8%] left-[20%] h-[3%] w-[60%] rounded-[50%] bg-slate-800/10 blur-sm" />
       {withStakes && (
@@ -59,7 +62,9 @@ export default function YardSignMockup({
           <div className="absolute left-[32%] top-[75%] h-[1%] min-h-[2px] w-[37%] shadow-sm" style={{ background: 'linear-gradient(#78838d, #edf1f4 48%, #87919a)' }} />
         </div>
       )}
-      <div className={`absolute left-[10%] z-10 w-[80%] overflow-hidden border border-black/10 bg-white shadow-md ${withStakes ? 'top-[9%]' : 'top-[20%]'}`} style={{ aspectRatio: '4 / 3' }}>
+      <div className={`absolute z-10 overflow-hidden border border-black/10 bg-white shadow-md ${withStakes ? 'top-[9%]' : 'top-[20%]'}`}
+        style={{ aspectRatio: `${size.widthIn} / ${size.heightIn}`, width: `${Math.min(80, 60 * size.widthIn / size.heightIn)}%`, left: `${(100 - Math.min(80, 60 * size.widthIn / size.heightIn)) / 2}%` }}>
+        {!previewUrl && <div className="absolute inset-0 flex items-center justify-center p-2 text-center text-sm font-bold text-orange-700">Your design<br />{size.label}</div>}
         {previewUrl && (
           <StablePreviewImage
             key={`${design?.id}:${previewUrl}`}

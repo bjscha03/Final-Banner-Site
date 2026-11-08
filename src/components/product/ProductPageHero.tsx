@@ -40,7 +40,7 @@ const HERO_DEFINITIONS: Record<HeroProductSlug, ProductHeroDefinition> = {
     imageAlt: 'Custom Northline Market grand opening vinyl banner mounted to an outdoor railing',
   },
   'yard-signs': {
-    eyebrow: '24 × 18 yard signs · Single- or double-sided',
+    eyebrow: '5 yard sign sizes · Single- or double-sided',
     title: ['Yard signs', 'built to', 'get seen.'],
     primaryLabel: 'Design your yard signs',
     secondaryLabel: 'View sign options',

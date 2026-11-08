@@ -1,3 +1,4 @@
+import { yardSignSizeLabel } from '@/lib/yard-sign-sizes';
 import type { APIRoute } from 'astro';
 import { sendEmail } from '../../../lib/email';
 import { neon } from '@neondatabase/serverless';
@@ -63,7 +64,7 @@ export const POST: APIRoute = async ({ request }) => {
         items: itemRows.map((item: any) => {
           const isYardSign = item.product_type === 'yard_sign';
           const itemName = isYardSign
-            ? 'Custom Yard Sign 24"×18"'
+            ? `Custom Yard Sign ${yardSignSizeLabel(item)}`
             : `Custom Banner ${item.width_in}"×${item.height_in}"`;
           const options = isYardSign
             ? [

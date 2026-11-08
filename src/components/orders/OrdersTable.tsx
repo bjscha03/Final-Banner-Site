@@ -1,3 +1,4 @@
+import { yardSignSizeLabel } from '@/lib/yard-sign-sizes';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Order } from '../../lib/orders/types';
@@ -52,7 +53,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading = false }) =>
     if (uniqueItems === 1) {
       const item = order.items[0];
       const label = (item as any).product_type === 'yard_sign'
-        ? `Yard Sign 24"×18" Corrugated`
+        ? `Yard Sign ${yardSignSizeLabel(item)} Corrugated`
         : (item as any).product_type === 'car_magnet'
           ? `Car Magnets ${formatDimensions(item.width_in, item.height_in)}`
         : `${formatDimensions(item.width_in, item.height_in)} ${item.material}`;
