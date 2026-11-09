@@ -3,10 +3,17 @@ const crypto = require('node:crypto');
 const sharp = require('sharp');
 const { toStoredOriginalPrintScene } = require('./stored-original-print-scene.cjs');
 const { fetchBuffer } = require('./print-scene-renderer.cjs');
-const VERSION = 'ai-jpeg-full-size-200-v3';
+const VERSION = 'ai-jpeg-full-size-200-v4';
 const DPI = 200;
-const MAX_PIXELS = 260_000_000;
+const MAX_COMPOSITE_PIXELS = 260_000_000;
+const MAX_STREAMING_PIXELS = 400_000_000;
 const { isAiArtwork } = require('./ai-artwork-kind.cjs');
+function imagePlacement(scene) {
+  const object = scene.objects[0];
+  return { placedWidth: Math.round(object.widthIn * DPI), placedHeight: Math.round(object.heightIn * DPI),
+    left: Math.round(object.xIn * DPI), top: Math.round(object.yIn * DPI),
+    crop: object.crop || { x: 0, y: 0, width: 1, height: 1 } };
+}
 function productionImagePlan(item) {
   if (!isAiArtwork(item)) throw new Error('This item has no saved AI artwork.');
   const state = typeof item.canvas_state_json === 'string' ? JSON.parse(item.canvas_state_json) : item.canvas_state_json;
@@ -15,9 +22,15 @@ function productionImagePlan(item) {
   const scene = toStoredOriginalPrintScene(state, Number(item.width_in), Number(item.height_in));
   if (scene?.sceneVersion !== 2 || scene.objects?.length !== 1 || scene.objects[0].source?.originalUrl !== originalUrl) throw new Error('This AI layout cannot be exported automatically.');
   const width = Math.round(scene.widthIn * DPI), height = Math.round(scene.heightIn * DPI);
-  if (width < 1 || height < 1 || width * height > MAX_PIXELS || width > 40000 || height > 40000) throw new Error('This size exceeds the automatic image export limit. Download the saved original artwork for production.');
+  const { placedWidth, placedHeight, left, top, crop } = imagePlacement(scene);
+  const fullCanvas = left === 0 && top === 0 && placedWidth === width && placedHeight === height
+    && crop.x === 0 && crop.y === 0 && crop.width === 1 && crop.height === 1;
+  // Larger exports are allowed only on the single-resize path. Cropped or
+  // positioned artwork still needs a separate raster layer and canvas.
+  const maxPixels = fullCanvas ? MAX_STREAMING_PIXELS : MAX_COMPOSITE_PIXELS;
+  if (![width, height].every(Number.isFinite) || width < 1 || height < 1 || width * height > maxPixels || width > 40000 || height > 40000) throw new Error('This size exceeds the automatic image export limit. Download the saved original artwork for production.');
   const hash = crypto.createHash('sha256').update(JSON.stringify({ version: VERSION, scene, sha256: item.artwork_manifest?.sha256 })).digest('hex');
-  return { scene, width, height, hash, filename: `ai-artwork-${item.id}-${scene.widthIn}x${scene.heightIn}in-${DPI}dpi.jpg` };
+  return { scene, width, height, fullCanvas, hash, filename: `ai-artwork-${item.id}-${scene.widthIn}x${scene.heightIn}in-${DPI}dpi.jpg` };
 }
 async function renderAiProductionImage(item, { fetchSource = fetchBuffer } = {}) {
   const plan = productionImagePlan(item);
@@ -26,10 +39,10 @@ async function renderAiProductionImage(item, { fetchSource = fetchBuffer } = {})
   const original = await fetchSource(object.source.originalUrl, object.source);
   const meta = await sharp(original, { limitInputPixels: 150_000_000 }).metadata();
   if (!meta.width || !meta.height) throw new Error('Unable to measure original image');
-  const placedWidth = Math.round(object.widthIn * DPI), placedHeight = Math.round(object.heightIn * DPI);
-  if (placedWidth < 1 || placedHeight < 1 || placedWidth * placedHeight > 267_000_000) throw new Error('The saved zoom exceeds the automatic image export limit.');
-  const left = Math.round(object.xIn * DPI), top = Math.round(object.yIn * DPI);
-  const crop = object.crop || { x: 0, y: 0, width: 1, height: 1 };
+  const { placedWidth, placedHeight, left, top, crop } = imagePlacement(scene);
+  const maxPlacedPixels = plan.fullCanvas ? MAX_STREAMING_PIXELS : 267_000_000;
+  if (![placedWidth, placedHeight, left, top].every(Number.isFinite)
+    || placedWidth < 1 || placedHeight < 1 || placedWidth * placedHeight > maxPlacedPixels) throw new Error('The saved zoom exceeds the automatic image export limit.');
   if (![crop.x, crop.y, crop.width, crop.height].every(Number.isFinite)
     || crop.x < 0 || crop.y < 0 || crop.width <= 0 || crop.height <= 0 || crop.x + crop.width > 1.000001 || crop.y + crop.height > 1.000001) throw new Error('Invalid saved crop');
   const x0 = Math.max(0, left + Math.round(crop.x * placedWidth));
@@ -40,12 +53,14 @@ async function renderAiProductionImage(item, { fetchSource = fetchBuffer } = {})
   // Preserve the customer-approved composition. No generative redraw or invented
   // detail; Lanczos resampling is explicitly reported separately from native PPI.
   let buffer;
-  if (left === 0 && top === 0 && placedWidth === width && placedHeight === height
-    && crop.x === 0 && crop.y === 0 && crop.width === 1 && crop.height === 1) {
+  if (plan.fullCanvas) {
     // Common AI fit case: one streaming resize avoids an extra full-canvas PNG.
+    // Optimised Huffman coding buffers the entire image's DCT coefficients:
+    // 96x96 at 200 DPI used >4 GB. Standard coding preserves the decoded pixels
+    // and 4:4:4 quality while allowing the JPEG encoder to stream scanlines.
     buffer = await sharp(original).resize(width, height, { fit: 'fill', kernel: 'lanczos3' })
       .flatten({ background: scene.backgroundColor || '#ffffff' }).withMetadata({ density: DPI })
-      .jpeg({ quality: 96, chromaSubsampling: '4:4:4' }).toBuffer();
+      .jpeg({ quality: 96, chromaSubsampling: '4:4:4', optimiseCoding: false }).toBuffer();
   } else {
     const layer = await sharp(original).resize(placedWidth, placedHeight, { fit: 'fill', kernel: 'lanczos3' })
       .extract({ left: x0 - left, top: y0 - top, width: x1 - x0, height: y1 - y0 }).png().toBuffer();

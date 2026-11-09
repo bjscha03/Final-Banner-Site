@@ -178,6 +178,9 @@ jobs:
       - name: Verify specialty AI geometry and existing AI behavior
         run: npx vitest run --config vitest.ai.config.ts netlify/functions/__tests__/specialty-ai-layout.test.mjs netlify/functions/__tests__/ai-artwork-fit.test.mjs netlify/functions/__tests__/ai-designer.test.mjs
 
+      - name: Verify full-size AI artwork export and authenticated download
+        run: npx vitest run --config vitest.ai.config.ts netlify/functions/__tests__/ai-production-image.test.mjs netlify/functions/__tests__/admin-ai-production-image.test.mjs
+
       - name: Run preview source-selection unit tests
         run: |
           npx vitest run --config vitest.ai.config.ts \
