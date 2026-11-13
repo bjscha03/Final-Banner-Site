@@ -23,12 +23,18 @@ export async function session(req, sql) {
     await sql`SELECT actor,token_hash FROM daniel_sales.sessions WHERE token_hash=${hash(raw)} AND expires_at>now()`;
   return s || null;
 }
+// Same 15-minute window as login. Callers pass a distinct key so one route
+// cannot reset or inflate another's counter.
+export async function attemptCount(sql, key) {
+  const [rate] =
+    await sql`INSERT INTO daniel_sales.login_attempts(ip_hash,attempts) VALUES(${key},1) ON CONFLICT(ip_hash) DO UPDATE SET attempts=CASE WHEN daniel_sales.login_attempts.window_start < now()-interval '15 minutes' THEN 1 ELSE daniel_sales.login_attempts.attempts+1 END,window_start=CASE WHEN daniel_sales.login_attempts.window_start < now()-interval '15 minutes' THEN now() ELSE daniel_sales.login_attempts.window_start END RETURNING attempts`;
+  return rate.attempts;
+}
 export async function login(req, sql, env, ip = "unknown") {
   const { password } = await req.json();
   const ipHash = hash(ip);
-  const [rate] =
-    await sql`INSERT INTO daniel_sales.login_attempts(ip_hash,attempts) VALUES(${ipHash},1) ON CONFLICT(ip_hash) DO UPDATE SET attempts=CASE WHEN daniel_sales.login_attempts.window_start < now()-interval '15 minutes' THEN 1 ELSE daniel_sales.login_attempts.attempts+1 END,window_start=CASE WHEN daniel_sales.login_attempts.window_start < now()-interval '15 minutes' THEN now() ELSE daniel_sales.login_attempts.window_start END RETURNING attempts`;
-  if (rate.attempts > 10)
+  const attempts = await attemptCount(sql, ipHash);
+  if (attempts > 10)
     return {
       status: 429,
       error: "Too many attempts. Try again in 15 minutes.",

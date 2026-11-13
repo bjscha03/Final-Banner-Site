@@ -14,6 +14,7 @@ import { syncMailbox, ingest } from "./mail-sync.mjs";
 import { html, scriptHash } from "./web/page.mjs";
 import { routeApproval } from './automation.mjs';
 import { controlsSnapshot } from './outreach-controls.mjs';
+import { mintTeamCode } from './team-offer.mjs';
 const headers = {
   "cache-control": "no-store",
   "x-content-type-options": "nosniff",
@@ -89,6 +90,8 @@ export async function handler(req, context = {}, deps = {}) {
         return json({ok:true},200,{'set-cookie':cookie('',0)});
       case '/api/daniel/prospect':
         result=await store.createProspect(sql,input,s.actor);break;
+      case '/api/daniel/team-code':
+        result=await mintTeamCode(sql,input.company,env,s.actor,context.ip || 'unknown');break;
       case '/api/daniel/import': {
         if(!Array.isArray(input.prospects) || input.prospects.length>100)v.fail('Import requires 1–100 prospects');
         result={created:0,errors:[]};
