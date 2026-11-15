@@ -7,6 +7,7 @@ import { readCheckoutCustomerDraft } from './checkoutCustomerDraft';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { useCartStore } from '@/store/cart';
 import { FIRST_ORDER_DISCOUNT } from '@/lib/firstOrderPromotion';
+import { trackCheckoutDiagnostic } from '@/lib/checkoutDiagnostics';
 
 const mocks = vi.hoisted(() => ({
   stripe: { createConfirmationToken: vi.fn() },
@@ -59,6 +60,30 @@ afterEach(async () => {
 });
 
 describe('wallet discount rejection recovery', () => {
+  it('records a failed order save with its stable code, HTTP status and server request ID', async () => {
+    const request = vi.fn(async (url: string) => {
+      if (url.endsWith('stripe-create-payment-intent')) return {
+        ...response(500, { error: 'ORDER_PERSISTENCE_FAILED', message: 'The order could not be safely saved before payment.' }),
+        headers: new Headers({ 'x-nf-request-id': '01CHECKOUTREGRESSION' }),
+      };
+      if (url.endsWith('validate-discount-code')) return response(200, { valid: false });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', request);
+    await act(async () => root.render(<Harness />));
+    await act(async () => mocks.onConfirm!({
+      expressPaymentType: 'apple_pay', paymentFailed: vi.fn(),
+      billingDetails: { email: 'test@example.com', name: 'Test Buyer', phone: '5025550100',
+        address: { line1: '123 Test St', city: 'Louisville', state: 'KY', postal_code: '40299', country: 'US' } },
+      shippingAddress: { name: 'Test Buyer', address: { line1: '123 Test St', city: 'Louisville', state: 'KY', postal_code: '40299', country: 'US' } },
+    }, mocks.elements));
+    expect(trackCheckoutDiagnostic).toHaveBeenCalledWith('provider_error',
+      expect.objectContaining({ provider: 'stripe', code: 'ORDER_PERSISTENCE_FAILED' }),
+      expect.objectContaining({ status: 500, requestId: '01CHECKOUTREGRESSION', stage: 'payment_submission' }));
+    expect(mocks.success).not.toHaveBeenCalled();
+    expect(request.mock.calls.filter(([url]) => url.endsWith('stripe-create-payment-intent'))).toHaveLength(1);
+  });
+
   it('rechecks the wallet email, presents the corrected total, and requires a new payment action', async () => {
     const request = vi.fn(async (url: string) => {
       if (url.endsWith('stripe-create-payment-intent')) return response(400, { error: 'DISCOUNT_CODE_INVALID', message: 'New customers only' });

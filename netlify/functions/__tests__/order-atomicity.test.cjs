@@ -103,8 +103,8 @@ test('concurrent writes leave one complete order and surface a unique conflict f
 
 test('dedupe accepts a full matching order and rejects a partial child set', async () => {
   const items = createOrder._test.prepareOrderItems([
-    { width_in: 48, height_in: 24, quantity: 1, line_total_cents: 4200, product_type: 'banner' },
-    { width_in: 24, height_in: 18, quantity: 2, line_total_cents: 3500, product_type: 'banner' },
+    { width_in: 48, height_in: 24, quantity: 1, line_total_cents: 4200, product_type: 'banner', file_key: 'test/banner-1' },
+    { width_in: 24, height_in: 18, quantity: 2, line_total_cents: 3500, product_type: 'banner', file_key: 'test/banner-2' },
   ]);
   const signature = createOrder._test.buildItemSignature(items);
   let actualCount = 2;

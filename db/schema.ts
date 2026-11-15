@@ -16,12 +16,12 @@ export const orders = pgTable('orders', {
 export const orderItems = pgTable('order_items', {
     id: uuid().primaryKey().defaultRandom(),
     order_id: uuid().references(() => orders.id, { onDelete: 'cascade' }).notNull(),
-    width_in: integer().notNull(),
-    height_in: integer().notNull(),
+    width_in: numeric().notNull(),
+    height_in: numeric().notNull(),
     quantity: integer().notNull().default(1),
     material: varchar({ length: 50 }).notNull(),
     grommets: varchar({ length: 50 }).notNull().default('none'),
-    rope_feet: integer().default(0),
+    rope_feet: numeric().default('0'),
     pole_pockets: varchar({ length: 10 }).default('none'),
     line_total_cents: integer().notNull(),
     file_key: varchar({ length: 255 }), // Customer uploaded file reference
