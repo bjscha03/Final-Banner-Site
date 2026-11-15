@@ -399,6 +399,7 @@ describe('same-origin uploads and stalled recovery', () => {
 
   it('recovers the original JPG through the site after a transient first request and three blocked direct uploads', async () => {
     vi.useFakeTimers();
+    const onAttempt = vi.fn();
     let sameOriginAttempts = 0;
     const original = new Uint8Array(244020).fill(17);
     const fetchSpy = vi.fn(async (url: string, options: RequestInit) => {
@@ -415,13 +416,14 @@ describe('same-origin uploads and stalled recovery', () => {
     }
     vi.stubGlobal('fetch', fetchSpy);
     vi.stubGlobal('XMLHttpRequest', BlockedDirectXhr);
-    const pending = uploadArtworkFile(new File([original], 'original.jpg', { type: 'image/jpeg' }));
+    const pending = uploadArtworkFile(new File([original], 'original.jpg', { type: 'image/jpeg' }), { onAttempt });
     await vi.runAllTimersAsync();
     const result = await pending;
     expect(result.transport).toBe('netlify-legacy-fallback');
     expect(result.artworkManifest.bytes).toBe(244020);
     expect(directAttempts).toBe(DIRECT_UPLOAD_ATTEMPTS);
     expect(sameOriginAttempts).toBe(2);
+    expect(onAttempt).toHaveBeenLastCalledWith(DIRECT_UPLOAD_ATTEMPTS + 1, DIRECT_UPLOAD_ATTEMPTS + 1);
   });
 
   it('never sends an oversized original through the small-file recovery endpoint', async () => {

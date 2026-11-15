@@ -710,6 +710,8 @@ export async function uploadArtworkFile(
     && lastError instanceof ArtworkUploadError && lastError.retryable
     && !options.signal?.aborted) {
     const directError = lastError;
+    // Keep the idle watchdog informed without extending its total deadline.
+    options.onAttempt?.(DIRECT_UPLOAD_ATTEMPTS + 1, DIRECT_UPLOAD_ATTEMPTS + 1);
     try {
       const payload = await uploadThroughLegacyFunction(file, options);
       const result = normalizeUploadResponse(payload, file, 'netlify-legacy-fallback');
