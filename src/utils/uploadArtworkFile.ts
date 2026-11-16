@@ -545,16 +545,18 @@ async function uploadThroughLegacyFunction(
         error: await response.text().catch(() => ''),
       }));
       if (!response.ok) {
-        throw new ArtworkUploadError(
+        const error = new ArtworkUploadError(
           messageFromPayload(payload, `Same-origin upload failed (${response.status}).`),
-          { phase: 'fallback', status: response.status, retryable: false },
+          { phase: 'fallback', status: response.status, retryable: response.status >= 500 || [408, 429].includes(response.status) },
         );
+        error.evidence = { transport: 'netlify-same-origin', ...(response.headers.get('x-nf-request-id') ? { requestId: response.headers.get('x-nf-request-id')! } : {}) };
+        throw error;
       }
       return payload;
     }, SAME_ORIGIN_UPLOAD_TIMEOUT_MS, options.signal);
   } catch (error) {
     if ((error as { name?: string })?.name === 'AbortError') {
-      throw new ArtworkUploadError('Same-origin upload timed out.', { phase: 'fallback', retryable: false });
+      throw new ArtworkUploadError('Same-origin upload timed out.', { phase: 'fallback', retryable: true });
     }
     throw error;
   }
@@ -697,6 +699,32 @@ export async function uploadArtworkFile(
       if (!retryable || attempt >= DIRECT_UPLOAD_ATTEMPTS) break;
       const delay = (600 * (2 ** (attempt - 1))) + Math.floor(Math.random() * 250);
       await sleep(delay);
+    }
+  }
+
+  // A brief first-party interruption followed by a blocked direct connection
+  // used to exhaust every retry without ever returning to the site's endpoint.
+  // Retry that independent route once for small originals; never send an
+  // oversized file through the buffered function or bypass a permanent refusal.
+  if (file.size <= LEGACY_FUNCTION_SAFE_BYTES
+    && lastError instanceof ArtworkUploadError && lastError.retryable
+    && !options.signal?.aborted) {
+    const directError = lastError;
+    // Keep the idle watchdog informed without extending its total deadline.
+    options.onAttempt?.(DIRECT_UPLOAD_ATTEMPTS + 1, DIRECT_UPLOAD_ATTEMPTS + 1);
+    try {
+      const payload = await uploadThroughLegacyFunction(file, options);
+      const result = normalizeUploadResponse(payload, file, 'netlify-legacy-fallback');
+      options.onProgress?.(1);
+      return result;
+    } catch (error) {
+      if (options.signal?.aborted) throw error;
+      const fallbackError = error instanceof ArtworkUploadError ? error
+        : new ArtworkUploadError('The connection was interrupted while uploading artwork.', { phase: 'fallback', retryable: true });
+      fallbackError.evidence = { ...fallbackError.evidence, transport: 'netlify-legacy-fallback',
+        recovery: 'same_origin_retry_failed', initialPhase: directError.phase,
+        ...(directError.status != null ? { initialStatus: directError.status } : {}) };
+      lastError = fallbackError;
     }
   }
 

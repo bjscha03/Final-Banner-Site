@@ -2029,8 +2029,9 @@ exports.handler = async (event, context) => {
       headers,
       body: JSON.stringify({
         ok: false,
-        error: error.statusCode ? error.code : 'Failed to create order',
-        details: error.message,
+        error: error.statusCode ? error.code : 'ORDER_PERSISTENCE_FAILED',
+        code: error.statusCode ? error.code : 'ORDER_PERSISTENCE_FAILED',
+        details: error.statusCode ? error.message : 'The order could not be safely saved before payment.',
         integrity: error.details,
       }),
     };

@@ -1020,6 +1020,8 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       const message = payload?.message || payload?.error || 'The cart changed before payment. Review your total and try again.';
       throw Object.assign(new Error(message), {
         type: response.status === 402 ? 'card_error' : undefined,
+        status: response.status,
+        requestId: response.headers.get('x-nf-request-id') || undefined,
         code: response.status === 402
           ? (recoveryDetails.providerCode || recoveryDetails.stripeCode || recoveryDetails.code || 'card_declined')
           : (payload?.code || payload?.error),
@@ -1113,6 +1115,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
         trackCheckoutDiagnostic('provider_error', { provider: 'stripe', method, code: error?.code || error?.details?.providerCode }, {
           expectedTotalCents: error?.expectedTotalCents, serverTotalCents: error?.serverTotalCents,
           canonicalQuoteApplied: error?.canonicalQuoteApplied, requestId: error?.requestId,
+          status: error?.status,
           stage: error?.code === 'STALE_CART_TOTAL' ? 'price_review_before_charge' : 'payment_submission',
         });
         resetForRetry(message);

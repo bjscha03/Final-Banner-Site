@@ -397,6 +397,51 @@ describe('same-origin uploads and stalled recovery', () => {
     expect(xhrSpy).not.toHaveBeenCalled();
   });
 
+  it('recovers the original JPG through the site after a transient first request and three blocked direct uploads', async () => {
+    vi.useFakeTimers();
+    const onAttempt = vi.fn();
+    let sameOriginAttempts = 0;
+    const original = new Uint8Array(244020).fill(17);
+    const fetchSpy = vi.fn(async (url: string, options: RequestInit) => {
+      if (!url.includes('upload-file')) return new Response(JSON.stringify(ticket));
+      sameOriginAttempts++;
+      const sent = (options.body as FormData).get('file') as File;
+      expect(new Uint8Array(await sent.arrayBuffer())).toEqual(original);
+      if (sameOriginAttempts === 1) throw new TypeError('Failed to fetch');
+      return new Response(JSON.stringify(saved));
+    });
+    let directAttempts = 0;
+    class BlockedDirectXhr extends SuccessfulUploadXhr {
+      send(_body: FormData) { directAttempts++; this.onerror?.(); }
+    }
+    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubGlobal('XMLHttpRequest', BlockedDirectXhr);
+    const pending = uploadArtworkFile(new File([original], 'original.jpg', { type: 'image/jpeg' }), { onAttempt });
+    await vi.runAllTimersAsync();
+    const result = await pending;
+    expect(result.transport).toBe('netlify-legacy-fallback');
+    expect(result.artworkManifest.bytes).toBe(244020);
+    expect(directAttempts).toBe(DIRECT_UPLOAD_ATTEMPTS);
+    expect(sameOriginAttempts).toBe(2);
+    expect(onAttempt).toHaveBeenLastCalledWith(DIRECT_UPLOAD_ATTEMPTS + 1, DIRECT_UPLOAD_ATTEMPTS + 1);
+  });
+
+  it('never sends an oversized original through the small-file recovery endpoint', async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi.fn(async (url: string) => {
+      expect(url).not.toContain('upload-file');
+      return new Response(JSON.stringify(ticket));
+    });
+    class BlockedDirectXhr extends SuccessfulUploadXhr { send(_body: FormData) { this.onerror?.(); } }
+    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubGlobal('XMLHttpRequest', BlockedDirectXhr);
+    const file = new File([new Uint8Array(LEGACY_FUNCTION_SAFE_BYTES + 1)], 'original.jpg', { type: 'image/jpeg' });
+    const rejection = expect(uploadArtworkFile(file)).rejects.toMatchObject({ phase: 'direct' });
+    await vi.runAllTimersAsync();
+    await rejection;
+    expect(fetchSpy).toHaveBeenCalledTimes(DIRECT_UPLOAD_ATTEMPTS);
+  });
+
   it('switches routes if same-origin fetch never settles, even when it ignores abort', async () => {
     vi.useFakeTimers();
     let primarySignal: AbortSignal | undefined;
@@ -455,7 +500,7 @@ describe('same-origin uploads and stalled recovery', () => {
     ), { status: url.includes('upload-file') ? 503 : 200 })));
     vi.stubGlobal('XMLHttpRequest', SilentXhr);
     const pending = uploadArtworkFile(new File(['original'], 'original.png', { type: 'image/png' }));
-    const rejected = expect(pending).rejects.toThrow('stopped making progress');
+    const rejected = expect(pending).rejects.toMatchObject({ phase: 'fallback', status: 503 });
     await vi.runAllTimersAsync();
     await rejected;
     expect(abort).toHaveBeenCalledTimes(DIRECT_UPLOAD_ATTEMPTS);
@@ -481,17 +526,17 @@ describe('same-origin uploads and stalled recovery', () => {
     expect((SuccessfulUploadXhr.sentFormData?.get('file') as File).size).toBe(file.size);
   });
 
-  it('bounds repeated small-file ticket failures to three attempts', async () => {
+  it('bounds repeated small-file ticket failures and the final same-origin recovery', async () => {
     vi.useFakeTimers();
     const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ error: 'Unavailable' }), { status: 503 }));
     const xhrSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
     vi.stubGlobal('XMLHttpRequest', xhrSpy);
     const pending = uploadArtworkFile(new File(['original'], 'original.png', { type: 'image/png' }));
-    const rejected = expect(pending).rejects.toMatchObject({ phase: 'ticket', status: 503 });
+    const rejected = expect(pending).rejects.toMatchObject({ phase: 'fallback', status: 503, evidence: { initialPhase: 'ticket', initialStatus: 503 } });
     await vi.runAllTimersAsync();
     await rejected;
-    expect(fetchSpy).toHaveBeenCalledTimes(1 + DIRECT_UPLOAD_ATTEMPTS);
+    expect(fetchSpy).toHaveBeenCalledTimes(2 + DIRECT_UPLOAD_ATTEMPTS);
     expect(xhrSpy).not.toHaveBeenCalled();
   });
 
