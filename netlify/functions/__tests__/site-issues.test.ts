@@ -20,6 +20,21 @@ const request = (method: string, payload?: any, headers: Record<string, string> 
 beforeEach(() => { mocks.records.clear(); vi.clearAllMocks(); });
 
 describe('first-party issue capture', () => {
+  it('keeps the verified pageburst crawl out of customer issues while preserving the crash evidence', async () => {
+    const agent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko; compatible; pageburst) Chrome/154.0.8037.97 Safari/537.36';
+    const payload = { ...body(), kind: 'page_crash', page: '/google-ads-banner',
+      details: { errorMessage: 'Failed to fetch dynamically imported module: /assets/GoogleAdsBanner-CmyRY1a7.js', recoveryAttempted: true } };
+    expect((await report(request('POST', payload, { 'user-agent': agent }), context)).status).toBe(202);
+    const saved = [...mocks.records.values()][0];
+    expect(saved).toMatchObject({ traffic: 'crawler', status: 'new', kind: 'page_crash',
+      details: { crawler: 'pageburst', recoveryAttempted: true, errorMessage: payload.details.errorMessage } });
+    const history = await (await admin(request('GET', undefined, { authorization: 'test-token' }), context)).json();
+    expect(history.issues).toHaveLength(1);
+    expect(history.issues.filter(isOpenCustomerIssue)).toHaveLength(0);
+    const customer = normalizeReport(payload, agent.replace('; compatible; pageburst', ''), 'deploy-test')!;
+    expect(customer.traffic).toBe('customer');
+    expect(isOpenCustomerIssue(customer)).toBe(true);
+  });
   it('retains crawler evidence separately even from an old client labeling itself customer', async () => {
     const response = await report(request('POST', { ...body(), kind: 'page_error' }, { 'user-agent': 'GoogleOther' }), context);
     expect(response.status).toBe(202);
