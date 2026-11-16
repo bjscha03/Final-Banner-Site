@@ -16,6 +16,7 @@ describe('issue traffic and triage', () => {
     ['AdsBot-Google (+http://www.google.com/adsbot.html)', 'adsbot-google'],
     ['meta-externalads/1.1 (+https://developers.facebook.com/docs/sharing/webmasters/crawler)', 'meta-externalads'],
     ['Mozilla/5.0 (compatible; bingbot/2.0)', 'bingbot'],
+    ['Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko; compatible; pageburst) Chrome/154.0.8037.97 Safari/537.36', 'pageburst'],
   ])('recognizes an explicit crawler token in %s', (agent, expected) => {
     expect(knownIssueCrawler(agent)).toBe(expected);
   });
@@ -23,6 +24,8 @@ describe('issue traffic and triage', () => {
     '', 'Other', 'Mozilla/5.0 Chrome/153.0.8010.52 Mobile Safari/537.36',
     'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) Version/27.0.1 Mobile/15E148 Safari/604.1',
     'Mozilla/5.0 HeadlessChrome/153.0.8010.52 Safari/537.36', 'notGooglebot/1.0',
+    'Mozilla/5.0 notpageburst/1.0 Chrome/154.0.8037.97 Safari/537.36',
+    'Mozilla/5.0 pageburst-user Chrome/154.0.8037.97 Safari/537.36',
   ])('keeps unrecognized and real browsers in customer monitoring: %s', agent => {
     expect(knownIssueCrawler(agent)).toBeNull();
   });

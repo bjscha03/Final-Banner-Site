@@ -15,8 +15,10 @@ export const ISSUE_LABELS: Record<SiteIssueKind, string> = {
 };
 // Only explicit crawler product tokens qualify. Browser version, viewport,
 // missing device information and headless mode cannot identify a crawler.
+// pageburst was verified as crawler traffic in production hosting request
+// records; its Chrome token alone must never classify an ordinary browser.
 export function knownIssueCrawler(agent: string): string | null {
-  const token = agent.match(/(?:^|[\s;(])((?:Googlebot(?:-\w+)?|GoogleOther(?:-\w+)?|AdsBot-Google(?:-Mobile)?|Mediapartners-Google|bingbot|BingPreview|DuckDuckBot|Applebot|facebookexternalhit|meta-externalads|meta-externalagent|Twitterbot|LinkedInBot))(?:[/\s;)]|$)/i)?.[1];
+  const token = agent.match(/(?:^|[\s;(])((?:Googlebot(?:-\w+)?|GoogleOther(?:-\w+)?|AdsBot-Google(?:-Mobile)?|Mediapartners-Google|bingbot|BingPreview|DuckDuckBot|Applebot|facebookexternalhit|meta-externalads|meta-externalagent|Twitterbot|LinkedInBot|pageburst))(?:[/\s;)]|$)/i)?.[1];
   return token?.toLowerCase() || null;
 }
 export function isOpenCustomerIssue(issue: Pick<SiteIssue, 'status' | 'traffic'>): boolean {
