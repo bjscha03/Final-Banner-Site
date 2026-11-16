@@ -6,6 +6,7 @@ import { withLambda } from '@netlify/aws-lambda-compat';
 import legacyModule from './_shared/legacy/get-orders.cjs';
 import visibilityModule from './_shared/admin-order-visibility.cjs';
 import serverAuthModule from './_shared/server-auth.cjs';
+import measurements from './_shared/order-item-measurements.cjs';
 
 const {
   hasCompletedPayPalPaymentEvidence,
@@ -785,6 +786,7 @@ function normalizeAdminListOrders(rows = []) {
       try { items = JSON.parse(items); } catch { items = []; }
     }
     if (!Array.isArray(items)) items = [];
+    items = items.map(measurements.normalizeOrderItemMeasurements);
     let trackingNumbers = row.tracking_numbers;
     if (typeof trackingNumbers === 'string') {
       try { trackingNumbers = JSON.parse(trackingNumbers); } catch { trackingNumbers = null; }

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import report from '../report-site-issue.mts';
 import admin from '../admin-site-issues.mts';
-import { issueKey, listIssues, normalizeReport, saveIssue } from '../_shared/site-issues';
+import { issueKey, issueLogEvent, listIssues, normalizeReport, saveIssue } from '../_shared/site-issues';
+import { isOpenCustomerIssue } from '../../../src/lib/siteIssueSchema';
 
 const mocks = vi.hoisted(() => {
   const records = new Map<string, any>();
@@ -53,12 +54,42 @@ describe('first-party issue capture', () => {
   it('does not duplicate or reopen a report when a queued request is retried', async () => {
     const event = normalizeReport(body(), '', 'deploy-test')!;
     await saveIssue(mocks.store, event);
-    mocks.records.set(issueKey(event), { ...event, status: 'reviewed' });
+    mocks.records.set(issueKey(event), { ...event, status: 'resolved' });
     await saveIssue(mocks.store, event);
     expect(mocks.records.size).toBe(1);
-    expect(mocks.records.get(issueKey(event)).status).toBe('reviewed');
+    expect(mocks.records.get(issueKey(event)).status).toBe('resolved');
     expect(mocks.store.setJSON).toHaveBeenLastCalledWith(issueKey(event), event, { onlyIfNew: true });
   });
+});
+
+it('logs persisted reports and acknowledged resolutions for monitoring without private diagnostics', async () => {
+  const log = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  try {
+    const input = { ...body(), details: { code: 'PAYMENT_STAGE_TIMEOUT', stage: 'elements_submit',
+      errorMessage: 'private customer text', stack: 'private stack', filename: 'private.png',
+      clientBuild: '042c6ddeecb5d3e9e8c62409072f588f930b6691' } };
+    await report(request('POST', input), context);
+    const receipt = JSON.parse(log.mock.calls[0][0]);
+    expect(receipt).toMatchObject({ event: 'site_issue_received', id: input.id, traffic: 'customer',
+      details: { code: 'PAYMENT_STAGE_TIMEOUT', stage: 'elements_submit' } });
+    expect(JSON.stringify(receipt)).not.toMatch(/private|stack|filename|email|sessionId/);
+    const saved = [...mocks.records.values()][0];
+    await admin(request('PATCH', { key: issueKey(saved), status: 'resolved',
+      resolution: 'Recovery fix deployed and verified by regression tests.' }, { authorization: 'test-token' }), context);
+    expect(JSON.parse(log.mock.calls[1][0])).toMatchObject({ event: 'site_issue_status', status: 'resolved', id: input.id });
+    const history = await (await admin(request('GET', undefined, { authorization: 'test-token' }), context)).json();
+    expect(history.issues).toHaveLength(1);
+    expect(history.issues.filter(isOpenCustomerIssue)).toHaveLength(0);
+    expect(history.issues[0].resolution).toContain('verified');
+    expect(JSON.stringify(log.mock.calls)).not.toContain('Recovery fix deployed');
+  } finally { log.mockRestore(); }
+});
+
+it('never copies arbitrary diagnostic text or payment identifiers into hosting logs', () => {
+  const event = normalizeReport(body(), '', 'deploy-test')!;
+  event.details = { code: 'sk_live_secret', stage: 'customer@example.com',
+    clientBuild: 'https://private.example/artwork', status: 503, errorMessage: 'Private contents' };
+  expect(issueLogEvent(event, 'site_issue_received').details).toEqual({ status: 503 });
 });
 describe('protected issue log', () => {
   it('archives unverified historical incidents honestly, preserves evidence, and supports reopening', async () => {

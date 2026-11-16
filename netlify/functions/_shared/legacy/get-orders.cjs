@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { normalizeOrderItemMeasurements } = require('../order-item-measurements.cjs');
 const { normalizeTrackingEntries } = require('./tracking-helpers.cjs');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
 const { getSession, unauthorized } = require('../server-auth.cjs');
@@ -299,7 +300,7 @@ exports.handler = async (event, context) => {
     const formattedOrders = orders.map(order => {
       // Keep canonical server-stored totals (already include same-day/saturday fees).
       // Only sanitize item array from LEFT JOIN null row artifacts.
-      const _items = (order.items || []).filter(item => item && item.id !== null);
+      const _items = (order.items || []).filter(item => item && item.id !== null).map(normalizeOrderItemMeasurements);
       const subtotal = Number(order.subtotal_cents) || 0;
       const tax = Number(order.tax_cents) || 0;
       const total = Number(order.total_cents) || 0;
