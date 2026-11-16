@@ -114,6 +114,13 @@ describe('card field readiness and submission', () => {
     expect(trackCheckoutDiagnostic).toHaveBeenCalledWith('payment_fields_load_failed', expect.objectContaining({ stage: 'card_ready_timeout' }));
   });
 
+  it('does not reload payment fields while checkout is externally locked', async () => {
+    await act(async () => mocks.paymentCallbacks.onLoadError());
+    await act(async () => root.render(<StripeCheckout publishableKey="pk_test_mock" total={3392} disabled onSuccess={vi.fn()} onError={vi.fn()} />));
+    const reload = Array.from(host.querySelectorAll('button')).find(button => button.textContent?.includes('Reload secure card fields'))!;
+    expect(reload.disabled).toBe(true);
+  });
+
   it('allows only one card validation while repeated clicks arrive, then releases a validation failure', async () => {
     await renderSlowCard();
     await act(async () => mocks.paymentCallbacks.onReady());

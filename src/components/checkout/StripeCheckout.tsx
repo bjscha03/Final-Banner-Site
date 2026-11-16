@@ -1478,9 +1478,9 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
         </div>
       ) : null}
       {(cardNeedsReload || checkoutError === CARD_FIELDS_LOAD_ERROR) && <Button
-        type="button" variant="outline" disabled={busy}
+        type="button" variant="outline" disabled={disabled || busy}
         onClick={() => {
-          if (!busy && !paymentFlightRef.current && !cardSubmissionRef.current) restartCardFields();
+          if (!disabled && !busy && !paymentFlightRef.current && !cardSubmissionRef.current) restartCardFields();
         }}
       ><RefreshCw className="mr-2 h-4 w-4" />Reload secure card fields</Button>}
 
