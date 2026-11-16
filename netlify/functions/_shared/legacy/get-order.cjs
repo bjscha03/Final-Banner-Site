@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { normalizeOrderItemMeasurements } = require('../order-item-measurements.cjs');
 const { normalizeTrackingEntries } = require('./tracking-helpers.cjs');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
 const { getSession, unauthorized } = require('../server-auth.cjs');
@@ -181,6 +182,7 @@ exports.handler = async (event, context) => {
       ['grommets'],
       ['rounded_corners'],
       ['rope_feet'],
+      ['rope_pricing_mode'],
       ['rope_placement'],
       ['pole_pockets'],
       ['pole_pocket_position'],
@@ -296,7 +298,7 @@ exports.handler = async (event, context) => {
       same_day_hit_service: inferredSameDaySelected,
       same_day_fee_cents: inferredSameDayFee,
       shippingAddress,
-      items: itemsResult
+      items: itemsResult.map(normalizeOrderItemMeasurements)
     };
 
     return {

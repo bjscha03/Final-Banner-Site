@@ -27,7 +27,9 @@ function deploymentOrigin(env = process.env) {
 }
 
 function response(statusCode = 204) {
-  return { statusCode, headers: { 'Cache-Control': 'no-store' }, body: '' };
+  // Fetch Response rejects even an empty string body for a 204. The Lambda
+  // adapter must receive no body, otherwise completed cron work is retried.
+  return { statusCode, headers: { 'Cache-Control': 'no-store' }, ...(statusCode === 204 ? {} : { body: '' }) };
 }
 
 async function dispatchBackground(action, payload, { env = process.env, fetchImpl = globalThis.fetch } = {}) {

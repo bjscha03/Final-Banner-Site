@@ -1,7 +1,7 @@
 import type { Context } from '@netlify/functions';
 import { getStore } from '@netlify/blobs';
 import auth from './_shared/server-auth.cjs';
-import { MAX_REPORT_BYTES, normalizeReport, reply, saveIssue, STORE_NAME, validOrigin } from './_shared/site-issues';
+import { issueLogEvent, MAX_REPORT_BYTES, normalizeReport, reply, saveIssue, STORE_NAME, validOrigin } from './_shared/site-issues';
 
 export default async (request: Request, context: Context) => {
   if (request.method !== 'POST') return reply(405, { ok: false });
@@ -20,6 +20,7 @@ export default async (request: Request, context: Context) => {
   if (!issue) return reply(400, { ok: false });
   try {
     await saveIssue(getStore({ name: STORE_NAME, consistency: 'strong' }), issue);
+    console.info(JSON.stringify(issueLogEvent(issue, 'site_issue_received')));
     return reply(202, { ok: true, id: issue.id });
   } catch { return reply(503, { ok: false }); }
 };

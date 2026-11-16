@@ -38,6 +38,21 @@ export async function saveIssue(store: any, issue: SiteIssue) {
   await store.setJSON(key, issue, { onlyIfNew: true });
   return key;
 }
+// Scheduled monitoring can read hosting logs without an administrator browser
+// session. Keep the log envelope explicit: no artwork, free text, stack, contact
+// data, resolution notes, or request headers. Deduplicate receipt retries by id.
+export function issueLogEvent(issue: SiteIssue, event: 'site_issue_received' | 'site_issue_status') {
+  const details: SiteIssue['details'] = {};
+  for (const key of ['code', 'stage', 'phase', 'status', 'clientBuild']) {
+    const value = issue.details[key];
+    if (typeof value === 'number' && Number.isFinite(value)) details[key] = value;
+    if (typeof value === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(value)
+      && !/^(?:sk|pk|pi|cs|seti|pm)_/i.test(value)) details[key] = value;
+  }
+  return { event, id: issue.id, kind: issue.kind, occurredAt: issue.occurredAt,
+    loggedAt: new Date().toISOString(), page: issuePage(issue.page), traffic: issue.traffic,
+    ...(event === 'site_issue_status' ? { status: issue.status } : {}), deployId: issue.deployId, details };
+}
 export async function listIssues(store: any, ifNoneMatch: string | null, now = Date.now(), before: string | null = null) {
   if (before && !validIssueKey(before)) return reply(400, { ok: false, error: 'Invalid issue cursor.' });
   const { blobs } = await store.list({ prefix: 'events/' });
