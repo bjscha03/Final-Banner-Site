@@ -17,7 +17,10 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock('@stripe/react-stripe-js', () => ({
   Elements: ({ children }: any) => children,
-  PaymentElement: () => <div>Secure card fields</div>,
+  PaymentElement: ({ onReady }: any) => {
+    React.useEffect(() => { onReady?.(); }, []);
+    return <div>Secure card fields</div>;
+  },
   useStripe: () => mocks.stripe, useElements: () => mocks.elements,
 }));
 vi.mock('@stripe/stripe-js', () => ({ loadStripe: () => Promise.resolve(null) }));

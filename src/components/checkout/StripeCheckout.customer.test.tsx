@@ -4,13 +4,15 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import StripeCheckout from './StripeCheckout';
 import PayPalCheckoutReliable from './PayPalCheckoutReliable';
-import { readCheckoutCustomerDraft } from './checkoutCustomerDraft';
+import { createEmptyCheckoutCustomer, readCheckoutCustomerDraft, writeCheckoutCustomerDraft } from './checkoutCustomerDraft';
 import { trackCheckoutDiagnostic } from '@/lib/checkoutDiagnostics';
 
 const mocks = vi.hoisted(() => ({
   stripe: { createConfirmationToken: vi.fn() },
   elementsOptions: vi.fn(),
   paymentOptions: vi.fn(),
+  paymentCallbacks: null as any,
+  cardAutoReady: true,
   elements: { submit: vi.fn() },
   capture: vi.fn(),
   paypalProvider: vi.fn(() => null),
@@ -19,7 +21,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@stripe/react-stripe-js', () => ({
   Elements: ({ children, options }: any) => { mocks.elementsOptions(options); return children; },
   ExpressCheckoutElement: () => null,
-  PaymentElement: ({ options }: any) => { mocks.paymentOptions(options); return <div>Secure card fields</div>; },
+  PaymentElement: (props: any) => {
+    mocks.paymentOptions(props.options); mocks.paymentCallbacks = props;
+    React.useEffect(() => { if (mocks.cardAutoReady) props.onReady?.(); }, []);
+    return <div>Secure card fields</div>;
+  },
   useStripe: () => mocks.stripe,
   useElements: () => mocks.elements,
 }));
@@ -55,6 +61,9 @@ const enter = async (id: string, value: string) => {
 };
 beforeEach(async () => {
   vi.clearAllMocks();
+  mocks.cardAutoReady = true;
+  mocks.elements.submit.mockReset();
+  mocks.stripe.createConfirmationToken.mockReset();
   sessionStorage.clear(); localStorage.clear();
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => { cb(0); return 0; });
@@ -63,7 +72,116 @@ beforeEach(async () => {
   await act(async () => render());
 });
 afterEach(async () => {
-  await act(async () => root.unmount()); host.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals();
+  await act(async () => root.unmount()); host.remove(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals();
+});
+
+const payButton = () => host.querySelector<HTMLButtonElement>('.checkout-pay-button')!;
+const renderSlowCard = async () => {
+  await act(async () => root.unmount());
+  mocks.cardAutoReady = false;
+  writeCheckoutCustomerDraft({ ...createEmptyCheckoutCustomer('checkout-test@example.com'),
+    firstName: 'Test', lastName: 'Buyer', phone: '5025550100', street: '123 Preview Street', city: 'Louisville', state: 'KY', zip: '40299' });
+  root = createRoot(host);
+  await act(async () => render());
+};
+
+describe('card field readiness and submission', () => {
+  it('does not submit before the card iframe is ready, even with valid saved contact details', async () => {
+    await renderSlowCard();
+    expect(payButton().disabled).toBe(true);
+    await act(async () => payButton().click());
+    expect(mocks.elements.submit).not.toHaveBeenCalled();
+    await act(async () => mocks.paymentCallbacks.onReady());
+    expect(payButton().disabled).toBe(false);
+    expect(host.querySelector<HTMLInputElement>('#stripe-email')?.value).toBe('checkout-test@example.com');
+  });
+
+  it('keeps failed card fields disabled and recovers when Stripe reports ready', async () => {
+    await act(async () => mocks.paymentCallbacks.onLoadError());
+    expect(payButton().disabled).toBe(true);
+    expect(host.textContent).toContain('Card payment fields could not load');
+    await act(async () => mocks.paymentCallbacks.onReady());
+    expect(payButton().disabled).toBe(false);
+    expect(host.textContent).not.toContain('Card payment fields could not load');
+  });
+
+  it('reports an iframe that never becomes ready even when the Stripe SDK has loaded', async () => {
+    vi.useFakeTimers();
+    await renderSlowCard();
+    await act(async () => { await vi.advanceTimersByTimeAsync(8000); });
+    expect(payButton().disabled).toBe(true);
+    expect(host.textContent).toContain('Card payment fields could not load');
+    expect(trackCheckoutDiagnostic).toHaveBeenCalledWith('payment_fields_load_failed', expect.objectContaining({ stage: 'card_ready_timeout' }));
+  });
+
+  it('does not reload payment fields while checkout is externally locked', async () => {
+    await act(async () => mocks.paymentCallbacks.onLoadError());
+    await act(async () => root.render(<StripeCheckout publishableKey="pk_test_mock" total={3392} disabled onSuccess={vi.fn()} onError={vi.fn()} />));
+    const reload = Array.from(host.querySelectorAll('button')).find(button => button.textContent?.includes('Reload secure card fields'))!;
+    expect(reload.disabled).toBe(true);
+  });
+
+  it('allows only one card validation while repeated clicks arrive, then releases a validation failure', async () => {
+    await renderSlowCard();
+    await act(async () => mocks.paymentCallbacks.onReady());
+    let finish!: (value: any) => void;
+    mocks.elements.submit.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    await act(async () => { payButton().click(); payButton().click(); });
+    expect(mocks.elements.submit).toHaveBeenCalledTimes(1);
+    expect(payButton().disabled).toBe(true);
+    await act(async () => finish({ error: { message: 'Check your card details.' } }));
+    expect(payButton().disabled).toBe(false);
+    expect(mocks.stripe.createConfirmationToken).not.toHaveBeenCalled();
+  });
+
+  it('requires fresh fields after timeout, retains contact details, and ignores late old validation', async () => {
+    vi.useFakeTimers();
+    await renderSlowCard();
+    await act(async () => mocks.paymentCallbacks.onReady());
+    let finish!: (value: any) => void;
+    mocks.elements.submit.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    await act(async () => payButton().click());
+    await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+    expect(host.textContent).toContain('secure payment form did not respond');
+    expect(payButton().disabled).toBe(true);
+    const reload = Array.from(host.querySelectorAll('button')).find(button => button.textContent?.includes('Reload secure card fields'))!;
+    await act(async () => reload.click());
+    expect(payButton().disabled).toBe(true);
+    expect(host.querySelector<HTMLInputElement>('#stripe-email')?.value).toBe('checkout-test@example.com');
+    expect(host.querySelector<HTMLInputElement>('#stripe-street')?.value).toBe('123 Preview Street');
+    await act(async () => mocks.paymentCallbacks.onReady());
+    expect(payButton().disabled).toBe(false);
+    await act(async () => finish({}));
+    expect(mocks.stripe.createConfirmationToken).not.toHaveBeenCalled();
+    mocks.elements.submit.mockResolvedValue({ error: { message: 'Fresh card field validation.' } });
+    await act(async () => payButton().click());
+    expect(mocks.elements.submit).toHaveBeenCalledTimes(2);
+    expect(host.textContent).toContain('Fresh card field validation.');
+  });
+
+  it('continues through token creation once ready and releases a pre-payment provider failure', async () => {
+    await renderSlowCard();
+    await act(async () => mocks.paymentCallbacks.onReady());
+    mocks.elements.submit.mockResolvedValue({});
+    mocks.stripe.createConfirmationToken.mockResolvedValue({ error: { message: 'Test provider validation failure.' } });
+    await act(async () => payButton().click());
+    expect(mocks.elements.submit).toHaveBeenCalledTimes(1);
+    expect(mocks.stripe.createConfirmationToken).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toContain('Test provider validation failure.');
+    expect(payButton().disabled).toBe(false);
+  });
+
+  it('never starts payment when the customer leaves while card validation is pending', async () => {
+    await renderSlowCard();
+    await act(async () => mocks.paymentCallbacks.onReady());
+    let finish!: (value: any) => void;
+    mocks.elements.submit.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    await act(async () => payButton().click());
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    await act(async () => finish({}));
+    expect(mocks.stripe.createConfirmationToken).not.toHaveBeenCalled();
+  });
 });
 
 describe('checkout contact form', () => {

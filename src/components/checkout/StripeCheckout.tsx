@@ -111,6 +111,7 @@ const APP_REQUEST_TIMEOUT_MS = 25_000;
 const STATUS_REQUEST_TIMEOUT_MS = 8_000;
 const POLL_TOTAL_TIMEOUT_MS = 35_000;
 const STRIPE_STAGE_TIMEOUT_MS = 15_000;
+const CARD_FIELDS_LOAD_ERROR = 'Card payment fields could not load. Refresh the page or choose PayPal.';
 
 const stripePromiseCache = new Map<string, ReturnType<typeof loadStripe>>();
 
@@ -299,6 +300,7 @@ const isPaidPayload = (payload: any): boolean => Boolean(
 
 const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> & {
   signature: string;
+  restartCardFields: () => void;
 }> = ({
   total,
   onSuccess,
@@ -308,6 +310,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   onPaymentStateChange,
   onCanonicalQuote,
   signature,
+  restartCardFields,
   orderIntro,
   orderSummary,
   alternativePayment,
@@ -321,6 +324,9 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   const availableWalletCount = Object.values(walletAvailability).filter(Boolean).length;
   const walletsAvailable = availableWalletCount > 0;
   const [walletPhoneRequired, setWalletPhoneRequired] = useState(false);
+  const [cardReady, setCardReady] = useState(false);
+  const [cardNeedsReload, setCardNeedsReload] = useState(false);
+  const [isPreparingCard, setIsPreparingCard] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
   const [verificationMessage, setVerificationMessage] = useState<string | null>(() => (
@@ -373,6 +379,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   const startupRecoveryRef = useRef<StoredStripeCheckout>(initialState);
   const recoveryRef = useRef<StoredStripeCheckout>(initialState);
   const paymentFlightRef = useRef<Promise<void> | null>(null);
+  const cardSubmissionRef = useRef(false);
   const pollingFlightRef = useRef<Promise<void> | null>(null);
   const initialPollStartedForKeyRef = useRef<string | null>(null);
   const keyOnlyRecoveryRef = useRef(isStripeKeyOnlyRecovery(initialState));
@@ -424,17 +431,25 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   }, [customer.email, user?.email]);
 
   useEffect(() => {
-    const loadingMessage = 'Card payment fields could not load. Refresh the page or choose PayPal.';
-    if (stripe && elements) {
-      setCheckoutError((current) => current === loadingMessage ? null : current);
+    if (cardNeedsReload) return;
+    if (verificationMessage) {
+      // Status recovery removes the card iframe. A newly mounted iframe must
+      // report its own readiness before another card attempt can start.
+      setCardReady(false);
+      return;
+    }
+    if (stripe && elements && cardReady) {
+      setCheckoutError((current) => current === CARD_FIELDS_LOAD_ERROR ? null : current);
       return;
     }
     const timeout = window.setTimeout(() => {
-      trackCheckoutDiagnostic('payment_fields_load_failed', { provider: 'stripe', stage: 'sdk_timeout' });
-      setCheckoutError(loadingMessage);
+      trackCheckoutDiagnostic('payment_fields_load_failed', {
+        provider: 'stripe', method: 'card', stage: stripe && elements ? 'card_ready_timeout' : 'sdk_timeout',
+      });
+      setCheckoutError(CARD_FIELDS_LOAD_ERROR);
     }, 8000);
     return () => window.clearTimeout(timeout);
-  }, [elements, stripe]);
+  }, [cardNeedsReload, cardReady, elements, stripe, verificationMessage]);
 
   const persistRecovery = useCallback((updates: Partial<StoredStripeCheckout>) => {
     const next: StoredStripeCheckout = {
@@ -1146,8 +1161,8 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   }, [completePayment, discountCode?.code, onError, pollPaymentStatus, resetForRetry]);
 
   const submitCard = async () => {
+    if (disabled || busy || !stripe || !elements || !cardReady || cardNeedsReload || cardSubmissionRef.current || paymentFlightRef.current) return;
     trackCheckoutDiagnostic('pay_clicked', { provider: 'stripe', method: 'card' });
-    if (!stripe || !elements || paymentFlightRef.current) return;
     const validation = validateCheckoutCustomer(customer);
     if (validation) {
       trackCheckoutDiagnostic('validation_blocked', { provider: 'stripe', method: 'card', field: validation.field });
@@ -1163,21 +1178,40 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       });
       return;
     }
-    if (!(await addressCheck.check())) return;
-    let submitResult;
+    // Lock synchronously before the first await, including address and card
+    // validation. React's next render alone cannot prevent two rapid clicks.
+    cardSubmissionRef.current = true;
+    setIsPreparingCard(true);
     try {
-      submitResult = await withStripeStageTimeout(elements.submit());
-    } catch (error) {
-      trackCheckoutDiagnostic('provider_error', { provider: 'stripe', method: 'card', stage: 'elements_submit', code: error?.code });
-      setCheckoutError(humanizeStripeError(error));
-      return;
+      if (!(await addressCheck.check()) || !mountedRef.current) return;
+      let submitResult;
+      try {
+        submitResult = await withStripeStageTimeout(elements.submit());
+      } catch (error) {
+        trackCheckoutDiagnostic('provider_error', { provider: 'stripe', method: 'card', stage: 'elements_submit', code: error?.code });
+        if (mountedRef.current) {
+          if (error?.code === 'PAYMENT_STAGE_TIMEOUT') {
+            // A timeout cannot cancel Stripe's pending iframe operation. Do
+            // not call submit again on that instance. Reload only at this
+            // pre-token stage, before any server payment request was sent.
+            setCardReady(false);
+            setCardNeedsReload(true);
+            setCheckoutError('The secure payment form did not respond. No payment was sent. Reload the secure card fields to try again; your contact and delivery details are saved.');
+          } else setCheckoutError(humanizeStripeError(error));
+        }
+        return;
+      }
+      if (!mountedRef.current) return;
+      if (submitResult.error) {
+        trackCheckoutDiagnostic('validation_blocked', { provider: 'stripe', method: 'card', stage: 'payment_fields', code: submitResult.error.code });
+        setCheckoutError(humanizeStripeError(submitResult.error));
+        return;
+      }
+      await startPayment('card', formCustomer(customer)).catch(() => undefined);
+    } finally {
+      cardSubmissionRef.current = false;
+      if (mountedRef.current) setIsPreparingCard(false);
     }
-    if (submitResult.error) {
-      trackCheckoutDiagnostic('validation_blocked', { provider: 'stripe', method: 'card', stage: 'payment_fields', code: submitResult.error.code });
-      setCheckoutError(humanizeStripeError(submitResult.error));
-      return;
-    }
-    await startPayment('card', formCustomer(customer)).catch(() => undefined);
   };
 
   const customerFields: Array<{
@@ -1215,7 +1249,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   ];
 
   const currentValidation = checkoutError ? validateCheckoutCustomer(customer) : null;
-  const busy = isProcessing || isPolling || addressCheck.checking || Boolean(verificationMessage);
+  const busy = isPreparingCard || isProcessing || isPolling || addressCheck.checking || Boolean(verificationMessage);
   const expressCheckoutVisible = walletsAvailable && !verificationMessage;
   const walletPhoneIsInvalid = walletPhoneRequired && !isValidCheckoutPhone(customer.phone);
   const focusWalletPhone = () => {
@@ -1443,6 +1477,12 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           <span>{checkoutError}</span>
         </div>
       ) : null}
+      {(cardNeedsReload || checkoutError === CARD_FIELDS_LOAD_ERROR) && <Button
+        type="button" variant="outline" disabled={disabled || busy}
+        onClick={() => {
+          if (!disabled && !busy && !paymentFlightRef.current && !cardSubmissionRef.current) restartCardFields();
+        }}
+      ><RefreshCw className="mr-2 h-4 w-4" />Reload secure card fields</Button>}
 
       {checkoutNotice ? (
         <div role="status" aria-live="polite" className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-700">
@@ -1574,10 +1614,14 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
             </div>
             <PaymentElement
               options={stripeCardPaymentElementOptions}
-              onReady={() => trackCheckoutDiagnostic('payment_fields_ready', { provider: 'stripe', method: 'card' })}
+              onReady={() => {
+                setCardReady(true);
+                trackCheckoutDiagnostic('payment_fields_ready', { provider: 'stripe', method: 'card' });
+              }}
               onLoadError={() => {
+                setCardReady(false);
                 trackCheckoutDiagnostic('payment_fields_load_failed', { provider: 'stripe', method: 'card' });
-                setCheckoutError('Card payment fields could not load. Refresh the page or choose PayPal.');
+                setCheckoutError(CARD_FIELDS_LOAD_ERROR);
               }}
             />
           </div>
@@ -1589,12 +1633,18 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
             type="button"
             size="lg"
             className="checkout-pay-button h-12 w-full bg-brand-orange text-base font-bold text-white hover:bg-brand-orange-hover focus-visible:ring-[#18448D]"
-            disabled={disabled || busy || !stripe || !elements}
+            disabled={disabled || busy || !stripe || !elements || !cardReady || cardNeedsReload}
             onClick={() => void submitCard()}
           >
             {isProcessing
               ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Completing secure payment…</>
-              : <><Lock className="mr-2 h-4 w-4" aria-hidden="true" />{`Pay $${(total / 100).toFixed(2)}`}</>}
+              : isPreparingCard
+                ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Checking payment details…</>
+                : cardNeedsReload || checkoutError === CARD_FIELDS_LOAD_ERROR
+                  ? <><Lock className="mr-2 h-4 w-4" aria-hidden="true" />Reload card fields to continue</>
+                  : !cardReady
+                    ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading secure payment…</>
+                    : <><Lock className="mr-2 h-4 w-4" aria-hidden="true" />{`Pay $${(total / 100).toFixed(2)}`}</>}
           </Button>
           </CheckoutPaymentBar>
         </section>
@@ -1605,6 +1655,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
 };
 
 const StripeCheckout: React.FC<StripeCheckoutProps> = ({ publishableKey, total, ...props }) => {
+  const [cardFieldsVersion, setCardFieldsVersion] = useState(0);
   const { items, discountCode, sameDayHitService, saturdayDelivery } = useCartStore();
   const signature = useMemo(() => buildStripeCheckoutSignature({
     total,
@@ -1642,8 +1693,9 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({ publishableKey, total, 
   if (!publishableKey || total <= 0) return null;
 
   return (
-    <Elements key={signature} stripe={stripePromise} options={options}>
-      <StripeCheckoutForm {...props} total={total} signature={signature} />
+    <Elements key={`${signature}:${cardFieldsVersion}`} stripe={stripePromise} options={options}>
+      <StripeCheckoutForm {...props} total={total} signature={signature}
+        restartCardFields={() => setCardFieldsVersion(version => version + 1)} />
     </Elements>
   );
 };
