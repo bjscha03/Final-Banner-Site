@@ -195,3 +195,22 @@ it('requires fix evidence to resolve and preserves it when reopened', async () =
   await admin(request('PATCH', { ...update, status: 'new' }, { authorization: 'test-token' }), context);
   expect(mocks.records.get(update.key)).toMatchObject({ status: 'new', resolution, resolvedAt: null });
 });
+
+it('archives only the verified external bridge signature and retains the full report in history', async () => {
+  const event = { ...body(), kind: 'page_error', details: { errorMessage: 'Object Not Found Matching Id:2, MethodName:update, ParamCount:4', line: 0, column: 0 } };
+  await report(request('POST', event), context);
+  const history = await (await admin(request('GET', undefined, { authorization: 'test-token' }), context)).json();
+  expect(history.issues).toHaveLength(1);
+  expect(history.issues[0]).toMatchObject({ status: 'archived', traffic: 'customer', details: event.details });
+  expect(history.issues[0].resolution).toContain('CefSharp');
+  expect(history.issues.filter(isOpenCustomerIssue)).toHaveLength(0);
+  for (const altered of [
+    { ...event, kind: 'page_crash' }, { ...event, kind: 'checkout_error' }, { ...event, kind: 'upload_error' },
+    { ...event, details: { ...event.details, source: '/assets/app.js' } },
+    { ...event, details: { ...event.details, stack: 'at /assets/app.js:1:20' } },
+    { ...event, details: { ...event.details, componentStack: 'at Checkout' } },
+    { ...event, details: { ...event.details, line: 20 } },
+    { ...event, details: { errorMessage: 'Script error.' } },
+    { ...event, details: { errorMessage: 'Object Not Found Matching Id:2 in our cart' } },
+  ]) expect(isOpenCustomerIssue(normalizeReport(altered, 'Chrome/152', 'deploy-test')!)).toBe(true);
+});

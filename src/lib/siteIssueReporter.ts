@@ -1,7 +1,7 @@
 import { isProductionHost } from './environment';
 import { isCurrentDeviceInternal } from './trackingPolicy';
 import { issueDetails, issuePage, type SiteIssueInput, type SiteIssueKind } from './siteIssueSchema';
-import { isChunkLoadFailure } from './chunkRecovery';
+import { isChunkLoadFailure, isChunkRecoveryPending } from './chunkRecovery';
 
 const QUEUE_KEY = 'bof_issue_queue_v1';
 const SESSION_KEY = 'bof_issue_session_v1';
@@ -77,11 +77,14 @@ export function reportSiteIssue(kind: SiteIssueKind, details: Record<string, unk
   try {
     if (!enabled() || window.location.pathname.startsWith('/admin')) return;
     const now = Date.now();
+    const recoveryDocument = new URLSearchParams(window.location.search).has('_botf_refresh');
+    const recoveryPending = isChunkRecoveryPending();
     if (now - lastWindow > 300_000) { lastWindow = now; sentInWindow = 0; recent.clear(); recentAssets.clear(); }
     const safeDetails = issueDetails({ ...details,
       breadcrumbs: breadcrumbs.join('\n'),
       viewportWidth: window.innerWidth, viewportHeight: window.innerHeight,
-      recoveryAttempted: new URLSearchParams(window.location.search).has('_botf_refresh'),
+      recoveryAttempted: recoveryDocument || recoveryPending,
+      ...(recoveryPending ? { recovery: 'reload_requested' } : {}),
       assetHost: new URL(import.meta.env.BASE_URL || '/', window.location.origin).hostname,
       clientBuild: import.meta.env.VITE_COMMIT_REF || 'unknown',
       browserVersion: navigator.userAgent.match(/(?:Chrome|CriOS|Firefox|FxiOS|Version|Edg)\/([\d.]+)/)?.[1],
@@ -93,7 +96,7 @@ export function reportSiteIssue(kind: SiteIssueKind, details: Record<string, unk
       : null;
     // A failed route import can fail many dependent preloads at once. Keep
     // that burst as one incident and retain each failed asset as evidence.
-    const assetKey = asset ? JSON.stringify([page, safeDetails.clientBuild, safeDetails.recoveryAttempted]) : null;
+    const assetKey = asset ? JSON.stringify([page, safeDetails.clientBuild, recoveryDocument]) : null;
     if (asset && asset !== 'unknown-module') {
       safeDetails.assetSources = asset;
       safeDetails.assetCount = 1;

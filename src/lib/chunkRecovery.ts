@@ -46,6 +46,9 @@ export const reloadLatestVersion = (
 
 const recoveringWindows = new WeakSet<object>();
 
+/** True while the recovery navigation is pending, before the new URL loads. */
+export const isChunkRecoveryPending = (target: ManualRecoveryWindow = window): boolean => recoveringWindows.has(target);
+
 /** Shared by Vite and React's boundary: caught lazy imports do not emit an
  * unhandledrejection. Preserve the URL/cart and bypass stale HTML on recovery. */
 export const attemptChunkRecovery = (target: ManualRecoveryWindow = window): boolean => {

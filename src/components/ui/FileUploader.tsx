@@ -27,7 +27,7 @@ export interface FileUploaderHandle {
   focus: () => void;
 }
 
-const DEFAULT_SUBTEXT = 'PNG, JPG, or PDF • Max 50MB';
+const DEFAULT_SUBTEXT = 'PNG, JPG, WebP, or PDF • Max 50MB';
 
 const FileUploader = forwardRef<FileUploaderHandle, FileUploaderProps>(({
   onUpload,
@@ -55,7 +55,7 @@ const FileUploader = forwardRef<FileUploaderHandle, FileUploaderProps>(({
     return () => input?.removeEventListener('cancel', onCancel);
   }, []);
 
-  const derivedSubText = subText || (maxSize ? `PNG, JPG, or PDF • Max ${Math.round(maxSize / (1024 * 1024))}MB` : DEFAULT_SUBTEXT);
+  const derivedSubText = subText || (maxSize ? `PNG, JPG, WebP, or PDF • Max ${Math.round(maxSize / (1024 * 1024))}MB` : DEFAULT_SUBTEXT);
 
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0 || disabled || isUploading) return;

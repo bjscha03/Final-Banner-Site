@@ -3174,11 +3174,11 @@ const GoogleAdsBanner: React.FC = () => {
                       <FileUploader
                         ref={fileUploaderRef}
                         onUpload={handleFileUpload}
-                        acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"
+                        acceptedTypes="image/png,image/jpeg,image/webp,application/pdf,.png,.jpg,.jpeg,.webp,.pdf"
                         maxSize={MAX_ARTWORK_BYTES}
                         choiceCard={mobilePaidLayout}
                         label={mobilePaidLayout ? 'Upload artwork' : 'Upload your artwork'}
-                        subText={`PNG, JPG, or PDF • Max ${MAX_ARTWORK_MB}MB${mobilePaidLayout ? '' : ` • ${widthDisplay} × ${heightDisplay}`}`}
+                        subText={`PNG, JPG, WebP, or PDF • Max ${MAX_ARTWORK_MB}MB${mobilePaidLayout ? '' : ` • ${widthDisplay} × ${heightDisplay}`}`}
                         isUploading={isUploading}
                         style={mobilePaidLayout ? undefined : previewCanvasStyle}
                         className="mx-auto"

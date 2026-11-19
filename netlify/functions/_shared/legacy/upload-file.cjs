@@ -3,7 +3,7 @@ const { v2: cloudinary } = require('cloudinary');
 const crypto = require('crypto');
 
 const MAX_BYTES = 50 * 1024 * 1024;
-const ALLOWED = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+const ALLOWED = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -79,7 +79,7 @@ exports.handler = async (event) => {
 
     if (mimeType && !ALLOWED.includes(mimeType.toLowerCase())) {
       const ext = filename.split('.').pop()?.toLowerCase();
-      const allowedExts = ['jpg', 'jpeg', 'png', 'pdf'];
+      const allowedExts = ['jpg', 'jpeg', 'png', 'pdf', 'webp'];
       if (!allowedExts.includes(ext || '')) {
         console.log('Unsupported media type:', mimeType);
         return { statusCode: 415, body: 'Unsupported media type: ' + mimeType };

@@ -8,8 +8,9 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/jpg',
   'image/png',
+  'image/webp',
 ]);
-const ALLOWED_EXTENSIONS = new Set(['pdf', 'jpg', 'jpeg', 'png']);
+const ALLOWED_EXTENSIONS = new Set(['pdf', 'jpg', 'jpeg', 'png', 'webp']);
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -74,7 +75,7 @@ exports.handler = async (event) => {
       return reply(413, { error: 'File too large. Maximum artwork size is 50MB.' });
     }
     if (!isAllowedArtwork({ fileName, mimeType })) {
-      return reply(415, { error: 'Please upload a PDF, PNG, JPG, or JPEG file.' });
+      return reply(415, { error: 'Please upload a PDF, PNG, JPG, JPEG, or WebP file.' });
     }
 
     const folder = String(process.env.CLOUDINARY_FOLDER || 'uploads').trim() || 'uploads';
