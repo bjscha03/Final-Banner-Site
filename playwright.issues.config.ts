@@ -5,7 +5,7 @@ export default defineConfig({
   workers: 2, retries: 0, timeout: 60_000, expect: { timeout: 20_000 }, reporter: 'line',
   use: { baseURL, trace: 'retain-on-failure' },
   webServer: process.env.ISSUE_QA_BASE_URL ? undefined : {
-    command: 'npx vite preview --host 127.0.0.1 --port 4177', url: baseURL, reuseExistingServer: !process.env.CI,
+    command: 'node scripts/issue-browser-server.mjs', url: baseURL, reuseExistingServer: !process.env.CI,
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'], launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {} } },
