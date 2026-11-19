@@ -18,7 +18,7 @@ test('a transient module failure recovers the banner builder exactly once and pr
   const navigations: string[] = [];
   page.on('framenavigated', frame => { if (frame === page.mainFrame()) navigations.push(frame.url()); });
   await page.addInitScript(() => {
-    if (!sessionStorage.getItem('qa-design-marker')) sessionStorage.setItem('qa-design-marker', 'keep-my-design');
+    if (!new URL(location.href).searchParams.has('_botf_refresh')) sessionStorage.setItem('qa-design-marker', 'keep-my-design');
   });
   await page.route('**/assets/GoogleAdsBanner-*.js', async route => {
     if (!failed) { failed = true; await route.abort('failed'); }
@@ -69,3 +69,14 @@ test('WebP goes through the banner uploader unchanged and displays a usable prev
   await expect(page.getByRole('button', { name: 'Retry upload', exact: true })).toHaveCount(0);
   await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible();
 });
+
+for (const product of ['banner', 'yard-signs']) {
+  test(`${product} native chooser allows the advertised WebP format`, async ({ page }) => {
+    await page.goto(`/google-ads-banner?product=${product}&gclid=issue-regression`);
+    const action = page.getByRole('button', { name: /(?:I have artwork|Upload your artwork).*WebP/i }).first();
+    await expect(action).toBeVisible();
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), action.click()]);
+    expect(await chooser.element().getAttribute('accept')).toContain('image/webp');
+    expect(await chooser.element().getAttribute('accept')).toContain('.webp');
+  });
+}
