@@ -105,7 +105,7 @@ test('AI artwork help stays optional, updates prompts, copies, and preserves the
   const squareArtwork = await sharp({
     create: { width: 900, height: 900, channels: 3, background: '#1d4ed8' },
   }).jpeg().toBuffer();
-  const uploader = page.getByRole('button', { name: /Upload your artwork.*PNG, JPG, WebP, or PDF/i }).first();
+  const uploader = page.getByLabel('Upload your artwork', { exact: true }).first();
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), uploader.click()]);
   await chooser.setFiles({ name: 'square-artwork.jpg', mimeType: 'image/jpeg', buffer: squareArtwork });
 

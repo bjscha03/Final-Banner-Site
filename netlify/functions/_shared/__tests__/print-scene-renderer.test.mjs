@@ -82,3 +82,27 @@ describe('print scene v2 renderer', () => {
     await assert.rejects(() => renderPrintSceneToPdfBuffer({ ...baseScene, objects: [{ id: 'missing', type: 'image', widthIn: 1, heightIn: 1, source: { originalUrl: 'https://assets.example/missing.png', mimeType: 'image/png', format: 'png' } }] }), /Failed to fetch production asset/);
   });
 });
+
+it.each(['webp', ''])('embeds WebP original pixels and alpha into the production PDF with format %s', async (format) => {
+  const original = await sharp({ create: { width: 1200, height: 600, channels: 4, background: { r: 240, g: 80, b: 20, alpha: 0.5 } } }).webp({ lossless: true }).toBuffer();
+  const previousFetch = global.fetch;
+  global.fetch = async () => ({ ok: true, arrayBuffer: async () => original });
+  try {
+    const result = await renderPrintSceneToPdfBuffer({ sceneVersion: 2, widthIn: 4, heightIn: 2, backgroundColor: '#ffffff', objects: [{
+      id: 'webp', type: 'image', xIn: 0, yIn: 0, widthIn: 4, heightIn: 2,
+      source: { originalUrl: 'https://assets.example/original.webp', format, mimeType: format ? 'image/webp' : '', originalWidth: 1, originalHeight: 1 },
+    }] });
+    expect(result.metadata.resolution[0]).toMatchObject({ originalWidth: 1200, originalHeight: 600, effectivePpi: 300 });
+    const pdf = await PDFDocument.load(result.buffer);
+    expect(pdf.getPage(0).getWidth()).toBe(288);
+    expect(pdf.getPage(0).getHeight()).toBe(144);
+    const images = pdf.context.enumerateIndirectObjects().map(([, value]) => value).filter(value => value instanceof PDFRawStream && value.dict.get(PDFName.of('Subtype')) === PDFName.of('Image'));
+    expect(images.some(image => image.dict.get(PDFName.of('SMask')))).toBe(true);
+    for (const image of images) {
+      expect(image.dict.get(PDFName.of('Width')).asNumber()).toBe(1200);
+      expect(image.dict.get(PDFName.of('Height')).asNumber()).toBe(600);
+    }
+    const rgbImage = images.find(image => image.dict.get(PDFName.of('ColorSpace')) === PDFName.of('DeviceRGB'));
+    expect([...inflateSync(rgbImage.contents).subarray(0, 3)]).toEqual([240, 80, 20]);
+  } finally { global.fetch = previousFetch; }
+});

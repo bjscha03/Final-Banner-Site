@@ -25,7 +25,7 @@ test('a transient module failure recovers the banner builder exactly once and pr
     else await route.continue();
   });
   await page.goto(path, { waitUntil: 'commit' });
-  await expect(page.getByRole('button', { name: /(?:I have artwork|Upload your artwork).*WebP/i }).first()).toBeVisible();
+  await expect(page.getByLabel(/^Upload (?:your )?artwork$/i).first()).toBeVisible();
   expect(failed).toBe(true);
   expect(navigations.filter(url => url.includes('_botf_refresh='))).toHaveLength(1);
   expect(new URL(page.url()).searchParams.get('product')).toBe('banner');
@@ -44,7 +44,7 @@ test('a persistent module failure stops after one recovery and offers a working 
   expect(navigations.filter(url => url.includes('_botf_refresh='))).toHaveLength(1);
   blocking = false;
   await page.getByRole('button', { name: 'Reload page', exact: true }).click();
-  await expect(page.getByRole('button', { name: /(?:I have artwork|Upload your artwork).*WebP/i }).first()).toBeVisible();
+  await expect(page.getByLabel(/^Upload (?:your )?artwork$/i).first()).toBeVisible();
 });
 
 test('WebP goes through the banner uploader unchanged and displays a usable preview', async ({ page }) => {
@@ -59,7 +59,7 @@ test('WebP goes through the banner uploader unchanged and displays a usable prev
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ secure_url: url, public_id: 'uploads/webp-check', format: 'webp', width: 1200, height: 600, bytes: artwork.length }) });
   });
   await page.goto(path, { waitUntil: 'domcontentloaded' });
-  const picker = page.getByRole('button', { name: /(?:I have artwork|Upload your artwork).*WebP/i }).first();
+  const picker = page.getByLabel(/^Upload (?:your )?artwork$/i).first();
   await expect(picker).toBeVisible();
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), picker.click()]);
   await chooser.setFiles({ name: 'webp-regression.webp', mimeType: 'image/webp', buffer: artwork });
@@ -73,7 +73,7 @@ test('WebP goes through the banner uploader unchanged and displays a usable prev
 for (const product of ['banner', 'yard-signs']) {
   test(`${product} native chooser allows the advertised WebP format`, async ({ page }) => {
     await page.goto(`/google-ads-banner?product=${product}&gclid=issue-regression`);
-    const action = page.getByRole('button', { name: /(?:I have artwork|Upload your artwork).*WebP/i }).first();
+    const action = page.getByLabel(/^Upload (?:your )?artwork$/i).first();
     await expect(action).toBeVisible();
     const [chooser] = await Promise.all([page.waitForEvent('filechooser'), action.click()]);
     expect(await chooser.element().getAttribute('accept')).toContain('image/webp');

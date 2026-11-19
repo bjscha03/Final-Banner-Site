@@ -42,7 +42,7 @@ test('banner upload opens the native chooser from the first visible upload actio
   await page.goto('/google-ads-banner?product=banner', { waitUntil: 'domcontentloaded' });
   await expectNoHorizontalOverflow(page);
 
-  const action = page.getByRole('button', { name: /(?:I have artwork|Upload your artwork).*PNG, JPG, WebP, or PDF/i }).first();
+  const action = page.getByLabel(/^Upload (?:your )?artwork$/i).first();
 
   await expect(action).toBeVisible();
   await expectChooserFromAction(page, action);
@@ -57,7 +57,7 @@ test('yard-sign add-design action opens the native chooser without a second tap'
   await page.goto('/google-ads-banner?product=yard-signs', { waitUntil: 'domcontentloaded' });
   await expectNoHorizontalOverflow(page);
 
-  const action = page.getByRole('button', { name: /Upload your artwork.*PNG, JPG, WebP, or PDF/i }).first();
+  const action = page.getByLabel('Upload your artwork', { exact: true }).first();
 
   await expect(action).toBeVisible();
   await expectChooserFromAction(page, action);
