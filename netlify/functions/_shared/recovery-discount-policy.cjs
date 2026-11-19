@@ -270,7 +270,12 @@ function promoSubtotalForItems(items, fullSubtotalCents, promoDiscount) {
 
 function capPromoDiscountAmount(amountCents, promoDiscount) {
   const amount = Math.max(0, Number(amountCents) || 0);
-  if (!promoDiscount || promoDiscount.discountScope !== LARGE_BANNER_RECOVERY_SCOPE) return amount;
+  const requiresCap = promoDiscount && (
+    promoDiscount.discountScope === LARGE_BANNER_RECOVERY_SCOPE
+    || ((promoDiscount.discountScope || 'order') === 'order'
+      && promoDiscount.maxDiscountAmountCents != null)
+  );
+  if (!requiresCap) return amount;
   const cap = positiveInteger(promoDiscount.maxDiscountAmountCents);
   return cap ? Math.min(amount, cap) : 0;
 }

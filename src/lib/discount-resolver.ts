@@ -328,7 +328,9 @@ export function resolveBestDiscount(input: DiscountResolverInput): ResolvedDisco
         : 0;
     }
 
-    if (promoDiscount.discountScope === LARGE_BANNER_RECOVERY_SCOPE) {
+    if (promoDiscount.discountScope === LARGE_BANNER_RECOVERY_SCOPE
+        || ((promoDiscount.discountScope || 'order') === 'order'
+          && promoDiscount.maxDiscountAmountCents != null)) {
       const cap = Number(promoDiscount.maxDiscountAmountCents);
       manualPromoDiscountAmountCents = Number.isSafeInteger(cap) && cap > 0
         ? Math.min(manualPromoDiscountAmountCents, cap)

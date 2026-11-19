@@ -49,6 +49,9 @@ function storedDiscountFromRow(discount, recoveryOffer) {
     campaign,
     discountScope,
   };
+  if (discountScope === 'order' && discount.max_discount_amount_cents != null) {
+    result.maxDiscountAmountCents = positiveInteger(discount.max_discount_amount_cents) || 0;
+  }
   if (discountScope === LARGE_BANNER_RECOVERY_SCOPE || campaign === LARGE_BANNER_RECOVERY_CAMPAIGN) {
     result.eligibleCartItemIds = normalizeEligibleCartItemIds(discount.eligible_cart_item_ids);
     result.maxDiscountAmountCents = positiveInteger(discount.max_discount_amount_cents);
