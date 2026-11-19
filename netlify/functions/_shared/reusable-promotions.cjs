@@ -6,16 +6,16 @@ function getReusablePromotion(value) {
   const code = String(value || '').trim().toUpperCase();
   const team = require('./daniel-team-promotion.cjs').getTeamPromotion(code);
   if (team) return team;
-  if (code !== 'SARAH30') return null;
+  if (code !== 'SARAH30' && code !== 'TRIXIE25') return null;
   return {
-    id: 'SARAH30_PROMO',
+    id: `${code}_PROMO`,
     code,
-    discountPercentage: 30,
+    discountPercentage: code === 'TRIXIE25' ? 25 : 30,
     discountAmountCents: null,
     expiresAt: null,
     source: 'reusable_promotion',
     discountScope: 'order',
-    campaign: 'sarah30',
+    campaign: code === 'TRIXIE25' ? 'trixie-friends-25-v1' : 'sarah30',
   };
 }
 
