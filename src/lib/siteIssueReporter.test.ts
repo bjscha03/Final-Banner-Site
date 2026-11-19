@@ -188,3 +188,17 @@ it('sanitizes grouped asset evidence without retaining private URLs', async () =
   expect(details).toMatchObject({ assetCount: 2, assetSources: '/assets/a.js\n/assets/b.css' });
   expect(JSON.stringify(details)).not.toContain('secret');
 });
+
+it('merges recovery diagnostics into the same incident while navigation is pending', async () => {
+  const { reportSiteIssue, reportPageIssue, flushSiteIssues } = await import('./siteIssueReporter');
+  const { attemptChunkRecovery } = await import('./chunkRecovery');
+  reportSiteIssue('page_error', { phase: 'asset_load', source: '/assets/landing.js' });
+  // jsdom does not navigate; this represents the interval before location.replace completes.
+  attemptChunkRecovery(window);
+  reportPageIssue('page_crash', new TypeError('Importing a module script failed.'), undefined, undefined, undefined, 'at Lazy');
+  await flushSiteIssues();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  const sent = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+  expect(sent.kind).toBe('page_crash');
+  expect(sent.details).toMatchObject({ recoveryAttempted: true, recovery: 'reload_requested', source: '/assets/landing.js', componentStack: 'at Lazy' });
+});

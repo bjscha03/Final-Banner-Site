@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { v2: cloudinary } = require('cloudinary');
 const { PDFDocument, rgb, degrees, StandardFonts, pushGraphicsState, popGraphicsState, rectangle, clip, endPath } = require('pdf-lib');
 
-const RENDERER_VERSION = 'production-pdf-v4-measured-source';
+const RENDERER_VERSION = 'production-pdf-v5-webp-originals';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -192,7 +192,12 @@ async function renderPrintSceneToPdfBuffer(sceneInput) {
         });
       } else {
         const fmt = String(source.format || source.mimeType || '').toLowerCase();
-        const image = fmt.includes('png') ? await pdfDoc.embedPng(buffer) : await pdfDoc.embedJpg(new Uint8Array(buffer));
+        // pdf-lib embeds PNG/JPEG only. Decode WebP losslessly for the PDF,
+        // retaining all source pixels and alpha; the stored original stays intact.
+        const isWebP = fmt.includes('webp') || (buffer.subarray(0, 4).toString() === 'RIFF' && buffer.subarray(8, 12).toString() === 'WEBP');
+        const image = isWebP
+          ? await pdfDoc.embedPng(await require('sharp')(buffer).png().toBuffer())
+          : fmt.includes('png') ? await pdfDoc.embedPng(buffer) : await pdfDoc.embedJpg(new Uint8Array(buffer));
         metadata.resolution.push({ objectId: obj.id, ...effectiveResolution({ ...obj, source: { ...source, originalWidth: image.width, originalHeight: image.height } }) });
         page.drawImage(image, { x: drawOrigin.x, y: drawOrigin.y, width: w, height: h, rotate, opacity });
       }

@@ -147,6 +147,7 @@ describe('uploadArtworkFile', () => {
     ['image/jpeg', 'jpg', new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3])],
     ['image/png', 'png', new Uint8Array([0x89, 0x50, 0x4e, 0x47, 13, 10, 26, 10, 1, 2])],
     ['application/pdf', 'pdf', new TextEncoder().encode('%PDF-1.7\noriginal vector artwork')],
+    ['image/webp', 'webp', new TextEncoder().encode('RIFF\x10\x00\x00\x00WEBPVP8 original')],
   ])('recovers %s without usable picker metadata and preserves every original byte', async (type, ext, bytes) => {
     const file = new File([bytes], 'customer-artwork', { type: '', lastModified: 12345 });
     expect(validateArtworkFile(file)).not.toBeNull();
@@ -250,7 +251,7 @@ describe('uploadArtworkFile', () => {
     expect(validateArtworkFile(new File(['x'], 'banner.png', { type: 'image/png' }))).toBeNull();
     expect(validateArtworkFile(new File(['x'], 'banner.pdf', { type: 'application/pdf' }))).toBeNull();
     expect(validateArtworkFile(new File(['x'], 'banner.exe', { type: 'application/octet-stream' })))
-      .toContain('PDF, PNG, JPG, or JPEG');
+      .toContain('PDF, PNG, JPG, JPEG, or WebP');
 
     const oversized = new File(['x'], 'banner.png', { type: 'image/png' });
     Object.defineProperty(oversized, 'size', { value: MAX_ARTWORK_BYTES + 1 });
@@ -569,4 +570,21 @@ describe('same-origin uploads and stalled recovery', () => {
 it('includes file size and failure reason for admin reports without exposing the filename', () => {
   const evidence = getArtworkUploadEvidence(new Error('Could not decode customer-private.pdf'), { name: 'customer-private.pdf', size: 62914560 });
   expect(evidence).toMatchObject({ fileBytes: 62914560, fileLimitBytes: 314572800, errorMessage: 'Could not decode [artwork]' });
+});
+
+it.each(['image/webp', ''])('uploads a WebP original with picker MIME %s without changing its bytes', async (mime) => {
+  const bytes = new TextEncoder().encode('RIFF\x10\x00\x00\x00WEBPVP8 original');
+  const file = new File([bytes], 'banner.webp', { type: mime, lastModified: 42 });
+  vi.stubGlobal('fetch', vi.fn(async (url: string, options: RequestInit) => {
+    expect(url).toBe('/.netlify/functions/upload-file');
+    const sent = (options.body as FormData).get('file') as File;
+    expect(sent.type).toBe('image/webp');
+    expect(new Uint8Array(await sent.arrayBuffer())).toEqual(bytes);
+    return new Response(JSON.stringify({ secure_url: 'https://res.cloudinary.com/test/image/upload/banner.webp', public_id: 'banner', format: 'webp', bytes: file.size, width: 1200, height: 600 }));
+  }));
+  const result = await uploadArtworkFile(file);
+  expect(result.mimeType).toBe('image/webp');
+  expect(result.productionUrl).toMatch(/banner.webp$/);
+  expect(result.width).toBe(1200);
+  expect(getArtworkUploadDiagnostic(null, file).mimeType).toBe('webp');
 });

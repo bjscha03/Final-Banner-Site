@@ -645,10 +645,9 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
             <FileUploader
               ref={fileUploaderRef}
               onUpload={handleFileUpload}
-              acceptedTypes="image/png,image/jpeg,.pdf"
+              acceptedTypes="image/png,image/jpeg,image/webp,application/pdf,.png,.jpg,.jpeg,.webp,.pdf"
               maxSize={MAX_ARTWORK_BYTES}
               label={designs.length === 0 ? 'Upload your artwork' : 'Add another design'}
-              subText="PNG, JPG, or PDF • Max 50MB"
               isUploading={isUploading}
             />
             <div className="mt-3 flex justify-center">

@@ -23,7 +23,7 @@ const createRecoveryTarget = (storedTimestamp: string | null = null) => {
   return { target, listeners, reload };
 };
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
 
 describe('chunk recovery', () => {
   it('recognizes deploy-skewed dynamic import failures', () => {
@@ -118,11 +118,11 @@ describe('chunk recovery', () => {
     const { target, listeners } = createRecoveryTarget();
     const cleanup = installChunkRecovery(target as unknown as Window);
     expect(installChunkRecovery(target as unknown as Window)).toBe(cleanup);
-    expect(target.addEventListener).toHaveBeenCalledTimes(2);
+    expect(target.addEventListener).toHaveBeenCalledTimes(3);
     cleanup();
     expect(listeners.size).toBe(0);
     installChunkRecovery(target as unknown as Window);
-    expect(target.addEventListener).toHaveBeenCalledTimes(4);
+    expect(target.addEventListener).toHaveBeenCalledTimes(6);
   });
 
   it('forces a cache-busted navigation and clears the automatic recovery guard', () => {
@@ -186,4 +186,49 @@ it('recovers a caught lazy import through the same guard and cache-busts HTML', 
   const nextDocument = createRecoveryTarget('50000');
   expect(attemptChunkRecovery(nextDocument.target as unknown as Window)).toBe(false);
   expect(nextDocument.reload).not.toHaveBeenCalled();
+});
+
+it('refreshes failed application module bytes before navigating, including manual retry', async () => {
+  vi.useFakeTimers();
+  for (const manual of [false, true]) {
+    const { target, listeners, reload } = createRecoveryTarget();
+    const body = vi.fn(async () => new ArrayBuffer(4));
+    const fetch = vi.fn(async () => ({ arrayBuffer: body }));
+    Object.assign(target, { fetch });
+    installChunkRecovery(target as unknown as Window);
+    listeners.get('error')!({ target: { tagName: 'LINK', rel: 'modulepreload', href: 'https://bannersonthefly.com/assets/route-abc.js' } } as unknown as Event);
+    if (manual) reloadLatestVersion(target as unknown as Window);
+    else { attemptChunkRecovery(target as unknown as Window); attemptChunkRecovery(target as unknown as Window); }
+    expect(reload).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(50);
+    expect(fetch).toHaveBeenCalledExactlyOnceWith('https://bannersonthefly.com/assets/route-abc.js', expect.objectContaining({ cache: 'reload', credentials: 'same-origin' }));
+    expect(body).toHaveBeenCalledOnce();
+    expect(reload).toHaveBeenCalledOnce();
+  }
+});
+
+it('does not fetch unrelated images, external scripts, or API URLs during recovery', () => {
+  const { target, listeners, reload } = createRecoveryTarget();
+  const fetch = vi.fn(); Object.assign(target, { fetch });
+  installChunkRecovery(target as unknown as Window);
+  for (const element of [
+    { tagName: 'IMG', src: 'https://bannersonthefly.com/assets/art.js' },
+    { tagName: 'SCRIPT', src: 'https://unrelated.example/assets/route.js' },
+    { tagName: 'SCRIPT', src: 'https://bannersonthefly.com/.netlify/functions/route.js' },
+  ]) listeners.get('error')!({ target: element } as unknown as Event);
+  attemptChunkRecovery(target as unknown as Window);
+  expect(fetch).not.toHaveBeenCalled();
+  expect(reload).toHaveBeenCalledOnce();
+});
+
+it('keeps navigation bounded when refreshing an asset hangs', async () => {
+  vi.useFakeTimers();
+  const { target, listeners, reload } = createRecoveryTarget();
+  const fetch = vi.fn((_url: string, _options: RequestInit) => new Promise(() => {})); Object.assign(target, { fetch });
+  installChunkRecovery(target as unknown as Window);
+  listeners.get('error')!({ target: { tagName: 'LINK', rel: 'modulepreload', href: 'https://bannersonthefly.com/assets/route-abc.js' } } as unknown as Event);
+  attemptChunkRecovery(target as unknown as Window);
+  await vi.advanceTimersByTimeAsync(3050);
+  expect(fetch.mock.calls[0][1].signal?.aborted).toBe(true);
+  expect(reload).toHaveBeenCalledOnce();
 });

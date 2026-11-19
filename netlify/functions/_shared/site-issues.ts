@@ -18,6 +18,14 @@ export function normalizeReport(body: any, agent: string, deployId: string, now 
   if (!Number.isFinite(occurred) || occurred < now - 86_400_000 || occurred > now + 300_000) return null;
   const crawler = knownIssueCrawler(agent);
   const details = issueDetails(body.details);
+  // Exact external CefSharp bridge failure, verified in its upstream source:
+  // https://github.com/cefsharp/CefSharp/blob/05577b7bf3933a057d42dabe0dc915676f9463a8/CefSharp/Internals/JavascriptObjectRepository.cs
+  // Retain the report in history. Never archive a crash, an upload/payment
+  // failure, generic opaque errors, or anything carrying application frames.
+  const externalBridge = body.kind === 'page_error'
+    && /^Object Not Found Matching Id:\d+, MethodName:update, ParamCount:4$/.test(String(details.errorMessage || ''))
+    && !details.source && !details.stack && !details.componentStack && !details.assetSources
+    && !details.line && !details.column;
   // The server's request UA determines crawler classification, including old
   // clients. Never trust a caller-supplied crawler label to hide a real issue.
   delete details.crawler;
@@ -26,7 +34,9 @@ export function normalizeReport(body: any, agent: string, deployId: string, now 
     receivedAt: new Date(now).toISOString(), page: issuePage(body.page),
     traffic: body.kind === 'monitor_test' ? 'test' : crawler ? 'crawler' : body.traffic === 'test' ? 'test' : 'customer',
     online: body.online !== false, details, ...deviceInfo(agent),
-    status: 'new', deployId: /^[a-zA-Z0-9-]{1,80}$/.test(deployId) ? deployId : 'unknown' };
+    status: externalBridge ? 'archived' : 'new',
+    ...(externalBridge ? { reviewedAt: new Date(now).toISOString(), resolution: 'Archived known external CefSharp browser bridge error: exact update/4 signature with no application source or stack. Evidence retained; this is not a verified storefront defect.' } : {}),
+    deployId: /^[a-zA-Z0-9-]{1,80}$/.test(deployId) ? deployId : 'unknown' };
 }
 export function issueKey(issue: Pick<SiteIssue, 'occurredAt' | 'id'>) { return `events/${issue.occurredAt}/${issue.id}`; }
 export function validIssueKey(value: unknown): value is string {

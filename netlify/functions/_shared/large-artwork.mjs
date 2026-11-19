@@ -16,7 +16,7 @@ export function createLargeArtworkHandler(getStore, { cloudName, createRasterPre
     if (action === 'start') {
       const input = await request.json();
       const format = String(input.fileName || '').split('.').pop().toLowerCase();
-      if (!['png', 'jpg', 'jpeg', 'pdf'].includes(format)) return json({ error: 'Unsupported artwork type' }, 415);
+      if (!['png', 'jpg', 'jpeg', 'pdf', 'webp'].includes(format)) return json({ error: 'Unsupported artwork type' }, 415);
       if (!Number.isSafeInteger(input.size) || input.size <= 0 || input.size > MAX_BYTES) return json({ error: 'Maximum artwork size is 300MB' }, 413);
       const id = randomUUID();
       const token = randomBytes(32).toString('hex');
@@ -70,7 +70,8 @@ export function createLargeArtworkHandler(getStore, { cloudName, createRasterPre
       if (index === 0) {
         const valid = session.format === 'pdf' ? bytes.subarray(0, 1024).includes(Buffer.from('%PDF-'))
           : session.format === 'png' ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
-            : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
+            : session.format === 'webp' ? bytes.subarray(0, 4).toString() === 'RIFF' && bytes.subarray(8, 12).toString() === 'WEBP'
+              : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
         if (!valid) return json({ error: 'Artwork contents do not match the file type' }, 415);
       }
       hash.update(bytes);
@@ -97,7 +98,7 @@ export function createLargeArtworkHandler(getStore, { cloudName, createRasterPre
       width: sourceWidth,
       height: sourceHeight,
       format: session.format, resourceType: 'original',
-      mimeType: session.format === 'pdf' ? 'application/pdf' : session.format === 'png' ? 'image/png' : 'image/jpeg',
+      mimeType: session.format === 'pdf' ? 'application/pdf' : session.format === 'png' ? 'image/png' : session.format === 'webp' ? 'image/webp' : 'image/jpeg',
       originalFilename: session.fileName, sha256: hash.digest('hex'),
       uploadedAt: new Date(now()).toISOString(), chunkCount: count,
     };

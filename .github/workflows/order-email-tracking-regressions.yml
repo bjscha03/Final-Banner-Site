@@ -55,6 +55,7 @@ on:
       - 'src/pages/OrderDetail.tsx'
       - 'tests/browser/**'
       - 'playwright.preview.config.ts'
+      - 'playwright.issues.config.ts'
       - 'vite.config.ts'
       - 'vitest.ai.config.ts'
       - 'netlify/functions/get-order.mjs'
@@ -86,6 +87,25 @@ permissions:
   contents: read
 
 jobs:
+  issue-log-browser-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npx vite build
+      - run: npx playwright test --config=playwright.issues.config.ts
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: issue-log-browser-failures
+          path: test-results/
+
   regression-checks:
     runs-on: ubuntu-latest
     timeout-minutes: 20

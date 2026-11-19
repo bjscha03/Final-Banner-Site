@@ -89,3 +89,10 @@ test('rejects unsupported file types', async () => {
   });
   assert.equal(response.statusCode, 415);
 });
+
+test('WebP metadata is eligible for a signed original upload, including missing mobile MIME', () => {
+  const { isAllowedArtwork } = require('../_shared/legacy/cloudinary-upload-signature.cjs')._test;
+  assert.equal(isAllowedArtwork({ fileName: 'banner.webp', mimeType: 'image/webp' }), true);
+  assert.equal(isAllowedArtwork({ fileName: 'banner.WEBP', mimeType: '' }), true);
+  assert.equal(isAllowedArtwork({ fileName: 'banner.exe', mimeType: 'application/octet-stream' }), false);
+});

@@ -5,7 +5,7 @@ import { getStore } from '@netlify/blobs';
 export default async (request: Request) => {
   if (!['GET', 'HEAD'].includes(request.method)) return new Response(null, { status: 405 });
   const url = new URL(request.url);
-  const match = url.pathname.match(/^\/artwork-original\/([a-f0-9-]{36})\/original\.(png|jpe?g|pdf)$/);
+  const match = url.pathname.match(/^\/artwork-original\/([a-f0-9-]{36})\/original\.(png|jpe?g|pdf|webp)$/);
   if (!match) return new Response(null, { status: 404 });
   const store = getStore({ name: 'artwork-originals-v1', consistency: 'strong' });
   const manifest = await store.get(`${match[1]}/complete`, { type: 'json' });

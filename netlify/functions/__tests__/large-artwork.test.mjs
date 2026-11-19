@@ -88,3 +88,38 @@ test('failed server preview never finalizes an empty artifact and preserves chun
   fail = false;
   assert.equal((await call('complete', {}, session)).status, 200);
 });
+
+test('WebP original is preserved and can be downloaded and used by production rendering', async () => {
+  const { default: sharp } = await import('sharp');
+  const { isStoredOriginalUrl, isCloudinaryOriginalUrl } = await import('../_shared/original-artwork-url.cjs');
+  const bytes = await sharp({ create: { width: 80, height: 40, channels: 4, background: '#ee650080' } }).webp({ lossless: true }).toBuffer();
+  const { call, data } = fixture({ createRasterPreview: async original => {
+    assert.deepEqual(original, bytes);
+    const metadata = await sharp(original).metadata();
+    return { previewUrl: 'https://res.cloudinary.com/test/image/upload/webp-preview.png', width: metadata.width, height: metadata.height };
+  } });
+  const session = await (await call('start', { fileName: 'original.webp', size: bytes.length })).json();
+  assert.equal((await call('chunk', bytes, session, 0)).status, 200);
+  const response = await call('complete', {}, session);
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.mimeType, 'image/webp');
+  assert.equal(result.format, 'webp');
+  assert.equal(result.width, 80);
+  assert.equal(result.height, 40);
+  assert.equal(result.sha256, createHash('sha256').update(bytes).digest('hex'));
+  assert.deepEqual(Buffer.from(data.get(`${session.id}/chunk-0`)), bytes);
+  assert.equal(isStoredOriginalUrl(result.productionUrl), true);
+  assert.equal(isCloudinaryOriginalUrl(`https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME || 'dtrxl120u'}/image/upload/v123/uploads/original.webp`), true);
+  assert.equal(isStoredOriginalUrl(result.productionUrl.replace('bannersonthefly.com', 'evil.example')), false);
+});
+
+test('rejects a renamed non-WebP original before creating its preview', async () => {
+  let rendered = false;
+  const { call } = fixture({ createRasterPreview: async () => { rendered = true; } });
+  const bytes = Buffer.from('RIFF\x10\x00\x00\x00WAVE not artwork');
+  const session = await (await call('start', { fileName: 'fake.webp', size: bytes.length })).json();
+  await call('chunk', bytes, session, 0);
+  assert.equal((await call('complete', {}, session)).status, 415);
+  assert.equal(rendered, false);
+});

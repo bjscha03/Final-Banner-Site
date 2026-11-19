@@ -19,8 +19,9 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/jpg',
   'image/png',
+  'image/webp',
 ]);
-const ALLOWED_EXTENSIONS = new Set(['pdf', 'jpg', 'jpeg', 'png']);
+const ALLOWED_EXTENSIONS = new Set(['pdf', 'jpg', 'jpeg', 'png', 'webp']);
 
 export interface ArtworkUploadTicket {
   apiKey: string;
@@ -81,7 +82,7 @@ export interface ArtworkUploadDiagnostic {
   retryable: boolean;
   status: number | null;
   sizeBucket: 'under-4mb' | '4mb-8mb' | '8mb-20mb' | '20mb-50mb' | '50mb-300mb' | 'over-300mb';
-  mimeType: 'pdf' | 'png' | 'jpeg' | 'unknown';
+  mimeType: 'pdf' | 'png' | 'jpeg' | 'webp' | 'unknown';
 }
 
 export class ArtworkUploadError extends Error {
@@ -127,7 +128,7 @@ export function getArtworkUploadDiagnostic(
       ? 'png'
       : normalizedType === 'image/jpeg' || normalizedType === 'image/jpg' || extension === 'jpg' || extension === 'jpeg'
         ? 'jpeg'
-        : 'unknown';
+        : normalizedType === 'image/webp' || extension === 'webp' ? 'webp' : 'unknown';
   return {
     phase: error instanceof ArtworkUploadError ? error.phase : 'response',
     retryable: error instanceof ArtworkUploadError ? error.retryable : false,
@@ -175,7 +176,7 @@ export function validateArtworkFile(file: Pick<File, 'name' | 'type' | 'size'>):
     return ARTWORK_SIZE_MESSAGE;
   }
   if (!ALLOWED_MIME_TYPES.has(mimeType) && !ALLOWED_EXTENSIONS.has(extension)) {
-    return 'Please upload a PDF, PNG, JPG, or JPEG file. Export or save your artwork in one of these formats, or email the original to support@bannersonthefly.com for help.';
+    return 'Please upload a PDF, PNG, JPG, JPEG, or WebP file. Export or save your artwork in one of these formats, or email the original to support@bannersonthefly.com for help.';
   }
   return null;
 }
@@ -185,7 +186,12 @@ export function validateArtworkFile(file: Pick<File, 'name' | 'type' | 'size'>):
 export async function prepareArtworkFile(file: File, signal?: AbortSignal): Promise<File> {
   if (signal?.aborted) throw new DOMException('Artwork selection cancelled.', 'AbortError');
   const validationError = validateArtworkFile(file);
-  if (!validationError) return file;
+  if (!validationError) {
+    if (extensionOf(file.name) === 'webp' && file.type !== 'image/webp') {
+      return new File([file], file.name, { type: 'image/webp', lastModified: file.lastModified });
+    }
+    return file;
+  }
   if (!Number.isFinite(file.size) || file.size <= 0 || file.size > MAX_ARTWORK_BYTES) {
     throw new ArtworkUploadError(validationError, { phase: 'validation', status: file.size > MAX_ARTWORK_BYTES ? 413 : 400 });
   }
@@ -199,9 +205,10 @@ export async function prepareArtworkFile(file: File, signal?: AbortSignal): Prom
   const ascii = Array.from(bytes, byte => String.fromCharCode(byte)).join('');
   const type = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff ? 'image/jpeg'
     : ascii.startsWith('\x89PNG\r\n\x1a\n') ? 'image/png'
-      : /%PDF-\d\.\d/.test(ascii) ? 'application/pdf' : null;
+      : ascii.startsWith('RIFF') && ascii.slice(8, 12) === 'WEBP' ? 'image/webp'
+        : /%PDF-\d\.\d/.test(ascii) ? 'application/pdf' : null;
   if (!type) throw new ArtworkUploadError(validationError, { phase: 'validation', status: 415 });
-  const extension = type === 'application/pdf' ? 'pdf' : type === 'image/png' ? 'png' : 'jpg';
+  const extension = type === 'application/pdf' ? 'pdf' : type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg';
   // A usable extension also allows the original through storage/provider checks.
   return new File([file], `${file.name || 'artwork'}.${extension}`, { type, lastModified: file.lastModified });
 }
