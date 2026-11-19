@@ -1,8 +1,51 @@
 const CHUNK_RECOVERY_STORAGE_KEY = 'botf_chunk_recovery_at';
 const CHUNK_RECOVERY_GUARD_MS = 5 * 60_000;
 
-type RecoveryWindow = Pick<Window, 'addEventListener' | 'removeEventListener' | 'location' | 'sessionStorage'>;
-type ManualRecoveryWindow = Pick<Window, 'location' | 'sessionStorage'>;
+type ManualRecoveryWindow = Pick<Window, 'location' | 'sessionStorage'> & Partial<Pick<Window, 'fetch'>>;
+type RecoveryWindow = ManualRecoveryWindow & Pick<Window, 'addEventListener' | 'removeEventListener'>;
+const failedAssets = new WeakMap<object, Set<string>>();
+const pendingNavigations = new WeakSet<object>();
+
+function rememberFailedAsset(target: ManualRecoveryWindow, event: Event) {
+  const element = event.target as (HTMLLinkElement & HTMLScriptElement) | null;
+  if (!element || !(element.tagName === 'SCRIPT' || (element.tagName === 'LINK' && /^(modulepreload|stylesheet)$/.test(element.rel)))) return;
+  try {
+    const asset = new URL(element.src || element.href, target.location.href);
+    const base = new URL(import.meta.env.BASE_URL || '/', target.location.href);
+    if (asset.origin !== base.origin || !asset.pathname.startsWith(`${base.pathname.replace(/\/$/, '')}/assets/`) || !/\.(js|css)$/.test(asset.pathname)) return;
+    const urls = failedAssets.get(target) || new Set<string>();
+    if (urls.size < 20) urls.add(asset.href);
+    failedAssets.set(target, urls);
+  } catch { /* Ignore unrelated or malformed resource URLs. */ }
+}
+
+function navigateAfterAssetRefresh(target: ManualRecoveryWindow, destination: string) {
+  if (pendingNavigations.has(target)) return;
+  pendingNavigations.add(target);
+  if (!target.fetch || !failedAssets.get(target)?.size) {
+    target.location.replace(destination);
+    return;
+  }
+  // WebKit can retain failed module downloads across page navigation. Refresh
+  // their HTTP cache entries before replacing the document, without executing
+  // fetched text. A bounded deadline still permits recovery during an outage.
+  // Confirmed upstream: https://github.com/getgrav/grav-plugin-admin2/issues/181
+  setTimeout(() => {
+    const controller = new AbortController();
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(deadline);
+      target.location.replace(destination);
+    };
+    const deadline = setTimeout(() => { controller.abort(); finish(); }, 3000);
+    void Promise.allSettled([...failedAssets.get(target)!].map(async url => {
+      const response = await target.fetch!(url, { cache: 'reload', credentials: 'same-origin', signal: controller.signal });
+      await response.arrayBuffer();
+    })).then(finish);
+  }, 50);
+}
 
 const getErrorMessage = (reason: unknown): string => {
   if (reason instanceof Error) return `${reason.name}: ${reason.message}`;
@@ -41,7 +84,8 @@ export const reloadLatestVersion = (
 
   const destination = new URL(target.location.href);
   destination.searchParams.set('_botf_refresh', String(now));
-  target.location.replace(destination.toString());
+  recoveringWindows.add(target);
+  navigateAfterAssetRefresh(target, destination.toString());
 };
 
 const recoveringWindows = new WeakSet<object>();
@@ -66,7 +110,7 @@ export const attemptChunkRecovery = (target: ManualRecoveryWindow = window): boo
   }
   destination.searchParams.set('_botf_refresh', String(now));
   recoveringWindows.add(target);
-  target.location.replace(destination.toString());
+  navigateAfterAssetRefresh(target, destination.toString());
   return true;
 };
 
@@ -75,6 +119,7 @@ const installedWindows = new WeakMap<object, () => void>();
 export const installChunkRecovery = (target: RecoveryWindow = window): (() => void) => {
   const installed = installedWindows.get(target);
   if (installed) return installed;
+  const handleAssetError = (event: Event): void => rememberFailedAsset(target, event);
   const handlePreloadError = (_event: Event): void => {
     attemptChunkRecovery(target);
     // Do NOT preventDefault here. Vite 5 otherwise resolves a failed import
@@ -87,10 +132,12 @@ export const installChunkRecovery = (target: RecoveryWindow = window): (() => vo
     if (attemptChunkRecovery(target)) event.preventDefault();
   };
 
+  target.addEventListener('error', handleAssetError, true);
   target.addEventListener('vite:preloadError', handlePreloadError);
   target.addEventListener('unhandledrejection', handleUnhandledRejection);
 
   const cleanup = () => {
+    target.removeEventListener('error', handleAssetError, true);
     target.removeEventListener('vite:preloadError', handlePreloadError);
     target.removeEventListener('unhandledrejection', handleUnhandledRejection);
     installedWindows.delete(target);
