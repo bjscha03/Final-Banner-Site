@@ -24,7 +24,7 @@ const data = {
     liveEmailEnabled: false,
   },
 };
-function mount(signed = true) {
+function mount(signed = true, respond) {
   const calls = [],
     errors = [];
   const dom = new JSDOM(html(signed), {
@@ -39,6 +39,7 @@ function mount(signed = true) {
       };
       w.fetch = async (url, options) => {
         calls.push({ url, body: options?.body && JSON.parse(options.body) });
+        if (respond) return respond(url, options);
         return {
           ok: true,
           json: async () =>
@@ -96,5 +97,50 @@ test("anonymous page has no CRM controls or data", () => {
   assert.ok(doc.querySelector("#login"));
   assert.equal(doc.querySelector("#content"), null);
   assert.equal(doc.querySelector("nav"), null);
+  assert.equal(doc.querySelector('[data-action="create-team-code"]'), null);
+  dom.window.close();
+});
+test("create team code form posts the company and shows the code and offer", async () => {
+  const offer =
+    "I'd love to give your team a reason to try us. Use MALOOFENTERTAINMENT25-ABCDEF123456 for 25% off sitewide. Share it with your team and other locations, and use it as often as you like—there's no expiration.";
+  const { dom, doc, calls } = mount(true, async (url) => ({
+    ok: true,
+    json: async () =>
+      url.endsWith("/data")
+        ? data
+        : {
+            company: "Maloof Entertainment",
+            code: "MALOOFENTERTAINMENT25-ABCDEF123456",
+            offer,
+            accounts_recorded: 1,
+            accounts_preserved: 0,
+          },
+  }));
+  await tick();
+  doc.querySelector('[data-tab="1"]').click();
+  await tick();
+  doc.querySelector('[data-action="create-team-code"]').click();
+  assert.equal(doc.querySelector("dialog").open, true);
+  doc.querySelector('[name="company"]').value = "Maloof Entertainment";
+  const form = doc.querySelector("#modal-form"),
+    submit = form.querySelector("button.primary");
+  form.dispatchEvent(
+    new dom.window.SubmitEvent("submit", {
+      bubbles: true,
+      cancelable: true,
+      submitter: submit,
+    }),
+  );
+  await tick();
+  await tick();
+  const call = calls.find((c) => c.url.endsWith("/team-code"));
+  assert.ok(call);
+  assert.equal(call.body.company, "Maloof Entertainment");
+  assert.equal(
+    doc.querySelector("#minted-team-code").textContent,
+    "MALOOFENTERTAINMENT25-ABCDEF123456",
+  );
+  assert.equal(doc.querySelector("#minted-team-offer").textContent, offer);
+  assert.equal(doc.querySelector("dialog").open, true);
   dom.window.close();
 });
