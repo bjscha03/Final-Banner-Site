@@ -40,6 +40,7 @@ import { Dialog } from '@/components/ui/dialog';
 import CheckoutArtworkSummary from '@/components/checkout/CheckoutArtworkSummary';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
+import { checkoutCartFingerprint, markCheckoutInitiated, clearCheckoutAnalyticsSession } from '@/lib/checkoutAnalyticsSession';
 import { trackPromoEvent } from '@/lib/posthog';
 import { getItemDisplayName, isYardSignItem, getProductCategory, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { getProductCopy, getDominantProductType } from '@/lib/product-copy';
@@ -580,16 +581,14 @@ const Checkout: React.FC = () => {
       quantity: Math.max(1, item.quantity),
     }));
     checkoutTrackedRef.current = true;
-    const aiItems = items.filter(item => /^ai-(banner|yard-sign|car-magnet)-/i.test(item.file_name || ''));
-    if (aiItems.length) trackAIEvent('ai_checkout_started', { count: aiItems.length });
-    trackBeginCheckout(analyticsItems, totalCents, discountCode?.code.startsWith('BOFCASH-') ? 'BOFCASH' : discountCode?.code || null);
+    // Preserve view_cart's existing behavior; only checkout initiation is session-scoped.
     trackViewCart(analyticsItems, totalCents, discountCode?.code.startsWith('BOFCASH-') ? 'BOFCASH' : discountCode?.code || null);
-
-    // Track Facebook Pixel InitiateCheckout
-    trackFBInitiateCheckout({
-      value: totalCents,
-      num_items: items.length,
-    });
+    if (markCheckoutInitiated(checkoutCartFingerprint(items))) {
+      const aiItems = items.filter(item => /^ai-(banner|yard-sign|car-magnet)-/i.test(item.file_name || ''));
+      if (aiItems.length) trackAIEvent('ai_checkout_started', { count: aiItems.length });
+      trackBeginCheckout(analyticsItems, totalCents, discountCode?.code.startsWith('BOFCASH-') ? 'BOFCASH' : discountCode?.code || null);
+      trackFBInitiateCheckout({ value: totalCents, num_items: items.length });
+    }
   }, [cartRecoveryLoading, discountCode?.code, isLoading, items, totalCents]);
 
   const handlePaymentSuccess = useCallback(async (orderId: string, orderData?: any) => {
@@ -619,6 +618,7 @@ const Checkout: React.FC = () => {
       clearActiveCheckoutMarker();
       setActiveCheckout(null);
       setRecoveryMessage(null);
+      clearCheckoutAnalyticsSession();
       clearCart();
 
       toast({

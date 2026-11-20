@@ -1,4 +1,6 @@
 import { gtag } from '@/lib/analytics';
+import { useCartStore } from '@/store/cart';
+import { checkoutCartFingerprint, markPaymentFieldsReady } from '@/lib/checkoutAnalyticsSession';
 import { sendClarity } from '@/lib/trackingRuntime';
 import { recordIssueAction, reportSiteIssue } from '@/lib/siteIssueReporter';
 
@@ -17,6 +19,8 @@ type DiagnosticContext = {
 
 /** Never send field values, provider messages, artwork, payment IDs or secrets. */
 export function trackCheckoutDiagnostic(event: CheckoutDiagnostic, context: DiagnosticContext, evidence: Record<string, unknown> = {}): void {
+  // Readiness is a one-time transition per provider/method and cart, not a page-view.
+  if (event === 'payment_fields_ready' && !markPaymentFieldsReady(context.provider, context.method, checkoutCartFingerprint(useCartStore.getState().items))) return;
   recordIssueAction(`checkout_${event}`);
   const properties: Record<string, string> = {};
   for (const key of ['provider', 'method', 'stage', 'field', 'code'] as const) {
