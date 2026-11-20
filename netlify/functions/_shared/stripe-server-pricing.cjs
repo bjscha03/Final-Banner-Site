@@ -1,4 +1,5 @@
 'use strict';
+const { findYardSignSize, validYardSignQuantity } = require('./yard-sign-sizes.cjs');
 const { normalizeSpecialtyItem, requireSpecialtyFulfillment } = require('./specialty-products.cjs');
 
 const PRODUCT_LIMIT = 50;
@@ -161,7 +162,7 @@ function normalizeBanner(item, index) {
   };
 }
 
-function validateYardSignDesigns(item, quantity, index) {
+function validateYardSignDesigns(item, quantity, index, maxQuantity = 90) {
   const designs = item.yard_sign_designs;
   if (designs == null) {
     if (item.design_service_enabled === true) return { count: 0, designs: null };
@@ -173,7 +174,7 @@ function validateYardSignDesigns(item, quantity, index) {
   const designTotal = designs.reduce((sum, design, designIndex) => (
     sum + number(design?.quantity, `items[${index}].yard_sign_designs[${designIndex}].quantity`, {
       min: 1,
-      max: 90,
+      max: maxQuantity,
       integer: true,
     })
   ), 0);
@@ -192,11 +193,13 @@ function validateYardSignDesigns(item, quantity, index) {
 }
 
 function normalizeYardSign(item, index) {
-  const width = number(item.width_in, `items[${index}].width_in`, { min: 24, max: 24 });
-  const height = number(item.height_in, `items[${index}].height_in`, { min: 18, max: 18 });
-  const quantity = number(item.quantity, `items[${index}].quantity`, { min: 10, max: 90, integer: true });
-  if (quantity % 10 !== 0) {
-    fail('YARD_SIGN_QUANTITY_INVALID', 'Yard signs must be ordered in increments of 10.', { index, quantity });
+  const width = number(item.width_in, `items[${index}].width_in`, { min: 12, max: 36 });
+  const height = number(item.height_in, `items[${index}].height_in`, { min: 12, max: 36 });
+  const size = findYardSignSize(width, height);
+  if (!size) fail('YARD_SIGN_SIZE_INVALID', 'Choose a supported yard sign size.', { index, width, height });
+  const quantity = number(item.quantity, `items[${index}].quantity`, { min: size.minQuantity, max: size.maxQuantity, integer: true });
+  if (!validYardSignQuantity(quantity, size)) {
+    fail('YARD_SIGN_QUANTITY_INVALID', `Yard signs must be ordered in increments of ${size.increment}.`, { index, quantity });
   }
   if (clean(item.material || 'corrugated').toLowerCase() !== 'corrugated') {
     fail('YARD_SIGN_MATERIAL_INVALID', 'Yard signs are available only in corrugated plastic.', { index });
@@ -205,7 +208,7 @@ function normalizeYardSign(item, index) {
   if (!['single', 'double'].includes(sidedness)) {
     fail('YARD_SIGN_SIDEDNESS_INVALID', 'Choose single- or double-sided yard signs.', { index });
   }
-  const designInfo = validateYardSignDesigns(item, quantity, index);
+  const designInfo = validateYardSignDesigns(item, quantity, index, size.maxQuantity);
   const stakesEnabled = item.yard_sign_step_stakes_enabled === true
     || hasTruthyOption(item.yard_sign_step_stakes_enabled);
   const stakesQty = stakesEnabled
@@ -215,7 +218,7 @@ function normalizeYardSign(item, index) {
       integer: true,
     })
     : 0;
-  const unitPriceCents = sidedness === 'double' ? 1400 : 1200;
+  const unitPriceCents = sidedness === 'double' ? size.doubleCents : size.singleCents;
   const signsSubtotalCents = unitPriceCents * quantity;
   const stakesSubtotalCents = stakesQty * 150;
 

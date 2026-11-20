@@ -1,13 +1,14 @@
+import { DEFAULT_YARD_SIGN_SIZE, findYardSignSize, yardSignQuantityRule, type YardSignSize } from './yard-sign-sizes';
 /**
  * Yard Sign Pricing Module (v2)
  * 
- * Simplified flat-rate pricing for 24" × 18" corrugated plastic yard signs.
+ * Size-aware flat-rate pricing for corrugated plastic yard signs.
  * 
  * Business rules:
- * - Single size: 24" × 18"
+ * - The original 24" × 18" constants and default behavior remain unchanged.
  * - Single-Sided: $12/sign, Double-Sided: $14/sign
  * - Step Stakes: $1.50 each (optional add-on)
- * - Max 90 signs per order for 24-hour production
+ * - Per-size whole-sheet quantities for 24-hour production
  * - FREE Next-Day Air shipping
  */
 
@@ -51,6 +52,7 @@ export interface YardSignDesign {
 
 // ----- Pricing result -----
 export interface YardSignPricing {
+  size: YardSignSize;
   sidedness: YardSignSidedness;
   unitPriceCents: number;       // Price per sign based on sidedness
   totalSignQuantity: number;
@@ -70,8 +72,8 @@ export interface YardSignPricing {
 /**
  * Get unit price in cents based on sidedness.
  */
-export function getYardSignUnitPrice(sidedness: YardSignSidedness): number {
-  return sidedness === 'double' ? YARD_SIGN_DOUBLE_SIDED_CENTS : YARD_SIGN_SINGLE_SIDED_CENTS;
+export function getYardSignUnitPrice(sidedness: YardSignSidedness, size: YardSignSize = DEFAULT_YARD_SIGN_SIZE): number {
+  return sidedness === 'double' ? size.doubleCents : size.singleCents;
 }
 
 /**
@@ -83,10 +85,11 @@ export function calcYardSignPricing(
   addStepStakes: boolean,
   stepStakeQuantity: number,
   promotion: number | PromoDiscountInput | null = 0,
+  size: YardSignSize = DEFAULT_YARD_SIGN_SIZE,
 ): YardSignPricing {
   const config = getProductConfig(YARD_SIGN_SLUG);
 
-  const unitPriceCents = getYardSignUnitPrice(sidedness);
+  const unitPriceCents = getYardSignUnitPrice(sidedness, size);
   const signSubtotalCents = unitPriceCents * totalSignQuantity;
 
   const stepStakeTotalCents = addStepStakes
@@ -104,6 +107,7 @@ export function calcYardSignPricing(
   const totalWithTaxCents = totalCents + taxCents;
 
   return {
+    size,
     sidedness,
     unitPriceCents,
     totalSignQuantity,
@@ -158,19 +162,18 @@ export const YARD_SIGN_MIN_QUANTITY = 10;
  * - Must be <= 90
  * - Must be a multiple of 10
  */
-export function validateYardSignQuantity(totalQuantity: number): { valid: boolean; message?: string } {
-  if (totalQuantity === 0) {
-    return { valid: false };
+export function validateYardSignQuantity(totalQuantity: number, size: YardSignSize = DEFAULT_YARD_SIGN_SIZE): { valid: boolean; message?: string } {
+  if (totalQuantity === 0) return { valid: false };
+  if (!Number.isFinite(totalQuantity) || !Number.isInteger(totalQuantity)) {
+    return { valid: false, message: yardSignQuantityRule(size) };
   }
-  if (totalQuantity < YARD_SIGN_MIN_QUANTITY) {
-    return { valid: false, message: 'Minimum order is 10 yard signs.' };
+  if (totalQuantity < size.minQuantity) {
+    return { valid: false, message: `Minimum order is ${size.minQuantity} yard signs.` };
   }
-  if (totalQuantity > YARD_SIGN_MAX_QUANTITY) {
-    return { valid: false, message: `Maximum ${YARD_SIGN_MAX_QUANTITY} signs per order for 24-hour production. Please place multiple orders.` };
+  if (totalQuantity > size.maxQuantity) {
+    return { valid: false, message: `Maximum ${size.maxQuantity} signs per order for 24-hour production. Please place multiple orders.` };
   }
-  if (totalQuantity % YARD_SIGN_INCREMENT !== 0) {
-    return { valid: false, message: 'Yard signs must be ordered in increments of 10 (10, 20, 30, etc.).' };
-  }
+  if (totalQuantity % size.increment !== 0) return { valid: false, message: yardSignQuantityRule(size) };
   return { valid: true };
 }
 
@@ -181,7 +184,7 @@ export function validateYardSignQuantity(totalQuantity: number): { valid: boolea
  * @deprecated Use calcYardSignPricing v2 instead
  */
 export function getYardSignBasePrice(widthIn: number, heightIn: number): number {
-  return YARD_SIGN_SINGLE_SIDED_CENTS;
+  return findYardSignSize(widthIn, heightIn)?.singleCents ?? YARD_SIGN_SINGLE_SIDED_CENTS;
 }
 
 /**

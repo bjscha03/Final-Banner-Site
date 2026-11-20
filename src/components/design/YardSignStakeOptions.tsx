@@ -1,3 +1,4 @@
+import { DEFAULT_YARD_SIGN_SIZE, type YardSignSize } from '@/lib/yard-sign-sizes';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { Check, Minus, Plus } from 'lucide-react';
 import { usd } from '@/lib/pricing';
@@ -6,6 +7,8 @@ import YardSignMockup from './YardSignMockup';
 import StepHeader from './layout/StepHeader';
 
 interface Props {
+  maxQuantity?: number;
+  size?: YardSignSize;
   totalQuantity: number;
   enabled: boolean;
   quantity: number;
@@ -14,10 +17,9 @@ interface Props {
   restorationKey?: string | null;
 }
 
-const matchedQuantity = (total: number) => Math.max(1, Math.min(YARD_SIGN_MAX_QUANTITY, Math.trunc(total) || YARD_SIGN_MIN_QUANTITY));
-const clampQuantity = (quantity: number) => Math.max(1, Math.min(YARD_SIGN_MAX_QUANTITY, Math.trunc(quantity) || 1));
-
-export default function YardSignStakeOptions({ totalQuantity, enabled, quantity, onEnabledChange, onQuantityChange, restorationKey }: Props) {
+export default function YardSignStakeOptions({ totalQuantity, enabled, quantity, onEnabledChange, onQuantityChange, restorationKey, maxQuantity = YARD_SIGN_MAX_QUANTITY, size = DEFAULT_YARD_SIGN_SIZE }: Props) {
+  const matchedQuantity = (total: number) => Math.max(1, Math.min(maxQuantity, Math.trunc(total) || size.minQuantity));
+  const clampQuantity = (quantity: number) => Math.max(1, Math.min(maxQuantity, Math.trunc(quantity) || 1));
   const groupName = useId();
   const [adjusting, setAdjusting] = useState(false);
   const previous = useRef({ totalQuantity, enabled, quantity, restorationKey });
@@ -67,7 +69,7 @@ export default function YardSignStakeOptions({ totalQuantity, enabled, quantity,
                   {enabled === withStakes && <Check className="h-4 w-4" />}
                 </span>
               </div>
-              <YardSignMockup withStakes={withStakes} />
+              <YardSignMockup withStakes={withStakes} size={size} />
               <p className="mt-3 text-sm font-bold leading-snug text-[#0B1F3A] sm:text-base">{withStakes ? 'With stakes' : 'Without stakes'}</p>
               <p className="mt-1 min-h-9 text-xs leading-snug text-slate-600 sm:text-sm">{withStakes ? '1 wire H-stake per sign' : 'Printed signs only'}</p>
               <p className="mt-2 text-sm font-bold leading-snug text-orange-700">{withStakes ? `+${usd(YARD_SIGN_STEP_STAKE_CENTS / 100)} each` : 'No added cost'}</p>
@@ -89,8 +91,8 @@ export default function YardSignStakeOptions({ totalQuantity, enabled, quantity,
             <div id={`${groupName}-quantity`} className="flex flex-wrap items-center gap-2">
               <label htmlFor={`${groupName}-input`} className="mr-1 text-sm text-slate-600">Stakes</label>
               <button type="button" aria-label="Decrease stakes" disabled={quantity <= 1} onClick={() => onQuantityChange(clampQuantity(quantity - 1))} className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-300 disabled:opacity-40"><Minus className="h-4 w-4" /></button>
-              <input id={`${groupName}-input`} type="number" inputMode="numeric" min={1} max={YARD_SIGN_MAX_QUANTITY} step={1} value={quantity} onChange={event => onQuantityChange(clampQuantity(Number(event.target.value)))} className="h-11 w-16 rounded-lg border border-slate-300 px-2 text-center text-base" />
-              <button type="button" aria-label="Increase stakes" disabled={quantity >= YARD_SIGN_MAX_QUANTITY} onClick={() => onQuantityChange(clampQuantity(quantity + 1))} className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-300 disabled:opacity-40"><Plus className="h-4 w-4" /></button>
+              <input id={`${groupName}-input`} type="number" inputMode="numeric" min={1} max={maxQuantity} step={1} value={quantity} onChange={event => onQuantityChange(clampQuantity(Number(event.target.value)))} className="h-11 w-16 rounded-lg border border-slate-300 px-2 text-center text-base" />
+              <button type="button" aria-label="Increase stakes" disabled={quantity >= maxQuantity} onClick={() => onQuantityChange(clampQuantity(quantity + 1))} className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-300 disabled:opacity-40"><Plus className="h-4 w-4" /></button>
               {!matched && totalQuantity > 0 && <button type="button" onClick={() => onQuantityChange(matchedQuantity(totalQuantity))} className="min-h-11 text-xs font-semibold text-orange-700 underline">Match sign quantity</button>}
             </div>
           )}

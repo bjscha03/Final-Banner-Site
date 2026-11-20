@@ -1,3 +1,4 @@
+import { YARD_SIGN_SIZES } from '../yard-sign-sizes';
 /**
  * Product Type Registry
  * 
@@ -247,17 +248,17 @@ const bannerProduct: ProductTypeConfig = {
 const yardSignProduct: ProductTypeConfig = {
   slug: 'yard_sign',
   name: 'Custom Yard Sign',
-  description: 'Standard 24" × 18" corrugated plastic yard signs, printed fast and shipped next business day.',
+  description: 'Multiple sizes of corrugated plastic yard signs, printed fast and shipped next business day.',
 
   dimensions: {
     defaultWidthIn: 24,
     defaultHeightIn: 18,
     resetWidthIn: 24,
     resetHeightIn: 18,
-    minIn: 18,
-    maxIn: 24,
-    maxSqFt: 3,   // 24" x 18" = 3 sq ft
-    sizeLimitMessage: 'Standard yard sign size: 24" × 18"',
+    minIn: 12,
+    maxIn: 36,
+    maxSqFt: 6,   // Largest supported sign is 36 × 24 inches
+    sizeLimitMessage: 'Choose one of the available yard sign sizes.',
   },
 
   // Single material: Corrugated Plastic
@@ -323,10 +324,8 @@ const yardSignProduct: ProductTypeConfig = {
   allowCustomDimensions: false,
   freeShippingMessage: 'FREE Next-Day Air Included',
 
-  // Single standard size
-  predefinedSizes: [
-    { label: '24" × 18"', widthIn: 24, heightIn: 18, basePriceCents: 1200 },
-  ],
+  // Supplier sizes retain their intended artwork orientation.
+  predefinedSizes: YARD_SIGN_SIZES.map(size => ({ label: size.label, widthIn: size.widthIn, heightIn: size.heightIn, basePriceCents: size.singleCents })),
 
   materialMultipliers: [
     { key: 'corrugated', label: 'Corrugated Plastic', multiplier: 1.0 },

@@ -1,3 +1,4 @@
+import { findYardSignSize, DEFAULT_YARD_SIGN_SIZE, YARD_SIGN_SHEET_SINGLE_CENTS, YARD_SIGN_SHEET_DOUBLE_CENTS } from './yard-sign-sizes.ts';
 import type { Order, OrderItem } from './orders/types';
 import { normalizeSizeKey, resolveFixedProductCost } from './admin-product-costs.ts';
 
@@ -166,7 +167,8 @@ const estimateFixedProductCost = (item: OrderItem): LineEstimate => {
 const estimateYardSignCost = (item: OrderItem): LineEstimate => {
   if (!Number.isInteger(item.quantity) || item.quantity <= 0) return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: 'Missing or invalid yard sign quantity' };
   const qty = item.quantity || 0;
-  if (qty % 10 !== 0) return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: `Yard sign qty not divisible by 10: ${qty}` };
+  const size = item.width_in == null && item.height_in == null ? DEFAULT_YARD_SIGN_SIZE : findYardSignSize(item.width_in, item.height_in);
+  if (!size || qty % size.perSheet !== 0) return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: 'Unsupported yard sign size or partial sheet quantity' };
 
   const sidedness = String(item.yard_sign_sidedness || '').trim().toLowerCase();
   if (sidedness && !['single', 'double'].includes(sidedness)) {
@@ -186,8 +188,9 @@ const estimateYardSignCost = (item: OrderItem): LineEstimate => {
   }
   // The dedicated saved selection is authoritative; old orders used finishing fields.
   const doubleSided = sidedness ? sidedness === 'double' : legacyDoubleSided;
-  const unit = doubleSided ? 5.5 : 4.4;
-  return { ...baseLineDetails(item), reviewRequired: false, productionCostCents: Math.round(unit * qty * 100), lineCostCents: Math.round(unit * qty * 100), unitCostCents: Math.round(unit * 100) };
+  const sheetCost = doubleSided ? YARD_SIGN_SHEET_DOUBLE_CENTS : YARD_SIGN_SHEET_SINGLE_CENTS;
+  const totalCost = (qty / size.perSheet) * sheetCost;
+  return { ...baseLineDetails(item), reviewRequired: false, productionCostCents: totalCost, lineCostCents: totalCost, unitCostCents: sheetCost / size.perSheet };
 };
 
 const estimateLineItemCost = (item: OrderItem): LineEstimate => {

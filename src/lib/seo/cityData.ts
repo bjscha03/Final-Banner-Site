@@ -605,7 +605,7 @@ function buildMetaDescription(productSlug: CityProductSlug, city: CityEntry, pro
     return `Order vinyl banners shipped to ${city.city} from ${price}. Choose size and material, upload artwork, preview the print, and see pricing and shipping details online.`;
   }
   if (productSlug === 'yard-signs') {
-    return `Order 10 custom yard signs shipped to ${city.city} from ${price}. Compare single- and double-sided 24×18 signs, upload artwork, preview, and see pricing online.`;
+    return `Order custom yard signs shipped to ${city.city} from ${price}. Compare five sizes and print-side options, upload artwork, preview, and see pricing online.`;
   }
   return `Order car magnets shipped to ${city.city} from ${price}. Compare supported sizes and corner options, upload artwork, preview, and see pricing.`;
 }
@@ -651,7 +651,7 @@ export function buildCityProductPageContent(productSlug: CityProductSlug, city: 
     internalLinks: [
       { label: product.ctaLabel, to: configuratorUrl, description: `Open the ${product.singular.toLowerCase()} configurator with the correct product selected.` },
       productSlug === 'yard-signs'
-        ? { label: 'Yard signs fixed size and pricing', to: `/${product.slug}`, description: 'Compare the current 24×18-inch format, print-side options, minimums, optional stakes, and price examples.' }
+        ? { label: 'Yard sign sizes and pricing', to: `/${product.slug}`, description: 'Compare available sizes, print-side options, per-size minimums, optional stakes, and price examples.' }
         : { label: `${product.plural} sizes and pricing`, to: `/${product.slug}`, description: `Compare current ${product.lower} sizes, options, minimums, and price examples.` },
       { label: 'Production and shipping details', to: '/shipping', description: 'Review how production time and carrier transit time work.' },
       { label: 'Artwork and order FAQs', to: '/faq', description: 'Check file, preview, return, and cancellation policies before ordering.' },

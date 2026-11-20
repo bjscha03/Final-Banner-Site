@@ -1,0 +1,48 @@
+name: Yard sign size regression checks
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/yard-sign-sizes.yml'
+      - 'shared/yard-sign-sizes.json'
+      - 'src/lib/**'
+      - 'src/components/design/**'
+      - 'src/pages/Design.tsx'
+      - 'src/pages/GoogleAdsBanner.tsx'
+      - 'src/pages/Checkout.tsx'
+      - 'netlify/functions/_shared/**'
+      - 'tests/browser/**'
+      - 'playwright.yard-sign-sizes.config.ts'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: yard-sign-sizes-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  yard-signs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Server pricing and order regressions
+        run: node --test netlify/functions/_shared/__tests__/yard-sign-sizes.test.cjs netlify/functions/__tests__/stripe-server-pricing.test.cjs netlify/functions/__tests__/get-orders-reporting.test.mjs netlify/functions/__tests__/payment-access-handler.test.mjs netlify/functions/__tests__/paypal-preview-containment.test.mjs netlify/functions/__tests__/security-data-integrity-regressions.test.mjs
+      - name: Client pricing, supplier cost and SEO regressions
+        run: npx vitest run src/lib/__tests__/yard-sign-sizes.test.ts src/lib/__tests__/yard-sign-pricing.test.ts src/lib/yard-sign-first-order.test.ts src/lib/__tests__/admin-profit-estimate.test.ts src/lib/seo/__tests__/localPages.test.ts
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Desktop and mobile upload, size, AI Fit, checkout and cart-edit checks
+        run: npx playwright test --config playwright.yard-sign-sizes.config.ts
+      - name: Full site build
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: yard-sign-browser-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 3

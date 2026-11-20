@@ -42,7 +42,7 @@ const YardSignPriceBreakdown: React.FC<YardSignPriceSummaryProps> = ({
   saturdayDeliveryCents = 0,
   taxCalculatedAtCheckout = false,
 }) => {
-  const quantityValidation = validateYardSignQuantity(pricing.totalSignQuantity);
+  const quantityValidation = validateYardSignQuantity(pricing.totalSignQuantity, pricing.size);
   const isInvalid = !quantityValidation.valid && pricing.totalSignQuantity > 0;
 
   if (pricing.totalSignQuantity === 0) {
@@ -90,7 +90,7 @@ const YardSignPriceBreakdown: React.FC<YardSignPriceSummaryProps> = ({
 
   return (
     <PriceBreakdown
-      topLine={`24" × 18" Yard Signs • ${usd(pricing.unitPriceCents / 100)}/sign`}
+      topLine={`${pricing.size.label} Yard Signs • ${usd(pricing.unitPriceCents / 100)}/sign`}
       secondaryLine={`for ${pricing.totalSignQuantity} ${pricing.totalSignQuantity === 1 ? 'sign' : 'signs'}`}
       detailRows={detailRows}
       baseSubtotalCents={pricing.signSubtotalCents}
@@ -124,7 +124,7 @@ const YardSignPriceBreakdown: React.FC<YardSignPriceSummaryProps> = ({
 const YardSignPriceSummary: React.FC<YardSignPriceSummaryProps> = (props) => (
   <>
     <YardSignPriceBreakdown {...props} />
-    <YardSignOrderPreview designs={props.designs} withStakes={props.pricing.addStepStakes} />
+    <YardSignOrderPreview designs={props.designs} size={props.pricing.size} withStakes={props.pricing.addStepStakes} />
   </>
 );
 

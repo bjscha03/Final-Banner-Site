@@ -1,3 +1,4 @@
+import { YARD_SIGN_SIZES } from '@/lib/yard-sign-sizes';
 import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
 import { CAR_MAGNET_ROUNDED_CORNERS, CAR_MAGNET_SIZES } from '@/lib/car-magnet-pricing';
 import { getConfiguratorUrl } from '@/lib/configurator';
@@ -147,42 +148,25 @@ export const PRODUCT_LANDING_DATA: Record<CityProductSlug, ProductLandingDefinit
     heroImageAlt: 'Custom printed corrugated plastic yard signs',
     socialImage: '/images/og-yard-signs.png',
     overview:
-      'Order the supported 24×18-inch corrugated plastic format in quantities of 10, choose single- or double-sided printing, and add step stakes if needed.',
-    productionSummary: `${SITE_POLICIES.production.short}. Orders above ${YARD_SIGN_MAX_QUANTITY} signs require separate orders or additional planning.`,
-    startingPriceCents: YARD_SIGN_SINGLE_SIDED_CENTS * YARD_SIGN_MIN_QUANTITY,
-    minimumOrderLabel: `${YARD_SIGN_MIN_QUANTITY} signs at ${formatMoney(YARD_SIGN_SINGLE_SIDED_CENTS)} each`,
-    priceExamples: [
-      {
-        label: '10 single-sided signs',
-        configuration: `${YARD_SIGN_WIDTH_IN}″ × ${YARD_SIGN_HEIGHT_IN}″ corrugated plastic`,
-        totalCents: YARD_SIGN_SINGLE_SIDED_CENTS * 10,
-        note: 'Before tax; stakes not included',
-      },
-      {
-        label: '10 double-sided signs',
-        configuration: `${YARD_SIGN_WIDTH_IN}″ × ${YARD_SIGN_HEIGHT_IN}″ corrugated plastic`,
-        totalCents: YARD_SIGN_DOUBLE_SIDED_CENTS * 10,
-        note: 'Before tax; stakes not included',
-      },
-      {
-        label: '10 step stakes',
-        configuration: 'Optional add-on for 10 signs',
-        totalCents: YARD_SIGN_STEP_STAKE_CENTS * 10,
-        note: 'Added to the sign price',
-      },
-    ],
-    sizes: yardConfig.predefinedSizes?.map((size) => `${size.label} only`) || [`${YARD_SIGN_WIDTH_IN}″ × ${YARD_SIGN_HEIGHT_IN}″ only`],
+      'Choose from five corrugated plastic yard-sign sizes, single- or double-sided printing, and optional step stakes. Quantities follow the selected size’s full-sheet increments.',
+    productionSummary: `${SITE_POLICIES.production.short}. Quantity minimums and maximums vary by size.`,
+    startingPriceCents: Math.min(...YARD_SIGN_SIZES.map(size => size.singleCents * size.minQuantity)),
+    minimumOrderLabel: 'Minimums vary by size: 4, 8, 10 or 20 signs',
+    priceExamples: YARD_SIGN_SIZES.flatMap(size => [
+      { label: `${size.label} · ${size.minQuantity} single-sided signs`, configuration: `${size.label} corrugated plastic`, totalCents: size.singleCents * size.minQuantity, note: `${formatMoney(size.singleCents)} per sign; increments of ${size.increment}; before tax and optional stakes` },
+      { label: `${size.label} · ${size.minQuantity} double-sided signs`, configuration: `${size.label} corrugated plastic`, totalCents: size.doubleCents * size.minQuantity, note: `${formatMoney(size.doubleCents)} per sign; same artwork on both sides; before tax and optional stakes` },
+    ]),
+    sizes: YARD_SIGN_SIZES.map(size => size.label),
     materials: yardConfig.materials.map((material) => material.label),
     options: [
-      `Single-sided: ${formatMoney(YARD_SIGN_SINGLE_SIDED_CENTS)} per sign`,
-      `Double-sided: ${formatMoney(YARD_SIGN_DOUBLE_SIDED_CENTS)} per sign`,
+      ...YARD_SIGN_SIZES.map(size => `${size.label}: ${formatMoney(size.singleCents)} single-sided / ${formatMoney(size.doubleCents)} double-sided per sign; ${size.minQuantity}–${size.maxQuantity} in increments of ${size.increment}`),
       `Step stakes: ${formatMoney(YARD_SIGN_STEP_STAKE_CENTS)} each`,
-      `Quantity: ${YARD_SIGN_MIN_QUANTITY}–${YARD_SIGN_MAX_QUANTITY}, in increments of 10`,
+      'Double-sided signs use the same artwork on both sides.',
     ],
     useCases: ['Real-estate and open-house messages', 'Contractor and service-company identification', 'Campaign and event wayfinding', 'Birthday and celebration messages'],
     limitations: [
-      'The online product is a fixed 24×18-inch rectangle; custom dimensions are not offered in this configurator.',
-      `Orders must contain ${YARD_SIGN_MIN_QUANTITY}–${YARD_SIGN_MAX_QUANTITY} signs in increments of 10.`,
+      'Choose an available size; custom yard-sign dimensions are not offered in this configurator.',
+      'Quantities must follow the minimum, increment and maximum shown for the selected size.',
       'A separate design is still subject to the total order quantity and design-count limits in the configurator.',
     ],
     installationAndCare: [
@@ -193,11 +177,11 @@ export const PRODUCT_LANDING_DATA: Record<CityProductSlug, ProductLandingDefinit
     faqs: [
       {
         question: 'What size yard sign can I order online?',
-        answer: `The supported online size is ${YARD_SIGN_WIDTH_IN}″ × ${YARD_SIGN_HEIGHT_IN}″. The configurator does not offer custom yard-sign dimensions.`,
+        answer: `Available sizes: ${YARD_SIGN_SIZES.map(size => size.label).join(', ')}. The 18 × 24 size is portrait, 24 × 24 is square, and the other sizes are landscape.`,
       },
       {
         question: 'What is the minimum yard-sign order?',
-        answer: `The minimum is ${YARD_SIGN_MIN_QUANTITY} signs, and quantities must increase in increments of 10. Single-sided signs are ${formatMoney(YARD_SIGN_SINGLE_SIDED_CENTS)} each before tax and optional stakes.`,
+        answer: `Minimums and increments depend on size: ${YARD_SIGN_SIZES.map(size => `${size.label}: ${size.minQuantity} minimum, increments of ${size.increment}, maximum ${size.maxQuantity}`).join('; ')}.`,
       },
       commonArtworkFaq,
       commonPreviewFaq,

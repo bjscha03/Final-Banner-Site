@@ -1,3 +1,4 @@
+import { YARD_SIGN_SIZES } from '@/lib/yard-sign-sizes';
 import { describe, expect, it } from 'vitest';
 import { CAR_MAGNET_SIZES } from '@/lib/car-magnet-pricing';
 import {
@@ -199,7 +200,7 @@ describe('product-aware configurator routing', () => {
 describe('commerce parity', () => {
   it('derives landing-page starting prices from active commerce data', () => {
     expect(PRODUCT_LANDING_DATA['vinyl-banners'].startingPriceCents).toBe(getProductConfig('banner').minimumUnitPriceCents);
-    expect(PRODUCT_LANDING_DATA['yard-signs'].startingPriceCents).toBe(YARD_SIGN_SINGLE_SIDED_CENTS * YARD_SIGN_MIN_QUANTITY);
+    expect(PRODUCT_LANDING_DATA['yard-signs'].startingPriceCents).toBe(Math.min(...YARD_SIGN_SIZES.map(size => size.singleCents * size.minQuantity)));
     expect(PRODUCT_LANDING_DATA['car-magnets'].startingPriceCents).toBe(CAR_MAGNET_SIZES[0].basePriceCents);
     expect(CAR_MAGNET_SIZES[0].basePriceCents).toBe(2900);
   });
@@ -208,11 +209,9 @@ describe('commerce parity', () => {
     const yard = getProductConfig('yard_sign');
     const car = getProductConfig('car_magnet');
     expect(yard.allowCustomDimensions).toBe(false);
-    expect(yard.predefinedSizes).toEqual([
-      expect.objectContaining({ widthIn: YARD_SIGN_WIDTH_IN, heightIn: YARD_SIGN_HEIGHT_IN }),
-    ]);
-    expect(PRODUCT_LANDING_DATA['yard-signs'].sizes).toHaveLength(1);
-    expect(PRODUCT_LANDING_DATA['yard-signs'].sizes[0]).toMatch(/24.*18.*only/i);
+    expect(yard.predefinedSizes).toEqual(YARD_SIGN_SIZES.map(size => expect.objectContaining({ widthIn: size.widthIn, heightIn: size.heightIn })));
+    expect(PRODUCT_LANDING_DATA['yard-signs'].sizes).toHaveLength(5);
+    expect(PRODUCT_LANDING_DATA['yard-signs'].sizes[0]).toMatch(/24.*18/i);
     expect(PRODUCT_LANDING_DATA['yard-signs'].priceExamples.slice(0, 2).every((example) => /24.*18/.test(example.configuration))).toBe(true);
     expect(PRODUCT_LANDING_DATA['yard-signs'].sizes.join(' ')).not.toMatch(/custom/i);
     expect(car.allowCustomDimensions).toBe(false);
@@ -252,8 +251,8 @@ describe('structured data', () => {
     expect(graph.find((node) => node['@type'] === 'FAQPage')?.mainEntity).toHaveLength(product.faqs.length);
     const pageName = String(graph.find((node) => node['@type'] === 'WebPage')?.name);
     if (slug === 'yard-signs') {
-      expect(pageName).toContain('24×18 Size');
-      expect(pageName).not.toContain('Sizes,');
+      expect(pageName).toContain('Sizes,');
+      expect(graph.find((node) => node['@type'] === 'Product')?.size).toEqual(product.sizes);
     }
   });
 });

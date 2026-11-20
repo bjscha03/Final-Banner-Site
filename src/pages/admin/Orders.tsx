@@ -1,3 +1,4 @@
+import { yardSignSizeLabel } from '@/lib/yard-sign-sizes';
 import BOFProfitAdjustments from '@/components/orders/BOFProfitAdjustments';
 import BOFMemberBadge from '@/components/BOFMemberBadge';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -157,6 +158,7 @@ const getProductTypeLabel = (item: any): string => {
 };
 
 const getItemSizeLabel = (item: any): string => {
+  if (item?.product_type === 'yard_sign') return yardSignSizeLabel(item);
   if (item?.width_in && item?.height_in) return formatDimensions(Number(item.width_in), Number(item.height_in));
   return item?.size || item?.dimensions || item?.selected_size || 'Custom size';
 };
@@ -1089,7 +1091,7 @@ const AdminOrders: React.FC = () => {
     if (uniqueItems === 1) {
       const item = safeItems[0];
       if ((item as any).product_type === 'yard_sign') {
-        return `${itemCount} × Yard Sign 24"×18"${order.admin_detail_loaded === false ? ' (captured subset)' : ''}`;
+        return `${itemCount} × Yard Sign ${yardSignSizeLabel(item)}${order.admin_detail_loaded === false ? ' (captured subset)' : ''}`;
       }
       return `${itemCount} × ${formatDimensions(item.width_in, item.height_in)} ${item.material}${order.admin_detail_loaded === false ? ' (captured subset)' : ''}`;
     }
