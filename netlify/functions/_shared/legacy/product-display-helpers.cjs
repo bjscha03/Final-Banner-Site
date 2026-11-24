@@ -230,6 +230,7 @@ function normalizeOrderItemDisplay(item) {
     ...(isYardSign
       ? {
           ...(uploadedDesignsCount > 0 ? { uploadedDesignsCount } : {}),
+          ...(Array.isArray(item.yard_sign_designs) ? { yard_sign_designs: item.yard_sign_designs } : {}),
           ...(stepStakesQty > 0 ? { stepStakesQty, stepStakesLine: `Step Stakes: ${stepStakesQty}` } : {}),
           printSide: item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided',
         }

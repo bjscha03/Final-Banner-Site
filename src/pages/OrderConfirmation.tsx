@@ -1,3 +1,5 @@
+import YardSignDesignList from '@/components/orders/YardSignDesignList';
+import { hasYardSignBreakdown } from '@/lib/yardSignDesigns';
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getOrdersAdapter } from '../lib/orders/adapter';
@@ -192,7 +194,7 @@ const OrderConfirmation: React.FC = () => {
                           <p>Material: {normalized.materialDisplay}</p>
                           <p>Print: {normalized.printDisplay}</p>
                           <p>Qty: {normalized.qtyDisplay}</p>
-                          {normalized.uploadedDesignsCount && <p>Uploaded Designs: {normalized.uploadedDesignsCount}</p>}
+                          {hasYardSignBreakdown(item) ? <YardSignDesignList item={item} /> : normalized.uploadedDesignsCount ? <p>Uploaded Designs: {normalized.uploadedDesignsCount}</p> : null}
                           {normalized.stepStakesQty && <p>Step Stakes: {normalized.stepStakesQty}</p>}
                           {normalized.productType === 'banner' ? (
                             <>

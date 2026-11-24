@@ -1,3 +1,5 @@
+import YardSignDesignList from './YardSignDesignList';
+import { hasYardSignBreakdown } from '@/lib/yardSignDesigns';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Edit3, Loader2, Mail, Plus, Save, Trash2, Truck, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -231,6 +233,7 @@ const AdminTrackingManager: React.FC<AdminTrackingManagerProps> = ({ order, onUp
         <p className="break-all text-sm text-slate-600">{order.email}</p>
         <div className="mt-3 grid gap-2">
           {(order.items || []).map((item, index) => {
+            if (hasYardSignBreakdown(item)) return <YardSignDesignList key={index} item={item} />;
             const preview = getFinalizedThumbnailUrl(item, 720);
             const artwork = preview ? <img src={preview} alt={`Order #${orderLabel}, artwork ${index + 1}`} className="h-36 w-full rounded border border-slate-200 bg-white object-contain" /> : null;
             return showRealisticPreview

@@ -1,3 +1,5 @@
+import YardSignDesignList from '@/components/orders/YardSignDesignList';
+import { getYardSignDesigns, hasYardSignBreakdown } from '@/lib/yardSignDesigns';
 import BOFProfitAdjustments from '@/components/orders/BOFProfitAdjustments';
 import BOFMemberBadge from '@/components/BOFMemberBadge';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -165,16 +167,18 @@ const getItemMaterialLabel = (item: any): string => item?.material || item?.sele
 const getProductBadgeClass = (label: string): string => PRODUCT_BADGE_CLASSES[label] || 'bg-gray-100 text-gray-800 border-gray-200';
 
 const getOrderItemsSummary = (order: Order): string => {
-  const groups = new Map<string, { qty: number; lines: number }>();
+  const groups = new Map<string, { qty: number; lines: number; designs: number }>();
   (order.items || []).forEach((item: any) => {
     const label = getProductTypeLabel(item).replace(/\b\w/g, (char) => char.toUpperCase()).replace(/\bAnd\b/g, 'and');
-    const current = groups.get(label) || { qty: 0, lines: 0 };
+    const current = groups.get(label) || { qty: 0, lines: 0, designs: 0 };
     current.qty += Number(item.quantity || 0);
     current.lines += 1;
+    current.designs += getYardSignDesigns(item).length;
     groups.set(label, current);
   });
   const parts = Array.from(groups.entries()).map(([label, info]) => {
     if (info.lines > 1 && label.includes('Banner')) return `${info.lines} ${label} Designs`;
+    if (info.designs > 1) return `${label} (Qty ${info.qty} · ${info.designs} designs)`;
     return `${label} (Qty ${info.qty})`;
   });
   if (!parts.length) return order.admin_detail_loaded === false ? 'Preparing order details…' : 'No items';
@@ -195,6 +199,9 @@ const getPaypalStatusLabel = (order: Order): string | null => {
 };
 
 const getPrintFileLabel = (item: any, index: number, fallbackPrefix = 'PDF'): string => {
+  const pages = getYardSignDesigns(item).length;
+  if (pages && fallbackPrefix === 'Final') return 'Final uploaded yard sign PDF';
+  if (pages) return `Yard Sign Print PDF (${pages} ${pages === 1 ? 'page' : 'pages'})`;
   const label = getProductTitleLabel(item);
   return label === 'Product' ? `${fallbackPrefix} ${index + 1}` : `${label} Print File`;
 };
@@ -219,6 +226,7 @@ const getProductTitleLabel = (item: any): string => {
 const getSafeOrderItems = (order: Pick<Order, 'items'>): any[] => Array.isArray(order.items) ? order.items : [];
 
 const getOriginalFileEntries = (items: Order['items']) => items.flatMap((item, index) => {
+  if (hasYardSignBreakdown(item)) return [];
   const selection = getOriginalArtworkSelection(item);
   return selection ? [{ item, index, selection }] : [];
 });
@@ -1617,7 +1625,9 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const finalPrintFiles = orderItems
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => showPrintFileAction(item) && item.final_print_pdf_url);
-  const activePreview = previewIndex === null ? null : previewItems[previewIndex];
+  const standardPreviews = previewItems.filter(({ item }) => !hasYardSignBreakdown(item) && !(detailRequired && item.product_type === 'yard_sign'));
+  const activePosition = standardPreviews.findIndex(entry => entry.index === previewIndex);
+  const activePreview = standardPreviews[activePosition];
   const ORDER_ACCENT_TEXT_CLASS = 'text-[#18448D]';
 
   return (
@@ -1626,7 +1636,11 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
         {/* LEFT SECTION */}
         <div className="flex min-w-0 flex-col gap-3">
           <div className="space-y-2">
-            {previewItems.map(({ item, index, thumbUrl }) => (
+            {previewItems.map(({ item, index, thumbUrl }) => detailRequired && item.product_type === 'yard_sign' ? (
+              <div key={index} className="rounded-lg border bg-white p-3 text-sm">Yard signs · {item.quantity} total<br /><span className="text-xs text-gray-500">Loading designs…</span></div>
+            ) : hasYardSignBreakdown(item) ? (
+              <YardSignDesignList key={index} item={item} production />
+            ) : (
               <div key={index} className="flex min-w-0 flex-col items-stretch gap-3 rounded-lg border border-gray-200 bg-white p-3">
                 <button type="button" onClick={() => setPreviewIndex(index)} className="h-[240px] xl:h-[280px] w-full flex-shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#18448D]" aria-label={`Open ${getProductTypeLabel(item)} preview`}>
                   <ProductPreviewFrame item={item} thumbUrl={thumbUrl} idSuffix={`row-${order.id}-${index}`} />
@@ -1954,11 +1968,11 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             <div className="flex min-h-[280px] items-center justify-center rounded-xl bg-gray-100 p-3">
               <ProductPreviewFrame item={activePreview.item} thumbUrl={activePreview.thumbUrl} large idSuffix={`lightbox-${order.id}-${activePreview.index}`} />
             </div>
-            {previewItems.length > 1 && (
+            {standardPreviews.length > 1 && (
               <div className="mt-4 flex items-center justify-between gap-3">
-                <Button type="button" variant="outline" onClick={() => setPreviewIndex((previewIndex! - 1 + previewItems.length) % previewItems.length)}><ChevronLeft className="mr-1 h-4 w-4" />Previous</Button>
-                <span className="text-sm text-gray-600">{previewIndex! + 1} of {previewItems.length}</span>
-                <Button type="button" variant="outline" onClick={() => setPreviewIndex((previewIndex! + 1) % previewItems.length)}>Next<ChevronRight className="ml-1 h-4 w-4" /></Button>
+                <Button type="button" variant="outline" onClick={() => setPreviewIndex(standardPreviews[(activePosition - 1 + standardPreviews.length) % standardPreviews.length].index)}><ChevronLeft className="mr-1 h-4 w-4" />Previous</Button>
+                <span className="text-sm text-gray-600">{activePosition + 1} of {standardPreviews.length}</span>
+                <Button type="button" variant="outline" onClick={() => setPreviewIndex(standardPreviews[(activePosition + 1) % standardPreviews.length].index)}>Next<ChevronRight className="ml-1 h-4 w-4" /></Button>
               </div>
             )}
           </DialogContent>
@@ -2042,7 +2056,11 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
     <div data-admin-order-id={order.id} className="rounded-xl border-2 border-slate-300 odd:bg-white even:bg-slate-50 p-4 shadow-sm overflow-x-clip focus-within:border-[#18448D] focus-within:ring-2 focus-within:ring-blue-200">
       <div className="space-y-3 min-w-0">
         <div className="grid grid-cols-1 gap-2">
-          {previewItems.map(({ item, index, thumbUrl }) => (
+          {previewItems.map(({ item, index, thumbUrl }) => detailRequired && item.product_type === 'yard_sign' ? (
+              <div key={index} className="rounded-lg border bg-white p-3 text-sm">Yard signs · {item.quantity} total<br /><span className="text-xs text-gray-500">Loading designs…</span></div>
+            ) : hasYardSignBreakdown(item) ? (
+              <YardSignDesignList key={index} item={item} production />
+            ) : (
             <div key={index} className="flex min-w-0 flex-col items-stretch gap-3 rounded-lg border border-gray-200 bg-white p-3">
               <div className="h-[180px] w-full flex-shrink-0 overflow-hidden rounded border border-gray-200 bg-white">
                 {thumbUrl ? <img src={thumbUrl} alt={`${getProductTypeLabel(item)} preview`} className="h-full w-full object-contain" /> : <span className="flex h-full items-center justify-center text-xs text-gray-400">No img</span>}

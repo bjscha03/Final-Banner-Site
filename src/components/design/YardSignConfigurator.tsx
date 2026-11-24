@@ -32,6 +32,7 @@ import {
   YARD_SIGN_WIDTH_IN,
   YARD_SIGN_HEIGHT_IN,
   assignYardSignCopies,
+  splitYardSignCopies,
   validateYardSignQuantity,
 } from '@/lib/yard-sign-pricing';
 import { usd } from '@/lib/pricing';
@@ -43,6 +44,7 @@ import {
   getArtworkUploadMessage,
   prepareArtworkFile,
 } from '@/utils/uploadArtworkFile';
+import { yardSignPageFiles } from '@/utils/yardSignPdfPages';
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
 import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
@@ -98,7 +100,7 @@ function getPdfPreviewUrl(pdfUrl: string): string {
  * 3. Repeated edits don't degrade quality
  */
 function getPreviewModalSrc(design: YardSignDesign): string {
-  if (design.fileUrl.includes('/artwork-original/')) return design.thumbnailUrl || design.fileUrl;
+  if (design.fileUrl.includes('/artwork-original/')) return design.placementPreview?.sourceUrl || design.thumbnailUrl || design.fileUrl;
   if (design.isPdf) {
     return getPdfPreviewUrl(design.fileUrl);
   }
@@ -190,6 +192,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
   showCreateWithAI = false,
 }, ref) => {
   const [isUploading, setIsUploading] = useState(false);
+  const uploadInProgress = useRef(false);
   const [isSavingPreview, setIsSavingPreview] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -233,9 +236,10 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
   const [previewConstrain, setPreviewConstrain] = useState(true);
   const [mobileToolbarEl, setMobileToolbarEl] = useState<HTMLDivElement | null>(null);
   const previewDesign = designs.find(d => d.id === previewDesignId);
+  const nextUnreviewed = designs.find(d => d.id !== previewDesignId && !isReadyPlacementPreview(d.placementPreview));
 
   const openPreview = useCallback((designId: string) => {
-    const design = designs.find(d => d.id === designId);
+    const design = designsRef.current.find(d => d.id === designId);
     setPreviewSaveError(null);
     setRestoredFitTransform(null);
     setPreviewDesignId(designId);
@@ -244,7 +248,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
     setPreviewImgScale(design?.imgScale ?? 1);
     setPreviewImgScaleY(design?.imgScaleY ?? design?.imgScale ?? 1);
     setPreviewConstrain(design?.imgConstrain ?? true);
-  }, [designs]);
+  }, []);
 
   // Auto-open preview when editing from cart (autoOpenDesignId prop)
   const autoOpenHandledRef = useRef(false);
@@ -403,42 +407,37 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
       setUploadError(`Maximum ${YARD_SIGN_MAX_DESIGNS} designs per order.`);
       return;
     }
+    if (uploadInProgress.current) return;
+    uploadInProgress.current = true;
     setIsUploading(true);
     try {
-      file = await prepareArtworkFile(file);
-      const result = await uploadArtworkFile(file, {
-        correlationId: `yard-sign-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      });
-      const isPdf = isPdfArtwork(file);
-      const thumbnailUrl = result.previewUrl || result.secureUrl;
-      // The customer can change quantity or artwork while the file is uploading.
+      const prepared = await prepareArtworkFile(file);
+      const pages = await yardSignPageFiles(prepared, YARD_SIGN_MAX_DESIGNS - designsRef.current.length);
+      const added: YardSignDesign[] = [];
+      for (const page of pages) {
+        const id = createStableCartItemId('yard-design');
+        const result = await uploadArtworkFile(page, { correlationId: id });
+        added.push({
+          id, fileName: page.name, fileUrl: result.secureUrl, fileKey: result.fileKey,
+          artworkManifest: result.artworkManifest, thumbnailUrl: result.previewUrl || result.secureUrl,
+          isPdf: isPdfArtwork(page), quantity: 0, imgScale: 1, imgPos: { x: 0, y: 0 },
+        });
+      }
+      // Commit the whole upload together. Preserve a custom split when adding
+      // more pages to an existing multi-design order.
       const current = designsRef.current;
-      if (current.length >= YARD_SIGN_MAX_DESIGNS) {
+      if (current.length + added.length > YARD_SIGN_MAX_DESIGNS) {
         setUploadError(`Maximum ${YARD_SIGN_MAX_DESIGNS} designs per order.`);
         return;
       }
-      const newDesign: YardSignDesign = {
-        id: createStableCartItemId('yard-design'),
-        fileName: file.name,
-        fileUrl: result.secureUrl,
-        fileKey: result.fileKey,
-        thumbnailUrl,
-        isPdf,
-        quantity: current.length ? 0 : orderQuantityRef.current,
-        imgScale: 1,
-        imgPos: { x: 0, y: 0 },
-      };
-      const next = current.length
-        ? assignYardSignCopies([...current, newDesign], newDesign.id, 1)
-        : [newDesign];
+      const next = current.length < 2
+        ? splitYardSignCopies([...current, ...added], orderQuantityRef.current)
+        : added.reduce((list, design) => assignYardSignCopies([...list, design], design.id, 1), current);
       designsRef.current = next;
       onDesignsChange(next);
-      setPreviewDesignId(newDesign.id);
-      logUx('preview_opened', { source: 'yard_sign_after_upload', designId: newDesign.id });
-      setPreviewImgPos({ x: 0, y: 0 });
-      setPreviewImgScale(1);
-      setUploadError('');
-      return next[next.length - 1];
+      openPreview(added[0].id);
+      logUx('preview_opened', { source: 'yard_sign_after_upload', designId: added[0].id });
+      return next[current.length];
     } catch (error) {
       console.error('[YardSign] original upload failed', error);
       setUploadError(getArtworkUploadMessage(error));
@@ -447,9 +446,10 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
         message: error instanceof Error ? error.message : String(error),
       });
     } finally {
+      uploadInProgress.current = false;
       setIsUploading(false);
     }
-  }, [canAddMoreDesigns, onDesignsChange]);
+  }, [canAddMoreDesigns, onDesignsChange, openPreview]);
 
   const removeDesign = useCallback((id: string) => {
     const remaining = designs.filter(design => design.id !== id);
@@ -464,11 +464,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
     if (next === orderQuantity || !validateYardSignQuantity(next).valid) return;
     onOrderQuantityChange(next);
     if (!designs.length) return;
-    const perDesign = Math.floor(next / designs.length);
-    const remainder = next % designs.length;
-    onDesignsChange(designs.map((design, index) => ({
-      ...design, quantity: perDesign + (index < remainder ? 1 : 0),
-    })));
+    onDesignsChange(splitYardSignCopies(designs, next));
   }
 
   return (
@@ -564,10 +560,16 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
 
       <ConfigCard step={4} title="Upload your artwork" id="yard-upload-section" headerRight={<span className="text-xs font-normal text-gray-500">Up to {YARD_SIGN_MAX_DESIGNS} designs</span>}>
         <p className="mb-3 text-sm text-slate-600">
-          Your {orderQuantity} signs can share one design or be split across multiple designs.
-          {designs.length > 1 && ' Adjust copies below. Changing the order quantity splits it evenly across your designs.'}
+          Upload one file per design or one PDF with a design on each page. Each page becomes a separate design.
+          {sidedness === 'double' && ' Each double-sided sign has the same design on both sides.'}
         </p>
 
+        {designs.length > 0 && <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-slate-800" aria-live="polite">{orderQuantity} signs total · {designs.length} {designs.length === 1 ? 'design' : 'designs'}</p>
+          {designs.length > 1 && <button type="button" className="text-sm font-semibold text-blue-800 underline"
+            onClick={() => onDesignsChange(splitYardSignCopies(designs, orderQuantity))}>Split evenly</button>}
+        </div>}
+        {designs.length > 1 && <p className="mb-3 text-xs text-slate-600">Set copies for each design. Changing one count moves copies between designs. Changing the total splits the new quantity evenly.</p>}
         {/* Design rows */}
         {designs.length > 0 && (
           <div className="space-y-3 mb-4 max-w-full overflow-hidden">
@@ -593,7 +595,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
                 {/* File info — constrained width, truncated text */}
                 <div className="flex-1 min-w-0 overflow-hidden">
                   <p className="text-sm font-medium text-gray-800 truncate max-w-full">{design.fileName}</p>
-                  <p className="text-xs text-gray-400">Design {idx + 1}</p>
+                  <p className="text-xs font-medium text-slate-600">Design {idx + 1} · {design.quantity} {design.quantity === 1 ? 'copy' : 'copies'}</p>
                 </div>
                 {designs.length === 1 ? (
                   <span className="text-sm font-semibold text-slate-700">{orderQuantity} signs</span>
@@ -703,6 +705,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
             <div className="flex items-center justify-between p-4 border-b">
               <div>
                 <h3 className="text-lg font-bold text-gray-900">Yard Sign Preview</h3>
+                <p className="text-sm font-semibold text-slate-700">Design {designs.indexOf(previewDesign) + 1} of {designs.length} · {previewDesign.quantity} {previewDesign.quantity === 1 ? 'copy' : 'copies'}</p>
                 <p className="text-xs text-gray-400">24&quot; × 18&quot; Corrugated Plastic — What you see is what you get</p>
               </div>
               <button onClick={closePreview} className="p-2 hover:bg-gray-100 rounded-full">
@@ -787,9 +790,11 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
                 if (saved && id) {
                   logUx('preview_done', { source: 'yard_sign_preview', designId: id });
                   onPreviewDone?.(id);
+                  const pending = designsRef.current.find(design => design.id !== id && !isReadyPlacementPreview(design.placementPreview));
+                  if (pending) openPreview(pending.id);
                 }
               }} disabled={isSavingPreview} className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg disabled:opacity-70 flex items-center justify-center gap-2">
-                {isSavingPreview ? (<><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>) : 'Done'}
+                {isSavingPreview ? (<><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>) : nextUnreviewed ? 'Save and review next design' : 'Done'}
               </button>
             </div>
           </div>

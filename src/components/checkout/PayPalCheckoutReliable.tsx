@@ -212,6 +212,7 @@ export const buildCheckoutIdentitySignature = ({
     yard_sign_designs: Array.isArray(item.yard_sign_designs)
       ? item.yard_sign_designs.map((design: any) => ({
           id: design.id,
+          quantity: design.quantity,
           fileKey: design.fileKey || null,
           compositionSignature: design.placementPreview?.compositionSignature || null,
           compositionRevision: design.placementPreview?.compositionRevision ?? null,

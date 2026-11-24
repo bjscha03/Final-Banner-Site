@@ -157,6 +157,7 @@ export interface CartItem {
   yard_sign_designs?: Array<{                     // Per-design details
     id: string;
     fileName: string;
+    artworkManifest?: ArtworkManifest;
     fileUrl: string;
     fileKey: string;
     thumbnailUrl: string;
@@ -812,6 +813,8 @@ export const useCartStore = create<CartState>()(
         set((state) => ({
           items: state.items.map(item => {
             if (item.id !== id) return item;
+            // Yard sign quantities and their allocation are edited together in the designer.
+            if (item.product_type === 'yard_sign') return item;
 
             if (item.product_type === 'specialty') {
               if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) return item;
@@ -1043,7 +1046,7 @@ export const useCartStore = create<CartState>()(
           final_render_height_px: (quote as any).finalRenderHeightPx || existingItem.final_render_height_px,
           final_render_dpi: (quote as any).finalRenderDpi || existingItem.final_render_dpi,
           canvas_state_json: (quote as any).canvasStateJson || existingItem.canvas_state_json,
-          artwork_manifest: (quote as any).artworkManifest || existingItem.artwork_manifest,
+          artwork_manifest: yardMetadata ? yardMetadata.designs?.[0]?.artworkManifest : (quote as any).artworkManifest || existingItem.artwork_manifest,
           // A canonical artifact may only survive an edit when that exact edit
           // supplied it again. Reusing the previous placement after a source,
           // transform, or dimension change can put stale artwork into checkout.

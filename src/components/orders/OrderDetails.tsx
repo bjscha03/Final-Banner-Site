@@ -1,3 +1,5 @@
+import YardSignDesignList from '@/components/orders/YardSignDesignList';
+import { hasYardSignBreakdown } from '@/lib/yardSignDesigns';
 import BOFProfitAdjustments from './BOFProfitAdjustments';
 import React, { useState } from 'react';
 import { Order } from '../../lib/orders/types';
@@ -682,13 +684,13 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                 <div key={index} className="border-2 border-slate-200 rounded-xl p-4 sm:p-5 bg-white shadow-sm hover:shadow-md transition-shadow overflow-x-clip">
                   <div className="flex flex-col gap-4 min-w-0">
                     <div className="flex items-start gap-3 min-w-0">
-                      <OrderItemPreview
+                      {!hasYardSignBreakdown(item) && <OrderItemPreview
                         item={item as any}
                         compactMaxSize={112}
                         expandedMaxSize={820}
                         ariaLabel={`Open expanded ${getProductLabel(item.product_type)} ${index + 1} preview`}
                         className="flex-shrink-0"
-                      />
+                      />}
                       <div className="min-w-0 flex-1">
                         <h4 className="text-base sm:text-lg font-bold text-slate-900 break-words">
                           {getItemDisplayName(item)}
@@ -703,6 +705,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                       </div>
                     </div>
 
+                    {hasYardSignBreakdown(item) && <YardSignDesignList item={item} production={Boolean(isAdminUser)} />}
                     {isAdminUser && <OrderRealisticPreview item={item} />}
 
                     <div className="text-sm text-gray-700 space-y-1">
@@ -740,8 +743,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     </div>
 
                     {isAdminUser && item.specialty_config && <section className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3"><p className="font-semibold text-emerald-900">Approved production panels</p>{item.specialty_config.panels.map(panel=><div key={panel.id} className="rounded-lg bg-white p-3"><p className="font-bold">{panel.label}</p><p className="text-xs text-slate-600">{panel.composition.widthIn}″ × {panel.composition.heightIn}″ print area · {panel.templateId}</p><div className="mt-2 flex flex-wrap gap-4 text-sm font-semibold text-blue-800"><a href={panel.productionUrl} target="_blank" rel="noreferrer">Production PDF</a><a href={panel.artwork.productionUrl||panel.artwork.url} target="_blank" rel="noreferrer">Original artwork</a><a href={panel.preview.url} target="_blank" rel="noreferrer">Approved preview</a></div></div>)}</section>}
-                    {isAdminUser && getAIResizedArtworkSelection(item) && <AIArtworkQuality item={item} orderId={order.id} />}
-                    {isAdminUser && item.product_type!=='specialty' && item.product_type!=='banner' && !getAIResizedArtworkSelection(item) && <div className="space-y-3">
+                    {isAdminUser && !hasYardSignBreakdown(item) && getAIResizedArtworkSelection(item) && <AIArtworkQuality item={item} orderId={order.id} />}
+                    {isAdminUser && item.product_type!=='specialty' && item.product_type!=='banner' && (hasYardSignBreakdown(item) || !getAIResizedArtworkSelection(item)) && <div className="space-y-3">
                       <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                         <p className="font-semibold text-emerald-900">Generated Production PDF</p>
                         <p className="mt-1 text-xs text-emerald-800">Status: {item.generated_print_pdf_url ? 'generated' : item.production_pdf_status || 'pending'}</p>
@@ -754,7 +757,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     </div>}
 
                     <div className="space-y-2">
-                      {isAdminUser && item.product_type!=='specialty' && (() => {
+                      {isAdminUser && !hasYardSignBreakdown(item) && item.product_type!=='specialty' && (() => {
                         const downloadInfo = getBestDownloadUrl(item);
                         return downloadInfo ? (
                           <Button

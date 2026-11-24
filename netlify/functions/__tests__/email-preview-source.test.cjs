@@ -56,3 +56,19 @@ test('email preview candidates reject temporary and raw PDF sources', () => {
     [],
   );
 });
+
+test('order emails pair each yard sign preview with its saved copy count', () => {
+  const { renderItems, renderYardSignDesigns } = require('../_shared/legacy/email-template.cjs');
+  const { normalizeOrderItemDisplay } = require('../_shared/legacy/product-display-helpers.cjs');
+  const designs = [1, 2].map(n => ({
+    fileName: `page-${n}.pdf`,
+    thumbnailUrl: `https://res.cloudinary.com/dtrxl120u/image/upload/v1/uploads/design-${n}.jpg`,
+    quantity: 5,
+  }));
+  const item = { product_type: 'yard_sign', quantity: 10, yard_sign_design_count: 2, yard_sign_designs: designs };
+  const normalized = { ...normalizeOrderItemDisplay(item), quantity: 10, thumbnailUrl: 'wrong-cover.jpg' };
+  for (const html of [renderItems([normalized]), renderYardSignDesigns(normalized)]) {
+    assert.match(html, /Design 1 · 5 copies[\s\S]*design-1\.jpg[\s\S]*Design 2 · 5 copies[\s\S]*design-2\.jpg/);
+    assert.doesNotMatch(html, /wrong-cover/);
+  }
+});

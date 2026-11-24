@@ -7,6 +7,8 @@ import { useScrollToTop } from '@/components/ScrollToTop';
 import { getItemDisplayName, isYardSignItem, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
+import YardSignDesignList from '@/components/orders/YardSignDesignList';
+import { hasYardSignBreakdown } from '@/lib/yardSignDesigns';
 import OrderItemPreview from '@/components/preview/OrderItemPreview';
 import { authorizedHeaders } from '@/lib/serverAuth';
 import { consumeOrderViewCredential } from '@/lib/orderViewCredential';
@@ -292,14 +294,14 @@ const OrderDetail: React.FC = () => {
                   return (
                 <div key={index} className="border border-gray-200 rounded-lg p-4">
                   <div className="grid md:grid-cols-2 gap-4">
-                    <div className="flex gap-3">
-                      <OrderItemPreview
+                    <div className={hasYardSignBreakdown(item) ? "space-y-3" : "flex gap-3"}>
+                      {hasYardSignBreakdown(item) ? <YardSignDesignList item={item} /> : <OrderItemPreview
                         item={item as any}
                         compactMaxSize={112}
                         expandedMaxSize={820}
                         ariaLabel={`Open expanded ${normalized.productLabel} preview from order details`}
                         className="flex-shrink-0"
-                      />
+                      />}
                       <div className="flex-1">
                       <h3 className="font-medium text-gray-900 mb-2">
                         {getItemDisplayName(item)}

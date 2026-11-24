@@ -313,3 +313,5 @@
   .checkout-shipment-dates > div + div { padding-left: 7px; }
   .checkout-payment-bar { gap: 8px; }
 }
+
+.checkout-artwork-item.checkout-artwork-yard-sign { grid-template-columns: minmax(0, 1fr); }

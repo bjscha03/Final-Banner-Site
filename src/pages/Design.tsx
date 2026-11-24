@@ -395,6 +395,7 @@ const Design: React.FC = () => {
       const restoredDesigns: YardSignDesign[] = item.yard_sign_designs.map((d) => ({
         id: d.id,
         fileName: d.fileName,
+        artworkManifest: d.artworkManifest,
         fileUrl: d.fileUrl,
         fileKey: d.fileKey,
         thumbnailUrl: d.thumbnailUrl,
@@ -1982,9 +1983,10 @@ const Design: React.FC = () => {
         designs: yardSignDesigns.map(d => ({
           id: d.id,
           fileName: d.fileName,
+          artworkManifest: d.artworkManifest,
           fileUrl: d.fileUrl,
           fileKey: d.fileKey,
-          thumbnailUrl: d.previewThumbnailUrl || d.thumbnailUrl,
+          thumbnailUrl: d.thumbnailUrl,
           isPdf: d.isPdf,
           quantity: d.quantity,
           imgScale: d.imgScale,
@@ -2026,6 +2028,7 @@ const Design: React.FC = () => {
       });
 
       quoteStore.set({
+        artworkManifest: primaryDesign.artworkManifest,
         widthIn: YARD_SIGN_WIDTH_IN,
         heightIn: YARD_SIGN_HEIGHT_IN,
         quantity: yardSignTotalQty,
@@ -3119,7 +3122,7 @@ const Design: React.FC = () => {
 
                 <button
                   onClick={handleCheckout}
-                  disabled={yardSignDesigns.length === 0 || yardSignTotalQty === 0 || !yardSignQuantityValid.valid}
+                  disabled={yardSignUploadStatus.isUploading || yardSignDesigns.length === 0 || yardSignTotalQty === 0 || !yardSignQuantityValid.valid}
                   className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
                     yardSignDesigns.length > 0 && yardSignTotalQty > 0 && yardSignQuantityValid.valid
                       ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30'
@@ -3131,7 +3134,7 @@ const Design: React.FC = () => {
                 </button>
                 <button
                   onClick={handleAddToCart}
-                  disabled={yardSignDesigns.length === 0 || yardSignTotalQty === 0 || !yardSignQuantityValid.valid}
+                  disabled={yardSignUploadStatus.isUploading || yardSignDesigns.length === 0 || yardSignTotalQty === 0 || !yardSignQuantityValid.valid}
                   className={`w-full font-semibold text-base py-4 rounded-xl border-2 transition-all duration-200 ${
                     yardSignDesigns.length > 0 && yardSignTotalQty > 0 && yardSignQuantityValid.valid
                       ? 'border-slate-300 text-slate-800 hover:bg-slate-50'

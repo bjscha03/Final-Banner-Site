@@ -1,3 +1,5 @@
+import YardSignDesignList from '@/components/orders/YardSignDesignList';
+import { hasYardSignBreakdown } from '@/lib/yardSignDesigns';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
@@ -327,19 +329,19 @@ const PaymentSuccess: React.FC = () => {
                     return (
                     <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
                       <div className="flex justify-between items-start gap-4">
-                        <OrderItemPreview
+                        {!hasYardSignBreakdown(item) && <OrderItemPreview
                           item={item as any}
                           compactMaxSize={112}
                           expandedMaxSize={820}
                           ariaLabel={`Open expanded ${normalized.productLabel} preview from payment confirmation`}
                           className="flex-shrink-0"
-                        />
+                        />}
                         <div className="flex-1">
                           <p className="font-medium">{getItemDisplayName(item)} <span className="ml-1 inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">{normalized.productLabel}</span></p>
                           <p className="text-sm text-gray-600 mt-1">
                             {`Size: ${normalized.sizeDisplay} • Material: ${normalized.materialDisplay} • Print: ${normalized.printDisplay}`}
                           </p>
-                          {normalized.uploadedDesignsCount ? <p className="text-sm text-gray-600">Uploaded Designs: {normalized.uploadedDesignsCount}</p> : null}
+                          {hasYardSignBreakdown(item) ? <YardSignDesignList item={item} /> : normalized.uploadedDesignsCount ? <p className="text-sm text-gray-600">Uploaded Designs: {normalized.uploadedDesignsCount}</p> : null}
                           {normalized.stepStakesQty ? <p className="text-sm text-gray-600">Step Stakes: {normalized.stepStakesQty}</p> : null}
                           {normalized.productType === 'banner' ? (
                             <>

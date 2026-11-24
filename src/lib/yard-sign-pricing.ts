@@ -14,7 +14,7 @@
 import { getProductConfig, type PredefinedSize, type MaterialMultiplier } from './products';
 import { productDisplayPrice } from './specialtyDisplayPrice';
 import type { PromoDiscountInput } from './discount-resolver';
-import type { PlacementPreviewManifest } from '@/types/artwork';
+import type { ArtworkManifest, PlacementPreviewManifest } from '@/types/artwork';
 
 const YARD_SIGN_SLUG = 'yard_sign';
 
@@ -34,6 +34,7 @@ export type YardSignSidedness = 'single' | 'double';
 export interface YardSignDesign {
   id: string;
   fileName: string;
+  artworkManifest?: ArtworkManifest;
   fileUrl: string;
   fileKey: string;
   thumbnailUrl: string;
@@ -126,6 +127,13 @@ export function calcYardSignPricing(
  */
 export function getTotalDesignQuantity(designs: YardSignDesign[]): number {
   return designs.reduce((sum, d) => sum + d.quantity, 0);
+}
+
+export function splitYardSignCopies(designs: YardSignDesign[], total: number): YardSignDesign[] {
+  return designs.map((design, index) => ({
+    ...design,
+    quantity: Math.floor(total / designs.length) + (index < total % designs.length ? 1 : 0),
+  }));
 }
 
 /** Move copies between artworks without changing the customer's order quantity. */

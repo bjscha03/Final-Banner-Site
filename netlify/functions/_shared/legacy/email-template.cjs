@@ -87,6 +87,18 @@ function getFinalizedThumbnailUrl(item, maxWidth = 240) {
   return directUrl;
 }
 
+function renderYardSignDesigns(item) {
+  if (!Array.isArray(item.yard_sign_designs)) return '';
+  return item.yard_sign_designs.map((design, index) => {
+    const qty = Number(design?.quantity);
+    const copies = Number.isInteger(qty) && qty > 0 ? `${qty} ${qty === 1 ? 'copy' : 'copies'}` : 'Copies unspecified';
+    const label = `Design ${index + 1} · ${copies}`;
+    const preview = getFinalizedThumbnailUrl({ product_type: 'yard_sign', yard_sign_designs: [design] });
+    return `<p style="margin:8px 0 2px;color:#0f172a;font-size:13px;font-weight:600;">${label}</p>
+      ${preview ? `<img src="${escapeHtml(preview)}" alt="Yard sign design ${index + 1}" width="140" style="display:block;max-width:100%;height:auto;" />` : ''}`;
+  }).join('');
+}
+
 function renderItems(items = []) {
   if (!items.length) return '';
   return `
@@ -94,7 +106,8 @@ function renderItems(items = []) {
       ${items.map((item) => {
         const isYardSign = item.product_type === 'yard_sign' || item.productType === 'yard-sign';
         const isCarMagnet = item.product_type === 'car_magnet' || item.productType === 'car-magnet';
-        const thumbnail = item.thumbnailUrl || null;
+        const designBreakdown = isYardSign ? renderYardSignDesigns(item) : '';
+        const thumbnail = designBreakdown ? null : item.thumbnailUrl;
         const quantity = Number(item.quantity || 0);
         const lineTotal = Number(item.lineTotal ?? item.price ?? 0);
         const unitPrice = Number(item.unitPrice ?? (quantity > 0 ? lineTotal / quantity : 0));
@@ -115,7 +128,8 @@ function renderItems(items = []) {
                     ${item.materialDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Material: ${escapeHtml(item.materialDisplay)}</p>` : ''}
                     ${item.printDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Print: ${escapeHtml(item.printDisplay)}</p>` : ''}
                     <p style="margin:0 0 4px;color:#475569;font-size:13px;">Qty: ${quantity}</p>
-                    ${item.uploadedDesignsCount ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Uploaded Designs: ${Number(item.uploadedDesignsCount)}</p>` : ''}
+                    ${designBreakdown}
+                    ${item.uploadedDesignsCount && !designBreakdown ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Uploaded Designs: ${Number(item.uploadedDesignsCount)}</p>` : ''}
                     ${item.stepStakesQty ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Step Stakes: ${Number(item.stepStakesQty)}</p>` : ''}
                     ${(!isYardSign && !isCarMagnet && item.product_type!=='specialty') ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Grommets: ${escapeHtml(item.grommetsDisplay || 'None')}</p>
                     <p style="margin:0 0 2px;color:#64748b;font-size:12px;">Pole Pockets: ${escapeHtml(item.polePocketsDisplay || 'None')}</p>
@@ -253,6 +267,7 @@ module.exports = {
   normalizeName,
   getFinalizedThumbnailUrl,
   renderItems,
+  renderYardSignDesigns,
   renderTotals,
   renderAddress,
   renderEmailLayout,

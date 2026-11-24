@@ -32,6 +32,8 @@ export interface OrderItem {
   pole_pocket_pricing_mode?: 'per_item' | 'per_order';
   rope_cost_cents?: number;
   rope_pricing_mode?: 'per_item' | 'per_order';
+  yard_sign_design_count?: number;
+  yard_sign_designs?: import('../yardSignDesigns').SavedYardSignDesign[];
   yard_sign_sidedness?: 'single' | 'double' | null;
   yard_sign_step_stakes_enabled?: boolean;
   yard_sign_step_stakes_qty?: number;

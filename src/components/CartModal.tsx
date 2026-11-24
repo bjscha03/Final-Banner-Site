@@ -1,3 +1,5 @@
+import YardSignDesignList from '@/components/orders/YardSignDesignList';
+import { hasYardSignBreakdown } from '@/lib/yardSignDesigns';
 import SpecialtyCartDelivery from '@/components/delivery/SpecialtyCartDelivery';
 import SavedSpecialtyPreview from '@/components/specialty/SavedSpecialtyPreview';
 import {specialtyItemHasIncludedShipping, specialtyItemHasVerifiedPrice} from '@/lib/specialtyProducts';
@@ -387,7 +389,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                   return (
                     <div key={item.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-lg transition-shadow hover:shadow-xl">
                       <div className="mb-4 flex justify-center">
-                        {item.product_type === 'specialty' && item.specialty_config ? <SavedSpecialtyPreview configuration={item.specialty_config} /> : <ThumbnailPreviewWrapper
+                        {hasYardSignBreakdown(item) ? <YardSignDesignList item={item} /> : item.product_type === 'specialty' && item.specialty_config ? <SavedSpecialtyPreview configuration={item.specialty_config} /> : <ThumbnailPreviewWrapper
                           title={getItemDisplayName(item)}
                           widthIn={item.width_in}
                           heightIn={item.height_in}
@@ -497,6 +499,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                       <div className="flex items-center justify-between border-t border-gray-200 pt-3">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-medium text-gray-700">Qty:</span>
+                          {item.product_type === 'yard_sign' ? <strong>{item.quantity}</strong> : (
                           <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1">
                             <button
                               onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
@@ -516,9 +519,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                               <Plus className="h-3.5 w-3.5 text-gray-700" />
                             </button>
                           </div>
+                          )}
                         </div>
 
-                        <button type="button" onClick={() => { onClose(); navigate(cartEditUrl(item)); }} className="min-h-11 rounded-lg px-3 text-sm font-semibold text-blue-800 hover:bg-blue-50">Edit {item.product_type === 'banner' || !item.product_type ? 'banner' : 'design'}</button>
+                        <button type="button" onClick={() => { onClose(); navigate(cartEditUrl(item)); }} className="min-h-11 rounded-lg px-3 text-sm font-semibold text-blue-800 hover:bg-blue-50">Edit {item.product_type === 'yard_sign' ? 'designs & quantities' : item.product_type === 'banner' || !item.product_type ? 'banner' : 'design'}</button>
                         <button
                           onClick={() => removeItem(item.id)}
                           className="flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-100"

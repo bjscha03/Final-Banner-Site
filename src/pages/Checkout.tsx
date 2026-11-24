@@ -1,3 +1,5 @@
+import YardSignDesignList from '@/components/orders/YardSignDesignList';
+import { getYardSignDesigns, hasYardSignBreakdown, yardSignCopiesMatch } from '@/lib/yardSignDesigns';
 import SavedSpecialtyPreview from '@/components/specialty/SavedSpecialtyPreview';
 import {specialtyItemHasIncludedShipping, specialtyItemHasVerifiedPrice, specialtyItemPrice} from '@/lib/specialtyProducts';
 import BOFCashCheckout from '@/components/checkout/BOFCashCheckout';
@@ -403,15 +405,17 @@ const Checkout: React.FC = () => {
   // Yard sign quantity validation at checkout
   const yardSignItems = items.filter(item => isYardSignItem(item));
   const yardSignOverLimit = yardSignItems.some(item => item.quantity > 90);
-  const yardSignNoArtwork = yardSignItems.some(item => !item.yard_sign_design_count || item.yard_sign_design_count === 0);
+  const yardSignNoArtwork = yardSignItems.some(item => !getYardSignDesigns(item).length && !item.yard_sign_design_count);
+  const yardSignCopiesInvalid = yardSignItems.some(item => !yardSignCopiesMatch(item));
   const yardSignNotMultipleOf10 = yardSignItems.some(item => item.quantity < 10 || item.quantity % 10 !== 0);
-  const yardSignInvalid = yardSignOverLimit || yardSignNoArtwork || yardSignNotMultipleOf10;
+  const yardSignInvalid = yardSignOverLimit || yardSignNoArtwork || yardSignNotMultipleOf10 || yardSignCopiesInvalid;
   const yardSignValidationMessage = yardSignOverLimit
     ? 'Maximum 90 signs per order for 24-hour production. Please place multiple orders.'
     : yardSignNotMultipleOf10
     ? 'Yard signs must be ordered in increments of 10 (10, 20, 30, etc.).'
     : yardSignNoArtwork
     ? 'Please upload at least one design for your yard sign order.'
+    : yardSignCopiesInvalid ? 'Edit your yard sign designs and quantities so the copies add up to your total.'
     : '';
 
   const specialtyInCart = items.some(item => item.product_type === 'specialty');
@@ -917,7 +921,7 @@ const Checkout: React.FC = () => {
                     return (
                     <div key={item.id} className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)] last:mb-0 sm:p-5">
                       <div className="grid gap-5 md:grid-cols-[200px_minmax(0,1fr)] md:items-start lg:gap-6">
-                        {item.product_type === 'specialty' && item.specialty_config ? <SavedSpecialtyPreview configuration={item.specialty_config} /> : isYardSign ? (
+                        {item.product_type === 'specialty' && item.specialty_config ? <SavedSpecialtyPreview configuration={item.specialty_config} /> : hasYardSignBreakdown(item) ? <YardSignDesignList item={item} /> : isYardSign ? (
                           <div className="flex justify-center shrink-0">
                             <ThumbnailPreviewWrapper
                               title={getItemDisplayName(item)}
@@ -1075,6 +1079,7 @@ const Checkout: React.FC = () => {
                       <div className="flex flex-wrap items-center justify-between gap-3 pt-3 mt-4 border-t border-gray-100">
                         <div className="flex items-center gap-2.5">
                           <span className="text-sm text-gray-800 font-semibold">Qty</span>
+                          {isYardSign ? <strong>{item.quantity}</strong> : (
                           <div className="flex items-center gap-2">
                             <Button
                               variant="outline"
@@ -1098,9 +1103,10 @@ const Checkout: React.FC = () => {
                               <Plus className="h-4 w-4" />
                             </Button>
                           </div>
+                          )}
                         </div>
 
-                        <Button variant="outline" disabled={checkoutLocked} onClick={() => navigate(cartEditUrl(item))} className="min-h-11">Edit {item.product_type === 'banner' || !item.product_type ? 'banner' : 'design'}</Button>
+                        <Button variant="outline" disabled={checkoutLocked} onClick={() => navigate(cartEditUrl(item))} className="min-h-11">Edit {isYardSign ? 'designs & quantities' : item.product_type === 'banner' || !item.product_type ? 'banner' : 'design'}</Button>
                         <Button
                           variant="ghost"
                           size="sm"

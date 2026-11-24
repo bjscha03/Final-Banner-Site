@@ -5,6 +5,7 @@ const {
   normalizeName,
   getFinalizedThumbnailUrl,
   renderItems,
+  renderYardSignDesigns,
   renderTotals,
   renderAddress,
   renderEmailLayout,
@@ -130,6 +131,7 @@ function createAdminOrderEmailHtml(payload) {
       : isCarMagnet
         ? `<span style="display: inline-block; background-color: #fff7ed; color: #9a3412; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; margin-bottom: 4px;">🚗 Car Magnets</span>`
         : `<span style="display: inline-block; background-color: #eff6ff; color: #1e40af; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; margin-bottom: 4px;">🏷️ Banner</span>`;
+    const designBreakdown = isYardSign ? renderYardSignDesigns(item) : '';
     const imgAlt = item.product_type==='specialty'?escapeHtml(item.name):isYardSign ? 'Yard Sign' : isCarMagnet ? 'Car Magnets' : 'Banner';
 
     return `
@@ -137,7 +139,7 @@ function createAdminOrderEmailHtml(payload) {
       <td style="padding: 16px; border-bottom: 1px solid #f3f4f6;">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
           <tr>
-            ${item.thumbnailUrl ? `
+            ${!designBreakdown && item.thumbnailUrl ? `
             <td style="width: 80px; vertical-align: top; padding-right: 16px;">
               <img src="${item.thumbnailUrl}" alt="${imgAlt}" width="80" style="border-radius: 6px; border: 1px solid #e5e7eb; display: block;" />
             </td>
@@ -151,6 +153,7 @@ function createAdminOrderEmailHtml(payload) {
                 </tr>
               </table>
               <p style="margin: 2px 0; font-size: 13px; color: #6b7280;">Qty: ${item.quantity}</p>
+              ${designBreakdown}
               ${item.options ? `<p style="margin: 4px 0 0; font-size: 13px; color: #6b7280;">${item.options}</p>` : ''}
               ${item.design_service_enabled ? `
                 <span style="display: inline-block; background-color: #faf5ff; color: #7c3aed; font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 4px; margin-top: 8px;">✨ Design Service</span>

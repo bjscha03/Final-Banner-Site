@@ -1,3 +1,5 @@
+import YardSignDesignList from '@/components/orders/YardSignDesignList';
+import { hasYardSignBreakdown } from '@/lib/yardSignDesigns';
 import React, { useState } from 'react';
 import type { CartItem } from '@/store/cart';
 import BannerPreview from '@/components/cart/StableBannerPreview';
@@ -58,13 +60,13 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction, 
             compositionSignature: item.placement_preview?.compositionSignature || item.composition_signature,
           };
           return (
-            <div key={item.id} className="checkout-artwork-item" data-checkout-artwork-item={item.id}>
+            <div key={item.id} className={`checkout-artwork-item${hasYardSignBreakdown(item) ? ' checkout-artwork-yard-sign' : ''}`} data-checkout-artwork-item={item.id}>
               {hasRealisticPreview && expandedItems[item.id] && <div className="checkout-preview-mode" role="group" aria-label={`Preview style for item ${index + 1}`}>
                 <button type="button" aria-pressed={showRealisticPreview} onClick={() => setPrintLayoutItems(current => ({ ...current, [item.id]: false }))}>Realistic preview</button>
                 <button type="button" aria-pressed={!showRealisticPreview} onClick={() => setPrintLayoutItems(current => ({ ...current, [item.id]: true }))}>Print layout</button>
               </div>}
               <div className={`checkout-artwork-image${item.product_type === 'specialty' ? ' checkout-artwork-image-specialty' : ''}`} style={{ "--checkout-artwork-ratio": item.width_in / item.height_in } as React.CSSProperties}>
-                {item.product_type === 'specialty' && item.specialty_config ? <SavedSpecialtyPreview configuration={item.specialty_config} /> : <ThumbnailPreviewWrapper
+                {hasYardSignBreakdown(item) ? <YardSignDesignList item={item} /> : item.product_type === 'specialty' && item.specialty_config ? <SavedSpecialtyPreview configuration={item.specialty_config} /> : <ThumbnailPreviewWrapper
                   title={title}
                   widthIn={item.width_in}
                   heightIn={item.height_in}

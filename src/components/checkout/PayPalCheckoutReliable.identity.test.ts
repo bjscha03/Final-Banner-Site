@@ -70,6 +70,15 @@ describe('PayPal checkout artwork identity', () => {
     expect(signature(changed)).not.toBe(signature(baseItem));
   });
 
+  it('starts a new checkout when just the yard sign copy split changes', () => {
+    const yard = { ...baseItem, product_type: 'yard_sign', quantity: 10 };
+    const designs = (a: number, b: number) => [
+      { id: 'first', fileKey: 'first', quantity: a }, { id: 'second', fileKey: 'second', quantity: b },
+    ];
+    expect(signature({ ...yard, yard_sign_designs: designs(5, 5) }))
+      .not.toBe(signature({ ...yard, yard_sign_designs: designs(6, 4) }));
+  });
+
   it('is deterministic for equivalent checkout input', () => {
     expect(signature(structuredClone(baseItem))).toBe(signature(baseItem));
   });
