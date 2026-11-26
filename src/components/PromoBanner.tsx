@@ -1,5 +1,6 @@
 import React from 'react';
 import { Package, Truck } from 'lucide-react';
+import { useThanksgivingSchedule } from '@/hooks/useThanksgivingSchedule';
 
 interface PromoBannerProps {
   showStandardPromo?: boolean;
@@ -13,6 +14,24 @@ export const isLaborDayShippingNoticeActive = (now = Date.now()): boolean => (
 );
 
 const PromoBanner: React.FC<PromoBannerProps> = ({ showStandardPromo = false }) => {
+  const thanksgiving = useThanksgivingSchedule();
+  if (thanksgiving) {
+    return (
+      <aside aria-label="Thanksgiving shipping schedule" className="relative z-[60] border-b border-orange-200 bg-orange-50 text-[#061A31]">
+        <div className="mx-auto flex max-w-[1740px] flex-col items-center justify-center gap-2 px-4 py-3 text-center sm:flex-row sm:gap-5 sm:px-6 sm:py-4">
+          <div className="flex shrink-0 items-center gap-2 text-base font-black sm:text-lg">
+            <Truck aria-hidden="true" className="h-6 w-6 text-[#c94e00]" />
+            <span>Thanksgiving <span className="text-[#c94e00]">Schedule</span></span>
+          </div>
+          <div className="max-w-3xl text-sm leading-relaxed sm:text-base">
+            <p>Banners, yard signs &amp; car magnets ordered <strong>Wednesday 11/25–Sunday 11/29</strong></p>
+            <p>Ship <strong>Monday 11/30</strong> · Expected delivery <strong className="rounded bg-orange-200 px-1.5 py-0.5 text-[#061A31]">Tuesday 12/1</strong></p>
+            <p className="mt-1 text-sm text-slate-600">Eastern Time · Artwork must be approved. Displays &amp; signs follow the dates shown at checkout.</p>
+          </div>
+        </div>
+      </aside>
+    );
+  }
   if (isLaborDayShippingNoticeActive()) {
     return (
       <aside

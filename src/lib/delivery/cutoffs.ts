@@ -22,6 +22,21 @@ export const HIT_OPEN  = { hour: 22, minute: 1 } as const;
 /** Window closes AT 1:00 PM ET (exclusive). 1:00:00 PM ET is closed. */
 export const HIT_CLOSE = { hour: 13, minute: 0 } as const;
 
+/** Signs365 holiday schedule, scoped to orders placed in Eastern Time.
+ * Wednesday is an order cutoff, not a carrier blackout: earlier orders can
+ * still ship Wednesday. Displays/signs retain their separate production rules.
+ */
+export const THANKSGIVING_SCHEDULE = {
+  startDate: '2026-11-25',
+  endDateExclusive: '2026-11-30',
+  shipAt: '2026-11-30T17:00:00Z',
+  resumesAt: '2026-11-30T05:00:00Z',
+} as const;
+
+export function isThanksgivingOrderWindow(ymd: string): boolean {
+  return ymd >= THANKSGIVING_SCHEDULE.startDate && ymd < THANKSGIVING_SCHEDULE.endDateExclusive;
+}
+
 /**
  * Holidays that should be treated like weekends — production cannot occur,
  * shipments do not move. Format: 'YYYY-MM-DD' anchored to ET.
@@ -29,5 +44,6 @@ export const HIT_CLOSE = { hour: 13, minute: 0 } as const;
 export const BLACKOUT_DATES: string[] = [
   // '2026-01-01', // New Year's Day
   '2026-09-07', // Labor Day (production/carrier blackout)
+  '2026-11-26', // Thanksgiving
   // '2026-12-25', // Christmas
 ];

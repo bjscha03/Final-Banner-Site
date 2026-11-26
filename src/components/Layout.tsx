@@ -33,7 +33,7 @@ const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false, compact
   return (
     <div className="brand-page max-w-[100vw] overflow-x-clip">
       <ScrollToTop />
-      {!isCheckout && !location.pathname.startsWith('/admin') && <PromoBanner showStandardPromo={isHomepage} />}
+      {!location.pathname.startsWith('/admin') && <PromoBanner showStandardPromo={isHomepage} />}
       {isCheckout ? <header data-site-header data-checkout-header className="checkout-simple-header">
         <div><img src="/images/bof-logo-20261101.png" alt="Banners On The Fly" width="248" height="58" /><span><Lock aria-hidden="true" />Secure checkout</span></div>
       </header> : <Header compactMobile={compactMobileHeader} cartCount={hasMounted ? getItemCount() : 0} onCartClick={openCart} />}

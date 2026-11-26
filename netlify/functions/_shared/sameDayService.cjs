@@ -3,6 +3,8 @@
  * for Netlify functions. Keep this in sync with the TS originals.
  */
 
+const { BLACKOUT_DATES, isThanksgivingOrderWindow } = require('./delivery/cutoffs.cjs');
+
 const sameDayConfig = {
   enabled: true,
   cutoffHour: 13,
@@ -63,6 +65,8 @@ function isSameDayWindowOpen(now, cfg) {
   cfg = cfg || sameDayConfig;
   if (!cfg.enabled) return false;
   const p = getEasternTimeParts(now);
+  const orderDate = p.display.slice(0, 10);
+  if (isThanksgivingOrderWindow(orderDate) || BLACKOUT_DATES.includes(orderDate)) return false;
 
   // Keep add-on availability on qualifying weekdays (including Friday)
   // until the configured ET cutoff.

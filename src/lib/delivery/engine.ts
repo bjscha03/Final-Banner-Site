@@ -23,7 +23,7 @@
  */
 
 import { addDaysET, atETClock, ETParts, etPartsOf, nowET } from './timezone';
-import { BLACKOUT_DATES, HIT_CLOSE, HIT_OPEN, STANDARD_CUTOFF } from './cutoffs';
+import { BLACKOUT_DATES, HIT_CLOSE, HIT_OPEN, STANDARD_CUTOFF, THANKSGIVING_SCHEDULE, isThanksgivingOrderWindow } from './cutoffs';
 
 // ---------------------------------------------------------------------------
 // Calendar helpers
@@ -92,6 +92,7 @@ function isCalendarWeekendLock(parts: ETParts): boolean {
  * shipment date is computed via `nextBusinessDay`.
  */
 export function isWeekendLock(parts: ETParts, blackoutDates: string[] = BLACKOUT_DATES): boolean {
+  if (isThanksgivingOrderWindow(parts.ymd)) return true;
   if (isBlackout(parts, blackoutDates)) return true;
   return isCalendarWeekendLock(parts);
 }
@@ -137,6 +138,9 @@ export function isHitAvailable(parts: ETParts, blackoutDates: string[] = BLACKOU
  *     branch will already have caught Sat/Sun; this catches blackout days).
  */
 export function getStandardShipDate(now: ETParts, blackoutDates: string[] = BLACKOUT_DATES): ETParts {
+  if (isThanksgivingOrderWindow(now.ymd)) {
+    return ensureBusinessDay(etPartsOf(new Date(THANKSGIVING_SCHEDULE.shipAt)), blackoutDates);
+  }
   if (isWeekendLock(now, blackoutDates)) {
     // A blackout day that isn't itself part of the calendar weekend rule
     // (e.g. a Monday holiday) should advance straight to the next business
@@ -251,6 +255,9 @@ export interface DeliveryEstimate {
  * Compute the next cutoff time (UTC instant) given the current state.
  */
 function computeNextCutoff(now: ETParts, state: DeliveryState, blackoutDates: string[]): { at: Date; kind: DeliveryEstimate['cutoffKind'] } {
+  if (isThanksgivingOrderWindow(now.ymd)) {
+    return { at: new Date(THANKSGIVING_SCHEDULE.resumesAt), kind: 'weekend_unlock_mon' };
+  }
   // Weekend lock: count down to Monday 00:00 ET (or the next non-blackout
   // business day at midnight ET — i.e. the next moment HIT could re-open).
   if (state === 'weekend_lock') {
@@ -316,6 +323,7 @@ export function getDeliveryEstimate(input: DeliveryEstimateInput = {}): Delivery
   // The standard weekend schedule still applies unless Friday HIT is selected.
   // Rush production accepts Friday orders before 1 PM ET independently of it.
   const fridayHitSelected = isHitSelected && now.dayOfWeek === 5
+    && !isThanksgivingOrderWindow(now.ymd)
     && cmpClock(now, HIT_CLOSE) < 0 && isBusinessDay(now, blackoutDates);
   const weekendLock = isWeekendLock(now, blackoutDates) && !fridayHitSelected;
   const hitWindowOpen = isHitWindowOpen(now);
