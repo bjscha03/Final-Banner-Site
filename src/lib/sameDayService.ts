@@ -14,6 +14,7 @@ import {
   SameDayConfig,
   SameDayProductKey,
 } from './sameDayConfig';
+import { BLACKOUT_DATES, isThanksgivingOrderWindow } from './delivery/cutoffs';
 
 export interface EasternTimeParts {
   /** ET hour 0..23 */
@@ -79,7 +80,9 @@ export function getEasternTimeParts(now: Date = new Date()): EasternTimeParts {
  */
 export function isSameDayWindowOpen(now: Date = new Date(), cfg: SameDayConfig = sameDayConfig): boolean {
   if (!cfg.enabled) return false;
-  const { hour, minute, dayOfWeek } = getEasternTimeParts(now);
+  const { hour, minute, dayOfWeek, display } = getEasternTimeParts(now);
+  const orderDate = display.slice(0, 10);
+  if (isThanksgivingOrderWindow(orderDate) || BLACKOUT_DATES.includes(orderDate)) return false;
 
   // Same-Day add-on availability is intentionally broader than the shipping
   // timer's weekend-lock state. Keep this offer available on qualifying

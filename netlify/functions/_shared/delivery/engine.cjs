@@ -53,6 +53,8 @@ function isCalendarWeekendLock(parts) {
     return false;
 }
 function isWeekendLock(parts, blackoutDates = cutoffs_1.BLACKOUT_DATES) {
+    if ((0, cutoffs_1.isThanksgivingOrderWindow)(parts.ymd))
+        return true;
     if (isBlackout(parts, blackoutDates))
         return true;
     return isCalendarWeekendLock(parts);
@@ -69,6 +71,9 @@ function isHitAvailable(parts, blackoutDates = cutoffs_1.BLACKOUT_DATES) {
     return isHitWindowOpen(parts) && !isWeekendLock(parts, blackoutDates);
 }
 function getStandardShipDate(now, blackoutDates = cutoffs_1.BLACKOUT_DATES) {
+    if ((0, cutoffs_1.isThanksgivingOrderWindow)(now.ymd)) {
+        return ensureBusinessDay((0, timezone_1.etPartsOf)(new Date(cutoffs_1.THANKSGIVING_SCHEDULE.shipAt)), blackoutDates);
+    }
     if (isWeekendLock(now, blackoutDates)) {
         if (!isCalendarWeekendLock(now)) {
             return nextBusinessDay(now, blackoutDates);
@@ -103,6 +108,9 @@ function getDeliveryDate(shipDate, blackoutDates = cutoffs_1.BLACKOUT_DATES) {
     return nextBusinessDay(shipDate, blackoutDates);
 }
 function computeNextCutoff(now, state, blackoutDates) {
+    if ((0, cutoffs_1.isThanksgivingOrderWindow)(now.ymd)) {
+        return { at: new Date(cutoffs_1.THANKSGIVING_SCHEDULE.resumesAt), kind: 'weekend_unlock_mon' };
+    }
     if (state === 'weekend_lock') {
         let p = (0, timezone_1.addDaysET)(now, 1);
         while (!isBusinessDay(p, blackoutDates)) {
@@ -143,6 +151,7 @@ function getDeliveryEstimate(input = {}) {
     const now = input.nowET ?? (0, timezone_1.nowET)();
     const isHitSelected = !!input.isHitSelected;
     const fridayHitSelected = isHitSelected && now.dayOfWeek === 5
+        && !(0, cutoffs_1.isThanksgivingOrderWindow)(now.ymd)
         && cmpClock(now, cutoffs_1.HIT_CLOSE) < 0 && isBusinessDay(now, blackoutDates);
     const weekendLock = isWeekendLock(now, blackoutDates) && !fridayHitSelected;
     const hitWindowOpen = isHitWindowOpen(now);

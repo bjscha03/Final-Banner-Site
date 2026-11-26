@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { Clock, Zap } from 'lucide-react';
 import { useCartStore } from '@/store/cart';
 import { useToast } from '@/components/ui/use-toast';
@@ -64,11 +64,9 @@ const SameDayHitServiceCard: React.FC<SameDayHitServiceCardProps> = ({
 
   // When the ET clock crosses 1:00 PM (or eligibility is otherwise lost),
   // clear flags and notify the user exactly once per transition.
-  const lastWindowOpenRef = useRef<boolean>(evalResult.windowOpen);
   useEffect(() => {
-    const wasOpen = lastWindowOpenRef.current;
-    lastWindowOpenRef.current = evalResult.windowOpen;
-    if (wasOpen && !evalResult.windowOpen && (sameDayHitService || saturdayDelivery)) {
+    // Also reconcile restored carts first opened during a holiday closure.
+    if (!disabled && !evalResult.windowOpen && (sameDayHitService || saturdayDelivery)) {
       const result = reconcileSameDayHitService();
       if (result.cleared) {
         toast({
@@ -77,7 +75,7 @@ const SameDayHitServiceCard: React.FC<SameDayHitServiceCardProps> = ({
         });
       }
     }
-  }, [evalResult.windowOpen, sameDayHitService, saturdayDelivery, reconcileSameDayHitService, toast]);
+  }, [disabled, evalResult.windowOpen, sameDayHitService, saturdayDelivery, reconcileSameDayHitService, toast]);
 
   // Closed-window state: hide the card entirely. When Same-Day Hit Service is
   // not available based on Eastern Time logic, render nothing — no greyed-out
